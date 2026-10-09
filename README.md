@@ -7,7 +7,7 @@
 |---|---|
 | （まだありません） | |
 
-- **公開予定**: https://sishiya.github.io/asobi-lab/ （GitHub Pages）
+- **公開中**: https://sishiya.github.io/asobi-lab/ （GitHub Pages。push で更新）
 
 ## はじめてクローンしたとき
 
