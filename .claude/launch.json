@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "games",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ".claude/serve.ps1", "-Port", "8780"],
+      "port": 8780
+    },
+    {
+      "name": "games-2",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ".claude/serve.ps1", "-Port", "8781"],
+      "port": 8781
+    }
+  ]
+}

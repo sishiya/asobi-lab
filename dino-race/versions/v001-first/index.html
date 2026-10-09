@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>恐竜かけっこ牧場</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23b3471d'/><path d='M10 36c4-12 18-18 32-15 6 1 11 5 12 10l-2 3H40l-4 5H22l-8 4z' fill='%23fff8ea' stroke='%23fff8ea' stroke-width='2' stroke-linejoin='round'/><circle cx='22' cy='29' r='3.5' fill='%23b3471d'/><ellipse cx='34' cy='29' rx='4' ry='2.5' fill='%23b3471d'/><path d='M40 34l1 4M44 34l1 4M48 34l1 3' stroke='%23b3471d' stroke-width='1.6'/></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="top">
+  <a class="back" href="../../launcher.html">← 過去の版の一覧</a>
+  <h1>恐竜かけっこ牧場</h1>
+  <span class="tag">試作</span>
+</header>
+
+<main>
+  <section class="stage">
+    <canvas id="view" aria-label="恐竜が走るようす"></canvas>
+    <div class="hud">
+      <span id="hudText">牧場の恐竜を選んで、かけっこさせてみましょう</span>
+      <span class="hud-tools">
+        <span class="seg" id="speedSeg" role="group" aria-label="再生の速さ"><button type="button" data-speed="0.5">×0.5</button><button type="button" data-speed="1" aria-pressed="true">×1</button><button type="button" data-speed="3">×3</button></span>
+        <button type="button" id="btnStopView" hidden>とめる</button>
+      </span>
+    </div>
+    <div id="result" class="result" hidden></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>牧場 <span class="n" id="ranchCount"></span></h2>
+      <p class="hint" id="selHint">カードを押して選ぶ（かけっこは4匹まで、かけ合わせは2匹、おまかせは1匹）</p>
+    </div>
+    <div class="actions">
+      <button type="button" class="primary" id="btnRace">かけっこ 100m</button>
+      <button type="button" id="btnBreed">かけ合わせる</button>
+      <button type="button" id="btnEvolve">おまかせで進化</button>
+      <button type="button" id="btnRelease" class="quiet">逃がす</button>
+    </div>
+    <div class="cards" id="ranch"></div>
+  </section>
+
+  <section class="panel" id="nurserySec" hidden>
+    <div class="panel-head">
+      <h2 id="nurseryTitle">生まれた子</h2>
+      <p class="hint">記録を見て、残す子を選ぶ。転んだ子も「練習させる」と走れるようになることがあります。残さなかった子は逃がします。</p>
+    </div>
+    <div class="cards" id="nursery"></div>
+    <div class="actions"><button type="button" id="btnNurseryDone" class="quiet">残りは逃がして閉じる</button></div>
+  </section>
+
+  <section class="panel" id="evolveSec" hidden>
+    <div class="panel-head">
+      <h2>おまかせで進化</h2>
+      <p class="hint" id="evolveHint"></p>
+    </div>
+    <div class="evolve-set" id="evolveSet">
+      <label>世代 <select id="selGens"><option selected>10</option><option>30</option><option>100</option></select></label>
+      <label><input type="checkbox" id="chkBody"> 体の形も変える</label>
+      <button type="button" class="primary" id="btnEvolveGo">はじめる</button>
+      <button type="button" class="quiet" id="btnEvolveCancel">やめる</button>
+    </div>
+    <div class="evolve-run" id="evolveRun" hidden>
+      <canvas id="evoChart" aria-label="世代ごとの記録のグラフ"></canvas>
+      <p class="evo-stat" id="evoStat"></p>
+      <button type="button" id="btnEvolveStop">ここでやめて、いちばん速い子を連れて帰る</button>
+    </div>
+  </section>
+
+  <details class="about">
+    <summary>このゲームについて</summary>
+    <div class="about-body">
+      <p>恐竜の体（骨の長さの比率・大きさ・筋肉の量）と走り方は、遺伝子で決まっています。走るようすは物理の計算（<a href="https://github.com/piqnt/planck.js">Planck.js</a>）で、骨を関節でつなぎ、筋肉の力で関節を動かしています。</p>
+      <h3>本物のしくみ</h3>
+      <ul>
+        <li><b>大きいほど力が足りなくなる</b>: 体を2倍にすると、重さは8倍、筋肉の力（太さ）は4倍にしかなりません。筋肉の力は 1m² あたり 30 万N（Hutchinson &amp; Garcia 2002 が使った値）として、筋肉の体積から関節の力の上限を決めています。</li>
+        <li><b>大きさに合ったリズム</b>: 1歩の長さの時間は「脚の長さ ÷ 重力」の平方根に比例させています（同じ形なら大きさがちがっても同じ動き方になる「動的相似」）。だから小さい恐竜と大きい恐竜をかけ合わせても、走り方を受けつげます。</li>
+        <li><b>足あとから速さを推定</b>: レースの結果に、歩幅と腰の高さから速さを出す Alexander（1976）の式の値も並べています。</li>
+        <li><b>転ばない足の置き方</b>: 走り方のしくみは、二足のキャラクターの研究 SIMBICON（Yin ら 2007）に寄せています。重心が足より前にあるほど、また速いほど、次の足を前に出します。</li>
+      </ul>
+      <h3>簡単にしたところ</h3>
+      <ul>
+        <li>試作です。体の比率（ティラノサウルスなど3種）は仮の値で、骨格の計測データで確かめる前のものです。</li>
+        <li>横から見た2次元です。2本の脚は同じ平面にあり、恐竜どうしはぶつかりません。</li>
+        <li>筋肉は関節ごとのモーター（力の上限つき）です。疲れや、腱のばねはまだありません。</li>
+      </ul>
+      <h3>おもな出どころ</h3>
+      <ul class="refs">
+        <li>Sellers, W.I. &amp; Manning, P.L. (2007) Estimating dinosaur maximum running speeds using evolutionary robotics. <i>Proc. R. Soc. B</i> 274: 2711–2716.（骨格を物理の中で進化させて走らせる研究。このゲームの元のアイデア）</li>
+        <li>Hutchinson, J.R. &amp; Garcia, M. (2002) Tyrannosaurus was not a fast runner. <i>Nature</i> 415: 1018–1021.</li>
+        <li>Alexander, R.McN. (1976) Estimates of speeds of dinosaurs. <i>Nature</i> 261: 129–130.</li>
+        <li>Yin, K., Loken, K. &amp; van de Panne, M. (2007) SIMBICON: Simple Biped Locomotion Control. <i>ACM Transactions on Graphics</i> 26(3).</li>
+      </ul>
+      <p class="small">牧場の恐竜は、このブラウザの中にだけ保存されます（ブラウザのデータを消すと消えます）。<button type="button" id="btnReset" class="link">牧場をはじめの3匹に戻す</button></p>
+    </div>
+  </details>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/planck@1.5.0/dist/planck.min.js"></script>
+<script src="js/genome.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/ga.js"></script>
+<script src="js/draw.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

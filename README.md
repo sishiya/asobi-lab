@@ -5,9 +5,11 @@
 
 | フォルダ | ゲーム |
 |---|---|
-| （まだありません） | |
+| `dino-race/` | 恐竜かけっこ牧場 — 恐竜をかけ合わせて育て、物理で走らせて 100m のかけっこ（試作。保管庫に掲載） |
 
-- **公開中**: https://sishiya.github.io/asobi-lab/ （GitHub Pages。push で更新）
+- **公開中**: https://sishiya.github.io/asobi-lab/ （GitHub Pages。push で更新）。作りかけ・試作は保管庫（`archive.html`、入口の下の注記から）
+- 各ゲームの `index.html` が最新版、`launcher.html` から過去の版（`versions/`）。仕組みや確認のしかたは各フォルダの `DEVNOTES.md`、企画は `PLAN.md`。
+- サムネイルは `thumbs/`（`tools/make-thumbs.ps1` で撮り直し）。
 
 ## はじめてクローンしたとき
 
@@ -20,4 +22,4 @@ git config core.quotepath false
 
 ## ライセンス
 
-MIT（`LICENSE`）。
+MIT（`LICENSE`）。実行時に読み込む Planck.js（MIT、恐竜かけっこ牧場の物理）は、そのライセンスに従います。
