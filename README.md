@@ -11,6 +11,16 @@
 - 各ゲームの `index.html` が最新版、`launcher.html` から過去の版（`versions/`）。仕組みや確認のしかたは各フォルダの `DEVNOTES.md`、企画は `PLAN.md`。
 - サムネイルは `thumbs/`（`tools/make-thumbs.ps1` で撮り直し）。
 
+## ローカルで動かす（Windows）
+
+ゲームは css/js に分かれていて Web Worker も使うので、file:// では動きません。小さなサーバーを使います。
+
+いちばん簡単なのは、このフォルダの **`start.bat` をダブルクリック**すること（サーバーを起動して、入口のページをブラウザで開きます。サーバーは最小化したウィンドウで動き、閉じると止まります。8780 が使えないときは別のポートを使います）。`start.bat dino-race` のようにフォルダ名を付けると、そのゲームを直接開きます。手で起動するなら:
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File .claude/serve.ps1 -Port 8780
+```
+
 ## はじめてクローンしたとき
 
 ```
