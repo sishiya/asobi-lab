@@ -2,107 +2,122 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>恐竜かけっこ牧場</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23b3471d'/><path d='M10 36c4-12 18-18 32-15 6 1 11 5 12 10l-2 3H40l-4 5H22l-8 4z' fill='%23fff8ea' stroke='%23fff8ea' stroke-width='2' stroke-linejoin='round'/><circle cx='22' cy='29' r='3.5' fill='%23b3471d'/><ellipse cx='34' cy='29' rx='4' ry='2.5' fill='%23b3471d'/><path d='M40 34l1 4M44 34l1 4M48 34l1 3' stroke='%23b3471d' stroke-width='1.6'/></svg>">
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
+<meta name="theme-color" content="#efe7d4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16120d" media="(prefers-color-scheme: dark)">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <header class="top">
-  <a class="back" href="../">← あそびラボ</a>
+  <a class="back" href="../" aria-label="あそびラボへ戻る">←</a>
   <h1>恐竜かけっこ牧場</h1>
   <span class="tag">試作</span>
+  <button type="button" class="icon-btn" id="btnAbout" aria-label="このゲームについて">?</button>
 </header>
 
 <main>
-  <section class="stage">
+  <!-- 走るようす。かけっこの間は画面の上に固定（.live） -->
+  <section class="stage" id="stage">
     <canvas id="view" aria-label="恐竜が走るようす"></canvas>
     <div class="hud">
-      <span id="hudText">牧場の恐竜を選んで、かけっこさせてみましょう</span>
-      <span class="hud-tools">
-        <span class="seg" id="speedSeg" role="group" aria-label="再生の速さ"><button type="button" data-speed="0.5">×0.5</button><button type="button" data-speed="1" aria-pressed="true">×1</button><button type="button" data-speed="3">×3</button></span>
-        <button type="button" id="btnStopView" hidden>とめる</button>
-      </span>
+      <span id="hudText" class="hud-text">牧場の恐竜が、練習場を走っています</span>
+      <button type="button" id="btnSpeed" class="chip-btn" aria-label="再生の速さ">×1</button>
+      <button type="button" id="btnSkip" class="chip-btn" hidden>結果へ ▶</button>
     </div>
-    <div id="result" class="result" hidden></div>
   </section>
 
-  <section class="panel">
-    <div class="panel-head">
-      <h2>牧場 <span class="n" id="ranchCount"></span></h2>
-      <p class="hint" id="selHint">カードを押して選ぶ（かけっこは4匹まで、かけ合わせは2匹、おまかせは1匹）</p>
+  <nav class="tabs" role="tablist" aria-label="画面の切りかえ">
+    <button type="button" role="tab" id="tab-ranch" aria-controls="panel-ranch" aria-selected="true">牧場 <span class="n" id="ranchCount"></span></button>
+    <button type="button" role="tab" id="tab-cups" aria-controls="panel-cups" aria-selected="false">大会 <span class="n" id="medalCount"></span></button>
+    <button type="button" role="tab" id="tab-book" aria-controls="panel-book" aria-selected="false">記録帳</button>
+  </nav>
+
+  <section class="panel" id="panel-ranch" role="tabpanel" aria-labelledby="tab-ranch">
+    <div class="tip" id="tip" hidden>
+      <b>あそびかた</b>
+      <ol>
+        <li>2匹を選んで<b>かけ合わせる</b>と、子が3匹生まれます。</li>
+        <li>転んだ子も<b>練習</b>すると走れるようになることがあります。速い子を<b>残す</b>。</li>
+        <li>牧場で生まれた子で<b>大会</b>に出て、メダルを集めよう（メダル1つで牧場が1匹分広がる）。</li>
+      </ol>
+      <button type="button" id="btnTipOk" class="quiet">わかった</button>
     </div>
-    <div class="actions">
-      <button type="button" class="primary" id="btnRace">かけっこ 100m</button>
-      <button type="button" id="btnBreed">かけ合わせる</button>
-      <button type="button" id="btnEvolve">おまかせで進化</button>
-      <button type="button" id="btnRelease" class="quiet">逃がす</button>
-    </div>
+    <div id="nextCup" class="banner next" hidden></div>
+    <div id="evolveBanner" class="banner" hidden></div>
+    <div id="nurseryBox" class="nursery" hidden></div>
+    <p class="hint" id="selHint">カードを押して選ぶ（かけっこは4匹まで、かけ合わせは2匹）。「…」で詳しく。</p>
     <div class="cards" id="ranch"></div>
   </section>
 
-  <section class="panel" id="nurserySec" hidden>
-    <div class="panel-head">
-      <h2 id="nurseryTitle">生まれた子</h2>
-      <p class="hint">記録を見て、残す子を選ぶ。転んだ子も「練習させる」と走れるようになることがあります。残さなかった子は逃がします。</p>
-    </div>
-    <div class="cards" id="nursery"></div>
-    <div class="actions"><button type="button" id="btnNurseryDone" class="quiet">残りは逃がして閉じる</button></div>
+  <section class="panel" id="panel-cups" role="tabpanel" aria-labelledby="tab-cups" hidden>
+    <p class="hint">お題をクリアするとメダル。メダル1つで牧場が1匹分広がります。「はじめての100m」のほかは、牧場で生まれた恐竜で出ます。</p>
+    <div class="cup-list" id="cupList"></div>
   </section>
 
-  <section class="panel" id="evolveSec" hidden>
-    <div class="panel-head">
-      <h2>おまかせで進化</h2>
-      <p class="hint" id="evolveHint"></p>
-    </div>
-    <div class="evolve-set" id="evolveSet">
-      <label>世代 <select id="selGens"><option selected>10</option><option>30</option><option>100</option></select></label>
-      <label><input type="checkbox" id="chkBody"> 体の形も変える</label>
-      <button type="button" class="primary" id="btnEvolveGo">はじめる</button>
-      <button type="button" class="quiet" id="btnEvolveCancel">やめる</button>
-    </div>
-    <div class="evolve-run" id="evolveRun" hidden>
-      <canvas id="evoChart" aria-label="世代ごとの記録のグラフ"></canvas>
-      <p class="evo-stat" id="evoStat"></p>
-      <button type="button" id="btnEvolveStop">ここでやめて、いちばん速い子を連れて帰る</button>
-    </div>
+  <section class="panel" id="panel-book" role="tabpanel" aria-labelledby="tab-book" hidden>
+    <div id="book"></div>
   </section>
-
-  <details class="about">
-    <summary>このゲームについて</summary>
-    <div class="about-body">
-      <p>恐竜の体（骨の長さの比率・大きさ・筋肉の量）と走り方は、遺伝子で決まっています。走るようすは物理の計算（<a href="https://github.com/piqnt/planck.js">Planck.js</a>）で、骨を関節でつなぎ、筋肉の力で関節を動かしています。</p>
-      <h3>本物のしくみ</h3>
-      <ul>
-        <li><b>大きいほど力が足りなくなる</b>: 体を2倍にすると、重さは8倍、筋肉の力（太さ）は4倍にしかなりません。筋肉の力は 1m² あたり 30 万N（Hutchinson &amp; Garcia 2002 が使った値）として、筋肉の体積から関節の力の上限を決めています。</li>
-        <li><b>大きさに合ったリズム</b>: 1歩の長さの時間は「脚の長さ ÷ 重力」の平方根に比例させています（同じ形なら大きさがちがっても同じ動き方になる「動的相似」）。だから小さい恐竜と大きい恐竜をかけ合わせても、走り方を受けつげます。</li>
-        <li><b>足あとから速さを推定</b>: レースの結果に、歩幅と腰の高さから速さを出す Alexander（1976）の式の値も並べています。</li>
-        <li><b>転ばない足の置き方</b>: 走り方のしくみは、二足のキャラクターの研究 SIMBICON（Yin ら 2007）に寄せています。重心が足より前にあるほど、また速いほど、次の足を前に出します。</li>
-      </ul>
-      <h3>簡単にしたところ</h3>
-      <ul>
-        <li>試作です。体の比率（ティラノサウルスなど3種）は仮の値で、骨格の計測データで確かめる前のものです。</li>
-        <li>横から見た2次元です。2本の脚は同じ平面にあり、恐竜どうしはぶつかりません。</li>
-        <li>筋肉は関節ごとのモーター（力の上限つき）です。疲れや、腱のばねはまだありません。</li>
-      </ul>
-      <h3>おもな出どころ</h3>
-      <ul class="refs">
-        <li>Sellers, W.I. &amp; Manning, P.L. (2007) Estimating dinosaur maximum running speeds using evolutionary robotics. <i>Proc. R. Soc. B</i> 274: 2711–2716.（骨格を物理の中で進化させて走らせる研究。このゲームの元のアイデア）</li>
-        <li>Hutchinson, J.R. &amp; Garcia, M. (2002) Tyrannosaurus was not a fast runner. <i>Nature</i> 415: 1018–1021.</li>
-        <li>Alexander, R.McN. (1976) Estimates of speeds of dinosaurs. <i>Nature</i> 261: 129–130.</li>
-        <li>Yin, K., Loken, K. &amp; van de Panne, M. (2007) SIMBICON: Simple Biped Locomotion Control. <i>ACM Transactions on Graphics</i> 26(3).</li>
-      </ul>
-      <p class="small">牧場の恐竜は、このブラウザの中にだけ保存されます（ブラウザのデータを消すと消えます）。<button type="button" id="btnReset" class="link">牧場をはじめの3匹に戻す</button></p>
-    </div>
-  </details>
 </main>
+
+<!-- 選んだ恐竜への操作（スマホでは画面の下に固定） -->
+<div class="actbar" id="actbar" hidden>
+  <span class="act-n" id="actN"></span>
+  <button type="button" id="btnClearSel" class="quiet" aria-label="選ぶのをやめる">×</button>
+  <button type="button" id="btnBreed">かけ合わせる</button>
+  <button type="button" id="btnRace" class="primary">かけっこ</button>
+</div>
+
+<!-- 下からせり上がるシート（詳しく・結果・大会に出る恐竜・おまかせ・このゲームについて） -->
+<dialog id="sheet" aria-labelledby="sheetTitle">
+  <div class="sheet-head">
+    <h2 id="sheetTitle"></h2>
+    <button type="button" class="icon-btn" id="btnSheetClose" aria-label="閉じる">×</button>
+  </div>
+  <div class="sheet-body" id="sheetBody"></div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<template id="aboutTpl">
+  <div class="about-body">
+    <p>恐竜の体（骨の長さの比率・大きさ・筋肉の量）と走り方は、遺伝子で決まっています。走るようすは物理の計算（<a href="https://github.com/piqnt/planck.js">Planck.js</a>）で、骨を関節でつなぎ、筋肉の力で関節を動かしています。</p>
+    <h3>本物のしくみ</h3>
+    <ul>
+      <li><b>大きいほど力が足りなくなる</b>: 体を2倍にすると、重さは8倍、筋肉の力（太さ）は4倍にしかなりません。筋肉の力は 1m² あたり 30 万N（Hutchinson &amp; Garcia 2002 が使った値）として、筋肉の体積から関節の力の上限を決めています。</li>
+      <li><b>大きさに合ったリズム</b>: 1歩の長さの時間は「脚の長さ ÷ 重力」の平方根に比例させています（同じ形なら大きさがちがっても同じ動き方になる「動的相似」）。だから小さい恐竜と大きい恐竜をかけ合わせても、走り方を受けつげます。</li>
+      <li><b>足あとから速さを推定</b>: かけっこの結果に、歩幅と腰の高さから速さを出す Alexander（1976）の式の値も並べています。化石の足あとから恐竜の速さを見積もるのに使われる式です。</li>
+      <li><b>転ばない足の置き方</b>: 走り方のしくみは、二足のキャラクターの研究 SIMBICON（Yin ら 2007）に寄せています。重心が足より前にあるほど、また速いほど、次の足を前に出します。</li>
+      <li><b>遺伝</b>: 子の体は両親のあいだ（ときどき少しはみ出す）、走り方は片方の親から丸ごと受けつぎ、少しだけ変わります（突然変異）。練習では体はそのままで、走り方だけを少しずつ変えながら試し、よかったものを覚えます。</li>
+    </ul>
+    <h3>簡単にしたところ</h3>
+    <ul>
+      <li>試作です。体の比率（ティラノサウルスなど3種）は仮の値で、骨格の計測データで確かめる前のものです。</li>
+      <li>横から見た2次元です。2本の脚は同じ平面にあり、恐竜どうしはぶつかりません。</li>
+      <li>筋肉は関節ごとのモーター（力の上限つき）です。疲れや、腱のばねはまだありません。</li>
+      <li>大会のゴースト（人・ゾウ・ダチョウ）は、100m を同じ速さで走る目安の線です。</li>
+    </ul>
+    <h3>おもな出どころ</h3>
+    <ul class="refs">
+      <li>Sellers, W.I. &amp; Manning, P.L. (2007) Estimating dinosaur maximum running speeds using evolutionary robotics. <i>Proc. R. Soc. B</i> 274: 2711–2716.（骨格を物理の中で進化させて走らせる研究。このゲームの元のアイデア）</li>
+      <li>Hutchinson, J.R. &amp; Garcia, M. (2002) Tyrannosaurus was not a fast runner. <i>Nature</i> 415: 1018–1021.</li>
+      <li>Hutchinson, J.R. ら (2003) Are fast-moving elephants really running? <i>Nature</i> 422: 493–494.（ゾウの速さ）</li>
+      <li>Alexander, R.McN. (1976) Estimates of speeds of dinosaurs. <i>Nature</i> 261: 129–130.</li>
+      <li>Yin, K., Loken, K. &amp; van de Panne, M. (2007) SIMBICON: Simple Biped Locomotion Control. <i>ACM Transactions on Graphics</i> 26(3).</li>
+    </ul>
+    <p class="small">牧場と記録は、このブラウザの中にだけ保存されます（ブラウザのデータを消すと消えます）。</p>
+    <p class="small"><button type="button" id="btnReset" class="link">はじめからやり直す（牧場・メダル・記録を消す）</button></p>
+  </div>
+</template>
 
 <script src="https://cdn.jsdelivr.net/npm/planck@1.5.0/dist/planck.min.js"></script>
 <script src="js/genome.js"></script>
 <script src="js/sim.js"></script>
 <script src="js/ga.js"></script>
 <script src="js/draw.js"></script>
+<script src="js/cups.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

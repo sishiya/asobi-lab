@@ -149,12 +149,20 @@ function drawGround(ctx, x0, x1, px, scale) {
 
 const FONT = () => getComputedStyle(document.body).fontFamily;
 
-// 上の帯: 0〜100m のコースに、それぞれの恐竜の位置
-function drawProgress(ctx, R, W, h) {
+// ゴースト（決まった速さで走る目安。人の世界記録など）がいまどこにいるか
+const ghostAt = (gh, t) => Math.min(FINISH, FINISH * t / gh.t);
+
+// 上の帯: 0〜100m のコースに、それぞれの恐竜の位置とゴースト
+function drawProgress(ctx, R, W, h, ghosts = []) {
   const l = 28, r = W - 44, y = h / 2 + 2, X = m => l + (r - l) * Math.max(0, Math.min(1, m / FINISH));
   ctx.strokeStyle = INK['ink-soft']; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(l, y); ctx.lineTo(r, y); ctx.stroke();
   ctx.fillStyle = INK.muted; ctx.font = '11px ' + FONT(); ctx.textAlign = 'right'; ctx.fillText('0', l - 6, y + 4);
   ctx.textAlign = 'left'; ctx.fillStyle = INK.accent; ctx.fillText(FINISH + 'm', r + 6, y + 4);
+  for (const gh of ghosts) { // ゴーストは線の上の小さな旗
+    const x = X(ghostAt(gh, R.t));
+    ctx.strokeStyle = INK.accent; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y + 6); ctx.lineTo(x, y - 11); ctx.stroke();
+    ctx.fillStyle = INK.accent; ctx.beginPath(); ctx.moveTo(x, y - 11); ctx.lineTo(x + 8, y - 8); ctx.lineTo(x, y - 5); ctx.fill();
+  }
   R.dinos.forEach((d, i) => {
     const x = X(d.finishT != null ? FINISH : d.dist);
     ctx.fillStyle = d.fell ? INK.paper : INK.ink; ctx.strokeStyle = INK.ink; ctx.lineWidth = 1.5;
@@ -164,7 +172,7 @@ function drawProgress(ctx, R, W, h) {
 }
 
 // 場面全体: 上に進みぐあいの帯、その下にレーン。cams[i] = {x: 左端の m, scale: px/m}
-function drawScene(canvas, R, cams, {labels = [], progressH = 0} = {}) {
+function drawScene(canvas, R, cams, {labels = [], progressH = 0, ghosts = []} = {}) {
   const ctx = canvas.getContext('2d'), dpr = window.devicePixelRatio || 1;
   const W = canvas.width / dpr, H = canvas.height / dpr, dinos = R.dinos;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -173,7 +181,7 @@ function drawScene(canvas, R, cams, {labels = [], progressH = 0} = {}) {
   for (let x = 0; x < W; x += 24) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
   for (let y = 0; y < H; y += 24) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
   ctx.stroke();
-  if (progressH) drawProgress(ctx, R, W, progressH);
+  if (progressH) drawProgress(ctx, R, W, progressH, ghosts);
   const n = Math.max(1, dinos.length), laneH = (H - progressH) / n;
   dinos.forEach((d, i) => {
     const cam = cams[i]; if (!cam) return;
@@ -189,6 +197,13 @@ function drawScene(canvas, R, cams, {labels = [], progressH = 0} = {}) {
     ctx.fillStyle = INK.muted; ctx.font = '11px ' + FONT(); ctx.textAlign = 'center';
     for (let m = Math.ceil(x0 / major) * major; m <= x1; m += major) if (m >= -1e-9 && m <= FINISH) ctx.fillText(fmtLen(+m.toFixed(2)), (m - cam.x) * s, base + 22);
     if (FINISH >= x0 && FINISH <= x1) { ctx.fillStyle = INK.accent; ctx.font = '700 12px ' + FONT(); ctx.fillText('ゴール', (FINISH - cam.x) * s, top + 16); }
+    // ゴーストの線（このレーンの縮尺で、いまの位置に）
+    for (const gh of ghosts) {
+      const gx = (ghostAt(gh, R.t) - cam.x) * s; if (gx < 0 || gx > W) continue;
+      ctx.save(); ctx.setLineDash([3, 4]); ctx.strokeStyle = INK.accent; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(gx, top + 24); ctx.lineTo(gx, base); ctx.stroke(); ctx.restore();
+      ctx.fillStyle = INK.accent; ctx.font = '11px ' + FONT(); ctx.textAlign = 'center'; ctx.fillText(gh.short || gh.name, gx, top + 34);
+    }
     // 名前と物差し（この縮尺で何 m か）
     ctx.textAlign = 'left'; ctx.fillStyle = INK.ink; ctx.font = '600 13px ' + FONT();
     const status = d.finishT != null ? ` ゴール ${d.finishT.toFixed(2)}秒` : d.fell ? ' 転んだ' : '';
