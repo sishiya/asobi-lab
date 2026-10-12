@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>宿主をあやつれ</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%234f7a2a'/><circle cx='36' cy='36' r='15' fill='none' stroke='%23fff6dc' stroke-width='4'/><path d='M36 36a6 6 0 1 1 6-6' fill='none' stroke='%23fff6dc' stroke-width='4' stroke-linecap='round'/><path d='M14 50h34M20 46l-6-20M26 46l-2-22' stroke='%23fff6dc' stroke-width='4' stroke-linecap='round'/></svg>">
+<meta name="description" content="寄生者になって、カタツムリ・ネズミ・カマドウマを、自分で決めたつもりのまま鳥やネコや川へ連れて行くゲーム。あやつり方は本物の寄生者のしくみ。">
+<meta name="theme-color" content="#f3eedf" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#151812" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-screen="title">
+<header class="top">
+  <a class="back" href="../../../archive.html" aria-label="あそびラボの保管庫へ戻る">←</a>
+  <h1>宿主をあやつれ</h1>
+  <button type="button" class="icon-btn push" id="btnSound" aria-label="音" aria-pressed="true"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="mute" d="M16 9l6 6M22 9l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+  <button type="button" class="icon-btn" id="btnAbout" aria-label="このゲームについて">?</button>
+</header>
+
+<main>
+  <!-- タイトル -->
+  <section id="title">
+    <div class="title-stage">
+      <canvas id="demo" aria-hidden="true"></canvas>
+      <div class="title-card">
+        <p class="kicker">寄生者になって、宿主をあやつるゲーム</p>
+        <h2 class="logo"><span>宿主を</span><span>あやつれ</span></h2>
+        <div class="title-btns">
+          <button type="button" class="go big" id="btnPlay">はじめる</button>
+          <button type="button" class="soft" id="btnStages">面をえらぶ</button>
+          <button type="button" class="soft" id="btnBook">寄生者の図鑑</button>
+        </div>
+        <p class="total" id="totalStars"></p>
+      </div>
+    </div>
+    <p class="small center">登場する寄生者と、あやつり方は本物です（ゲームなので、動きや数字は簡単にしています）。</p>
+  </section>
+
+  <!-- 面えらび -->
+  <section id="menu" hidden>
+    <div class="sec-head"><button type="button" class="quiet" data-go="title">← タイトル</button><h2>面をえらぶ</h2><span class="total" id="menuStars"></span></div>
+    <p class="lead">きみは<b>寄生者</b>。生きものの体の中にすみ、その生きもの（<b>宿主</b>）を、こっそり<b>あやつって</b>、次の行き先へ連れて行こう。宿主は、自分で決めたつもりで動いている。</p>
+    <div class="stages" id="stageList"></div>
+    <p class="small">前の面をクリアすると、次の面が遊べるようになります。速くクリアするほど★がふえます。</p>
+  </section>
+
+  <!-- 図鑑 -->
+  <section id="book" hidden>
+    <div class="sec-head"><button type="button" class="quiet" data-go="title">← タイトル</button><h2>寄生者の図鑑</h2></div>
+    <p class="lead">遊んだ面の寄生者の「本物の話」を、いつでも読めます。</p>
+    <div id="bookList"></div>
+  </section>
+
+  <!-- エンディング -->
+  <section id="ending" hidden>
+    <div class="ending">
+      <p class="kicker">3つの旅を見とどけた</p>
+      <h2>どの宿主も、自分で決めたつもりだった</h2>
+      <p>寄生者は、宿主を「操縦」したわけではありません。宿主の<b>好きなもの・こわいもの</b>の感じ方を、ほんの少し変えただけ。それで、ふつうなら行かない場所へ、宿主は自分から歩いていきました。</p>
+      <div class="cycles" id="cycles"></div>
+      <p>3つの寄生者は、まったく別の仲間（吸虫・原虫・類線形動物）です。それでも、どれも「次の宿主のところへ、今の宿主に行ってもらう」という、よく似たやり方にたどりつきました。</p>
+      <p class="total" id="endStars"></p>
+      <div class="row center"><button type="button" class="go" data-go="title">タイトルへ</button><button type="button" class="quiet" data-go="book">図鑑を見る</button></div>
+      <p class="credit">宿主をあやつれ ・ あそびラボ<br>絵と音は、すべてプログラムで描いて鳴らしています。</p>
+    </div>
+  </section>
+
+  <!-- あそぶ画面 -->
+  <section id="play" hidden>
+    <div class="side">
+      <div class="playhead">
+        <span class="who" id="who"></span>
+        <span class="time" id="time"></span>
+        <button type="button" class="icon-btn sm" id="btnPause" aria-label="一時停止"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></svg></button>
+      </div>
+      <div class="gauge" aria-label="あやつり力"><span class="lbl">あやつり力</span><span class="bar"><i id="gaugeBar"></i></span></div>
+    </div>
+    <div class="field" id="field">
+      <canvas id="view" aria-label="ゲームの画面"></canvas>
+      <div class="tip" id="tip" hidden></div>
+      <div class="toast" id="toast" hidden></div>
+      <div class="banner" id="banner" hidden></div>
+      <div class="overlay" id="overlay" hidden></div>
+    </div>
+    <div class="side2">
+      <div class="mind"><span class="mind-who" id="mindWho">宿主の気持ち</span><span class="mind-text" id="mind">…</span></div>
+      <div class="controls">
+        <button type="button" class="ability" id="btnAbility"></button>
+      </div>
+      <p class="small hint">画面を押さえると、その方へ宿主を引っぱる（矢印キーでも）。宿主の気持ちに逆らうほど、あやつり力が早く減る。特別なあやつりはボタンかスペースキー。一時停止は Esc。</p>
+      <p class="small rotate">スマホを横向きにすると、大きな画面で遊べます。</p>
+    </div>
+  </section>
+</main>
+
+<dialog id="about">
+  <h2>このゲームについて</h2>
+  <p>寄生する生きものの中には、宿主の行動を変えて、自分が次の宿主にたどりつきやすくするものがいます。宿主にとっては、ふつうなら近よらない場所や相手のところへ、自分から行ってしまうことになります。</p>
+  <p>このゲームでは寄生者になって、それを体験します。宿主の「気持ち」を見ていると、あやつられている間も、宿主は自分で決めたつもりでいるのがわかります。</p>
+  <h3>簡単にしたところ</h3>
+  <p>本物の寄生者は、一匹の宿主をその場で操縦しているわけではありません。宿主の体の中の物質や神経に働きかけて、「好きなもの・こわいもの」の感じ方を、長い時間をかけて少し変えます。それが、たくさんの宿主の中で積み重なると、次の宿主にたどりつく寄生者がふえる、ということです。ゲームでは、それを指で引っぱる形にしています。</p>
+  <p>研究には、まだ確かめきれていないところもあります。各面のあとの「本物の話」と図鑑に出どころを書いています。</p>
+  <h3>あそびかた</h3>
+  <ul>
+    <li>画面を押さえる（マウス・指）か矢印キー・WASD で、宿主を引っぱる。</li>
+    <li>特別なあやつり: 画面の下のボタンか、スペースキー。</li>
+    <li>一時停止: 右上の ⏸ か、Esc・P キー。</li>
+  </ul>
+  <h3>設定</h3>
+  <p><label class="check"><input type="checkbox" id="optSound"> 音を出す</label></p>
+  <p class="small">記録（★）と設定はこのブラウザにだけ保存します。消えることがあります。 <button type="button" class="link" id="btnReset">記録を消す</button></p>
+  <p class="small">宿主をあやつれ v002（2026-10-12） ・ あそびラボ。絵と音はすべてプログラムで作っています。</p>
+  <form method="dialog"><button class="quiet">閉じる</button></form>
+</dialog>
+
+<script src="js/core.js"></script>
+<script src="js/stages.js"></script>
+<script src="js/sound.js"></script>
+<script src="js/screens.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

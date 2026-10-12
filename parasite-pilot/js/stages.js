@@ -20,6 +20,12 @@ STAGES.push({
     '日なたに長くいると、からだが乾いて殻にこもってしまう。',
     '日かげには<b>マイマイカブリ</b>（カタツムリを食べる甲虫）。食べられたら終わり。',
   ],
+  tips: [ // はじめてのてびき（この面をまだクリアしていない間だけ、上から順に一度ずつ）
+    { when: G => G.t > 0.8, text: '画面を押さえると、その方へカタツムリを引っぱれる。白い点線は、カタツムリの気持ち' },
+    { when: G => G.host.L > 0.55, text: '明るい日なただ！「触角をふくらませる」（スペース）で、空の鳥に気づいてもらおう' },
+    { when: G => G.host.m < 45, text: 'しめりけが減ってきた。乾ききる前に、少し日かげで休ませよう' },
+    { when: G => dist(G.beetle, G.host) < 190 && G.host.L < 0.5, text: 'マイマイカブリが近い！ 日かげから出よう' },
+  ],
   win: '鳥がカタツムリの触角をついばんだ！ ロイコクロリディウムは鳥のおなかの中で、おとなになる。',
   lose: {
     beetle: 'マイマイカブリに食べられてしまった。カタツムリが大好物の甲虫だ。でも甲虫のおなかの中では、ロイコクロリディウムはおとなになれない。',
@@ -85,7 +91,7 @@ STAGES.push({
       tx = cx + 140 * Math.cos(b.ph); ty = cy + 140 * Math.sin(b.ph); sp = 200;
       if (h.L > 0.55 && h.shell <= 0 && dist(b, h) < 340) {
         b.spot += dt * (G.ability ? 1.0 : 0.05);
-        if (b.spot >= 1) { b.st = 'swoop'; G.toast('鳥が気づいた！ 降りてくる'); }
+        if (b.spot >= 1) { b.st = 'swoop'; G.toast('鳥が気づいた！ 降りてくる', 'alert'); }
       } else b.spot = Math.max(0, b.spot - dt * 0.5);
     } else {
       tx = h.x; ty = h.y; sp = 210;
@@ -184,6 +190,12 @@ STAGES.push({
     'こわいとき、ネズミは<b>巣穴</b>へにげこむ。こわがっている間は、引っぱるのに力がたくさんいる。',
     '草むらの<b>ヘビ</b>へのこわさは消えない。ヘビに食べられたら終わり。',
   ],
+  tips: [
+    { when: G => G.t > 0.8, text: 'ネコはまだ眠っている（Zz）。種のあたりで、ネコが起きるのを待とう' },
+    { when: G => G.cat.st !== 'sleep', text: 'ネコが起きた！ ネコの近くで「こわさを鈍らせる」を使って、見つけてもらおう' },
+    { when: G => G.host.fear > 0.5 && !G.ability && G.pulled, text: 'こわがっている間は、引っぱってもなかなか動かない。あやつり力も早く減る' },
+    { when: G => dist(G.host, G.snake) < 170, text: '草むらにはヘビ。ヘビへのこわさは消せない。近づかないように' },
+  ],
   win: 'ネコがネズミをつかまえた！ トキソプラズマはネコのおなかの中で、次の世代を作れる。',
   lose: {
     snake: 'ヘビに食べられてしまった。ヘビのおなかの中では、トキソプラズマは先へ進めない。',
@@ -272,9 +284,9 @@ STAGES.push({
     } else if (c.st === 'home') { // ねどこへ帰る
       walk(c, toward(c, G.bed), 50, 2.5, dt);
       if (dist(c, G.bed) < 10) { c.st = 'sleep'; c.wait = 12; G.toast('ネコはねどこで眠った'); }
-      if (seen) { c.st = 'chase'; c.chase = 3.5; G.toast('ネコが気づいた！'); }
+      if (seen) { c.st = 'chase'; c.chase = 3.5; G.toast('ネコが気づいた！', 'alert'); }
     } else if (seen && (c.st !== 'pause' || c.wait < 2)) {
-      c.st = 'chase'; c.chase = 3.5; G.toast('ネコが気づいた！');
+      c.st = 'chase'; c.chase = 3.5; G.toast('ネコが気づいた！', 'alert');
     } else if (c.st === 'pause') {
       c.wait -= dt; if (c.wait <= 0) { c.k++; if (c.k >= G.patrol.length) { c.k = 0; c.st = 'home'; } else c.st = 'walk'; }
     } else {
@@ -355,6 +367,12 @@ STAGES.push({
     '雲で月がかくれると、水面は暗くなる。',
     '街灯の下や岸には<b>ヒキガエル</b>。食べられたら終わり。夜が明けても終わり。',
   ],
+  tips: [
+    { when: G => G.t > 0.8, text: 'カマドウマは暗い石かげが好き。引っぱって、下の川のほうへ跳ばせよう' },
+    { when: G => G.host.y > 380, text: '川が近い！「光にひかれる」で、水面の光へ飛びこませよう' },
+    { when: G => G.ability && dist(G.host, G.lamp) < 220, text: '街灯のほうが明るいと、そっちへ行ってしまう。いったん止めて、引っぱろう' },
+    { when: G => G.cloud > 0.6, text: '雲で月がかくれた。水面が暗いと、光にひかれにくい' },
+  ],
   win: 'カマドウマが川に飛びこんだ！ ハリガネムシは体の外へ泳ぎ出た。水の中でおとなになり、卵を産む。',
   lose: {
     toad: 'ヒキガエルに食べられてしまった。陸の上では、ハリガネムシは生きていけない。',
@@ -432,7 +450,7 @@ STAGES.push({
         // 引っぱっていないと、水ぎわで止まる
         if (!G.pulled && !G.ability && h.ty > this.waterY(h.tx) - 6) h.ty = this.waterY(h.tx) - 20;
         for (const r of G.rocks) { const d = Math.hypot(h.tx - r.x, h.ty - r.y); if (d < r.r) { h.tx = r.x + (h.tx - r.x) / d * r.r; h.ty = r.y + (h.ty - r.y) / d * r.r; } }
-        h.air = 0.28; h.hop = 0.6 + rnd(0, 0.25);
+        h.air = 0.28; h.hop = 0.6 + rnd(0, 0.25); G.sfx('hop');
       }
     }
     // ヒキガエル

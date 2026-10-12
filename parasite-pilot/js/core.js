@@ -37,7 +37,7 @@ function steer(G, will, dt, resist = 1) {
   if (p && !G.tired) {
     const conflict = (1 - (w.x * p.x + w.y * p.y)) / 2; // 0: 同じ向き 〜 1: 正反対
     G.gauge = Math.max(0, G.gauge - (4 + 14 * conflict * resist) * dt);
-    if (G.gauge <= 0) { G.tired = true; G.toast('あやつり力が切れた。少し待とう'); }
+    if (G.gauge <= 0) { G.tired = true; G.toast('あやつり力が切れた。少し待とう', 'tired'); }
     G.pulled = true; G.pull = p;
     const ww = 0.4 * resist * resist; // 強くいやがっているときは、引っぱりが負ける
     return norm(w.x * ww + p.x * 2, w.y * ww + p.y * 2);

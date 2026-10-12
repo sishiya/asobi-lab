@@ -5,22 +5,26 @@
 寄生者になって宿主をあやつり、次の宿主（や川）へ連れて行く。企画は `PLAN.md`。css/js に分割。外のライブラリ・データは使わない（Canvas 2D だけ）。
 
 ## 別セッションで続けるとき（まずここ）
-- **いまの状態**: v001（`versions/v001-first`、2026-10-12）。3面が遊べる。あそびラボの保管庫（`../archive.html`）に掲載。入口には載せていない。
-- **次にやること**: ユーザーの感想しだい（出典は 2026-10-12 に確かめた。結果は `PLAN.md`）。スマホの縦画面では遊ぶ所が小さい（10:7 のまま）ので、縦長の世界にするか考える。面の追加（`PLAN.md` 段階B）。
+- **いまの状態**: v002（`versions/v002-product`、2026-10-12）。3面に、タイトル・面のロック・図鑑・エンディング・ヒント・音・一時停止をつけた「製品の体裁」の版（`PLAN.md` 段階B1）。あそびラボの保管庫（`../archive.html`）に掲載。入口には載せていない。
+- **次にやること**: ユーザーの感想しだい（難しさ・音の大きさ）。音は Claude が耳で確かめられないので、ユーザーに聞いてもらう。スマホの縦画面では遊ぶ所が小さい（10:7 のまま。横向きをすすめる一言を出している）。面の追加（`PLAN.md` 段階B2）。
 - **読む順**: `../CLAUDE.md` → このファイル → 下の「ファイル構成」で関係するファイルだけ。
 - **動かし方**: Claude は `../.claude/launch.json` の `games`（http://localhost:8780/parasite-pilot/）。ユーザーは `start.bat parasite-pilot`。
-- **デバッグ用**: `window.__pp` — `G`（いまの状態）、`openStage(i)`、`step(秒)`（Browser ペインが裏だと rAF が止まるので、これで進める）。面を始めるのは札の「はじめる」（`[data-act=start]`）。
-- **区切りごとに**: ① `versions/v0NN-名前/` に index.html・css・js を丸ごとコピー（アクセス解析の1行は消す） ② `launcher.html` にカード ③ 下の「状態」 ④ 「確認のしかた」 ⑤ 公開前チェック → コミット → push。
+- **デバッグ用**: `window.__pp` — `G`（いまの状態）、`openStage(i)`、`show(画面)`、`pause()` `resume()`、`step(秒)`（Browser ペインが裏だと rAF が止まるので、これで進める）、`Demo`（`Demo.step(秒)`・`Demo.D`）、`Sound`、`best()` `prog()`。面を始めるのは札の「はじめる」（`[data-act=start]`）。記録を空にするには localStorage の `asobi-lab/parasite-pilot/best-v1` と `progress-v1` を消して再読みこみ（2面・3面はロックされる）。
+- **区切りごとに**: 確認 → 下の「状態」 → 公開前チェック → コミット → push。節目なら `versions/v0NN-名前/` に index.html・css・js を丸ごとコピー（アクセス解析の1行は消し、← の行き先を `../../../archive.html` に）して `launcher.html` にカード。
 
 ## ファイル構成
 
 | ファイル | 中身 | 主な名前 |
 |---|---|---|
-| `index.html` | 見出し、面えらび `#menu`、あそぶ画面 `#play`（あやつり力 `#gaugeBar`、`#view`、札 `#overlay`、宿主の気持ち `#mind`、特別なあやつり `#btnAbility`）、このゲームについて `<dialog id="about">` | |
-| `css/style.css` | スマホを先に。色は `:root` のトークン（ダークモードあり）。札 `.panel`（スマホでは画面いっぱい）。`body.thumb` | |
+| `index.html` | 見出し（音 `#btnSound`・`?`）、画面は5つ: タイトル `#title`（デモの `#demo`）、面えらび `#menu`、図鑑 `#book`、エンディング `#ending`、あそぶ画面 `#play`（`.side` に面の名前・時間・一時停止 `#btnPause`・あやつり力、`#field` に `#view`・ヒント `#tip`・`#toast`・大きな文字 `#banner`・札 `#overlay`、`.side2` に宿主の気持ち・特別なあやつり）。このゲームについて `<dialog id="about">`（遊び方・音の設定・記録を消す・版） | |
+| `css/style.css` | スマホを先に。色は `:root` のトークン（ダークモードあり）。タイトル `.title-stage` `.logo`、生活環 `.cycle`、札 `.panel`（スマホでは画面いっぱい）、演出（`.banner.pop` `.field.shake` `.field.hurt` `.stars span`）。**高さ 540px 以下の横向き**では、遊ぶ所を左・ほかを右の2列にして見出しを隠す。`prefers-reduced-motion` で動きを止める。`body.thumb` | |
 | `js/core.js` | 世界の大きさ `W`×`H`（1000×700）、ベクトルの道具、**`steer()`**（宿主の気持ちと引っぱりを合わせ、あやつり力を減らす）、`walk()` `wander()` `edgePush()`、絵の道具、気持ちと引っぱりの線 `drawIntent()` | `pullDir` |
-| `js/stages.js` | `STAGES`: 面ごとに `init` `update` `draw` と文（`story` `howto` `win` `lose` `facts`）。1 カタツムリ（日なた `G.clear`・鳥・マイマイカブリ・しめりけ）、2 ネズミ（ネコの見まわり・眠り・におい `G.smells`・巣穴・ヘビ）、3 カマドウマ（跳ぶ・街灯・水面の光・雲・ヒキガエル） | `limit` `abilityName` `abilityCost` |
-| `js/main.js` | 面えらび、札（始め・成功・失敗・本物の話）、入力（指・マウス・矢印・WASD・スペース）、ループ `step()`（あやつり力の回復と、0 になったら 30 まで休み `G.tired`）、左下のメーター、記録（localStorage `asobi-lab/parasite-pilot/best-v1`）、`?thumb` | `G` `best` `endTimer` |
+| `js/stages.js` | `STAGES`: 面ごとに `init` `update` `draw` と文（`story` `howto` `tips` `win` `lose` `facts`）。`tips` は `{when(G), text}`（はじめてのヒント）。1 カタツムリ（日なた `G.clear`・鳥・マイマイカブリ・しめりけ）、2 ネズミ（ネコの見まわり・眠り・におい `G.smells`・巣穴・ヘビ）、3 カマドウマ（跳ぶ・街灯・水面の光・雲・ヒキガエル） | `limit` `abilityName` `abilityCost` |
+| `js/sound.js` | 音（WebAudio でその場で作る。ファイルなし）。効果音 `Sound.play(名前)`、引っぱりのうなり `setPull`、面ごとの環境音 `setAmbient(面のid)` とときどきの鳴き声 `tick`。オン・オフは localStorage `asobi-lab/parasite-pilot/sound` | `Sound` |
+| `js/screens.js` | `$`、記録（`best` = `best-v1`、`prog` = `progress-v1` の `seen` と `ending`）、`cleared(i)` `unlocked(i)` `allCleared()`、画面の切りかえ `show(名前)`（`[data-go]` のボタンも）、タイトル・面えらび・図鑑・エンディングの中身、生活環 `CYCLES`、タイトルのうしろのデモ `Demo`（自動のプレイヤー `pilot()`、22 秒か終わりで次の面へ） | `show` `Demo` `CYCLES` |
+| `js/main.js` | あそぶ画面: 札（始め・成功・失敗・本物の話・一時停止）、★の決まり `STAR_AT`、ヒント `checkTips`、入力（指・マウス・矢印・WASD・スペース・Esc/P）、ループ `step()`（あやつり力の回復と、0 になったら 30 まで休み `G.tired`、のこり 10 秒の音）、成功の輪 `G.fx`、左下のメーター、音の設定、`?thumb` | `G` `endTimer` `openStage` |
+
+読みこみ順: core → stages → sound → screens → main（screens は main の `openStage` を、ボタンを押したときに呼ぶだけなので、この順でよい）。
 
 ## しくみのメモ
 - **`steer(G, will, dt, resist)`**: 引っぱりの重さ 2 に対して、気持ちの重さは `0.4 × resist²`。こわがっているとき（resist が大きい）は気持ちが勝つ。あやつり力は `4 + 14 × 逆らい具合 × resist` /秒で減り、いつも 3/秒（引っぱっていないと 10/秒）回復。
@@ -29,6 +33,11 @@
 
 ## 確認のしかた
 - エラーが出ないこと（コンソール）。3面とも、札 → はじめる → 動く → 成功・失敗の札 → 本物の話。
+- 記録が空の状態で: タイトルの「はじめる」→ 1面。面えらびで2面・3面がロック、図鑑は「？？？」。1面を成功 → 「2面が遊べるようになった」。
+- 3面をはじめて全部クリア → 3面の本物の話に「エンディングへ」→ エンディング。そのあと図鑑に「エンディングをもう一度見る」、タイトルは「もう一度あそぶ」。
+- 一時停止: ⏸・Esc・P で止まり、もう一度で再開。別のタブに行くと止まる。
+- タイトルのデモが 1→2→3 面と回ること（`__pp.Demo.step(6)` をくり返して `Demo.D.host` を見る）。
+- 2026-10-12（v002）: 上を全部通した。自動のプレイヤーで 1面 66.5 秒・2面 16.9 秒・3面 10.2 秒で成功。スマホ縦（375×812）・横（812×375）・PC・明るいテーマで見た。音はエラーなく鳴らせることだけ確かめた（聞いてはいない）。
 - 自動のプレイヤーで（`__pp.G.pointer` を毎フレーム決めて `__pp.step(1/60)`）、2026-10-12 の結果:
   - 1面: 日なたへ引っぱり、明るい所で触角 → 4回中3回成功（34〜63 秒）。
   - 2面: ネコへ引っぱり、起きたネコの近くで「こわさを鈍らせる」 → 成功（約 18 秒）。使わない → 時間切れ。
@@ -40,3 +49,4 @@
 | 版 | 日付 | 内容 |
 |---|---|---|
 | v001-first | 2026-10-12 | はじめの試作。3面、本物の話、★の記録。保管庫に掲載 |
+| v002-product | 2026-10-12 | 製品の体裁（ユーザー「製品として出せるくらいの完成度に」）: タイトルとデモ、面のロック・★の合計、図鑑と生活環、エンディング、ヒント、音、一時停止、演出、横向きスマホ、「試作」の札を外す、ランチャーのファビコンをそろえる |
