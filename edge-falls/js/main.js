@@ -1,7 +1,7 @@
 'use strict';
 // 入力・ループ・お題の進み。デバッグ用に window.__ef
 const cv = $('view'), ctx = cv.getContext('2d'), field = $('field');
-const G = { speed: 1, tool: 'look', qi: 0, qStart: 0, streak: 0, best: loadBest(), started: false, paused: false };
+const G = { speed: 1, tool: 'look', qi: 0, qStart: 0, streak: 0, best: loadBest(), started: false, paused: false, sel: null };
 const THUMB = new URLSearchParams(location.search).has('thumb');
 let hover = null, ptr = null;
 let accPlant = 0, accHist = 0, accSide = 0, prevCounts = null;
@@ -9,7 +9,7 @@ let accPlant = 0, accHist = 0, accSide = 0, prevCounts = null;
 function newGame(seed = (Math.random() * 1e9) | 0) {
   newWorld(seed); resetLife(); HIST.length = 0;
   V.yaw = Math.PI / 2 - W.bigFall + 0.35;   // いちばん大きな滝が手前に
-  G.qi = 0; G.qStart = 0; G.streak = 0;
+  G.qi = 0; G.qStart = 0; G.streak = 0; G.sel = null;
   prevCounts = { deer: 0, wolf: 0, fish: 0 };
 }
 
@@ -52,6 +52,7 @@ function checkWorld() {
   }
   const falls = W.events.filter(e => e.type === 'die' && e.how === 'fall').length;
   if (falls && Math.random() < 0.5) Sound.play('splash');
+  for (const e of W.events) if (e.type === 'die' && e.a === G.sel) G.sel.how = e.how;
   W.events.length = 0;
   // お題
   if (G.started && G.qi < QUESTS.length) {
@@ -65,7 +66,7 @@ function checkWorld() {
       G.qi++; G.qStart = W.t; G.streak = 0;
       const last = G.qi >= QUESTS.length;
       showPanel(`<h2>${DAYNAME[qi]}の日「${q.title}」</h2><p class="stars">${'★'.repeat(st)}${'☆'.repeat(3 - st)}</p><p>${days} 日でできた。</p><p class="truth"><b>本当は</b>　${q.truth}</p>` +
-        (last ? '<p>5つのお題がすべておわった。あとは自由に、きみの世界をそだてよう。</p>' : `<p>次は${DAYNAME[G.qi]}の日「${QUESTS[G.qi].title}」: ${QUESTS[G.qi].text}。</p>`),
+        (last ? '<p>8つのお題がすべておわった。あとは自由に、きみの世界をそだてよう。</p>' : `<p>次は${DAYNAME[G.qi]}の日「${QUESTS[G.qi].title}」: ${QUESTS[G.qi].text}。</p>`),
         [{ label: last ? 'つづける' : '次の日へ', main: true }]);
     }
   }
@@ -116,13 +117,31 @@ function useTool(p, first) {
   }
 }
 
+// 指が2本: 平行移動とピンチで寄る
+const touches = new Map();
+let pinch = null;
+function pinchState() { const [a, b] = [...touches.values()]; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, d: Math.hypot(a.x - b.x, a.y - b.y) || 1 }; }
+function panBy(dx, dy) { V.panX = (V.panX || 0) + dx; V.panY = (V.panY || 0) + dy; layout(V.cw, V.ch); }
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('dblclick', e => { const p = local(e); if (!pick(p.x, p.y) && !hitBody(p)) { V.panX = V.panY = 0; layout(V.cw, V.ch); } });   // 空をダブルクリックで真ん中へ
+
 cv.addEventListener('pointerdown', e => {
   if (!G.started) return;
   Sound.unlock();
-  cv.setPointerCapture(e.pointerId);
+  try { cv.setPointerCapture(e.pointerId); } catch (err) { /* 捕まえられなくても動かす */ }
   const p = local(e);
+  if (e.pointerType === 'touch') {
+    touches.set(e.pointerId, p);
+    if (touches.size === 2) {                      // 2本目の指: いまの操作をやめて、平行移動・ピンチへ
+      if (ptr && ptr.mode === 'body') W[ptr.body].drag = false;
+      ptr = null; pinch = pinchState(); return;
+    }
+    if (touches.size > 2) return;
+  }
   const b = hitBody(p);
   ptr = { id: e.pointerId, x0: p.x, y0: p.y, x: p.x, y: p.y, moved: 0, t: 0 };
+  // 右ボタン・まん中のボタン・Shift を押しながら: 平行移動
+  if (e.button === 1 || e.button === 2 || e.shiftKey) { ptr.mode = 'pan'; cv.classList.add('grabbing'); return; }
   if (b) { ptr.mode = 'body'; ptr.body = b; W[b].drag = true; Sound.play('grab'); return; }
   const w = G.tool === 'look' ? null : pick(p.x, p.y);
   if (w) { ptr.mode = 'tool'; ptr.w = w; useTool(w, true); }
@@ -130,11 +149,24 @@ cv.addEventListener('pointerdown', e => {
 });
 cv.addEventListener('pointermove', e => {
   const p = local(e);
+  if (touches.has(e.pointerId)) {
+    touches.set(e.pointerId, p);
+    if (pinch && touches.size === 2) {
+      const n = pinchState();
+      panBy(n.x - pinch.x, n.y - pinch.y);
+      V.zoom = Math.max(0.6, Math.min(3, V.zoom * n.d / pinch.d)); layout(V.cw, V.ch);
+      pinch = n; return;
+    }
+  }
   if (ptr && e.pointerId === ptr.id) {
     const dx = p.x - ptr.x, dy = p.y - ptr.y;
     ptr.moved += Math.abs(dx) + Math.abs(dy); ptr.x = p.x; ptr.y = p.y;
-    if (ptr.mode === 'view') { V.yaw -= dx * 0.008;   // 手前の地面が手の動きについてくる向き（2026-10-12 ユーザー「逆かも」）
-      V.tilt = Math.max(0.32, Math.min(0.92, V.tilt - dy * 0.002)); layout(V.cw, V.ch); }
+    if (ptr.mode === 'view') {
+      V.yaw -= dx * 0.008;                                            // 手前の地面が手の動きについてくる向き（2026-10-12 ユーザー「逆かも」）
+      V.tilt = Math.max(0.32, Math.min(0.92, V.tilt + dy * 0.002));   // 下へ引くと真上から見る向きへ（2026-10-12 ユーザー「上下も逆かも」）
+      layout(V.cw, V.ch);
+    }
+    else if (ptr.mode === 'pan') panBy(dx, dy);
     else if (ptr.mode === 'body') { W[ptr.body].a = bodyAngle(p); updateLight(); }
     else if (ptr.mode === 'tool') { const w = pick(p.x, p.y); if (w) ptr.w = w; }
   }
@@ -144,11 +176,19 @@ cv.addEventListener('pointermove', e => {
   } else hover = null;
 });
 function endPtr(e) {
+  touches.delete(e.pointerId);
+  if (touches.size < 2) pinch = null;
   if (!ptr || e.pointerId !== ptr.id) return;
   if (ptr.mode === 'body') {
     const b = W[ptr.body]; b.drag = false;
     if (ptr.moved < 6) { b.stop = !b.stop; Sound.play('pin'); toast((ptr.body === 'sun' ? '太陽' : '月') + (b.stop ? 'を止めた' : 'がまた動き出した')); }
     else Sound.play('release');
+  }
+  else if (ptr.mode === 'view' && ptr.moved < 6) {          // 「見る」で押した: 近くの生き物の札を出す
+    const w = pick(ptr.x, ptr.y);
+    let best = null, bd = 2.2 * 2.2;
+    if (w) for (const a of L.list) { const d = (a.x - w.x) ** 2 + (a.y - w.y) ** 2; if (d < bd) { bd = d; best = a; } }
+    G.sel = best; if (best) Sound.play('click'); updateCard();
   }
   cv.classList.remove('grabbing');
   ptr = null;
@@ -165,9 +205,13 @@ addEventListener('keydown', e => {
   if (e.target.closest && e.target.closest('dialog')) return;
   if (e.key === 'ArrowLeft') V.yaw += 0.08;
   else if (e.key === 'ArrowRight') V.yaw -= 0.08;
-  else if (e.key === 'ArrowUp') V.tilt = Math.min(0.92, V.tilt + 0.03);
-  else if (e.key === 'ArrowDown') V.tilt = Math.max(0.32, V.tilt - 0.03);
+  else if (e.key === 'ArrowUp') V.tilt = Math.max(0.32, V.tilt - 0.03);
+  else if (e.key === 'ArrowDown') V.tilt = Math.min(0.92, V.tilt + 0.03);
   else if (e.key === ' ') { setSpeed(G.speed ? 0 : 1); }
+  else if ('wasdWASD'.includes(e.key) && e.key.length === 1) {            // WASD で平行移動
+    const k = e.key.toLowerCase();
+    panBy(k === 'a' ? 40 : k === 'd' ? -40 : 0, k === 'w' ? 40 : k === 's' ? -40 : 0);
+  }
   else if (e.key >= '1' && e.key <= '8') setTool(['look', 'raise', 'dig', 'spring', 'grass', 'deer', 'wolf', 'fish'][+e.key - 1]);
   else return;
   e.preventDefault(); layout(V.cw, V.ch);
@@ -204,7 +248,7 @@ function frame(now) {
   accSide += dt;
   if (accSide > 0.25) { accSide = 0; updateSide(s); }
   drawWorld(ctx, t, hover);
-  Sound.update(s.out, !G.started || G.speed === 0);
+  Sound.update(s.out, !G.started || G.speed === 0, Math.max(0, Math.min(1, (V.zoom - 1.2) / 1.0)));   // 滝の音は寄ったときだけ
   requestAnimationFrame(frame);
 }
 
@@ -214,7 +258,7 @@ function start() {
     <ul>
       <li>下の道具で、地を<b>盛る・削る</b>、<b>泉</b>をわかせる、<b>草</b>のたねをまく、<b>シカ・オオカミ・サカナ</b>を放す。</li>
       <li>大地の外をドラッグすると回せる。太陽と月はつかんで動かせる。</li>
-      <li>水・草・食べる・食べられるがつり合う世界をつくろう。お題は5つ。</li>
+      <li>水・草・食べる・食べられるがつり合う世界をつくろう。お題は8つ。</li>
     </ul>`, [{ label: 'はじめる', main: true, fn: () => { G.started = true; G.qStart = W.t; } }]);
 }
 

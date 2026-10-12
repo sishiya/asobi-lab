@@ -22,11 +22,12 @@ const VOX = (() => {
     const k = (0.5 + 0.35 * L) * Math.max(0.55, 1 - dz * 0.025);
     return rgba(r * k, g * k, b * k);
   }
-  function rootColor(t, row, u, d) {
-    const j = 0.85 + hash2(Math.floor(u), d) * 0.3;
-    const k = 1 - t * 0.6;
+  function rootColor(t, row, sec, d) {          // sec: 世界の向きの区分（回すといっしょに動く）
+    const j = 0.82 + hash2(sec, d) * 0.3, k = 1 - t * 0.6;
+    if (hash2(sec * 3, d) > 0.96) return rgba(150 * k, 120 * k, 92 * k);   // ところどころ明るい岩
     return rgba(92 * j * k, 76 * j * k, 64 * j * k);
   }
+
 
   function renderVoxel(t) {
     const BW = buf.width, BH = buf.height;
@@ -174,6 +175,21 @@ const VOX = (() => {
     if (cache[key]) return cache[key];
     const o = {}, p = PAL[name];
     for (const ch in p) o[ch] = `rgb(${p[ch][0] * q / 10 | 0},${p[ch][1] * q / 10 | 0},${Math.min(255, p[ch][2] * (q / 10 + 0.1)) | 0})`;
+    return (cache[key] = o);
+  }
+  // 遺伝子で色を変えた色見本（5段に丸めて覚えておく）
+  //   シカ: 泳ぐ力→青みがかった灰色、大きさ→こい茶。オオカミ: 速さ→砂色、大きさ→こい灰。サカナ: 泳ぐ力→赤
+  const TINT = { deer: [['swim', [112, 132, 150], 'bBh'], ['size', [96, 60, 30], 'bB']], wolf: [['speed', [196, 176, 132], 'bBht'], ['size', [70, 70, 78], 'bB']], fish: [['strength', [214, 64, 44], 'ft']] };
+  function palGene(a, L) {
+    const q = Math.round(L * 10), parts = TINT[a.kind].map(([g]) => Math.round(Math.max(0, a.g[g] - 0.35) / 0.65 * 4));
+    const key = a.kind + q + ':' + parts.join(',');
+    if (cache[key]) return cache[key];
+    const base = PAL[a.kind], o = {};
+    for (const ch in base) {
+      let [r, g, b] = base[ch];
+      TINT[a.kind].forEach(([, col, chars], n) => { if (chars.includes(ch)) { const t = parts[n] / 4 * 0.75; r = mix(r, col[0], t); g = mix(g, col[1], t); b = mix(b, col[2], t); } });
+      o[ch] = `rgb(${r * q / 10 | 0},${g * q / 10 | 0},${Math.min(255, b * (q / 10 + 0.1)) | 0})`;
+    }
     return (cache[key] = o);
   }
   function sprite(rows, pal, cx, by, k, flip) {
@@ -335,7 +351,12 @@ const VOX = (() => {
       } else {
         const a = it.a, fl = (Math.cos(a.dir) * Math.cos(V.yaw) - Math.sin(a.dir) * Math.sin(V.yaw)) < 0;
         const fr = Math.floor(a.phase * 6) % 2;
-        sprite(SPR[a.kind][fr], palAt(a.kind, Math.max(0.55, lumAt(a.x, a.y))), bx, by + (a.kind === 'fish' ? 1 : 0), k, fl);
+        sprite(SPR[a.kind][fr], palGene(a, Math.max(0.55, lumAt(a.x, a.y))), bx, by + (a.kind === 'fish' ? 1 : 0), k, fl);
+        if (typeof G !== 'undefined' && G.sel === a) {               // 選んだ1匹: 黄色い角かっこ
+          const x0 = Math.round(bx) - 5 * k, x1 = Math.round(bx) + 4 * k, y0 = Math.round(by) - 8 * k, y1 = Math.round(by) + k;
+          bctx.fillStyle = '#ffe066';
+          for (const [x, y, dx, dy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) { bctx.fillRect(x, y, 2 * k, k); bctx.fillRect(x + (dx < 0 ? k : 0), y + (dy > 0 ? 0 : -k), k, 2 * k); }
+        }
       }
     }
     // 夜の草むらにホタル

@@ -1,7 +1,7 @@
 'use strict';
 // 横のようす・知らせ・札・グラフ
 const $ = id => document.getElementById(id);
-const DAYNAME = ['第一', '第二', '第三', '第四', '第五'];
+const DAYNAME = ['第一', '第二', '第三', '第四', '第五', '第六', '第七', '第八'];
 const BEST_KEY = 'asobi-lab/edge-falls/best';
 
 let toastT = 0;
@@ -38,7 +38,8 @@ function updateQuestBox(s) {
   $('questLabel').textContent = DAYNAME[G.qi] + 'の日のお題「' + q.title + '」';
   $('questText').textContent = q.text;
   $('questBar').style.width = Math.min(100, v / q.goal * 100) + '%';
-  $('questNum').textContent = v; $('questUnit').textContent = q.unit; $('questGoal').textContent = q.goal + q.unit;
+  const fmt = q.show || (x => x);
+  $('questNum').textContent = fmt(v); $('questUnit').textContent = q.unit; $('questGoal').textContent = fmt(q.goal) + q.unit;
   $('questHint').textContent = q.hint;
   const days = (W.t - G.qStart) / DAY;
   const st = questStars(G.qi, days);
@@ -61,13 +62,14 @@ function updateSide(s) {
     const el = $(id); el.textContent = W.stock[k]; el.classList.toggle('zero', W.stock[k] <= 0);
   }
   updateQuestBox(s);
+  updateGenes(); updateCard();
 }
 
 // 半日ごとに記録して、移り変わりのグラフ
 function recordHist(s) {
-  HIST.push({ g: s.grass, d: L.counts.deer, w: L.counts.wolf, f: L.counts.fish });
+  HIST.push({ g: s.grass, d: L.counts.deer, w: L.counts.wolf, f: L.counts.fish, gs: { deer: geneStats('deer'), wolf: geneStats('wolf'), fish: geneStats('fish') } });
   if (HIST.length > 240) HIST.shift();
-  drawChart();
+  drawChart(); drawGeneChart();
 }
 function drawChart() {
   const cv = $('chart'), dpr = devicePixelRatio || 1;
@@ -88,3 +90,50 @@ function drawChart() {
   line('#c08040', p => p.d / maxA);
   line('#7d8597', p => p.w * 4 / maxA);
 }
+
+// ---- 遺伝子の箱 ----
+const GCOL = ['#c0503a', '#4a8a4a', '#3a6aa8'];
+let gKind = 'deer';
+document.querySelectorAll('[data-gk]').forEach(b => b.addEventListener('click', () => {
+  gKind = b.dataset.gk;
+  document.querySelectorAll('[data-gk]').forEach(x => x.setAttribute('aria-pressed', x === b));
+  updateGenes(); drawGeneChart();
+}));
+const gbar = (v, col) => `<span class="gbar"><b style="width:${(v * 100).toFixed(0)}%${col ? ';background:' + col : ''}"></b><s></s></span>`;
+function updateGenes() {
+  const g = geneStats(gKind);
+  $('genGen').textContent = g.n ? `いちばん新しい世代 ${g.gen}` : 'いない';
+  $('grows').innerHTML = GENES[gKind].map(([k, name], n) =>
+    `<span><i style="background:${GCOL[n]}"></i>${name}</span>${gbar(g.n ? g[k] : 0, GCOL[n])}<em>${g.n ? g[k].toFixed(2) : '―'}</em>`).join('');
+}
+function drawGeneChart() {
+  const cv = $('gchart'), dpr = devicePixelRatio || 1;
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (!w) return;
+  if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(128,128,128,0.4)'; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke(); ctx.setLineDash([]);
+  const pts = HIST.filter(p => p.gs && p.gs[gKind].n > 0);
+  if (pts.length < 2) return;
+  GENES[gKind].forEach(([k], n) => {
+    ctx.strokeStyle = GCOL[n]; ctx.lineWidth = 1.6; ctx.beginPath();
+    pts.forEach((p, i) => { const x = i / (pts.length - 1) * w, y = h - 2 - (p.gs[gKind][k] - 0.2) / 0.6 * (h - 4); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });   // 0.2〜0.8 を広げて
+    ctx.stroke();
+  });
+}
+
+// ---- 1匹の札（「見る」で生き物を押す） ----
+function updateCard() {
+  const a = G.sel, el = $('card');
+  if (!a) { el.hidden = true; return; }
+  if (a.dead) {
+    el.innerHTML = `<h4><span>${KINDS[a.kind].name}（第 ${a.gen} 世代）</span><button type="button" aria-label="とじる" onclick="G.sel=null;updateCard()">×</button></h4><p>${DIE_WORD[a.how] || 'いなくなった'}</p>`;
+    el.hidden = false; return;
+  }
+  const days = (a.age / DAY).toFixed(1);
+  el.innerHTML = `<h4><span>${KINDS[a.kind].name}（第 ${a.gen} 世代）</span><button type="button" aria-label="とじる" onclick="G.sel=null;updateCard()">×</button></h4>` +
+    GENES[a.kind].map(([k, name]) => `<div class="row"><span>${name}</span>${gbar(a.g[k])}</div>`).join('') +
+    `<div class="row"><span>おなか</span>${gbar(Math.max(0, a.e / a.tr.eMax))}</div><p>生まれて ${days} 日</p>`;
+  el.hidden = false;
+}
+const DIE_WORD = { eaten: 'オオカミに食べられた', hunger: '飢えて死んだ', thirst: 'のどがかわいて死んだ', drown: '深い水でおぼれた', fall: '滝から落ちた', dry: '水がなくなって死んだ', old: '年をとって死んだ' };

@@ -95,7 +95,8 @@ const Sound = (() => {
   }
 
   // 毎フレーム: 滝に落ちる水の量（/秒）、止まっているか
-  function update(fall, paused) {
+  // near: 寄っているほど 1（引いて見ているときは滝の音を出さない。2026-10-12 ユーザー「騒がしいので近づいたときだけ」）
+  function update(fall, paused, near = 0) {
     if (!ac || ac.state !== 'running') return;
     const t = ac.currentTime;
     if (t >= nextChord) {                    // 16 秒ごとに次の和音へ、とてもゆっくり移る
@@ -108,9 +109,9 @@ const Sound = (() => {
       if (Math.random() < 0.3) chime(st(melodyNote()), 0.025, t + 0.6);
       nextNote = t + 3.5 + Math.random() * 4;
     }
-    const w = paused ? 0 : Math.min(1, 0.08 + fall / 12);
-    waves.g.gain.setTargetAtTime(w * 0.22, t, 0.6);
-    waves.f.frequency.setTargetAtTime(1400 - Math.min(1, fall / 15) * 900, t, 0.6);
+    const w = paused ? 0 : near * Math.min(1, 0.15 + fall / 12);
+    waves.g.gain.setTargetAtTime(w * 0.14, t, 0.8);
+    waves.f.frequency.setTargetAtTime(700 - Math.min(1, fall / 15) * 350, t, 0.8);   // 低めのやわらかい水音
   }
 
   function tone(type, f1, f2, dur, vol, delay = 0) {

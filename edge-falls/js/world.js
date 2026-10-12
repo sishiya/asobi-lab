@@ -338,7 +338,7 @@ function addSpring(cx, cy) {
 
 function waterStats() {
   let land = 0, wet = 0, grass = 0, cells = 0, clouds = 0;
-  for (const i of INS) { cells++; land += W.w[i]; if (W.w[i] > 0.05) wet++; else if (W.veg[i] > 0.3) grass++; }
+  for (const i of INS) { cells++; land += W.w[i]; if (W.w[i] > 0.05) wet++; else if (W.veg[i] > 0.22) grass++; }
   for (const c of W.clouds) clouds += c.water;
   return { land, clouds: clouds + W.vapor, abyss: W.abyss, wet: wet / cells, grass: grass / cells, out: W.outRate };
 }

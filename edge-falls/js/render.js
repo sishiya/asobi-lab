@@ -43,7 +43,9 @@ function layout(cw, ch) {
   V.hf = Math.cos(el) * 0.5;
   const fitW = cw * 0.9 / (2 * RD), fitH = ch * 0.84 / (2 * RD * V.tilt + (16 + THICK + 12) * V.hf);
   V.s = Math.min(fitW, fitH) * V.zoom;
-  V.cx = cw / 2; V.cy = ch * 0.5 - (THICK + 4) * V.s * V.hf * 0.6 + (16 * V.s * V.hf) * 0.25;
+  // 平行移動（panX・panY は画面の画素。大きくずれすぎないように）
+  V.panX = Math.max(-cw * 0.9, Math.min(cw * 0.9, V.panX || 0)); V.panY = Math.max(-ch * 0.9, Math.min(ch * 0.9, V.panY || 0));
+  V.cx = cw / 2 + V.panX; V.cy = ch * 0.5 - (THICK + 4) * V.s * V.hf * 0.6 + (16 * V.s * V.hf) * 0.25 + V.panY;
   V.bs = style().bs(cw);
   const BW = Math.max(1, Math.ceil(cw / V.bs)), BH = Math.max(1, Math.ceil(ch / V.bs));
   if (!buf || buf.width !== BW || buf.height !== BH) {
@@ -224,14 +226,17 @@ function renderRoot(px, u, ybot, quant, rootColor) {
   const sb = V.s / V.bs, cyb = V.cy / V.bs, hb = V.s * V.hf / V.bs, tl = V.tilt;
   let prev = ybot;
   const step = quant ? 2 : 1;
+  // でこぼこは世界の向き（ふちの角度）で決める。回すと岩の根もいっしょに回って見える
+  const c = Math.cos(V.yaw), s = Math.sin(V.yaw), vf = Math.sqrt(Math.max(0, (RD - 0.6) ** 2 - u * u));
+  const ang = Math.atan2(-u * s + vf * c, u * c + vf * s);
+  const sec = Math.floor((ang / (Math.PI * 2) + 1) * (quant ? 90 : 60)) % (quant ? 90 : 60);
   for (let d = step; d <= ROOT_D; d += step) {
     const t = d / ROOT_D;
-    const key = quant ? Math.floor(u) : Math.floor(u / 3);
-    const r = (RD - 0.6) * Math.pow(1 - t, 0.75) + (hash2(key, d) - 0.5) * (quant ? 3 : 2.5);
+    const r = (RD - 0.6) * Math.pow(1 - t, 0.75) + (hash2(sec, d) - 0.5) * (quant ? 3 : 2.5) + (hash2(Math.floor(sec / 6), 7) - 0.5) * 6 * t;
     if (Math.abs(u) >= r) break;
     const vk = Math.sqrt(r * r - u * u);
     const yk = Math.min(BH, Math.round(cyb + vk * sb * tl + (THICK + d) * hb));
-    for (let row = Math.max(prev, 0); row < yk; row++) d32[row * BW + px] = rootColor(t, row, u, d);
+    for (let row = Math.max(prev, 0); row < yk; row++) d32[row * BW + px] = rootColor(t, row, sec, d);
     if (yk > prev) prev = yk;
   }
 }
