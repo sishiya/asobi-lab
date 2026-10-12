@@ -14,14 +14,26 @@
 <header class="top">
   <a class="back" href="../" aria-label="あそびラボへ戻る">←</a>
   <h1>恐竜かけっこ牧場</h1>
-  <span class="tag">試作</span>
-  <button type="button" class="icon-btn" id="btnAbout" aria-label="このゲームについて">?</button>
+  <button type="button" class="icon-btn" id="btnSound" aria-label="効果音" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="mute" d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+  <button type="button" class="icon-btn" id="btnAbout" aria-label="メニュー"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
 </header>
+
+<!-- タイトル画面（読み込むたびに。?thumb のときは出さない） -->
+<div class="title-screen" id="titleScreen" hidden>
+  <div class="title-card">
+    <svg class="title-logo" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="var(--accent)"/><path d="M10 36c4-12 18-18 32-15 6 1 11 5 12 10l-2 3H40l-4 5H22l-8 4z" fill="var(--bone-hi)" stroke="var(--bone-hi)" stroke-width="2" stroke-linejoin="round"/><circle cx="22" cy="29" r="3.5" fill="var(--accent)"/><ellipse cx="34" cy="29" rx="4" ry="2.5" fill="var(--accent)"/><path d="M40 34l1 4M44 34l1 4M48 34l1 3" stroke="var(--accent)" stroke-width="1.6"/></svg>
+    <h2>恐竜かけっこ牧場</h2>
+    <p class="title-sub">恐竜をかけ合わせて育て、<br>物理の計算で本当に走らせる 100m かけっこ。</p>
+    <div class="title-btns" id="titleBtns"></div>
+    <p class="title-foot"><span id="titleVer"></span> ・ あそびラボ</p>
+  </div>
+</div>
 
 <main>
   <!-- 走るようす。かけっこの間は画面の上に固定（.live） -->
   <section class="stage" id="stage">
     <canvas id="view" aria-label="恐竜が走るようす"></canvas>
+    <div class="count" id="count" aria-live="assertive" hidden></div>
     <div class="hud">
       <span id="hudText" class="hud-text">牧場の恐竜が、練習場を走っています</span>
       <button type="button" id="btnSpeed" class="chip-btn" aria-label="再生の速さ">×1</button>
@@ -79,6 +91,23 @@
   <div class="sheet-body" id="sheetBody"></div>
 </dialog>
 
+<!-- 確認・名前の入力（ブラウザの confirm／prompt の代わり） -->
+<dialog id="ask" aria-labelledby="askMsg">
+  <form method="dialog">
+    <p id="askMsg"></p>
+    <input type="text" id="askInput" autocomplete="off" hidden>
+    <div class="btn-row"><button type="submit" value="cancel" id="askNo"></button><button type="submit" value="ok" id="askOk" class="primary"></button></div>
+  </form>
+</dialog>
+
+<!-- 動かせないとき（ライブラリが読めない・思わぬエラー） -->
+<div class="fatal" id="fatal" role="alert" hidden>
+  <p id="fatalMsg"></p>
+  <button type="button" class="primary" onclick="location.reload()">ページを読み直す</button>
+</div>
+
+<input type="file" id="importFile" accept=".json,application/json" hidden>
+
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <template id="aboutTpl">
@@ -94,7 +123,7 @@
     </ul>
     <h3>簡単にしたところ</h3>
     <ul>
-      <li>試作です。体の比率（ティラノサウルスなど3種）は仮の値で、骨格の計測データで確かめる前のものです。</li>
+      <li>体の比率（ティラノサウルスなど3種）は仮の値で、骨格の計測データで確かめる前のものです。</li>
       <li>横から見た2次元です。2本の脚は同じ平面にあり、恐竜どうしはぶつかりません。</li>
       <li>筋肉は関節ごとのモーター（力の上限つき）です。疲れや、腱のばねはまだありません。</li>
       <li>大会のゴースト（人・ゾウ・ダチョウ）は、100m を同じ速さで走る目安の線です。</li>
@@ -107,8 +136,6 @@
       <li>Alexander, R.McN. (1976) Estimates of speeds of dinosaurs. <i>Nature</i> 261: 129–130.</li>
       <li>Yin, K., Loken, K. &amp; van de Panne, M. (2007) SIMBICON: Simple Biped Locomotion Control. <i>ACM Transactions on Graphics</i> 26(3).</li>
     </ul>
-    <p class="small">牧場と記録は、このブラウザの中にだけ保存されます（ブラウザのデータを消すと消えます）。</p>
-    <p class="small"><button type="button" id="btnReset" class="link">はじめからやり直す（牧場・メダル・記録を消す）</button></p>
   </div>
 </template>
 
@@ -118,6 +145,13 @@
 <script src="js/ga.js"></script>
 <script src="js/draw.js"></script>
 <script src="js/cups.js"></script>
+<script src="js/sound.js"></script>
+<script src="js/store.js"></script>
+<script src="js/ranch.js"></script>
+<script src="js/view.js"></script>
+<script src="js/race.js"></script>
+<script src="js/sheets.js"></script>
+<script src="js/shell.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

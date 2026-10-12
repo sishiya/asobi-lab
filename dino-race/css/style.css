@@ -1,9 +1,9 @@
 /* スマホを先に。押す所は高さ 44px 以上。色は紙とインク（ダークモードあり） */
 :root{--bg:#efe7d4;--paper:#f7f1e3;--paper-line:rgba(110,90,60,.10);--ink:#33281d;--ink-soft:rgba(51,40,29,.35);--bone:#fffaf0;
   --accent:#b3471d;--accent-ink:#fff;--muted:#6f6052;--card:#faf5ea;--line:#d9ccb2;--sel:#b3471d;--gold:#b8860b;--ok:#3f7a3a;
-  --shadow:0 8px 28px rgba(51,40,29,.18);color-scheme:light dark}
+  --shadow:0 8px 28px rgba(51,40,29,.18);--bone-hi:#fff8ea;--scrim:rgba(239,231,212,.72);color-scheme:light dark}
 @media (prefers-color-scheme:dark){:root{--bg:#16120d;--paper:#201b14;--paper-line:rgba(240,225,200,.06);--ink:#ece0cb;--ink-soft:rgba(236,224,203,.28);--bone:#2b241b;
-  --accent:#f08a5a;--accent-ink:#1a0e05;--muted:#a8987f;--card:#1e1913;--line:#3a3125;--sel:#f08a5a;--gold:#e0b84a;--ok:#8cc47f;--shadow:0 8px 28px rgba(0,0,0,.5)}}
+  --accent:#f08a5a;--accent-ink:#1a0e05;--muted:#a8987f;--card:#1e1913;--line:#3a3125;--sel:#f08a5a;--gold:#e0b84a;--ok:#8cc47f;--shadow:0 8px 28px rgba(0,0,0,.5);--scrim:rgba(22,18,13,.74)}}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%}
@@ -17,13 +17,16 @@ button.primary{background:var(--accent);border-color:var(--accent);color:var(--a
 button.quiet{background:none}
 button.link{background:none;border:0;padding:0;min-height:0;color:var(--accent);text-decoration:underline;font-size:inherit}
 button:focus-visible,select:focus-visible,input:focus-visible,.card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.icon-btn{width:40px;height:40px;min-height:40px;padding:0;border-radius:50%;font-weight:700;font-size:17px;line-height:1;flex:none}
+.icon-btn{width:40px;height:40px;min-height:40px;padding:0;border-radius:50%;font-weight:700;font-size:17px;line-height:1;flex:none;display:inline-flex;align-items:center;justify-content:center}
+.icon-btn svg{width:20px;height:20px}
+#btnSound .mute,#btnSound.off .wave{display:none}
+#btnSound.off .mute{display:inline}
+#btnSound.off{color:var(--muted)}
 
 .top{display:flex;align-items:center;gap:10px;max-width:1100px;margin:0 auto;padding:10px 16px 8px}
 .top h1{margin:0;font-size:19px;letter-spacing:.03em;white-space:nowrap}
 .back{font-size:18px;text-decoration:none;color:var(--muted);padding:6px 4px}
-.tag{font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 6px;color:var(--muted)}
-.top .icon-btn{margin-left:auto}
+.top #btnSound{margin-left:auto}
 main{max-width:1100px;margin:0 auto;padding:0 16px 48px}
 
 /* 走るようす */
@@ -168,7 +171,7 @@ dialog#sheet::backdrop{background:rgba(20,15,10,.45)}
   .top{padding:8px 10px 6px}
   .stage{border-radius:10px}
   .stage.live{border-radius:0;margin:0 -10px;border-left:0;border-right:0}
-  #view{height:clamp(200px,34vh,320px)}
+  #view,.count{height:clamp(200px,34vh,320px)}
   .cards{grid-template-columns:repeat(2,1fr);gap:8px}
   .card{padding:6px}
   .card canvas{height:70px}
@@ -178,8 +181,59 @@ dialog#sheet::backdrop{background:rgba(20,15,10,.45)}
   .actbar button{padding:8px 12px}
 }
 
+/* タイトル画面（後ろで練習場の恐竜が走っている） */
+body.titled{overflow:hidden}
+.title-screen{position:fixed;inset:0;z-index:50;display:grid;place-items:end center;padding:16px 16px calc(6vh + env(safe-area-inset-bottom));background:linear-gradient(to bottom,transparent 0,transparent 30%,var(--scrim) 52%);animation:fade .35s ease-out}
+.title-card{width:100%;max-width:380px;text-align:center;background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:28px 22px 18px;box-shadow:var(--shadow)}
+.title-logo{width:76px;height:76px;display:block;margin:0 auto 10px}
+.title-card h2{margin:0;font-size:28px;letter-spacing:.06em;line-height:1.3}
+.title-sub{margin:8px 0 20px;color:var(--muted);font-size:14px}
+.title-btns{display:flex;flex-direction:column;gap:10px}
+.title-btns button{min-height:52px;font-size:17px}
+.title-foot{margin:16px 0 0;font-size:12px;color:var(--muted)}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+
+/* スタートの合図 */
+.count{position:absolute;left:0;right:0;top:0;height:clamp(220px,38vh,460px);display:flex;align-items:center;justify-content:center;pointer-events:none;
+  font-size:clamp(30px,8vw,52px);font-weight:800;letter-spacing:.08em;color:var(--accent);text-shadow:0 0 12px var(--paper),0 0 4px var(--paper)}
+.count.pop{animation:pop .35s ease-out}
+@keyframes pop{0%{transform:scale(1.5);opacity:0}100%{transform:none;opacity:1}}
+
+/* 確認・名前の入力 */
+dialog#ask{border:1px solid var(--line);border-radius:16px;padding:18px;background:var(--bg);color:var(--ink);width:min(380px,calc(100% - 32px));box-shadow:var(--shadow)}
+dialog#ask::backdrop{background:rgba(20,15,10,.5)}
+dialog#ask p{margin:0 0 8px;font-size:15px}
+dialog#ask input{width:100%;font:inherit;font-size:16px;min-height:44px;padding:6px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+
+/* 動かせないとき */
+.fatal{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;background:var(--bg);text-align:center;font-size:15px}
+.fatal p{max-width:420px;margin:0}
+
+/* メダル獲得・エンディング */
+.medal-big,.medal-s{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff6c8,var(--gold) 60%,#8a6508);color:#3a2a00;box-shadow:0 2px 8px rgba(0,0,0,.25);flex:none}
+.medal-big{width:64px;height:64px;font-size:30px;animation:medal .8s cubic-bezier(.2,1.4,.4,1)}
+.result-banner.medal-get{display:flex;align-items:center;gap:14px}
+@keyframes medal{0%{transform:scale(.2) rotate(-200deg);opacity:0}100%{transform:none;opacity:1}}
+.ending{text-align:center}
+.ending .medal-row{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin:6px 0 12px}
+.medal-s{width:26px;height:26px;font-size:13px;animation:medal .6s cubic-bezier(.2,1.4,.4,1) backwards}
+.ending .lead{font-size:17px;font-weight:700}
+.ending .facts,.ending p:not(.lead):not(.thanks){text-align:left}
+.ending .thanks{font-size:16px;font-weight:700;margin:18px 0 0}
+@media (prefers-reduced-motion:reduce){.title-screen,.count.pop,.medal-big,.medal-s{animation:none}}
+
+/* メニュー */
+.menu ol{margin:4px 0;padding-left:20px}
+.switch{display:flex;align-items:center;gap:8px;min-height:44px;font-size:15px}
+.switch input{width:22px;height:22px;accent-color:var(--accent)}
+.menu details{margin-top:16px;border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+.menu summary{cursor:pointer;font-weight:600;min-height:32px;display:flex;align-items:center}
+.credits{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:4px 0;font-size:13px;text-align:left}
+.credits dt{color:var(--muted)}
+.credits dd{margin:0}
+
 /* サムネイルを撮るとき（?thumb）: 走るようすだけを画面いっぱいに */
-body.thumb .top,body.thumb .tabs,body.thumb .panel,body.thumb .hud,body.thumb .actbar{display:none!important}
+body.thumb .title-screen,body.thumb .top,body.thumb .tabs,body.thumb .panel,body.thumb .hud,body.thumb .actbar{display:none!important}
 body.thumb main{padding:0;max-width:none}
 body.thumb .stage{border:0;border-radius:0}
 body.thumb #view{height:100vh}
