@@ -123,7 +123,7 @@ function stepLater(dt) { for (let k = LATER.length - 1; k >= 0; k--) { LATER[k].
 
 // 章に入る（つまみ・つぼの中身・ことば）。quiet=true は読みこんだとき
 function enterChapter(n, quiet) {
-  G.ch = n; G.chT = 0; G.streak = 0; G.helped = 0; G.winterOk = false; G.winterSeen = false;
+  G.ch = n; G.chT = 0; G.streak = 0; G.helped = 0; G.spots = null; G.spotT = 0; G.winterOk = false; G.winterSeen = false;
   if (CHAPTERS[n] && CHAPTERS[n].key === 'genes' && !quiet) G.gbase = geneBase();
   const prevU = G.unlock || {};
   G.unlock = unlockedAt(n);
@@ -142,12 +142,26 @@ function enterChapter(n, quiet) {
   syncHands();
 }
 
+// ヒントのはしごの 1 段目: 関係のある所がかすかに光る（2日目から6日目まで。半日ごとに選びなおす）
+function pickSpots(key) {
+  const out = [], pick = (test, n) => { const c = INS.filter(test); for (let k = 0; k < n && c.length; k++) { const i = c.splice((Math.random() * c.length) | 0, 1)[0]; out.push({ x: i % N, y: i / N | 0 }); } };
+  if (key === 'water') { const p = W.lake; for (const f of [0.75, 0.6]) out.push({ x: C + p.x * RD * f, y: C + p.y * RD * f }); }
+  else if (key === 'soil') { const e = INS.filter(i => edgeBin[i] >= 0 && W.w[i] > 0.05).sort((a, b) => W.w[b] - W.w[a]); for (const i of e.slice(0, 4)) out.push({ x: i % N, y: i / N | 0 }); }
+  else if (key === 'grass') pick(i => W.moist[i] > 0.6 && W.w[i] < 0.2 && W.veg[i] < 0.2, 5);
+  else if (key === 'deer' || key === 'winter') pick(i => W.veg[i] > 0.5 && W.w[i] < 0.1, 4);
+  else if (key === 'wolf') { const d = L.list.filter(a => a.kind === 'deer'); for (let k = 0; k < 3 && d.length; k++) { const a = d[(Math.random() * d.length) | 0]; out.push({ x: a.x, y: a.y }); } }
+  else if (key === 'fish') pick(i => W.w[i] > 0.9 && W.alg[i] > 0.2 && Math.hypot(W.fR[i] - W.fL[i], W.fD[i] - W.fU[i]) < 0.3, 4);
+  else if (key === 'bird') pick(i => W.w[i] > 0.1 && W.w[i] < 0.7 && !W.ice[i], 4);
+  return out;
+}
+
 // 毎フレーム: 進み・ヒントのはしご・章のおわり
 function stepChapter(s, dt) {
   if (!G.started || isFree() || COL || G.ch % 1) return;
   const c = CHAPTERS[G.ch];
   G.chT += dt;
   const days = G.chT / DAY;
+  if (days > 2 && days < 6 && c.prog(s) < G.goal * 0.8) { if (!G.spots || G.chT - (G.spotT || 0) > DAY / 2) { G.spots = pickSpots(c.key); G.spotT = G.chT; } } else G.spots = null;
   if (!G.helped && days > 3) { G.helped = 1; toast(c.hint, 9); }
   else if (G.helped === 1 && days > 8 && c.prog(s) < G.goal * 0.8) { G.helped = 2; const msg = c.gift(); toast(msg, 5); Sound.play('put'); }
   if (c.prog(s) >= G.goal) finishChapter();
@@ -175,7 +189,7 @@ function finishChapter() {
   if (n + 1 < CHAPTERS.length) {
     toast(`「${c.title}」ができた。観察帳に、本当のことが一つ書きこまれた`, 6);
     later(4.5, () => { if (G.ch === n + 0.5) enterChapter(n + 1); });
-    G.ch = n + 0.5;   // 次の章を待つあいだ（お題を数えない）
+    G.ch = n + 0.5; G.spots = null;   // 次の章を待つあいだ（お題を数えない）
   } else {
     G.ch = CHAPTERS.length; G.unlock = unlockedAt(G.ch); W.knob = { winter: 1, tide: 1 }; syncHands();
     later(2.5, startEnding);

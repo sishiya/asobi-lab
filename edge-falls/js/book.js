@@ -257,6 +257,19 @@ function stepTips(dt) {
   for (const [id, when, text] of TIPS) if (!G.did[id] && !G.tipped[id] && when()) { G.tipped[id] = 1; toast(text, 7); return; }
 }
 
+// ヒントのはしごの光（世界の上に、ほたるのように。chapters.js の pickSpots）
+function drawSpots(ctx, t) {
+  if (!G.spots || COL) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  G.spots.forEach((p, k) => {
+    const q = proj(p.x, p.y, surfAt(p.x, p.y) + 0.8 + 0.4 * Math.sin(t * 1.3 + k)), a = 0.22 + 0.16 * Math.sin(t * 2 + k * 1.7), r = Math.max(6, V.s * 2.2);
+    const g = ctx.createRadialGradient(q.x, q.y, 0, q.x, q.y, r);
+    g.addColorStop(0, `rgba(255,236,170,${a})`); g.addColorStop(1, 'rgba(255,236,170,0)');
+    ctx.fillStyle = g; ctx.fillRect(q.x - r, q.y - r, r * 2, r * 2);
+  });
+  ctx.restore();
+}
+
 // ---- 世界の版画（銅版画の画風で1枚に） ----
 function makePrint() {
   const W0 = 1400, H0 = 1000, out = document.createElement('canvas'); out.width = W0; out.height = H0;

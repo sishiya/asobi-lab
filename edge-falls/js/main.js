@@ -292,7 +292,7 @@ function frame(now) {
   }
   accSide += dt;
   if (accSide > 0.25) { accSide = 0; updateSide(s); }
-  if (V.cw > 1 && V.ch > 1) { drawWorld(ctx, t, hover); takeSketch(); }   // 見えていないと大きさが 0
+  if (V.cw > 1 && V.ch > 1) { drawWorld(ctx, t, hover); takeSketch(); drawSpots(ctx, t); }   // 見えていないと大きさが 0
   Sound.update(COL ? 0 : s.out, !G.started || G.speed === 0 || !!COL, Math.max(0, Math.min(1, (V.zoom - 1.2) / 1.0)));   // 滝の音は寄ったときだけ
   requestAnimationFrame(frame);
 }
