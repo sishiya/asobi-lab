@@ -1,0 +1,95 @@
+/* 果ての滝の箱庭: 遊ぶ所は深淵の夜空、まわりは羊皮紙（天をまわす箱庭と同じ系統）。ダークモードあり */
+:root{--bg:#e8dcbc;--ink:#3a2a1c;--muted:#6d5a44;--line:#cdb98f;--card:#f4ead0;--accent:#8c3c14;--water:#4a6a8a;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#1b1712;--ink:#efe3c4;--muted:#b3a283;--line:#3f3527;--card:#252019;--accent:#e08a50;--water:#8fb0cf}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif;line-height:1.6;display:flex;flex-direction:column}
+p{margin:0}
+button{font:inherit;color:inherit}
+.top{display:flex;align-items:center;gap:12px;padding:8px 16px;border-bottom:1px solid var(--line)}
+.top h1{flex:1;margin:0;font-size:20px;letter-spacing:.06em}
+.proto{font-size:12px;border:1px solid var(--muted);color:var(--muted);border-radius:4px;padding:0 6px;vertical-align:middle;letter-spacing:0}
+.back{color:var(--ink);text-decoration:none;font-size:22px;padding:0 4px}
+.icon-btn{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--card);cursor:pointer;font-size:16px}
+.icon-btn:hover{border-color:var(--accent)}
+
+.layout{flex:1;display:flex;gap:16px;padding:12px 16px 16px;min-height:0}
+.field{position:relative;flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#0d1222;touch-action:none}
+#view{display:block;width:100%;height:100%;cursor:grab}
+#view.grabbing{cursor:grabbing}
+#view.tool{cursor:crosshair}
+.tools{position:absolute;left:10px;right:60px;bottom:10px;display:flex;flex-wrap:wrap;gap:4px}
+.tools button{padding:5px 9px;border:1px solid rgba(239,227,196,.35);border-radius:8px;background:rgba(20,27,48,.78);color:#efe3c4;cursor:pointer;font-size:13px;position:relative}
+.tools button:hover{border-color:#efe3c4}
+.tools button[aria-pressed=true]{background:#efe3c4;color:#141b30;border-color:#efe3c4}
+.tools i{font-style:normal;font-size:11px;margin-left:4px;opacity:.85}
+.tools i.zero{color:#e07a6a}
+.zoom{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px}
+.zoom .icon-btn{background:rgba(20,27,48,.78);color:#efe3c4;border-color:rgba(239,227,196,.35)}
+
+.side{width:290px;flex:none;display:flex;flex-direction:column;gap:10px;overflow:auto}
+.box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.box.row{display:flex;gap:6px;flex-wrap:wrap}
+.label{font-size:12px;color:var(--muted);letter-spacing:.1em;margin-bottom:4px;display:flex;justify-content:space-between;gap:8px}
+.label b{color:var(--ink)}
+.qtext{font-weight:700;margin-bottom:6px}
+.small{font-size:13px;color:var(--muted)}
+.small b{color:var(--ink);font-size:16px}
+.hint{margin-top:6px;font-size:12px}
+.bar{display:block;height:8px;border:1px solid var(--ink);border-radius:4px;overflow:hidden;margin:4px 0}
+.bar i{display:block;height:100%;width:0;background:repeating-linear-gradient(135deg,var(--accent) 0 3px,transparent 3px 5px)}
+.bar.soil{display:inline-block;width:150px;vertical-align:middle;margin:0 0 0 6px}
+.bar.soil i{background:repeating-linear-gradient(135deg,#8a6a3a 0 3px,transparent 3px 5px)}
+.qstars{letter-spacing:.1em;color:var(--accent)}
+.hintbox{margin-top:4px;font-size:13px;color:var(--muted)}
+.hintbox summary{cursor:pointer}
+.hintbox p{margin-top:4px}
+#chart{display:block;width:100%;height:80px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:13px}
+.legend i,.wleg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px;border:1px solid var(--ink)}
+.wbar{display:flex;height:12px;border:1px solid var(--ink);border-radius:4px;overflow:hidden;margin:4px 0}
+.wbar i{display:block;height:100%;transition:width .5s}
+.land{background:#4f86b8}.cloud{background:#dfe6ee}.abyss{background:#1d2742}
+.wleg{display:flex;gap:10px;flex-wrap:wrap;font-size:12px}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1;padding:6px 4px;border:0;background:transparent;cursor:pointer;font-size:14px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--card)}
+.tbtn{padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:transparent;cursor:pointer;font-size:13px}
+.tbtn:hover{border-color:var(--accent)}
+.tbtn[aria-pressed=false],.icon-btn[aria-pressed=false]{color:var(--muted);text-decoration:line-through}
+.tbtn.main{background:var(--ink);color:var(--card);border-color:var(--ink);font-size:16px;padding:8px 22px}
+
+.toast{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:rgba(244,234,208,.92);color:#3a2a1c;padding:6px 14px;border-radius:6px;font-size:14px;opacity:0;transition:opacity .4s;pointer-events:none;max-width:90%;text-align:center}
+.toast.on{opacity:1}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,8,16,.45);padding:16px}
+.overlay[hidden]{display:none}
+.panel{background:#f4ead0;color:#3a2a1c;border:2px solid #3a2a1c;outline:1px solid #3a2a1c;outline-offset:3px;border-radius:4px;max-width:460px;padding:18px 20px;max-height:100%;overflow:auto}
+.panel h2{margin:0 0 8px;font-size:22px;letter-spacing:.08em;text-align:center}
+.panel p{margin:0 0 10px;font-size:15px}
+.panel ul{margin:0 0 10px;padding-left:20px;font-size:14px}
+.panel .stars{text-align:center;font-size:28px;letter-spacing:.2em;color:#8c3c14}
+.panel .btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+.panel .tbtn{color:#3a2a1c;border-color:#cdb98f}
+.panel .tbtn.main{background:#3a2a1c;color:#f4ead0}
+.panel .truth{font-size:13px;border-top:1px solid #cdb98f;padding-top:8px}
+
+dialog{max-width:580px;background:var(--card);color:var(--ink);border:2px solid var(--ink);border-radius:6px;padding:16px 20px}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+dialog h2{margin:0 0 8px;font-size:20px}
+dialog h3{margin:14px 0 4px;font-size:15px}
+dialog ul{margin:0;padding-left:20px;font-size:14px}
+dialog p{font-size:14px;margin:0 0 6px}
+dialog a{color:var(--accent)}
+
+@media (max-width:760px){
+  .layout{flex-direction:column;padding:8px 12px 12px;gap:10px}
+  .field{flex:none;height:min(110vw,66vh)}
+  .side{width:auto;overflow:visible}
+  .top h1{font-size:17px}
+  .tools button{padding:4px 7px;font-size:12px}
+}
+body.thumb .top,body.thumb .side,body.thumb .zoom,body.thumb .tools,body.thumb .toast{display:none}
+body.thumb .layout{padding:0}
+body.thumb .field{border:0;border-radius:0;flex:1;height:100vh}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
