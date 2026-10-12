@@ -35,4 +35,7 @@ git config core.quotepath false
 
 ## ライセンス
 
-MIT（`LICENSE`）。実行時に読み込む Planck.js（MIT、恐竜かけっこ牧場の物理）は、そのライセンスに従います。
+- **プログラムのコード**: MIT（`LICENSE`）
+- **ゲームの中身**（名前・文章・キャラクターやステージのデザイン・画像・音・企画書などの文書。コードの中に書かれていても）: CC BY-NC 4.0（`LICENSE-CONTENT`）。作者を表示すれば共有・改変してよく、営利目的には使えません。
+- 実行時に読み込む Planck.js（MIT、恐竜かけっこ牧場の物理）や Google Fonts のフォント（SIL Open Font License）は、それぞれのライセンスに従います。
+- 2026-10-13 より前のコミットは、すべて MIT で公開していました。
