@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>天をまわす箱庭 過去の版</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23efe3c4'/><circle cx='32' cy='32' r='25' fill='none' stroke='%233a2a1c' stroke-width='3'/><circle cx='32' cy='32' r='17' fill='none' stroke='%233a2a1c' stroke-width='2.5' stroke-dasharray='4 3'/><circle cx='32' cy='32' r='9' fill='%2385a3a8' stroke='%233a2a1c' stroke-width='2.5'/><circle cx='54' cy='22' r='5' fill='%23e7c35f' stroke='%233a2a1c' stroke-width='2'/></svg>">
+<style>
+/* 節目の版をカードで新しい順に（いちばん上が最新＝index.html）。下の表には全版（versions に残さない版は Git のリンク）。決まりは ../RULES.md 3章 */
+:root{--bg:#efe3c4;--ink:#3a2a1c;--muted:#6d5a44;--line:#cdb98f;--card:#f6eed6;--accent:#8c3c14;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#1b1712;--ink:#efe3c4;--muted:#b3a283;--line:#3f3527;--card:#252019;--accent:#e08a50}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;line-height:1.7}
+main{max-width:760px;margin:0 auto;padding:40px 16px 64px}
+h1{font-size:24px;margin:0 0 4px}
+.lead{color:var(--muted);margin:0 0 24px;font-size:14px}
+.cards{display:flex;flex-direction:column;gap:12px}
+.card{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:10px;text-decoration:none;color:inherit}
+.card:hover{border-color:var(--accent)}
+.card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ver{font-variant-numeric:tabular-nums;color:var(--accent);font-weight:700;font-size:14px;padding-top:2px}
+.card b{font-size:16px}
+.card p{margin:2px 0 0;font-size:13px;color:var(--muted)}
+.date{grid-column:2;font-size:12px;color:var(--muted)}
+.note{margin-top:32px;font-size:13px;color:var(--muted)}
+.note a{color:var(--accent)}
+h2{font-size:13px;color:var(--muted);margin:32px 0 8px;font-weight:700;letter-spacing:.08em}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{padding:8px 6px;border-top:1px solid var(--line);vertical-align:top}
+td:first-child{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+td a{color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+  <h1>天をまわす箱庭 過去の版</h1>
+  <p class="lead">節目ごとに残した版です。いちばん上が最新です。下の表には、すべての版があります。</p>
+  <div class="cards">
+    <a class="card" href="index.html"><span class="ver">最新</span><span><b>いまの版</b><p>開発中の最新版。</p></span></a>
+    <a class="card" href="versions/v001-first/index.html"><span class="ver">v001</span><span><b>はじめの試作</b><p>天動説の大地の輪切り。月と太陽の天球を回して潮・大潮・津波、地を盛る／削る、遺伝子3つの生き物が陸へ上がるお題、BGM と効果音。</p></span><span class="date">2026-10-12</span></a>
+  </div>
+  <h2>すべての版</h2>
+  <table>
+    <tr><td>v001-first</td><td><a href="versions/v001-first/index.html">はじめの試作</a></td></tr>
+  </table>
+  <p class="note"><a href="index.html">ゲームへ</a> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
+</main>
+</body>
+</html>
