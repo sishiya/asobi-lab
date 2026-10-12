@@ -29,6 +29,12 @@ const TOOL = {
   poisonDelay: [5, 9],
 };
 const BUG = {walk: 58, run: 170, turn: 7, eatRate: 0.9, full: 3};
+const TOOL0 = {...TOOL};
+const FOOD_AMT = 36;       // 食べこぼし1か所で1晩に食べられる量（虫1匹の満腹は 3。12匹ぶん）
+
+// ゲームで変わるもの: ふさいだすき間・片づけた食べこぼし・道具の強化（resetStage で元に戻す）
+let OPEN_HIDES = HIDES.slice(), OPEN_FOODS = FOODS.slice();
+function resetStage() { OPEN_HIDES = HIDES.slice(); OPEN_FOODS = FOODS.slice(); Object.assign(TOOL, TOOL0); }
 
 const CELL = 12, GW = Math.ceil(W / CELL), GH = Math.ceil(H / CELL);
 
@@ -42,11 +48,12 @@ function newWorld(pop, baits = []) {
     t: 0, pop, baits: baits.map(b => ({x: b.x, y: b.y})),
     mist: new Float32Array(GW * GH), mist2: new Float32Array(GW * GH),
     swats: [], fx: [], spraying: null, sprayLeft: TOOL.sprayBudget, swatCool: 0,
-    rec: {swat: 0, spray: 0, bait: 0, swings: 0, sprayUsed: 0, rejects: 0, dodges: 0},
+    rec: {swat: 0, spray: 0, bait: 0, swings: 0, sprayUsed: 0, rejects: 0, dodges: 0, tough: 0, hungry: 0},
     killed: [], auto: null, autoT: {swat: 0, spray: 0}, lastDisturb: -99,
+    food: new Map(OPEN_FOODS.map(f => [f, FOOD_AMT])),
   };
   for (const b of pop) {
-    const h = HIDES[Math.floor(Math.random() * HIDES.length)];
+    const h = OPEN_HIDES[Math.floor(Math.random() * OPEN_HIDES.length)];
     Object.assign(b, {state: 'hidden', hide: h, x: h.x, y: h.y, a: 0, v: 0,
       food: 0, eatT: 0, outT: 0, dose: 0, poison: -1, alarm: -1, threat: null,
       target: null, rejected: new Set(), emote: null, emoteT: 0, alive: true, cause: null,
@@ -57,8 +64,8 @@ function newWorld(pop, baits = []) {
 
 const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
 function nearestHide(x, y) {
-  let best = HIDES[0], bd = 1e9;
-  for (const h of HIDES) { const d = dist(x, y, h.x, h.y); if (d < bd) { bd = d; best = h; } }
+  let best = OPEN_HIDES[0], bd = 1e9;
+  for (const h of OPEN_HIDES) { const d = dist(x, y, h.x, h.y); if (d < bd) { bd = d; best = h; } }
   return best;
 }
 function mistAt(w, x, y) {
@@ -77,8 +84,9 @@ function kill(w, b, cause) {
 
 function chooseTarget(w, b) {
   const opts = [];
-  for (const f of FOODS) opts.push({x: f.x + (Math.random() - .5) * 26, y: f.y + (Math.random() - .5) * 18, wt: 1, food: f});
+  for (const f of OPEN_FOODS) if (w.food.get(f) > 0) opts.push({x: f.x + (Math.random() - .5) * 26, y: f.y + (Math.random() - .5) * 18, wt: 1, food: f});
   w.baits.forEach((bt, i) => { if (!b.rejected.has(bt)) opts.push({x: bt.x, y: bt.y, wt: 1.7, bait: bt}); });
+  if (!opts.length) return null;      // 食べるものがない
   let r = Math.random() * opts.reduce((s, o) => s + o.wt, 0);
   for (const o of opts) { r -= o.wt; if (r <= 0) return o; }
   return opts[0];
@@ -96,6 +104,7 @@ function tasteBait(w, b, bt) {
     b.rejected.add(bt); w.rec.rejects++;
     b.emote = 'reject'; b.emoteT = 1.2;
     b.target = chooseTarget(w, b); b.state = 'out';
+    if (!b.target) goHome(b, false);
   } else {
     b.poison = TOOL.poisonDelay[0] + Math.random() * (TOOL.poisonDelay[1] - TOOL.poisonDelay[0]);
     b.state = 'eat'; b.eatT = 1.2; b.target = null; b.onBait = true;
@@ -136,6 +145,7 @@ function stepBug(w, b, dt) {
       b.state = 'out'; b.outT = 0; b.x = b.hide.x + (Math.random() - .5) * 14;
       b.y = b.hide.y + (b.hide.y < 300 ? 6 : -6); b.a = b.hide.y < 300 ? Math.PI / 2 : -Math.PI / 2;
       b.target = chooseTarget(w, b);
+      if (!b.target) { b.state = 'hidden'; b.x = b.hide.x; b.y = b.hide.y; b.wait = 3; if (!b.hungry) { b.hungry = true; w.rec.hungry++; } }
     }
     return;
   }
@@ -145,6 +155,7 @@ function stepBug(w, b, dt) {
   if (c > 0.01) {
     b.dose += c * TOOL.doseK * dt;
     if (b.dose > GENE.kdrDose[b.p.kdr]) { kill(w, b, 'spray'); return; }
+    if (b.dose > 1.05 && !b.tough) { b.tough = true; w.rec.tough++; b.emote = 'tough'; b.emoteT = 1.4; }   // ふつうの虫なら死ぬ量をあびても平気
     if (b.state !== 'flee' && c > 0.12 + 0.55 * (1 - b.p.sense)) { goHome(b, true); b.threat = null; }
   } else b.dose = Math.max(0, b.dose - 0.05 * dt);
   // スリッパに気づいた → 少し遅れて逃げ出す
@@ -162,16 +173,20 @@ function stepBug(w, b, dt) {
       steer(b, t.x, t.y, BUG.walk, dt);
       if (dist(b.x, b.y, t.x, t.y) < 9) {
         if (t.bait && w.baits.includes(t.bait)) tasteBait(w, b, t.bait);
-        else if (t.bait) b.target = chooseTarget(w, b);
-        else { b.state = 'eat'; b.eatT = 0; b.onBait = false; }
+        else if (t.bait || w.food.get(t.food) <= 0) { b.target = chooseTarget(w, b); if (!b.target) goHome(b, false); }
+        else { b.state = 'eat'; b.eatT = 0; b.onBait = false; b.at = t.food; }
       }
       break;
     }
     case 'eat':
       b.v = 0;
-      b.food += BUG.eatRate * dt;
-      if (b.onBait) { b.eatT -= dt; if (b.eatT <= 0) goHome(b, false); }
-      else if (b.food >= BUG.full) goHome(b, false);
+      if (b.onBait) { b.food += BUG.eatRate * dt; b.eatT -= dt; if (b.eatT <= 0) goHome(b, false); }
+      else {
+        const left = w.food.get(b.at), bite = Math.min(left, BUG.eatRate * dt);
+        b.food += bite; w.food.set(b.at, left - bite);
+        if (b.food >= BUG.full) goHome(b, false);
+        else if (left - bite <= 0) { b.target = chooseTarget(w, b); b.state = 'out'; if (!b.target) goHome(b, false); }
+      }
       break;
     case 'home': case 'flee': {
       let tx = b.target.x, ty = b.target.y;
@@ -287,7 +302,7 @@ function stepWorld(w, dt) {
       for (const b of w.pop) {
         if (!b.alive || b.state === 'hidden') continue;
         if (dist(b.x, b.y, s.x, s.y) < TOOL.swatR) { kill(w, b, 'swat'); hit++; }
-        else if (b.threat && b.threat.x === s.x && b.threat.y === s.y && dist(b.x, b.y, s.x, s.y) < TOOL.swatR + 40) w.rec.dodges++;
+        else if (b.threat && b.threat.x === s.x && b.threat.y === s.y && dist(b.x, b.y, s.x, s.y) < TOOL.swatR + 40) { w.rec.dodges++; b.emote = 'dodge'; b.emoteT = 0.9; }
       }
       s.hit = hit;
     }

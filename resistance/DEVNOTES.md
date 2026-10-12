@@ -5,11 +5,11 @@
 台所の虫（チャバネゴキブリがモデル）を叩く・スプレーする・毒エサを置き、生き残ったものだけが子を残すと、世代ごとに相手がどう変わるかを自分の手で確かめるアプリ。企画は `PLAN.md`（もとは `IDEAS.md` の 9）。Canvas 2D、ライブラリなし。
 
 ## 別セッションで続けるとき（まずここ）
-- **いまの状態**: v2（`versions/v002-asobi`。中身は v1＝段階A と同じ）。**2026-10-12 にまなびラボ（`../../アプリ開発/resistance/`）からあそびラボへ移した**（まなびラボの GAMES.md でゲームと判定、ユーザーの指示）。あそびラボの**保管庫（`../archive.html`）に掲載**、サムネイル `../thumbs/resistance.jpg`。URL は `https://sishiya.github.io/asobi-lab/resistance/`（まなびラボの旧 URL `manabi-lab/resistance/` はここへ飛ぶページだけ残した）。v001 までの記録はまなびラボの Git の履歴に。
-- **次にやること**: ユーザーの感想しだい。段階B（虫めがねで1匹を調べる・移入・食べものを片づける・薬2種類の交互／混合）は `PLAN.md`。
+- **いまの状態**: v3（`versions/v003-game`）。**ゲームにした**（2026-10-12 ユーザー「シミュレーション寄りなので、ゲーム向けに」）: 10夜で全滅させる・★・夜ごとの強化カード。同じ日に、まなびラボ（`../../アプリ開発/resistance/`）からあそびラボへ移した（あちらの GAMES.md でゲームと判定）。**保管庫（`../archive.html`）に掲載**、サムネイル `../thumbs/resistance.jpg`（`?thumb` で台所だけ）。URL は `https://sishiya.github.io/asobi-lab/resistance/`（まなびラボの旧 URL はここへ飛ぶページだけ）。シミュレーション版は `versions/v001-first`、v001 までの記録はまなびラボの Git の履歴に。
+- **次にやること**: 人が遊んだ感想で難しさを直す（★の夜・子の数 `GENE.growth`・食べこぼしの量 `FOOD_AMT`・強化の強さ）。案: 別の種類の殺虫剤（交差抵抗性）、となりの家から入ってくる虫（移入）、虫めがねで1匹を調べる（`PLAN.md` 段階B）。
 - **読む順**: `../CLAUDE.md`（あそびラボ。進め方の下敷きはまなびラボの `RULES.md`）→ このファイル → 下の「ファイル構成」で関係するファイルだけ。
 - **動かし方**: `.claude/launch.json` の `games`（`http://localhost:8780/resistance/`）。ユーザーは `start.bat resistance`。
-- **デバッグ用**: `window.__rz` — `S`（状態）、`world`（いまの夜）、`step(秒)`（Browser ペインが裏で rAF が止まっていても夜を進めて描く）、`start(方針?)`、`finish()`（夜を終えて結果）、`next()`、`fast(n, 方針)`、`swat(x, y)`、`render()`。例外は `window.__rzErr`。頭の中だけで世代を回すには、ページのコンソールで `newWorld`・`runNightHeadless`・`breed` を直接呼ぶ（下の「確かめた進み方」の数字はこの方法）。
+- **デバッグ用**: `window.__rz` — `S`（状態）、`world`（いまの夜）、`step(秒)`（夜の始まりの札を閉じてから進める。Browser ペインが裏で rAF が止まっていても進めて描く）、`start()`、`finish()`（夜を終えて結果）、`pick(i)`（i 枚目の強化をえらんで次の夜へ）、`swat(x, y)`、`render()`。例外は `window.__rzErr`。`world.auto = POLICIES.spray` などで、その夜を決まったやり方で退治させられる（v1 の「まかせる」のなごり）。頭の中だけで回すには、ページのコンソールで `newWorld`・`runNightHeadless`・`breed`・`dealCards`・`resetStage` を直接呼ぶ（下の「難しさの調整」の数字はこの方法）。
 - **区切りごとに**: ① `versions/v0NN-名前/` に index.html・css・js を丸ごとコピー ② `launcher.html` にカード・表 ③ 下の「状態」 ④ 「確認のしかた」を通す ⑤ 公開前チェック（`../tools/check-public.ps1`）→ コミット・push（あそびラボの CLAUDE.md）。
 - **ユーザーの好み**: 眺めるだけでなく、手でさわって目の前で反応するもの。正確さ重視（出どころと簡単にしたところを画面に）。虫が苦手な人への配慮（見た目を選べる、つぶれた絵・音なし）。
 
@@ -17,13 +17,14 @@
 
 | ファイル | 中身 | 主な名前 |
 |---|---|---|
-| `index.html` | 骨組み（doctype なし）。読み込み順: genes → world → draw → ui → main。始めの見た目えらび `#startOv`、夜の結果 `#resultOv`、解説・出どころ | `#view` `#segTool` `#sprayBar` `#nightBar` `#btnEnd` `#toast` `#styleChoice` `#btnStart` `#resTitle` `#resBody` `#btnNext` `#genCard` `#hists` `#segColor` `#chart` `#policies` `#btnWatch` `#btnFast` `#quests` `#segStyle` `#btnReset` |
+| `index.html` | 骨組み（doctype なし）。読み込み順: genes → world → draw → ui → game → main。始めの窓 `#startOv`（目標・記録 `#bestLine`・見た目えらび）、夜の始まりの札 `#banner`、夜の結果 `#resultOv`（強化 `#cards`）、終わり `#endOv`（`#endChart`）、パネル（いまの夜・虫のようす `#enemy`・色分け・手に入れた強化 `#owned`・研究ノート）、解説・出どころ | `#view` `#segTool` `#nightNo` `#sprayBar` `#nightBar` `#btnEnd` `#toast` `#styleChoice` `#btnStart` `#resTitle` `#resBody` `#btnNext` `#genCard` `#hists` `#segColor` `#chart` `#segStyle` `#btnReset` `#btnAgain` |
 | `css/style.css` | black-hole と同じ骨組み（PC は右パネル 350px、縦長スマホは図を上に固定）を、夜の台所の茶色に。末尾に「resistance additions」。スマホでは結果などの窓を画面いっぱい（`position:fixed`） | |
 | `js/genes.js` | 遺伝子と性質 `TRAITS`・`GENE`（効き目と代わりの損）、`newGenome` `phen` `makeBug` `traitValue` `fitness` `breed`（有性生殖・突然変異）`popStats` `histogram` `firstPopulation` | `LOCI` `TRAIT` |
-| `js/world.js` | 台所 `W×H`=960×600、`FLOOR` `HIDES`（4）`FOODS`（3）`TRASH`、道具の数値 `TOOL`、虫 `BUG`。`newWorld` `stepBug`（隠れる・出る・食べる・帰る・逃げる）`swat` `sprayAt` `stepMist`（12px の格子で広がって消える）`placeBait` `tasteBait` `stepAuto`（まかせる）`stepWorld` `endNight` `runNightHeadless`。`POLICIES` `DEFAULT_BAITS` | `NIGHT` `CELL` `GW` `GH` |
-| `js/draw.js` | 台所の絵（2倍の大きさで一度だけ描いてとっておく `kitchenCanvas`）、霧 `drawMist`、毒エサ `drawBait`、虫 `drawBug`（まる・デフォルメ・リアル寄り、色分け `bugColor`、大きさ `BUG_DRAW`）、スリッパ `drawSwat`、消えるときの輪 `drawFx`、奥にいる数 `drawHideCounts`、`drawCursor` `drawWorld` `drawSample` | |
-| `js/ui.js` | 分布 `buildHists` `drawHist` `updateHists`、世代のグラフ `drawChart` `buildLegend` `histRow`、`updateGenCard`、夜の結果 `showResult` `insight`、見つけてみよう `QUESTS` `buildQuests` `syncQuests`、`toast`、まかせる `buildPolicies` `policyDesc` | `$` `carriers` `traitSummary` `genTimeText` |
-| `js/main.js` | 状態 `S`、`reset` `startNight` `policyFor` `finishNight` `nextGeneration` `fastForward`、見つけてみよう `done` `trackQuests` `liveQuests`、`refreshPanel` `syncButtons`、`resize` `render` `frame`、操作 `wirePointer` `wireUI`、`init`、`window.__rz` | |
+| `js/world.js` | 台所 `W×H`=960×600、`FLOOR` `HIDES`（4）`FOODS`（3）`TRASH`、道具の数値 `TOOL`、虫 `BUG`。`TOOL0` `FOOD_AMT` `OPEN_HIDES` `OPEN_FOODS` `resetStage`（ゲームで変わるもの）、`newWorld`（`w.food` 食べこぼしの残り） `stepBug`（隠れる・出る・食べる・帰る・逃げる）`swat` `sprayAt` `stepMist`（12px の格子で広がって消える）`placeBait` `tasteBait` `stepAuto`（まかせる）`stepWorld` `endNight` `runNightHeadless`。`POLICIES` `DEFAULT_BAITS` | `NIGHT` `CELL` `GW` `GH` |
+| `js/draw.js` | 台所の絵（2倍の大きさで一度だけ描いてとっておく `kitchenCanvas`）、霧 `drawMist`、毒エサ `drawBait`、虫 `drawBug`（まる・デフォルメ・リアル寄り、色分け `bugColor`、大きさ `BUG_DRAW`）、スリッパ `drawSwat`、消えるときの輪 `drawFx`、奥にいる数 `drawHideCounts`、食べこぼしの残り `drawFoodLeft`、ふさいだすき間・片づけた食べこぼし（`kitchenCanvas`）、吹き出し（にがい！・効かない！・ひょい）、`drawCursor` `drawWorld` `drawSample` | |
+| `js/ui.js` | 分布 `buildHists` `drawHist` `updateHists`、夜ごとのグラフ `drawChart(hist, id)`（研究ノートと終わりの画面）`buildLegend(id)` `histRow`、`updateGenCard`（いまの夜のカード）、夜の結果 `showResult` `insight`、`toast` | `$` `esc` `pct` `carriers` `traitSummary` `genTimeText` |
+| `js/game.js` | ゲームのきまり: `NIGHTS`（10）`STAR_AT`（★の夜）`starsFor` `loadBest` `saveBest`（localStorage `resistance.best`）、強化 `CARDS`（kind tool／env）`dealCards`（道具2枚＋薬を使わない1枚）`cardsHTML`、虫のようす `enemyReport` `warnings` `buildEnemy` `updateEnemy`、終わりのひとこと `lessonText` | `WARN` `starText` |
+| `js/main.js` | 状態 `S`、`reset` `startNight`（夜の始まりの札 `#banner`。出ているあいだ夜は進まない）`finishNight` `nextGeneration`（えらんだ強化を当てる）`endGame`（勝ち負け・★・記録）`syncOwned`、`refreshPanel` `syncButtons`、`resize` `render` `frame`、操作 `wirePointer` `wireUI`、`init`（`?thumb`）、`window.__rz` | |
 
 ## しくみ
 
@@ -43,7 +44,7 @@
 - 毒エサ: 最大 3 つ。次の世代にも残る。食べものより 1.7 倍選ばれやすい。口にして `gavReject` でやめると「にがい！」（その夜はもう選ばない）。食べたものは 5〜9 秒後に死ぬ（夜が終わったら全部）。
 - まかせる（`POLICIES`）: 叩くだけ＝1.3 回/秒（ねらいは ±15 ずれる）、スプレーだけ＝夜の 30%、毒エサだけ＝3 つ、ぜんぶ使う＝叩く 0.7・スプレー 15%・毒エサ 3、なにもしない（毒エサも片づける）、いまのやり方＝前の自分の夜と同じ回数・秒数（毒エサはそのまま）。
 
-### 3. 確かめた進み方（頭の中で 1 晩ずつ計算した例。乱数で毎回ちがう）
+### 3. 確かめた進み方（v1 のシミュレーション版、growth 2.6・食べこぼしの量なし。頭の中で 1 晩ずつ計算した例。乱数で毎回ちがう）
 | やり方 | 進み方 |
 |---|---|
 | 叩くだけ | 1晩に 25〜30 匹 → 15〜20 匹しか叩けなくなる。16 世代で察知 0.15 → 0.42、または警戒心 0.17 → 0.37（どちらが伸びるかは回による） |
@@ -55,19 +56,40 @@
 
 叩いたときの死にやすさ（1晩、察知だけを変えた集団で 5 回の平均）: 察知 0 で 61%、0.33 で 27%、0.67 で 9%、1 で 8%。
 
+### 4. ゲームのきまり（v3）
+- **目標**: 10夜（`NIGHTS`）のうちに全滅。★3 は第4夜まで、★2 は第6夜まで、★1 は第10夜まで（`STAR_AT`）。10夜目のあとに残っていたら負け。
+- **子の数**: `GENE.growth` を 2.6 → **1.3**（v1 のままだと、生き残りが数匹でも次の夜は 80 匹に戻り、運で第1〜3夜に勝つか、まったく勝てないかの二つに分かれた）。
+- **食べこぼしに量**（`FOOD_AMT` = 36、1か所で12匹ぶん。`w.food`）。なくなると「からっぽ」、食べられなかった虫は子が少ない（`rec.hungry`）。
+- **強化**（夜のあとに3枚から1枚。`CARDS`）: 大きいスリッパ ×1.15（2回まで）・すばやく振る −0.08 秒（2回まで）・スプレー +6 秒（3回まで）・濃いスプレー ×1.5（2回まで）・毒エサ +1（2回まで）・食べこぼしを片づける（場所ごと、1か所は残す）・すき間をふさぐ（場所ごと、2か所は残す）。片づける・ふさぐは `OPEN_FOODS` `OPEN_HIDES` を減らし、台所の絵を描き直す（`kitchenCache = null`）。`resetStage` で元に戻る。
+- **反応**: 霧で薬の量が 1.05 をこえても死なない虫に「効かない！」（`rec.tough`）、スリッパをかわした虫に「ひょい」。
+- **夜の始まりの警告**（`warnings`）: 第1夜からの変化が、量的な性質で +0.06、1つの遺伝子の性質で 20% 以上かつ +8 ポイントをこえたもの。
+
+### 5. 難しさの調整（2026-10-12、自動の手で回した。乱数で毎回ちがう）
+自動の手: 食べている虫を優先して叩く（回数/秒・ずれ）、食べこぼしに3匹より多く集まったらスプレー 1 秒、毒エサは置ける数まで。強化は好みの順にえらぶ。
+| やり方（growth 1.3、FOOD_AMT 36） | 勝ち | 全滅させた夜 |
+|---|---|---|
+| 叩くだけ（1回/秒・ずれ ±15、スリッパの強化） | 4/12 | 3・3・5・5 |
+| 叩く 1.2回/秒・ずれ ±12 ＋スプレー＋毒エサ、薬を使わない強化 | 4/12 | 3・3・8・8 |
+| スプレーだけ（スプレーの強化） | 0/10 | — |
+| 毒エサだけ | 2/10 | 7・7 |
+叩くだけ（1.5回/秒）で強化なしの例: 察知の平均 0.17 → 0.58 で、生き残りが 14 → 65 匹に増えていく（進化が追いつく）。人は警告を見て道具を変えられるので、自動の手より勝ちやすいはず（まだ人で確かめていない）。
+
 ## ハマったところ
 - `#frame canvas` に全面に広げる CSS（black-hole から）が、始めの窓の中の見本の canvas にも効いて、虫の見本が画面いっぱいに出た → `#frame>canvas` にした。
 - 最初の数値では、叩くだけで 2 世代で全滅、察知は「逃げてばかりで食べられない」損が大きすぎて、かえって減った。逃げ出すまでの時間の差を広げ（0.30 − 0.28 × 察知）、食べた量の効き目を弱めた（1.5 + 0.5 × 食べた量）。警戒心は「叩いた直後は出てこない」を足して、叩くと増えるようにした。
 
 ## 確認のしかた（変更のたびに）
-1. 開いて `__rzErr` がないこと。始めの窓に見本が3つ（まる・デフォルメ・リアル寄り）。
-2. 「1世代目の夜をはじめる」→ 虫がすき間から出て食べものへ行く。叩く（クリック）・スプレー（押している間）・毒エサ（置く／もう一度で片づける）がそれぞれ効く。クリックの位置と当たる位置が合っている。
-3. 夜が終わる（または「この夜を終える」）と結果の窓。表の4つの性質と矢印、「次の世代の夜へ」で 2 世代目。
-4. 「まかせて世代を進める」→「スプレーだけ」で「10世代を早送り」→ グラフで殺虫剤に強い虫が増える。「1世代を見る」で虫が自動で退治される。
-5. 色分け・見た目を変えると虫の絵が変わる。分布の灰色（退治された虫）と点線（1世代目）。
-6. スマホ（375×812）: 横にはみ出さない、道具のボタンが横書き、始めの窓・結果の窓が画面いっぱい。
+1. 開いて `__rzErr` がないこと。始めの窓に目標の文・見本が3つ（まる・デフォルメ・リアル寄り）、記録があれば「いちばんの記録」。
+2. 「第1夜をはじめる」→ 「第1夜」の札 → 虫がすき間から出て食べこぼしへ。叩く（クリック）・スプレー（押している間）・毒エサ（置く／もう一度で片づける）がそれぞれ効く。食べこぼしの下の棒が減る。
+3. 夜が明けると結果（退治・生き残り・次の夜の数、4つの性質の表）と強化3枚。えらぶまで「次の夜へ」は押せない。えらぶと「手に入れた強化」に出て、ふさいだすき間・片づけた食べこぼしが台所の絵に出る。
+4. コンソールで `world.auto = POLICIES.spray` → `step(40)` → `finish()` → `pick(0)` を数回 → 夜の始まりの札に「スプレーが効きにくい虫がふえた」。霧の中で「効かない！」。
+5. 10夜目のあと「台所は虫のものになった」とグラフとひとこと。虫を全部消して `finish()` →「第N夜で全滅させた！」と★、「もう一度」で始めの窓に記録が出る（確かめたら localStorage の `resistance.best` を消す）。
+6. スマホ（375×812）: 横にはみ出さない、結果の窓が画面いっぱいで強化が縦に並ぶ。
+7. `?thumb` で台所だけ（`../tools/make-thumbs.ps1 -Games resistance`）。
 
 ## 状態
+- 2026-10-12 v2（`versions/v002-asobi`）: まなびラボからあそびラボへ移した（中身は v1 と同じ）。
+- 2026-10-12 v3（`versions/v003-game`）: ゲームにした（上の「4. ゲームのきまり」「5. 難しさの調整」）。まかせる・早送り・見つけてみようをけずり、分布とグラフは「研究ノート」（たたんである）に。解説に「片づける・ふさぐ」と UC IPM の出どころ。
 - 2026-10-08 v1（`versions/v001-first`）: 段階A。台所、道具3つ、遺伝子4つ、見た目3つ、色分け、分布・世代のグラフ、夜の結果、まかせる（1世代を見る・10世代を早送り）、見つけてみよう8つ、解説・おもな出どころ。
 - 2026-10-08 v1b（`versions/v001b-archive`）: 隠しアーカイブに掲載。GA の1行、サムネイル（`_dev/tools/thumb.html` の `SETUP` に1世代目の夜を足した）、互換モードの確認（1200×740・375×812 で全 271 要素の位置と大きさが標準モードと同じ、エラーなし）。
 

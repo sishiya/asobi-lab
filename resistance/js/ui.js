@@ -1,4 +1,4 @@
-// ui.js — パネル（分布・グラフ・結果・見つけてみよう）
+// ui.js — パネル（分布・グラフ・夜の結果）
 'use strict';
 
 const $ = id => document.getElementById(id);
@@ -7,7 +7,7 @@ const pct = v => Math.round(v * 100) + '%';
 
 function genTimeText(gen) {
   const m = (gen - 1) * 3;
-  if (m === 0) return 'はじめ';
+  if (m === 0) return '1世代目';
   const y = Math.floor(m / 12), mm = m % 12;
   return '約' + (y ? y + '年' : '') + (mm ? mm + 'か月' : '') + '後';
 }
@@ -67,11 +67,11 @@ function updateHists(w, first) {
 }
 
 // ---- 世代ごとのグラフ ----
-function drawChart(hist) {
-  const cv = $('chart'), g = cv.getContext('2d'), Wc = cv.width, Hc = cv.height;
+function drawChart(hist, id = 'chart') {
+  const cv = $(id), g = cv.getContext('2d'), Wc = cv.width, Hc = cv.height;
   g.clearRect(0, 0, Wc, Hc);
   const L = 44, R = 12, T = 14, B = 30, pw = Wc - L - R, ph = Hc - T - B;
-  const n = Math.max(hist.length, 10);
+  const n = Math.max(hist.length, NIGHTS);
   const x = i => L + (n === 1 ? 0 : pw * i / (n - 1));
   const y = v => T + ph * (1 - v);
   g.font = '18px "IBM Plex Mono",monospace'; g.fillStyle = 'rgba(220,210,200,.6)'; g.textAlign = 'right'; g.textBaseline = 'middle';
@@ -96,10 +96,10 @@ function drawChart(hist) {
   const step = n <= 12 ? 1 : n <= 30 ? 5 : 10;
   for (let i = 0; i < n; i += step) g.fillText(String(i + 1), x(i), Hc - 8);
 }
-function buildLegend() {
-  $('chartLegend').innerHTML = TRAITS.map(t =>
+function buildLegend(id = 'chartLegend') {
+  $(id).innerHTML = TRAITS.map(t =>
     `<span><i style="background:${t.color}"></i>${t.name}${t.kind === 'poly' ? '（平均）' : '（持っている割合）'}</span>`).join('') +
-    '<span><i class="bar"></i>虫の数（80匹で上まで）</span><span class="xl">横: 世代</span>';
+    '<span><i class="bar"></i>虫の数（80匹で上まで）</span><span class="xl">横: 夜（＝世代）</span>';
 }
 
 // 量的な性質は 0〜1 の平均、1つの遺伝子のものは「持っている虫の割合」でグラフにする
@@ -109,25 +109,24 @@ function histRow(gen, bugs, rec) {
   return r;
 }
 
-// ---- いまの世代のカード ----
+// ---- いまの夜のカード ----
 function updateGenCard(S) {
   const w = S.world, alive = w ? w.pop.filter(b => b.alive).length : S.pop.length;
-  $('genNo').textContent = S.gen;
+  $('genLbl').textContent = `第${S.gen}夜`;
+  $('nightNo').innerHTML = `第${S.gen}夜<small>/${NIGHTS}</small>`;
   $('popNo').textContent = alive;
-  $('genTime').textContent = genTimeText(S.gen);
+  $('genTime').textContent = `${genTimeText(S.gen)}・のこり${NIGHTS - S.gen}夜`;
   const r = w ? w.rec : null;
   $('nightStats').innerHTML = r ? `
-    <span>叩いて退治</span><b>${r.swat} 匹 <small>（${r.swings} 回ふった）</small></b>
-    <span>にげられた</span><b>${r.dodges} 回</b>
-    <span>スプレーで退治</span><b>${r.spray} 匹 <small>（${r.sprayUsed.toFixed(1)} 秒）</small></b>
-    <span>毒エサで退治</span><b>${r.bait} 匹</b>
-    <span>毒エサを避けた</span><b>${r.rejects} 回</b>` : '';
+    <span>叩いて退治</span><b>${r.swat} 匹 <small>（かわされた ${r.dodges}）</small></b>
+    <span>スプレーで退治</span><b>${r.spray} 匹 <small>（効かない ${r.tough}）</small></b>
+    <span>毒エサで退治</span><b>${r.bait} 匹 <small>（にがい！ ${r.rejects}）</small></b>` : '';
 }
 
 // ---- 夜の結果 ----
 function showResult(S, info) {
-  const {gen, before, survivors, kids, rec, note} = info;
-  $('resTitle').textContent = kids.length ? `${gen}世代目の夜が終わりました` : '全滅させました！';
+  const {gen, before, survivors, kids, rec} = info;
+  $('resTitle').textContent = `第${gen}夜が明けました`;
   const rows = TRAITS.map(t => {
     const a = traitSummary(before, t.id), b = traitSummary(kids, t.id);
     const d = b.v - a.v, arrow = Math.abs(d) < 0.01 ? '→' : d > 0 ? '↑' : '↓';
@@ -135,13 +134,11 @@ function showResult(S, info) {
     return `<tr><th style="color:${t.color}">${t.name}</th><td>${a.txt}</td><td class="${cls}">${arrow}</td><td class="${cls}"><b>${b.txt}</b></td></tr>`;
   }).join('');
   const killed = rec.swat + rec.spray + rec.bait;
-  let msg;
-  if (!kids.length) msg = `<p>${gen}世代目で、台所の虫がいなくなりました。進化が追いつく前に退治しきれたということです。本物の家では、となりの部屋や外から新しく入ってくることがよくあります。</p>`;
-  else msg = `<p>この夜に <b>${killed} 匹</b>を退治して、<b>${survivors.length} 匹</b>が生き残りました。生き残った虫が子を残し、次の世代は <b>${kids.length} 匹</b>（${genTimeText(gen + 1)}）。</p>`;
-  $('resBody').innerHTML = (note ? `<p class="note">${note}</p>` : '') + msg + (kids.length ? `
-    <table class="restab"><thead><tr><th></th><th>この世代</th><th></th><th>子の世代</th></tr></thead><tbody>${rows}</tbody></table>
-    <p class="small">警戒心・察知は平均（0〜1）、殺虫剤・糖ぎらいは遺伝子を持っている虫の割合。${insight(before, survivors, rec)}</p>` : '');
-  $('btnNext').textContent = kids.length ? '次の世代の夜へ' : 'はじめからやり直す';
+  $('resBody').innerHTML = `
+    <div class="tally"><span>退治<b>${killed}</b></span><span>生き残り<b>${survivors.length}</b></span><span class="kids">次の夜<b>${kids.length}</b></span></div>
+    <p>生き残った ${survivors.length} 匹が子を残し、次の夜は <b>${kids.length} 匹</b>。${rec.hungry ? `食べものが足りず、<b>${rec.hungry} 匹</b>がおなかをすかせたまま。` : ''}</p>
+    <table class="restab"><thead><tr><th></th><th>この夜</th><th></th><th>次の夜</th></tr></thead><tbody>${rows}</tbody></table>
+    <p class="small">警戒心・察知は平均（0〜1）、殺虫剤・糖ぎらいは遺伝子を持っている虫の割合。${insight(before, survivors, rec)}</p>`;
   $('resultOv').hidden = false;
 }
 
@@ -156,43 +153,8 @@ function insight(before, survivors, rec) {
   return tips.join('');
 }
 
-// ---- 見つけてみよう ----
-const QUESTS = [
-  {id:'swat10', t:'1回の夜に<b>10匹</b>を叩いて退治する', s:'1世代目なら、虫はのんびりしています'},
-  {id:'dodge', t:'スリッパに<b>気づいて逃げる</b>虫を5回見る', s:'察知の鋭い虫は、影が落ちる前に走り出す'},
-  {id:'reject', t:'毒エサを<b>「にがい！」</b>と避ける虫を見る', s:'糖ぎらいの遺伝子を持つ虫'},
-  {id:'mist', t:'スプレーの霧の中で<b>生き残る</b>虫を見る', s:'色分けを「殺虫剤」にすると見つけやすい'},
-  {id:'kdrHalf', t:'殺虫剤に強い遺伝子を持つ虫を、<b>半分より多く</b>する', s:'スプレーを何世代も続けると…（早送りも使える）'},
-  {id:'sense15', t:'察知の平均を、1世代目の<b>1.5倍</b>にする', s:'叩くだけを続けると…'},
-  {id:'decline', t:'道具をやめて、強い性質が<b>減っていく</b>のを見る', s:'「なにもしない」を何世代か続ける。代わりの損があるから'},
-  {id:'extinct', t:'<b>全滅</b>させる', s:'進化が追いつく前に。できるかな'},
-];
-function buildQuests() {
-  $('quests').innerHTML = QUESTS.map(q => `<li data-id="${q.id}"><span class="mk"></span><span>${q.t}<small>${q.s}</small></span></li>`).join('');
-}
-function syncQuests(done) {
-  for (const li of $('quests').children) li.classList.toggle('done', done.has(li.dataset.id));
-}
-
 let toastTimer = 0;
 function toast(html, ms = 3600) {
   const el = $('toast'); el.innerHTML = html; el.hidden = false;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, ms);
-}
-
-function buildPolicies(S) {
-  $('policies').innerHTML = Object.entries(POLICIES).map(([k, p]) =>
-    `<button class="preset" data-v="${k}" aria-pressed="${k === S.policy}">${p.name}<small>${policyDesc(k, S)}</small></button>`).join('');
-}
-function policyDesc(k, S) {
-  if (k === 'mine') {
-    const m = S.lastManual;
-    if (!m) return 'まだ自分で退治していない';
-    const parts = [];
-    if (m.swatRate > 0.05) parts.push(`叩く ${Math.round(m.swatRate * NIGHT)}回`);
-    if (m.sprayFrac > 0.005) parts.push(`スプレー ${(m.sprayFrac * NIGHT).toFixed(0)}秒`);
-    parts.push(`毒エサ ${S.world ? S.world.baits.length : 0}個`);
-    return '前の夜と同じ: ' + parts.join('・');
-  }
-  return {swat:'1晩に約60回', spray:'1晩に10秒', bait:'毒エサを3つ置く', mix:'叩く・スプレー・毒エサ', none:'毒エサも片づける'}[k];
 }

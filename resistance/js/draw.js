@@ -36,11 +36,15 @@ function kitchenCanvas() {
   g.fillStyle = '#f0e6d8'; g.font = '500 13px "Zen Kaku Gothic New",sans-serif'; g.textAlign = 'center'; g.fillText('食器棚', 760, FLOOR.y1 + 28);
   // すき間（隠れ場所）
   for (const h of HIDES) {
-    const up = h.y < 300;
-    g.fillStyle = '#17110c';
+    const up = h.y < 300, shut = !OPEN_HIDES.includes(h);
+    g.fillStyle = shut ? '#d9cdb4' : '#17110c';
     g.beginPath(); g.roundRect(h.x - 34, up ? FLOOR.y0 - 6 : FLOOR.y1 - 1, 68, 7, 3); g.fill();
+    if (shut) {     // ふさいだすき間（テープ）
+      g.strokeStyle = 'rgba(120,100,70,.7)'; g.lineWidth = 1;
+      for (let x = h.x - 30; x < h.x + 34; x += 8) { g.beginPath(); g.moveTo(x, up ? FLOOR.y0 - 6 : FLOOR.y1 - 1); g.lineTo(x + 4, up ? FLOOR.y0 + 1 : FLOOR.y1 + 6); g.stroke(); }
+    }
     g.fillStyle = 'rgba(40,28,18,.85)'; g.font = '500 11.5px "Zen Kaku Gothic New",sans-serif';
-    g.fillText(h.name, h.x + (h.id === 'fridge' ? 18 : 0), up ? FLOOR.y0 + 19 : FLOOR.y1 - 10);
+    g.fillText(shut ? 'ふさいだ' : h.name, h.x + (h.id === 'fridge' ? 18 : 0), up ? FLOOR.y0 + 19 : FLOOR.y1 - 10);
   }
   // ゴミ箱
   g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.arc(TRASH.x + 4, TRASH.y + 5, TRASH.r, 0, 7); g.fill();
@@ -50,6 +54,7 @@ function kitchenCanvas() {
   // 食べこぼし
   let seed = 7; const r = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
   for (const f of FOODS) {
+    if (!OPEN_FOODS.includes(f)) { g.fillStyle = 'rgba(60,40,20,.4)'; g.font = '11px "Zen Kaku Gothic New",sans-serif'; g.fillText('（片づけた）', f.x, f.y + 4); continue; }
     for (let i = 0; i < 26; i++) {
       const a = r() * 6.28, d = Math.sqrt(r()) * 20;
       g.fillStyle = ['#e9d39a', '#d9b56c', '#f3ead0', '#b88a4a'][i % 4];
@@ -146,9 +151,12 @@ function drawBug(g, b, style, colorBy) {
   if (b.emoteT > 0) {
     g.save(); g.globalAlpha = Math.min(1, b.emoteT * 2);
     g.fillStyle = '#fff8e0'; g.strokeStyle = '#d4a017'; g.lineWidth = 1;
-    g.beginPath(); g.roundRect(b.x - 21, b.y - 33, 42, 17, 8); g.fill(); g.stroke();
-    g.fillStyle = '#7a5500'; g.font = '700 11px "Zen Kaku Gothic New",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText('にがい！', b.x, b.y - 24.5); g.restore();
+    const E = {reject: ['にがい！', '#fff8e0', '#d4a017', '#7a5500'], tough: ['効かない！', '#ffe4e0', '#e0533f', '#8a1d10'], dodge: ['ひょい', '#e6f2ff', '#5b8fd6', '#1d3f73']}[b.emote] || ['', '', '', ''];
+    const bw = E[0].length * 11 + 10;
+    g.fillStyle = E[1]; g.strokeStyle = E[2];
+    g.beginPath(); g.roundRect(b.x - bw / 2, b.y - 33, bw, 17, 8); g.fill(); g.stroke();
+    g.fillStyle = E[3]; g.font = '700 11px "Zen Kaku Gothic New",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(E[0], b.x, b.y - 24.5); g.restore();
   }
 }
 
@@ -186,6 +194,18 @@ function drawFx(g, f) {
   g.restore();
 }
 
+// 食べこぼしの残り（細い棒）。なくなったら「からっぽ」
+function drawFoodLeft(g, w) {
+  if (!w.food) return;
+  g.font = '500 10px "Zen Kaku Gothic New",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (const [f, v] of w.food) {
+    const q = Math.max(0, v / FOOD_AMT), x = f.x - 20, y = f.y + 40;
+    g.fillStyle = 'rgba(40,28,18,.35)'; g.fillRect(x, y, 40, 4);
+    g.fillStyle = q > 0 ? '#c98f3e' : 'transparent'; g.fillRect(x, y, 40 * q, 4);
+    if (q <= 0) { g.fillStyle = 'rgba(60,40,20,.75)'; g.fillText('からっぽ', f.x, y + 2); }
+  }
+}
+
 function drawHideCounts(g, w) {
   const cnt = new Map(HIDES.map(h => [h, 0]));
   for (const b of w.pop) if (b.alive && b.state === 'hidden') cnt.set(b.hide, cnt.get(b.hide) + 1);
@@ -216,6 +236,7 @@ function drawWorld(g, w, view) {
   for (const bt of w.baits) drawBait(g, bt);
   drawMist(g, w);
   for (const s of w.swats) if (s.t < TOOL.strike) drawSwat(g, s);
+  drawFoodLeft(g, w);
   for (const b of w.pop) if (b.alive && b.state !== 'hidden') drawBug(g, b, view.style, view.colorBy);
   for (const s of w.swats) if (s.t >= TOOL.strike) drawSwat(g, s);
   for (const f of w.fx) drawFx(g, f);
