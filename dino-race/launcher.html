@@ -7,7 +7,7 @@
 <title>恐竜かけっこ牧場 過去の版</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23b3471d'/><path d='M10 36c4-12 18-18 32-15 6 1 11 5 12 10l-2 3H40l-4 5H22l-8 4z' fill='%23fff8ea' stroke='%23fff8ea' stroke-width='2' stroke-linejoin='round'/><circle cx='22' cy='29' r='3.5' fill='%23b3471d'/><ellipse cx='34' cy='29' rx='4' ry='2.5' fill='%23b3471d'/><path d='M40 34l1 4M44 34l1 4M48 34l1 3' stroke='%23b3471d' stroke-width='1.6'/></svg>">
 <style>
-/* 節目の版を新しい順に。いちばん上が最新（index.html） */
+/* 節目の版をカードで新しい順に（いちばん上が最新＝index.html）。下の表には全版（versions に残さない版は Git のリンク）。決まりは ../RULES.md 3章 */
 :root{--bg:#efe7d4;--ink:#33281d;--muted:#76675a;--line:#d9ccb2;--card:#faf5ea;--accent:#b3471d;color-scheme:light dark}
 @media (prefers-color-scheme:dark){:root{--bg:#16120d;--ink:#ece0cb;--muted:#a8987f;--line:#3a3125;--card:#1e1913;--accent:#f08a5a}}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;line-height:1.7}
@@ -24,19 +24,30 @@ h1{font-size:24px;margin:0 0 4px}
 .date{grid-column:2;font-size:12px;color:var(--muted)}
 .note{margin-top:32px;font-size:13px;color:var(--muted)}
 .note a{color:var(--accent)}
+h2{font-size:13px;color:var(--muted);margin:32px 0 8px;font-weight:700;letter-spacing:.08em}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{padding:8px 6px;border-top:1px solid var(--line);vertical-align:top}
+td:first-child{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+td a{color:var(--accent)}
 </style>
 </head>
 <body>
 <main>
   <h1>恐竜かけっこ牧場 過去の版</h1>
-  <p class="lead">節目ごとに残した版です。いちばん上が最新です。</p>
+  <p class="lead">節目ごとに残した版です。いちばん上が最新です。下の表には、すべての版があります。</p>
   <div class="cards">
     <a class="card" href="index.html"><span class="ver">最新</span><span><b>いまの版</b><p>開発中の最新版。</p></span></a>
     <a class="card" href="versions/v003-product/index.html"><span class="ver">v003</span><span><b>製品の完成度に（ver. 1.0）</b><p>タイトル画面、効果音とオン／オフ、「位置について・よーい・ドン」、メダル獲得の演出、10個そろったらエンディング、ゲームの見た目の確認・入力の画面、メニュー（あそびかた・設定・セーブの書き出しと読み込み・クレジット）、読み込めないときのおしらせ。</p></span><span class="date">2026-10-12</span></a>
     <a class="card" href="versions/v002-mobile/index.html"><span class="ver">v002</span><span><b>スマホで遊びやすく・大会と記録帳</b><p>牧場・大会・記録帳のタブ、選んだ恐竜の操作は画面の下のバー、恐竜の詳しい画面（体のようす・練習・おまかせ・名前）。大会のお題10とメダル（牧場が広がる）、人・ゾウ・ダチョウのゴースト、記録帳。</p></span><span class="date">2026-10-11</span></a>
     <a class="card" href="versions/v001-first/index.html"><span class="ver">v001</span><span><b>はじめの試作</b><p>二足の骨格を物理で走らせる。牧場（3種）・かけっこ 100m・かけ合わせ・おまかせの進化・足あとからの推定。</p></span><span class="date">2026-10-09</span></a>
   </div>
-  <p class="note"><a href="../archive.html">あそびラボの保管庫へ</a></p>
+  <h2>すべての版</h2>
+  <table>
+    <tr><td>v003-product</td><td><a href="versions/v003-product/index.html">製品の完成度に（ver. 1.0）</a>（CSS・JS の版の印 ?v=3 は、あとから同じ版に足した）</td></tr>
+    <tr><td>v002-mobile</td><td><a href="versions/v002-mobile/index.html">スマホで遊びやすく・大会と記録帳</a></td></tr>
+    <tr><td>v001-first</td><td><a href="versions/v001-first/index.html">はじめの試作</a></td></tr>
+  </table>
+  <p class="note"><a href="index.html">ゲームへ</a> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
 </main>
 </body>
 </html>

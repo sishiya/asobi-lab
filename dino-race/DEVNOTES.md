@@ -12,7 +12,7 @@
 - **動かし方**: Claude は `../.claude/launch.json` の `games`（http://localhost:8780/dino-race/）。Worker を使うので file:// では動かない。
 - **動かし方（ユーザー）**: ルートの `start.bat dino-race`。
 - **デバッグ用**: `window.__dino` — `VIEW`（いま見ている場面 `VIEW.R`）、`ranch`、`kids`、`prog`、`stepView(秒)`（Browser ペインが裏だと rAF が止まるので、これで進める。描画をはさまないとカメラが追いつかない）、`finishView()`、`startView(genomes, labels, {mode})`、`setTab()`、`openDetail(x)`、`openPick(cup)`、`showEnding()`、`showTitle()`、`exportSave()`、`ask(文, opts)`。エラーは `window.__dinoErr`。タイトルを出さずに読み直すなら `sessionStorage.setItem('asobi-lab/dino-race/skip-title','1')`。かけっこは「結果へ」ボタン（`#btnSkip`）で残りを一気に計算して終えられる。物理だけ試すなら `test.html`（genome・sim・ga だけ読む。`evaluate([...])`、`makePop()`、`stepGeneration()`）。
-- **区切りごとに**（RULES 3章: ふだんは commit、節目だけ versions）: ① 「確認のしかた」を通す ② 下の「状態」 ③ 節目なら `versions/v0NN-名前/` に index.html・css・js を丸ごとコピー（アクセス解析の1行は消す）して `launcher.html` にカード ④ JS・CSS を変えたら `index.html` の `?v=` の番号を上げる ⑤ 公開前チェック → コミット → push（2026-10-09 ユーザー: 公開前チェックで問題なければ push してよい）。
+- **区切りごとに**（あそびラボの `../RULES.md` 3章: ふだんは commit、節目だけ versions）: ① 「確認のしかた」を通す ② 下の「状態」 ③ `launcher.html` の「すべての版」の表に1行（versions に残さない版は Git のリンク）。節目なら `versions/v0NN-名前/` に index.html・css・js を丸ごとコピー（アクセス解析の1行は消す）してカードも ④ JS・CSS を変えたら `index.html` の `?v=` の番号を上げる ⑤ 公開前チェック → コミット → push（2026-10-09 ユーザー: 公開前チェックで問題なければ push してよい）。
 - **ユーザーの好み**: 恐竜・遺伝的アルゴリズム（アストロノーカ）・本物のしくみ。絵は図鑑の骨格図ふう（2026-10-09 決定）。子ども向けすぎる絵はいや。日本語。
 
 ## ファイル構成

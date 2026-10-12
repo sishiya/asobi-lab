@@ -7,7 +7,7 @@
 <title>宿主をあやつれ 過去の版</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%234f7a2a'/><circle cx='36' cy='36' r='15' fill='none' stroke='%23fff6dc' stroke-width='4'/><path d='M36 36a6 6 0 1 1 6-6' fill='none' stroke='%23fff6dc' stroke-width='4' stroke-linecap='round'/><path d='M14 50h34M20 46l-6-20M26 46l-2-22' stroke='%23fff6dc' stroke-width='4' stroke-linecap='round'/></svg>">
 <style>
-/* 節目の版を新しい順に。いちばん上が最新（index.html） */
+/* 節目の版をカードで新しい順に（いちばん上が最新＝index.html）。下の表には全版（versions に残さない版は Git のリンク）。決まりは ../RULES.md 3章 */
 :root{--bg:#f3eedf;--ink:#24281e;--muted:#6a6a58;--line:#d8d0b8;--card:#fbf8ef;--accent:#4f7a2a;color-scheme:light dark}
 @media (prefers-color-scheme:dark){:root{--bg:#151812;--ink:#e9e6d6;--muted:#a3a08a;--line:#34382b;--card:#1d2118;--accent:#9cc861}}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;line-height:1.7}
@@ -24,18 +24,29 @@ h1{font-size:24px;margin:0 0 4px}
 .date{grid-column:2;font-size:12px;color:var(--muted)}
 .note{margin-top:32px;font-size:13px;color:var(--muted)}
 .note a{color:var(--accent)}
+h2{font-size:13px;color:var(--muted);margin:32px 0 8px;font-weight:700;letter-spacing:.08em}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{padding:8px 6px;border-top:1px solid var(--line);vertical-align:top}
+td:first-child{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+td a{color:var(--accent)}
 </style>
 </head>
 <body>
 <main>
   <h1>宿主をあやつれ 過去の版</h1>
-  <p class="lead">節目ごとに残した版です。いちばん上が最新です。</p>
+  <p class="lead">節目ごとに残した版です。いちばん上が最新です。下の表には、すべての版があります。</p>
   <div class="cards">
     <a class="card" href="index.html"><span class="ver">最新</span><span><b>いまの版</b><p>開発中の最新版。</p></span></a>
     <a class="card" href="versions/v002-product/index.html"><span class="ver">v002</span><span><b>製品の体裁</b><p>タイトル画面（うしろで3面が自動で動く）、面のロックと★の合計、寄生者の図鑑（生活環つき）、エンディング、はじめてのヒント、効果音と環境音、一時停止、成功・失敗の演出、横向きスマホの並べ方。</p></span><span class="date">2026-10-12</span></a>
     <a class="card" href="versions/v001-first/index.html"><span class="ver">v001</span><span><b>はじめの試作</b><p>3面（カタツムリを鳥へ・ネズミをネコへ・カマドウマを川へ）。引っぱって宿主をあやつる、面ごとの特別なあやつり、宿主の気持ち、本物の話、★の記録。</p></span><span class="date">2026-10-12</span></a>
   </div>
-  <p class="note"><a href="../archive.html">あそびラボの保管庫へ</a></p>
+  <h2>すべての版</h2>
+  <table>
+    <tr><td>v002-product</td><td><a href="versions/v002-product/index.html">製品の体裁</a></td></tr>
+    <tr><td>v001b</td><td>出典を原文で確かめ、本物の話を合わせて直した（遊び方は v001 と同じ） <a href="https://github.com/sishiya/asobi-lab/tree/bd90138/parasite-pilot" target="_blank" rel="noopener">Git</a></td></tr>
+    <tr><td>v001-first</td><td><a href="versions/v001-first/index.html">はじめの試作</a></td></tr>
+  </table>
+  <p class="note"><a href="index.html">ゲームへ</a> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
 </main>
 </body>
 </html>
