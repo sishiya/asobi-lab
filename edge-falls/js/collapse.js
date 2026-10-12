@@ -264,7 +264,7 @@ function drawCollapse(ctx, t) {
   }
   if (!K.said && K.mode === 'shell' && T > 5) { K.said = true; Sound.play('reveal'); }
   if (!K.said && K.mode === 'fall' && K.chunks.every(c => c.gone)) { K.said = true; Sound.play('extinct'); }
-  if (!K.panel && ((K.mode === 'shell' && T > 12) || (K.mode === 'fall' && K.said && T > 4))) { K.panel = true; collapsePanel(K.mode); }
+  if (!K.panel && ((K.mode === 'shell' && T > 12) || (K.mode === 'fall' && K.said && T > 4))) { K.panel = true; if (K.ending) endingPanel(); else collapsePanel(K.mode); }
 }
 
 function collapsePanel(mode) {

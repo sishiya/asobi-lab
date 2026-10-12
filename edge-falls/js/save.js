@@ -7,7 +7,7 @@
 //     中身 { app, v, meta: {day, counts, qi, at}, z: 'gzip'|'', data }。ファイルへの書き出しも同じ形。
 
 const SAVE_KEY = 'asobi-lab/edge-falls/save/';
-const SAVE_V = 2;   // 2: 雪（v008）
+const SAVE_V = 3;   // 2: 雪（v008）、3: 章・見つけたこと・去った命・世界のつまみ（v011）
 const SLOTS = ['slot1', 'slot2', 'slot3'];
 
 // ---- バイト列 ⇔ base64 ----
@@ -52,7 +52,8 @@ function snapshot() {
     animals: L.list.filter(a => !a.dead).map(a => [KI[a.kind], a.x, a.y, a.e, a.th, a.age, a.cd, a.dir, a.wet, a.gen, ...GENES[a.kind].map(([k]) => a.g[k])]),
     stats: { born: L.born, eaten: L.eaten, fell: L.fell },
     hist: HIST,
-    quest: { qi: G.qi, qStart: G.qStart, streak: G.streak },
+    quest: { ch: G.ch, chT: G.chT, streak: G.streak, helped: G.helped, goal: G.goal, gbase: G.gbase, winterOk: G.winterOk, winterSeen: G.winterSeen },
+    story: { done: G.done, found: G.found, did: G.did, tipped: G.tipped, souls: W.souls, knob: W.knob, flags: W.flags },
     view: { yaw: V.yaw, tilt: V.tilt, zoom: V.zoom, panX: V.panX || 0, panY: V.panY || 0 },
   };
 }
@@ -61,7 +62,7 @@ const localStamp = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()
 async function encodeWorld() {
   const json = JSON.stringify(snapshot(), r3);
   const z = await gzip(json).catch(() => null);
-  const meta = { day: W.day, counts: { ...L.counts }, qi: G.qi, at: localStamp() };
+  const meta = { day: W.day, counts: { ...L.counts }, ch: G.ch, at: localStamp() };
   return z ? { app: 'edge-falls', v: SAVE_V, meta, z: 'gzip', data: b64(z) } : { app: 'edge-falls', v: SAVE_V, meta, z: '', data: json };
 }
 
@@ -106,7 +107,19 @@ function applyWorld(s) {
   }
   if (s.stats) { L.born = num(s.stats.born, 0); L.eaten = num(s.stats.eaten, 0); L.fell = num(s.stats.fell, 0); }
   HIST.length = 0; if (Array.isArray(s.hist)) HIST.push(...s.hist.slice(-240));
-  G.qi = Math.max(0, Math.min(QUESTS.length, num(s.quest.qi, 0) | 0)); G.qStart = num(s.quest.qStart, 0); G.streak = num(s.quest.streak, 0);
+  // 章（v011）。それより前のセーブは、自由な箱庭として読む
+  const st = s.story || {}, q = s.quest;
+  if (typeof q.ch === 'number') {
+    const ch = Math.max(0, Math.min(CHAPTERS.length, Math.floor(num(q.ch, 0))));
+    G.done = Array.isArray(st.done) ? st.done : []; G.found = st.found && typeof st.found === 'object' ? st.found : {};
+    G.did = st.did || {}; G.tipped = st.tipped || {};
+    enterChapter(ch, true);
+    G.chT = num(q.chT, 0); G.streak = num(q.streak, 0); G.helped = num(q.helped, 0) | 0; if (typeof q.goal === 'number') G.goal = q.goal; if (q.gbase && typeof q.gbase === 'object') G.gbase = q.gbase; G.winterOk = !!q.winterOk; G.winterSeen = !!q.winterSeen;
+    if (st.knob) W.knob = { winter: num(st.knob.winter, 1), tide: num(st.knob.tide, 1) };
+    if (st.souls) for (const k of ['deer', 'wolf', 'fish', 'bird']) W.souls[k] = num(st.souls[k], 0);
+    if (st.flags) W.flags = { ...st.flags };
+  } else { G.done = []; G.found = {}; G.did = {}; G.tipped = {}; enterChapter(CHAPTERS.length, true); }
+  G.streak = num(q.streak, 0);
   G.sel = null;
   if (s.view) { V.yaw = num(s.view.yaw, V.yaw); V.tilt = Math.max(0.32, Math.min(0.92, num(s.view.tilt, V.tilt))); V.zoom = Math.max(0.6, Math.min(3, num(s.view.zoom, 1))); V.panX = num(s.view.panX, 0); V.panY = num(s.view.panY, 0); }
   updateLight(); stepClimate(0, true); stepMoist(0.25);
@@ -134,7 +147,8 @@ const KNAME = { deer: 'シカ', wolf: 'オオカミ', fish: 'サカナ', bird: '
 function metaText(rec) {
   if (!rec || !rec.meta) return 'からっぽ';
   const m = rec.meta, c = m.counts || {};
-  return `第 ${m.day} 日・${['deer', 'wolf', 'fish', 'bird'].map(k => KNAME[k] + ' ' + (c[k] || 0)).join('・')}<br><small>${m.at || ''}</small>`;
+  const ch = typeof m.ch === 'number' ? (m.ch >= CHAPTERS.length ? '自由な箱庭・' : YEARNAME[Math.floor(m.ch)] + 'の年・') : '';
+  return `${ch}第 ${m.day} 日・${['deer', 'wolf', 'fish', 'bird'].map(k => KNAME[k] + ' ' + (c[k] || 0)).join('・')}<br><small>${m.at || ''}</small>`;
 }
 
 function openSavePanel() {

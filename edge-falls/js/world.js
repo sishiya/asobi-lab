@@ -12,10 +12,11 @@ const N = 96, C = (N - 1) / 2, RD = 46;
 const DAY = 60;                 // 1日の秒数（×1 のとき）
 const RS = 0.6 * RD, HS = 30;   // 太陽・月の道の半径（地の上に落とした所）と高さ
 const BINS = 96;                // 滝の向きの区分
-const SPRING_MAX = 6;
+const SPRING_MAX = 12;           // 泉の上限は深淵の水（v011）。これは重さとセーブのためだけ
 const YEAR = 16;                // 1年の日数（春夏秋冬 4日ずつ）
 const SEASONS = ['春', '夏', '秋', '冬'];
 const STOCK_MAX = { deer: 10, wolf: 4, fish: 12, bird: 3 };
+const STOCK_START = { deer: 6, wolf: 3, fish: 8, bird: 2 };   // つぼに命が来たときの数（v011）
 
 const inside = new Uint8Array(N * N);
 const INS = [];
@@ -51,7 +52,8 @@ function makeFbm(rnd) {
 
 const W = {};
 
-function newWorld(seed) {
+// bare=true: はじめの章のための、岩と土だけの大地（泉・草・木・水草なし。湖の水は深淵へ）。v011
+function newWorld(seed, bare) {
   const rnd = rng(seed);
   W.seed = seed; W.rnd = rnd;
   const A = () => new Float32Array(N * N);
@@ -69,6 +71,9 @@ function newWorld(seed) {
   W.moon = { a: W.sun.a + Math.PI * (0.6 + rnd() * 0.8), v: 2 * Math.PI / (DAY * 1.07), stop: false, drag: false };
   W.clouds = []; W.vapor = 0; W.outRate = 0; W.rainRate = 0;
   W.soil = 120; W.stock = { deer: 6, wolf: 2, fish: 8, bird: 1 };
+  W.souls = { deer: 0, wolf: 0, fish: 0, bird: 0 };   // 去った命（深淵を通って、少しずつつぼへ戻る。v011）
+  W.knob = { winter: 1, tide: 1 };                     // 世界のきびしさ（章で少しずつ上げる。v011）
+  W.flags = {};                                        // 一度だけ見つける出来事（観察の記録）
   W.events = [];
 
   // 地形: ゆるい丸屋根（ふちへ向かって低い）＋ノイズ＋山2つ＋湖のくぼみ＋ふちの岩
@@ -121,13 +126,20 @@ function newWorld(seed) {
   let bb = 0; for (let b = 1; b < BINS; b++) if (W.mist[b] > W.mist[bb]) bb = b;
   W.bigFall = (bb + 0.5) / BINS * Math.PI * 2;
   W.fall.fill(0); W.mist.fill(0);
+  if (bare) {
+    W.springs = [];
+    for (const i of INS) { W.abyss += W.w[i]; W.w[i] = 0; W.veg[i] = 0; W.tree[i] = 0; W.alg[i] = 0; W.moist[i] = 0; W.fL[i] = W.fR[i] = W.fU[i] = W.fD[i] = 0; }
+    W.bigFall = Math.atan2(lk.y, lk.x);        // 湖のくぼみを手前に
+    W.soil = 60;
+  }
 }
 
 // 季節: 0〜1 の年の進み（はじめは春のなかごろ）、季節の番号、ふだんの気温、暖かさ（冬 0〜夏 1）
 const seasonPhase = () => (0.1 + W.t / (DAY * YEAR)) % 1;
 const seasonOf = (p = seasonPhase()) => Math.floor(p * 4) % 4;
 const warmth = (p = seasonPhase()) => (1 + Math.cos(2 * Math.PI * (p - 0.375))) / 2;
-const baseTemp = (p = seasonPhase()) => 1 + 26 * warmth(p);        // 冬のなかごろ 1 度（夜と山は凍る）、夏のなかごろ 27 度
+// 冬のなかごろ 1 度（夜と山は凍る）、夏のなかごろ 27 度。冬の章（v011）より前は冬がおだやか（knob.winter が 0 なら冬も 8 度）
+const baseTemp = (p = seasonPhase()) => 1 + 26 * warmth(p) + 7 * (1 - (W.knob ? W.knob.winter : 1)) * (1 - warmth(p));
 // 太陽の道の半径（夏は内がわ、冬は外がわ）。月はいつも RS
 const bodyR = b => b === W.sun ? W.rs : RS;
 
@@ -163,8 +175,9 @@ function updateLight() {
 // 潮: 月（と少し太陽）のほうへ水が寄る。ふちで ±0.9 ほど
 let tcx = 0, tcy = 0;
 function tideCoef() {
-  tcx = (0.9 * Math.cos(W.moon.a) + 0.35 * Math.cos(W.sun.a)) / RD;
-  tcy = (0.9 * Math.sin(W.moon.a) + 0.35 * Math.sin(W.sun.a)) / RD;
+  const k = W.knob ? W.knob.tide : 1;   // はじめの章は潮がおだやか（v011）
+  tcx = k * (0.9 * Math.cos(W.moon.a) + 0.35 * Math.cos(W.sun.a)) / RD;
+  tcy = k * (0.9 * Math.sin(W.moon.a) + 0.35 * Math.sin(W.sun.a)) / RD;
 }
 const tideAt = i => tcx * (i % N - C) + tcy * ((i / N | 0) - C);
 
@@ -285,7 +298,7 @@ function stepSky(dt) {
       W.mist[b] += W.fallNow[b] * 0.3; W.fallNow[b] = 0;
       if (W.mist[b] > 8) {
         const an = (b + 0.5) / BINS * 2 * Math.PI;
-        spawnCloud(C + Math.cos(an) * (RD - 2), C + Math.sin(an) * (RD - 2), W.mist[b]); W.mist[b] = 0;
+        spawnCloud(C + Math.cos(an) * (RD - 2), C + Math.sin(an) * (RD - 2), W.mist[b]); W.mist[b] = 0; W.flags.mist = 1;
       }
     }
     if (W.vapor > 5) {             // 太陽の下あたりで雲になる
@@ -308,6 +321,7 @@ function stepSky(dt) {
     const rate = c.water * (0.025 + 0.08 * Math.max(0, Math.min(1, (gh - 6) / 5))) + (c.water > 30 ? 0.05 * c.water : 0);
     const q = Math.min(c.water, rate * dt);
     c.water -= q; c.rain = rate; rain += q;
+    if (gh > 9 && q > 0.002) W.flags.mrain = 1;
     // 3×3 にふらせる（大地の外へふったら深淵へ）
     const per = q / 9;
     for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
@@ -364,6 +378,7 @@ function addSpring(cx, cy) {
     if (Math.hypot(s.i % N - cx, (s.i / N | 0) - cy) < 2.5) { s.on = !s.on; return s.on ? 'on' : 'off'; }
   }
   if (W.springs.length >= SPRING_MAX) return 'max';
+  if (W.abyss < 1) return 'dry';
   W.springs.push({ i, on: true });
   return 'new';
 }

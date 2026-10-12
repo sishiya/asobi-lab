@@ -1,16 +1,22 @@
 'use strict';
-// 入力・ループ・お題の進み。デバッグ用に window.__ef
+// 入力・ループ・章の進み。デバッグ用に window.__ef
 const cv = $('view'), ctx = cv.getContext('2d'), field = $('field');
-const G = { speed: 1, tool: 'look', qi: 0, qStart: 0, streak: 0, best: loadBest(), started: false, paused: false, sel: null };
+const G = { speed: 1, lastSpeed: 1, tool: 'look', hand: null, sub: { soil: 'dig', life: 'seed' }, ch: 0, chT: 0, streak: 0, helped: 0,
+  done: [], found: {}, did: {}, tipped: {}, unlock: {}, started: false, sel: null };
 const THUMB = new URLSearchParams(location.search).has('thumb');
 let hover = null, ptr = null;
 let accPlant = 0, accHist = 0, accSide = 0, prevCounts = null;
 
-function newGame(seed = (Math.random() * 1e9) | 0) {
-  newWorld(seed); resetLife(); HIST.length = 0;
-  V.yaw = Math.PI / 2 - W.bigFall + 0.35;   // いちばん大きな滝が手前に
-  G.qi = 0; G.qStart = 0; G.streak = 0; G.sel = null;
+// story=true: 章で遊ぶ（岩と土だけの大地から）。false: 自由な箱庭（いまある大地・全部そろう）
+function newGame(seed = (Math.random() * 1e9) | 0, story = true) {
+  newWorld(seed, story); resetLife(); HIST.length = 0;
+  V.yaw = Math.PI / 2 - W.bigFall + 0.35;   // いちばん大きな滝（はじめの章は湖のくぼみ）が手前に
+  V.panX = V.panY = 0;
+  G.sel = null; G.done = []; G.found = {}; G.did = {}; G.tipped = {};
   prevCounts = { deer: 0, wolf: 0, fish: 0, bird: 0 };
+  if (story) { for (const k in W.stock) W.stock[k] = 0; enterChapter(0, true); }
+  else { G.ch = CHAPTERS.length; G.unlock = unlockedAt(G.ch); W.knob = { winter: 1, tide: 1 }; for (const k in W.stock) W.stock[k] = STOCK_MAX[k]; }
+  setHand(null);
 }
 
 function resize() {
@@ -18,6 +24,7 @@ function resize() {
   cv.width = Math.max(1, Math.round(r.width * dpr)); cv.height = Math.max(1, Math.round(r.height * dpr));
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   layout(r.width, r.height);
+  if (G.hand) syncHands();
 }
 addEventListener('resize', resize);
 
@@ -32,65 +39,57 @@ function simulate(sec) {
     if (accPlant >= 0.25) {
       stepMoist(accPlant); stepPlants(accPlant); updateLight(); stepClimate(accPlant); accPlant = 0;
       const se = seasonOf();
-      if (G.season !== undefined && se !== G.season) G.seasonMsg = se;   // 季節が変わった（知らせはループで）
+      if (G.season !== undefined && se !== G.season) { G.seasonMsg = se; if (se === 0) springGift(); }   // 季節が変わった（知らせはループで）
       G.season = se;
     }
     accHist += h;
     if (accHist >= DAY / 2) { accHist = 0; recordHist(waterStats()); }
     if (Math.floor(W.t / DAY) !== dayBefore) {
       W.day = Math.floor(W.t / DAY) + 1;
-      for (const k in W.stock) W.stock[k] = Math.min(STOCK_MAX[k], W.stock[k] + 1);
+      returnSouls();
       G.needSave = true;                    // 1日ごとに自動セーブ（ループの中で）
     }
-    if (G.qi === 3 || G.qi === 4) {
-      if (questCond(G.qi, lastStats)) G.streak += h / DAY; else G.streak = 0;
-    }
+    if (!(G.ch % 1)) tickChapter(h, lastStats);
   }
 }
 let lastStats = null;
 
-function checkWorld() {
-  const s = waterStats(); lastStats = s;
-  // いなくなった知らせ
+// 去った命が深淵からつぼへ戻る（1日ごと。v011）。いなくなった種類は、少なくとも1つ戻る（取り返しがつかないことは起きない）
+function returnSouls() {
+  let back = 0;
   for (const k of ['deer', 'wolf', 'fish', 'bird']) {
-    if (prevCounts[k] > 0 && L.counts[k] === 0) { toast(KINDS[k].name + 'が いなくなった'); Sound.play('extinct'); }
+    if (!G.unlock[k]) { W.souls[k] = 0; continue; }
+    let n = Math.floor(W.souls[k]); W.souls[k] -= n;
+    if (L.counts[k] === 0 && W.stock[k] === 0 && n === 0) n = 1;
+    const room = STOCK_MAX[k] - W.stock[k], add = Math.min(room, n);
+    if (add > 0) { W.stock[k] += add; back += add; }
+  }
+  if (back) { W.flags.ret = 1; glowHand('deer'); }
+}
+function springGift() {
+  for (const k of ['deer', 'wolf', 'fish', 'bird']) if (G.unlock[k]) W.stock[k] = Math.min(STOCK_MAX[k], W.stock[k] + 1);
+}
+
+function checkWorld(dt) {
+  const s = waterStats(); lastStats = s;
+  // いなくなった知らせ（責めない）
+  for (const k of ['deer', 'wolf', 'fish', 'bird']) {
+    if (prevCounts[k] > 0 && L.counts[k] === 0) { toast(KINDS[k].name + 'が いなくなった。命は深淵を通って、いつかつぼへ戻ってくる', 5); Sound.play('extinct'); }
     prevCounts[k] = L.counts[k];
   }
   const falls = W.events.filter(e => e.type === 'die' && e.how === 'fall').length;
   if (falls && Math.random() < 0.5) Sound.play('splash');
   for (const e of W.events) if (e.type === 'die' && e.a === G.sel) G.sel.how = e.how;
   W.events.length = 0;
-  // お題
-  if (G.started && G.qi < QUESTS.length) {
-    const q = QUESTS[G.qi];
-    if (q.prog(s) >= q.goal) {
-      const days = Math.max(1, Math.ceil((W.t - G.qStart) / DAY));
-      const st = questStars(G.qi, days);
-      G.best[G.qi] = Math.max(G.best[G.qi] || 0, st); saveBest(G.best);
-      Sound.play('win');
-      const qi = G.qi;
-      G.qi++; G.qStart = W.t; G.streak = 0;
-      const last = G.qi >= QUESTS.length;
-      showPanel(`<h2>${DAYNAME[qi]}の日「${q.title}」</h2><p class="stars">${'★'.repeat(st)}${'☆'.repeat(3 - st)}</p><p>${days} 日でできた。</p><p class="truth"><b>本当は</b>　${q.truth}</p>` +
-        (last ? '<p>8つのお題がすべておわった。あとは自由に、きみの世界をそだてよう。</p>' : `<p>次は${DAYNAME[G.qi]}の日「${QUESTS[G.qi].title}」: ${QUESTS[G.qi].text}。</p>`),
-        [{ label: last ? 'つづける' : '次の日へ', main: true }]);
-    }
-  }
+  stepChapter(s, dt); stepFinds(s, dt); stepTips(dt);
   return s;
 }
 
-const SEASON_MSG = ['春になった。雪がとけ、草がまた伸びはじめる', '夏になった。太陽の道が内がわへ。暑すぎる所に気をつけて', '秋になった。草の伸びがおそくなる', '冬になった。太陽の道が外がわへ。雪がふり、水が凍る'];
+const SEASON_MSG = ['春になった。雪がとけ、草がまた伸びはじめる。つぼにも命が一つずつ', '夏になった。太陽の道が内がわへ', '秋になった。草の伸びがおそくなる', '冬になった。太陽の道が外がわへ'];
 
 // ---- 入力 ----
 const RAD = { raise: 3.2, dig: 3.2, grass: 3, spring: 1.2, deer: 1, wolf: 1, fish: 1, bird: 1 };
 const TOOLCOL = { raise: '#ffe9b0', dig: '#e8b48a', grass: '#b8e890', spring: '#bfe6ff', deer: '#e8c49a', wolf: '#c8ccd8', fish: '#ffc890', bird: '#e0e8f0' };
-
-function setTool(t) {
-  G.tool = t;
-  document.querySelectorAll('#tools button').forEach(b => b.setAttribute('aria-pressed', b.dataset.tool === t));
-  cv.classList.toggle('tool', t !== 'look');
-}
-document.querySelectorAll('#tools button').forEach(b => b.addEventListener('click', () => { setTool(b.dataset.tool); Sound.play('click'); }));
 
 function local(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
 function hitBody(p) {
@@ -103,24 +102,26 @@ function bodyAngle(p) {
   return Math.atan2(-u * s + v * c, u * c + v * s);
 }
 
-const RESULT = { empty: '命のつぼがからっぽ（1日に1つずつふえる）', needwater: 'サカナは水の中へ放す', needland: '陸に放す', cap: 'これ以上は住めない', no: '' };
+const RESULT = { empty: 'つぼの中に、もういない。去った命は、いつか戻ってくる', needwater: 'サカナは水の中へ放す', needland: '陸に放す', cap: 'これ以上は住めない', no: '' };
 function useTool(p, first) {
   const t = G.tool;
   if (t === 'raise' || t === 'dig') {
     const m = sculpt(p.x, p.y, (t === 'raise' ? 1 : -1) * 0.9 * (first ? 1 : 0.5));
-    if (t === 'raise' && W.soil <= 0 && first) toast('土ぶくろがからっぽ。どこかを「削る」と土がたまる');
+    if (t === 'raise' && W.soil <= 0 && first) toast('土ぶくろがからっぽ。どこかを削ると、土がたまる');
     if (Math.abs(m) > 0.05 && Math.random() < 0.4) Sound.play('soil');
+    G.did.soil = 1;
   } else if (t === 'grass') {
     if (sow(p.x, p.y) > 0 && first) Sound.play('sow');
   } else if (t === 'spring' && first) {
     const r = addSpring(p.x, p.y);
-    if (r === 'max') { toast('泉は6つまで。泉を押すと止められる'); Sound.play('no'); }
+    if (r === 'max') { toast('これ以上、泉はわかせられない。泉を押すと止められる'); Sound.play('no'); }
+    else if (r === 'dry') { toast('深淵がからっぽで、泉がわかない。滝から水が帰ってくるのを待つ'); Sound.play('no'); }
     else if (r === 'off') { toast('泉を止めた'); Sound.play('pin'); }
     else if (r === 'on') { toast('泉がまたわき出した'); Sound.play('spring'); }
-    else if (r === 'new') { toast('深淵の水がわき出した'); Sound.play('spring'); }
+    else if (r === 'new') { if (!G.did.spring) toast('深淵の水がわき出した。泉を押すと止まる'); Sound.play('spring'); G.did.spring = 1; }
   } else if (KINDS[t]) {
     const r = release(t, p.x + (first ? 0 : (Math.random() - 0.5) * 2), p.y + (first ? 0 : (Math.random() - 0.5) * 2));
-    if (r === 'ok') Sound.play('put');
+    if (r === 'ok') { Sound.play('put'); syncHands(); }
     else if (first && RESULT[r]) { toast(RESULT[r]); Sound.play('no'); }
   }
 }
@@ -150,7 +151,7 @@ cv.addEventListener('pointerdown', e => {
   ptr = { id: e.pointerId, x0: p.x, y0: p.y, x: p.x, y: p.y, moved: 0, t: 0 };
   // 右ボタン・まん中のボタン・Shift を押しながら: 平行移動
   if (e.button === 1 || e.button === 2 || e.shiftKey) { ptr.mode = 'pan'; cv.classList.add('grabbing'); return; }
-  if (b) { ptr.mode = 'body'; ptr.body = b; W[b].drag = true; Sound.play('grab'); return; }
+  if (b) { ptr.mode = 'body'; ptr.body = b; W[b].drag = true; Sound.play('grab'); G.did[b] = 1; return; }
   const w = G.tool === 'look' || COL ? null : pick(p.x, p.y);
   if (w) { ptr.mode = 'tool'; ptr.w = w; useTool(w, true); }
   else { ptr.mode = 'view'; cv.classList.add('grabbing'); }
@@ -173,6 +174,7 @@ cv.addEventListener('pointermove', e => {
       V.yaw -= dx * 0.008;                                            // 手前の地面が手の動きについてくる向き（2026-10-12 ユーザー「逆かも」）
       V.tilt = Math.max(0.32, Math.min(0.92, V.tilt + dy * 0.002));   // 下へ引くと真上から見る向きへ（2026-10-12 ユーザー「上下も逆かも」）
       layout(V.cw, V.ch);
+      if (ptr.moved > 30) G.did.rotate = 1;
     }
     else if (ptr.mode === 'pan') panBy(dx, dy);
     else if (ptr.mode === 'body') { W[ptr.body].a = bodyAngle(p); updateLight(); }
@@ -192,7 +194,7 @@ function endPtr(e) {
     if (ptr.moved < 6) { b.stop = !b.stop; Sound.play('pin'); toast((ptr.body === 'sun' ? '太陽' : '月') + (b.stop ? 'を止めた' : 'がまた動き出した')); }
     else Sound.play('release');
   }
-  else if (ptr.mode === 'view' && ptr.moved < 6 && !COL) {          // 「見る」で押した: 近くの生き物の札を出す
+  else if (ptr.mode === 'view' && ptr.moved < 6 && !COL) {          // 手があいているとき押した: 近くの生き物の札を出す
     const w = pick(ptr.x, ptr.y);
     let best = null, bd = 2.2 * 2.2;
     if (w) for (const a of L.list) { const d = (a.x - w.x) ** 2 + (a.y - w.y) ** 2; if (d < bd) { bd = d; best = a; } }
@@ -204,10 +206,8 @@ function endPtr(e) {
 cv.addEventListener('pointerup', endPtr);
 cv.addEventListener('pointercancel', endPtr);
 cv.addEventListener('pointerleave', () => { if (!ptr) hover = null; });
-cv.addEventListener('wheel', e => { e.preventDefault(); zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12); }, { passive: false });
+cv.addEventListener('wheel', e => { e.preventDefault(); zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12); G.did.rotate = 1; }, { passive: false });
 function zoomBy(k) { V.zoom = Math.max(0.6, Math.min(3, V.zoom * k)); layout(V.cw, V.ch); }
-$('zoomIn').onclick = () => zoomBy(1.2);
-$('zoomOut').onclick = () => zoomBy(1 / 1.2);
 
 // 押しているあいだ、なめらかに動く（2026-10-13 ユーザー「カカカではなく、スーっと」）。キーのくりかえしは使わない
 const held = new Set();
@@ -223,30 +223,39 @@ function moveByKeys(dt) {
   if (has('ArrowRight')) V.yaw -= rot;
   if (has('ArrowUp')) V.tilt = Math.max(0.32, V.tilt - tl);
   if (has('ArrowDown')) V.tilt = Math.min(0.92, V.tilt + tl);
+  G.did.rotate = 1;
   layout(V.cw, V.ch);
 }
 addEventListener('keydown', e => {
-  if (e.target.closest && e.target.closest('dialog')) return;
+  if (e.target.closest && (e.target.closest('dialog') || e.target.closest('select'))) return;
   const mk = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   if (MOVE_KEYS.includes(mk)) { held.add(mk); e.preventDefault(); return; }
-  if (e.key === ' ') { setSpeed(G.speed ? 0 : 1); }
-  else if (e.key >= '1' && e.key <= '9') setTool(['look', 'raise', 'dig', 'spring', 'grass', 'deer', 'wolf', 'fish', 'bird'][+e.key - 1]);
+  if (e.key === ' ') { setSpeed(G.speed ? 0 : G.lastSpeed); }
+  else if (e.key === 'Escape') { if (!$('book').hidden) closeBook(); else setHand(null); }
+  else if (e.key === '1' || e.key === '2' || e.key === '3') {
+    const h = ['soil', 'water', 'life'][+e.key - 1], ok = { soil: G.unlock.soil, water: G.unlock.water, life: G.unlock.seed }[h];
+    if (ok) setHand(G.hand === h ? null : h);
+  }
+  else if (e.key === '+' || e.key === '=') zoomBy(1.2);
+  else if (e.key === '-') zoomBy(1 / 1.2);
+  else if (mk === 'b') $('book').hidden ? openBook() : closeBook();
   else return;
-  e.preventDefault(); layout(V.cw, V.ch);
+  e.preventDefault();
 });
 
 function setSpeed(v) {
-  G.speed = v;
-  document.querySelectorAll('[data-speed]').forEach(b => b.setAttribute('aria-pressed', +b.dataset.speed === v));
+  G.speed = v; if (v) G.lastSpeed = v;
+  document.querySelectorAll('[data-speed]').forEach(b => b.setAttribute('aria-pressed', G.speed > 0 && +b.dataset.speed === v));
+  drawDial();
 }
-document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => { setSpeed(+b.dataset.speed); Sound.play('click'); }));
+document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => { Sound.unlock(); setSpeed(+b.dataset.speed); Sound.play('click'); G.did.speed = 1; }));
 
 // 世界をくずす（v010。見せるだけで、もとにもどせる）
-$('btnBreak').onclick = () => { if (COL) return; showPanel('<h2>世界をくずす</h2><p>この大地をくずしてみる。見せるだけなので、いつでも「もとにもどす」で、いまの世界にもどれる。</p>',
+$('btnBreak').onclick = () => { if (COL) return; closeBook(); showPanel('<h2>世界をくずす</h2><p>この大地をくずしてみる。見せるだけなので、いつでも「もとにもどす」で、いまの世界にもどれる。</p>',
   [{ label: '崩れ落ちる', main: true, fn: () => startCollapse('fall') }, { label: '殻がはがれる', main: true, fn: () => startCollapse('shell') }, { label: 'やめる' }]); };
-$('btnRestore').onclick = () => { if (COL) { $('overlay').hidden = true; endCollapse(); } };
+$('btnRestore').onclick = () => { if (COL) { $('overlay').hidden = true; if (COL.ending) endingPanel(); else endCollapse(); } };
 
-// ルックと背景（実験。2026-10-13 ユーザー）
+// ルックと背景（実験。2026-10-13 ユーザー）。v011 から観察帳の「てびき」の頁に
 const lookSel = document.getElementById('lookSel'), backSel = document.getElementById('backSel');
 lookSel.value = STYLES[styleName] ? styleName : 'voxel'; backSel.value = backName === 'auto' || BACKS[backName] ? backName : 'dark';
 lookSel.addEventListener('change', () => { setStyle(lookSel.value); lookSel.blur(); });
@@ -259,48 +268,50 @@ function syncSoundBtns() {
 document.querySelectorAll('.btnBgm').forEach(b => b.addEventListener('click', () => { Sound.unlock(); Sound.set('bgm', !Sound.get('bgm')); syncSoundBtns(); }));
 $('btnSfx').onclick = () => { Sound.unlock(); Sound.set('sfx', !Sound.get('sfx')); syncSoundBtns(); Sound.play('click'); };
 $('btnAbout').onclick = () => $('about').showModal();
-$('btnSave').onclick = () => { Sound.unlock(); openSavePanel(); };
-$('btnReset').onclick = () => showPanel('<h2>最初から</h2><p>新しい大地で、第一の日からやり直す。いまの世界は、セーブのスロットに残していなければ消える（自動セーブも次の日に上書きされる）。</p>',
-  [{ label: 'やり直す', main: true, fn: () => { newGame(); G.started = true; } }, { label: 'やめる' }]);
+$('btnSave').onclick = () => { Sound.unlock(); closeBook(); openSavePanel(); };
+$('btnReset').onclick = () => { closeBook(); showPanel('<h2>最初から</h2><p>新しい大地で、第一の年からやり直す。いまの世界は、セーブのスロットに残していなければ消える（自動セーブも次の日に上書きされる）。</p>',
+  [{ label: '第一の年から', main: true, fn: () => { newGame(); G.started = true; enterChapter(0); } }, { label: '自由な箱庭で', fn: () => { newGame(undefined, false); G.started = true; } }, { label: 'やめる' }]); };
 
 // ---- ループ ----
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   const t = now / 1000;
-  moveByKeys(dt);
+  if (!V.cw) resize();
+  moveByKeys(dt); stepLater(dt);
   if (G.started && G.speed > 0 && !COL) simulate(dt * G.speed);
   if (ptr && ptr.mode === 'tool' && G.tool !== 'spring') {
     ptr.t += dt;
     const every = KINDS[G.tool] ? 0.3 : 0.05;
     if (ptr.t >= every) { ptr.t = 0; useTool(ptr.w, false); }
   }
-  const s = checkWorld();
+  const s = checkWorld(G.started && !COL ? dt * G.speed : 0);
   if (G.needSave && !THUMB) { G.needSave = false; autoSave(); }
   if (G.seasonMsg !== undefined) {
     toast(SEASON_MSG[G.seasonMsg], 4); Sound.play('spring'); G.seasonMsg = undefined;
   }
   accSide += dt;
   if (accSide > 0.25) { accSide = 0; updateSide(s); }
-  drawWorld(ctx, t, hover);
+  if (V.cw > 1 && V.ch > 1) { drawWorld(ctx, t, hover); takeSketch(); }   // 見えていないと大きさが 0
   Sound.update(COL ? 0 : s.out, !G.started || G.speed === 0 || !!COL, Math.max(0, Math.min(1, (V.zoom - 1.2) / 1.0)));   // 滝の音は寄ったときだけ
   requestAnimationFrame(frame);
 }
 
+// はじめの画面: 世界の上に題と、ことばだけ（四角い箱を出さない）
 function start() {
   const cont = readSlot('auto');
-  showPanel(`<h2>果ての滝の箱庭</h2>
-    <p>深淵に浮かぶ、平らな大地。川は世界の果てから滝になって落ちていく。</p>
-    <ul>
-      <li>下の道具で、地を<b>盛る・削る</b>、<b>泉</b>をわかせる、<b>草</b>のたねをまく、<b>シカ・オオカミ・サカナ</b>を放す。</li>
-      <li>大地の外をドラッグすると回せる。太陽と月はつかんで動かせる。</li>
-      <li>水・草・食べる・食べられるがつり合う世界をつくろう。お題は8つ。</li>
-    </ul>` + (cont ? `<p class="small">つづき: ${metaText(cont)}</p>` : ''),
-    (cont ? [{ label: 'つづきから', main: true, fn: async () => {
+  document.body.classList.add('titling');
+  const go = fn => () => { document.body.classList.remove('titling'); fn(); };
+  showPanel(`<h2 class="title">果ての滝の箱庭</h2>
+    <p class="sub">深淵に浮かぶ、平らな大地。<br>川は、世界の果てから滝になって落ちていく。</p>
+    <p class="sub">何も生まれず、何も消えない。ただ、めぐるだけ。</p>` + (cont ? `<p class="small">つづき: ${metaText(cont)}</p>` : ''),
+    (cont ? [{ label: 'つづきから', main: true, fn: go(async () => {
       try { await loadRecord(cont); G.started = true; toast('第 ' + W.day + ' 日から'); }
-      catch (e) { toast('つづきを読みこめなかった: ' + e.message); G.started = true; G.qStart = W.t; }
-    } }, { label: 'はじめから', fn: () => { G.started = true; G.qStart = W.t; } }]
-      : [{ label: 'はじめる', main: true, fn: () => { G.started = true; G.qStart = W.t; } }]));
+      catch (e) { toast('つづきを読みこめなかった: ' + e.message); G.started = true; enterChapter(0); }
+      syncHands();
+    }) }, { label: 'はじめから', fn: go(() => { G.started = true; enterChapter(0); }) }]
+      : [{ label: 'はじめる', main: true, fn: go(() => { G.started = true; enterChapter(0); }) }]).concat([{ label: '自由な箱庭', fn: go(() => { newGame(undefined, false); G.started = true; syncHands(); }) }]));
+  $('panel').classList.add('titlecard');
 }
 
 // ---- はじめ ----
@@ -309,7 +320,7 @@ syncSoundBtns();
 resize();
 if (THUMB) {
   document.body.classList.add('thumb');
-  newGame(7); resize(); G.started = true;
+  newGame(7, false); resize(); G.started = true;
   V.tilt = 0.5; layout(V.cw, V.ch);
   simulate(20);
   const sx = W.lake ? C + W.lake.x * RD : C, sy = W.lake ? C + W.lake.y * RD : C;
@@ -326,4 +337,4 @@ if (THUMB) {
   requestAnimationFrame(frame);
 }
 
-window.__ef = { W, L, G, V, setStyle, setBack, step: s => { simulate(s); checkWorld(); updateSide(lastStats); }, setSpeed, newGame, stats: () => waterStats(), setTool };
+window.__ef = { W, L, G, V, setStyle, setBack, step: s => { simulate(s); checkWorld(s); updateSide(lastStats); }, setSpeed, newGame, stats: () => waterStats(), setHand, enterChapter, finishChapter, makePrint };

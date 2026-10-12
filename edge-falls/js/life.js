@@ -119,6 +119,7 @@ function nearest(a, kind, rad, test) {
 function die(a, how) {
   if (a.dead) return;
   a.dead = true; L.counts[a.kind]--;
+  if (W.souls) W.souls[a.kind] += 1 / 3;   // 去った命は深淵へ。少しずつつぼへ戻る（v011）
   const key = a.kind + ':' + how; L.why[key] = (L.why[key] || 0) + 1;
   if (how === 'fall') {
     L.fell++;
@@ -184,6 +185,7 @@ function stepAnimal(a, dt) {
       else a.dir = pickDir(a, j => -W.w[j] * 2 - (inside[j] ? 0 : 9), 8, 2);
       if (a.wet > (a.kind === 'deer' ? T.wetMax : 25)) { die(a, 'drown'); return; }
     } else {
+      if (a.kind === 'deer' && a.wet > 4) W.flags.swim = 1;   // 深い水を泳ぎわたった
       a.wet = 0;
       const avoid = j => (deepAt(j) > 0.4 ? -fear : 0);
       if (a.kind === 'deer') {
@@ -210,7 +212,7 @@ function stepAnimal(a, dt) {
             // 大きなシカは逃げきることがある（オオカミが大きいほど逃げにくい）
             if (Math.random() < deer.tr.escape / T.grip) { a.chase = 0; a.rest = 8; a.target = null; deer.dir = a.dir; deer.x += Math.cos(a.dir) * 0.8; deer.y += Math.sin(a.dir) * 0.8; }
             else { a.e = Math.min(T.eMax, a.e + 8 * (0.7 + 0.6 * deer.g.size)); L.eaten++; die(deer, 'eaten'); a.chase = 0; a.rest = 30; a.target = null; }   // 食べたら半日休む
-          } else if (a.chase > T.give) { a.chase = 0; a.rest = 5; a.target = null; }
+          } else if (a.chase > T.give) { a.chase = 0; a.rest = 5; a.target = null; W.flags.giveup = 1; }
         } else if (a.th > 35) a.dir = pickDir(a, j => W.moist[j] + avoid(j), 7, 3);
         else { a.chase = 0; a.wander -= dt; if (a.wander < 0) { a.dir = pickDir(a, j => avoid(j) + Math.random() * 0.5, 4, 3); a.wander = 2 + Math.random() * 3; } sp *= 0.6; }
       }
@@ -245,6 +247,7 @@ function reproduce(a) {
     const c = spawn(a.kind, a.x + (Math.random() - 0.5), a.y + (Math.random() - 0.5), ce, childGenes(a.kind, a, mate));
     if (c) {
       c.gen = Math.max(a.gen, mate ? mate.gen : 0) + 1;
+      if (c.gen >= 10) W.flags.gen10 = 1;
       a.e -= ce + 1; a.cd = K.cd * (0.8 + Math.random() * 0.4); L.born++;
       L.fx.push({ type: 'born', x: c.x, y: c.y, z: heightAt(c.x, c.y, true), t: 0 });
     }

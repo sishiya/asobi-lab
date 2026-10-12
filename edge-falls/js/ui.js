@@ -1,9 +1,6 @@
 'use strict';
-// 横のようす・知らせ・札・グラフ
+// 知らせ・札・観察帳のグラフ（v011 で横の箱は観察帳へ）
 const $ = id => document.getElementById(id);
-const DAYNAME = ['第一', '第二', '第三', '第四', '第五', '第六', '第七', '第八'];
-const BEST_KEY = 'asobi-lab/edge-falls/best';
-
 let toastT = 0;
 function toast(msg, sec = 3) {
   const el = $('toast'); el.textContent = msg; el.classList.add('on');
@@ -23,34 +20,11 @@ function showPanel(html, btns) {
   box.querySelector('.main')?.focus();
 }
 
-function loadBest() { try { return JSON.parse(localStorage.getItem(BEST_KEY) || '[]'); } catch (e) { return []; } }
-function saveBest(b) { try { localStorage.setItem(BEST_KEY, JSON.stringify(b)); } catch (e) { /* なし */ } }
-
-function updateQuestBox(s) {
-  if (G.qi >= QUESTS.length) {
-    $('questLabel').textContent = 'お題はすべておわり';
-    $('questText').textContent = '自由に世界をそだてよう。'; $('questBar').style.width = '100%';
-    $('questNum').textContent = '―'; $('questUnit').textContent = ''; $('questGoal').textContent = '';
-    $('questStars').textContent = G.best.map(b => '★'.repeat(b || 0)).join(' ');
-    return;
-  }
-  const q = QUESTS[G.qi], v = q.prog(s);
-  $('questLabel').textContent = DAYNAME[G.qi] + 'の日のお題「' + q.title + '」';
-  $('questText').textContent = q.text;
-  $('questBar').style.width = Math.min(100, v / q.goal * 100) + '%';
-  const fmt = q.show || (x => x);
-  $('questNum').textContent = fmt(v); $('questUnit').textContent = q.unit; $('questGoal').textContent = fmt(q.goal) + q.unit;
-  $('questHint').textContent = q.hint;
-  const days = (W.t - G.qStart) / DAY;
-  const st = questStars(G.qi, days);
-  $('questStars').textContent = '★'.repeat(st) + '☆'.repeat(3 - st);
-}
-
 const HIST = [];
 function updateSide(s) {
   const yr = Math.floor((W.t / DAY + 0.1 * YEAR) / YEAR) + 1;
   $('day').textContent = `${yr} 年目の${SEASONS[seasonOf()]}・第 ${W.day} 日`;
-  $('hud').innerHTML = `<b>${SEASONS[seasonOf()]}</b>　${Math.round(W.Tavg ?? 15)}℃` + (W.Tavg < 2 ? '　雪' : '');
+  $('hud').textContent = `${SEASONS[seasonOf()]}・${Math.round(W.Tavg ?? 15)}℃` + (W.Tavg < 2 ? '・雪' : '');
   $('nGrass').textContent = Math.round(s.grass * 100);
   $('nDeer').textContent = L.counts.deer; $('nWolf').textContent = L.counts.wolf; $('nFish').textContent = L.counts.fish; $('nBird').textContent = L.counts.bird;
   $('fallRate').textContent = s.out.toFixed(1);
@@ -60,18 +34,16 @@ function updateSide(s) {
   $('wAbyss').style.width = (s.abyss / tot * 100) + '%';
   $('soilBar').style.width = Math.min(100, W.soil / 300 * 100) + '%';
   $('nSpring').textContent = W.springs.length;
-  for (const [k, id] of [['deer', 'stDeer'], ['wolf', 'stWolf'], ['fish', 'stFish'], ['bird', 'stBird']]) {
-    const el = $(id); el.textContent = W.stock[k]; el.classList.toggle('zero', W.stock[k] <= 0);
-  }
-  updateQuestBox(s);
-  updateGenes(); updateCard();
+  questLine(s); drawDial(); drawHands();
+  if (!$('fan').hidden) { const sig = ['deer', 'wolf', 'fish', 'bird'].map(k => W.stock[k]).join(); if (sig !== G.fanSig) { G.fanSig = sig; syncHands(); } }
+  renderBook(); updateCard();
 }
 
 // 半日ごとに記録して、移り変わりのグラフ
 function recordHist(s) {
   HIST.push({ g: s.grass, d: L.counts.deer, w: L.counts.wolf, f: L.counts.fish, b: L.counts.bird, s: seasonOf(), gs: { deer: geneStats('deer'), wolf: geneStats('wolf'), fish: geneStats('fish'), bird: geneStats('bird') } });
   if (HIST.length > 240) HIST.shift();
-  drawChart(); drawGeneChart();
+  if (!$('book').hidden) { drawChart(); drawGeneChart(); }
 }
 function drawChart() {
   const cv = $('chart'), dpr = devicePixelRatio || 1;

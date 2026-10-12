@@ -6,133 +6,158 @@
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>果ての滝の箱庭</title>
-<meta name="description" content="深淵に浮かぶ平らな大地。川は世界の果てから滝になって落ちる。泉と雨で水をめぐらせ、草・シカ・オオカミ・サカナの生態系をつくる箱庭ゲーム（試作）。">
+<meta name="description" content="深淵に浮かぶ平らな大地。川は世界の果てから滝になって落ちる。岩と土だけの大地に泉をわかせ、土を動かし、草と生き物を放して、水と命がめぐる世界をつくる箱庭ゲーム（試作）。">
 <meta name="theme-color" content="#141b30">
-<link rel="stylesheet" href="css/style.css?v=10">
+<link rel="stylesheet" href="css/style.css?v=11">
 </head>
 <body>
-<header class="top">
+<main class="stage" id="field">
+  <canvas id="view" aria-label="深淵に浮かぶ平らな大地。ふちから滝が落ちる。上を太陽と月がめぐる"></canvas>
   <a class="back" href="../archive.html" aria-label="あそびラボの保管庫へ戻る">←</a>
-  <h1>果ての滝の箱庭 <span class="proto">試作</span></h1>
-  <button type="button" class="icon-btn btnBgm" aria-label="音楽" aria-pressed="true" title="音楽のオン・オフ">♪</button>
-  <button type="button" class="icon-btn" id="btnAbout" aria-label="このゲームについて">?</button>
-</header>
 
-<main class="layout">
-  <section class="field" id="field">
-    <canvas id="view" aria-label="深淵に浮かぶ平らな大地。ふちから滝が落ちる。上を太陽と月がめぐる"></canvas>
-    <div class="tools" id="tools" role="group" aria-label="神の手の道具">
-      <button type="button" data-tool="look" aria-pressed="true" title="見る（ドラッグで回す・傾ける）">見る</button>
-      <button type="button" data-tool="raise" aria-pressed="false" title="盛る（土ぶくろの土で）">盛る</button>
-      <button type="button" data-tool="dig" aria-pressed="false" title="削る（土は土ぶくろへ）">削る</button>
-      <button type="button" data-tool="spring" aria-pressed="false" title="泉（深淵の水をわかせる。泉を押すと止める）">泉</button>
-      <button type="button" data-tool="grass" aria-pressed="false" title="草のたねをまく">草</button>
-      <button type="button" data-tool="deer" aria-pressed="false" title="シカを放す">シカ<i id="stDeer"></i></button>
-      <button type="button" data-tool="wolf" aria-pressed="false" title="オオカミを放す">オオカミ<i id="stWolf"></i></button>
-      <button type="button" data-tool="fish" aria-pressed="false" title="サカナを放す">サカナ<i id="stFish"></i></button>
-      <button type="button" data-tool="bird" aria-pressed="false" title="サギを放す（サカナを食べる鳥）">サギ<i id="stBird"></i></button>
-    </div>
-    <div class="zoom">
-      <button type="button" class="icon-btn" id="zoomIn" aria-label="寄る">＋</button>
-      <button type="button" class="icon-btn" id="zoomOut" aria-label="引く">－</button>
-    </div>
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <div class="card" id="card" hidden></div>
-    <div class="hud" id="hud" aria-live="off"></div>
-    <div class="looks" id="looks">
-      <label>ルック<select id="lookSel" aria-label="ルック（絵の画風）">
-        <option value="voxel">ボクセル</option><option value="etch">銅版画</option><option value="real">リアル</option><option value="cyber">サイバー</option><option value="paint">絵画</option>
-      </select></label>
-      <label>背景<select id="backSel" aria-label="背景">
-        <option value="dark">暗い宇宙</option><option value="space">宇宙</option><option value="clouds">雲の上</option><option value="room">部屋の中</option><option value="hand">手のひら</option><option value="fantasy">幻想</option><option value="neon">電脳</option><option value="auto">ルックにおまかせ</option>
-      </select></label>
-    </div>
-    <button type="button" class="restore" id="btnRestore">もとにもどす</button>
-    <div class="overlay" id="overlay" hidden><div class="panel" id="panel"></div></div>
-  </section>
+  <div class="quest" id="quest" hidden>
+    <p class="qtitle" id="qTitle"></p>
+    <p class="qtext" id="qText"></p>
+    <div class="qbar"><i id="qBar"></i></div>
+  </div>
 
-  <aside class="side">
-    <div class="box quest">
-      <p class="label"><span id="questLabel">第一の日のお題</span><span class="qstars" id="questStars"></span></p>
-      <p class="qtext" id="questText"></p>
-      <div class="bar"><i id="questBar"></i></div>
-      <p class="small"><b id="questNum">0</b><span id="questUnit"></span> ／ <span id="questGoal"></span></p>
-      <details class="hintbox"><summary>ヒント</summary><p id="questHint"></p></details>
+  <div class="dial" id="dial">
+    <button type="button" class="dialbtn" id="dialBtn" aria-label="時を止める・動かす" title="天の輪（押すと時が止まる・動く）"><canvas id="dialCv" width="144" height="144"></canvas></button>
+    <div class="pips" role="group" aria-label="時の速さ">
+      <button type="button" data-speed="1" aria-pressed="true" aria-label="ふつうの速さ" title="ふつう">›</button>
+      <button type="button" data-speed="4" aria-pressed="false" aria-label="4倍の速さ" title="×4">››</button>
+      <button type="button" data-speed="16" aria-pressed="false" aria-label="16倍の速さ" title="×16">›››</button>
     </div>
+    <p class="dialtxt" id="hud"></p>
+  </div>
 
-    <div class="box">
-      <p class="label"><span>いきものの移り変わり</span><span id="day">第 1 日</span></p>
-      <canvas id="chart" aria-label="草・シカ・オオカミ・サカナの数の移り変わり"></canvas>
-      <div class="legend">
-        <span><i style="background:#6aa84f"></i>草 <b id="nGrass">0</b>%</span>
-        <span><i style="background:#c08040"></i>シカ <b id="nDeer">0</b></span>
-        <span><i style="background:#7d8597"></i>オオカミ <b id="nWolf">0</b></span>
-        <span><i style="background:#ef9a4a"></i>サカナ <b id="nFish">0</b></span>
-        <span><i style="background:#9ab4cc"></i>サギ <b id="nBird">0</b></span>
-      </div>
-    </div>
+  <div class="line" id="line" aria-live="polite"><b id="lineA"></b><span id="lineB"></span></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="card" id="card" hidden></div>
 
-    <div class="box genes">
-      <p class="label"><span>遺伝子のうつりかわり</span><span id="genGen">第 1 世代</span></p>
-      <div class="seg gtabs" role="group" aria-label="生き物の種類">
-        <button type="button" data-gk="deer" aria-pressed="true">シカ</button>
-        <button type="button" data-gk="wolf" aria-pressed="false">オオカミ</button>
-        <button type="button" data-gk="fish" aria-pressed="false">サカナ</button>
-        <button type="button" data-gk="bird" aria-pressed="false">サギ</button>
-      </div>
-      <canvas id="gchart" aria-label="遺伝子の平均の移り変わり"></canvas>
-      <div class="grows" id="grows"></div>
-      <p class="small hint">平均の値。たての線ははじめ（0.5）。「見る」で生き物を押すと、1匹の遺伝子が見られる。</p>
-    </div>
+  <div class="fan" id="fan" hidden></div>
+  <div class="hands" id="hands" role="group" aria-label="神の手に持つもの">
+    <button type="button" class="hand" data-hand="soil" aria-pressed="false" title="土ぶくろ（削る・盛る）"><canvas width="32" height="32"></canvas><span>土</span></button>
+    <button type="button" class="hand" data-hand="water" aria-pressed="false" title="水がめ（泉をわかせる・止める）"><canvas width="32" height="32"></canvas><span>水</span></button>
+    <button type="button" class="hand" data-hand="life" aria-pressed="false" title="命のつぼ（たね・生き物を放す）"><canvas width="32" height="32"></canvas><span>命</span></button>
+  </div>
+  <button type="button" class="bookbtn" id="btnBook" aria-label="観察帳をひらく" title="観察帳"><canvas width="32" height="32"></canvas><span>観察帳</span></button>
+  <button type="button" class="restore" id="btnRestore">もとにもどす</button>
 
-    <div class="box">
-      <p class="label"><span>水のめぐり</span><span>滝 <b id="fallRate">0</b>/秒</span></p>
-      <div class="wbar" aria-label="水のありか"><i class="land" id="wLand"></i><i class="cloud" id="wCloud"></i><i class="abyss" id="wAbyss"></i></div>
-      <p class="small wleg"><span><i class="land"></i>大地の上</span><span><i class="cloud"></i>雲</span><span><i class="abyss"></i>深淵</span></p>
-    </div>
+  <div class="book" id="book" hidden>
+    <div class="pages">
+      <nav class="tabs" role="tablist" aria-label="観察帳の頁">
+        <button type="button" role="tab" data-page="life" aria-selected="true">いのち</button>
+        <button type="button" role="tab" data-page="genes" aria-selected="false">遺伝子</button>
+        <button type="button" role="tab" data-page="water" aria-selected="false">水と土</button>
+        <button type="button" role="tab" data-page="finds" aria-selected="false">見つけたこと</button>
+        <button type="button" role="tab" data-page="years" aria-selected="false">年</button>
+        <button type="button" role="tab" data-page="setup" aria-selected="false">てびき</button>
+      </nav>
+      <button type="button" class="close" id="bookClose" aria-label="観察帳をとじる">×</button>
 
-    <div class="box">
-      <p class="label">神の手</p>
-      <p class="small">土ぶくろ <span class="bar soil"><i id="soilBar"></i></span></p>
-      <p class="small">泉 <b id="nSpring">0</b> ／ 6</p>
-      <p class="small hint">太陽と月はつかんで動かせる。タップで止める／また動かす。月の下へ水が寄る。</p>
-    </div>
+      <section class="page" data-page="life">
+        <h3>いきものの移り変わり <small id="day">第 1 日</small></h3>
+        <canvas id="chart" aria-label="草・シカ・オオカミ・サカナ・サギの数の移り変わり"></canvas>
+        <div class="legend">
+          <span><i style="background:#6aa84f"></i>草 <b id="nGrass">0</b>%</span>
+          <span data-k="deer"><i style="background:#c08040"></i>シカ <b id="nDeer">0</b></span>
+          <span data-k="wolf"><i style="background:#7d8597"></i>オオカミ <b id="nWolf">0</b></span>
+          <span data-k="fish"><i style="background:#ef9a4a"></i>サカナ <b id="nFish">0</b></span>
+          <span data-k="bird"><i style="background:#9ab4cc"></i>サギ <b id="nBird">0</b></span>
+        </div>
+        <p class="note">大地の生き物を押すと、その1匹の札が出る。</p>
+      </section>
 
-    <div class="box">
-      <p class="label">時の速さ</p>
-      <div class="seg" role="group" aria-label="時の速さ">
-        <button type="button" data-speed="0" aria-pressed="false" aria-label="止める">❚❚</button>
-        <button type="button" data-speed="1" aria-pressed="true">×1</button>
-        <button type="button" data-speed="4" aria-pressed="false">×4</button>
-        <button type="button" data-speed="16" aria-pressed="false">×16</button>
-      </div>
-    </div>
+      <section class="page" data-page="genes" hidden>
+        <h3>遺伝子のうつりかわり <small id="genGen">第 1 世代</small></h3>
+        <p class="locked" id="genesLocked">まだ白い頁。生き物が親から子へ伝えるものが、いつか書きこまれる。</p>
+        <div id="genesBody">
+          <div class="seg gtabs" role="group" aria-label="生き物の種類">
+            <button type="button" data-gk="deer" aria-pressed="true">シカ</button>
+            <button type="button" data-gk="wolf" aria-pressed="false">オオカミ</button>
+            <button type="button" data-gk="fish" aria-pressed="false">サカナ</button>
+            <button type="button" data-gk="bird" aria-pressed="false">サギ</button>
+          </div>
+          <canvas id="gchart" aria-label="遺伝子の平均の移り変わり"></canvas>
+          <div class="grows" id="grows"></div>
+          <p class="note">平均の値。たての線ははじめ（0.5）。どの遺伝子にも得と損がある（速い足は、たくさん食べないといけない）。</p>
+        </div>
+      </section>
 
-    <div class="box row">
-      <button type="button" class="tbtn btnBgm" aria-pressed="true">♪ 音楽</button>
-      <button type="button" class="tbtn" id="btnSfx" aria-pressed="true">効果音</button>
-      <button type="button" class="tbtn" id="btnSave">セーブ</button>
-      <button type="button" class="tbtn" id="btnReset">最初から</button>
-      <button type="button" class="tbtn" id="btnBreak" title="世界をくずす（見せるだけ。もとにもどせる）">くずす</button>
+      <section class="page" data-page="water" hidden>
+        <h3>水のめぐり <small>滝 <b id="fallRate">0</b>/秒</small></h3>
+        <div class="wbar" aria-label="水のありか"><i class="land" id="wLand"></i><i class="cloud" id="wCloud"></i><i class="abyss" id="wAbyss"></i></div>
+        <p class="wleg"><span><i class="land"></i>大地の上</span><span><i class="cloud"></i>雲</span><span><i class="abyss"></i>深淵</span></p>
+        <p class="note">水は消えも生まれもしない。泉は深淵の水をくみ上げ、滝は深淵へ返す。深淵が底をつくと、泉は止まる。泉 <b id="nSpring">0</b> か所。</p>
+        <h3>土ぶくろ</h3>
+        <div class="bar soil"><i id="soilBar"></i></div>
+        <p class="note">土も消えも生まれもしない。削った分だけ、盛れる。</p>
+        <h3>命のつぼ</h3>
+        <p class="note" id="stockTxt"></p>
+        <p class="note">去った命は深淵へ落ち、少しずつつぼへ戻ってくる。春にも一つずつ。</p>
+      </section>
+
+      <section class="page" data-page="finds" hidden>
+        <h3>見つけたこと <small id="findN"></small></h3>
+        <div class="finds" id="finds"></div>
+      </section>
+
+      <section class="page" data-page="years" hidden>
+        <h3>この世界の年</h3>
+        <ol class="years" id="years"></ol>
+      </section>
+
+      <section class="page" data-page="setup" hidden>
+        <h3>てびき</h3>
+        <ul class="howto">
+          <li>下の<b>土・水・命</b>を押すと、手に持つ。もう一度押すと、手をあける。</li>
+          <li>大地の外をドラッグで回す・傾ける。ホイール・2本指で寄る。右ドラッグ・Shift で平行移動。</li>
+          <li>太陽と月は、つかんで動かせる。押すと止まる。</li>
+          <li>右上の<b>天の輪</b>を押すと時が止まる。下の › で速さ。</li>
+          <li>キー: 1 土・2 水・3 命・Esc 手をあける・スペース 止める・←→↑↓ 見る向き・WASD 動かす・＋－ 寄る。</li>
+        </ul>
+        <div class="row">
+          <button type="button" class="tbtn btnBgm" aria-pressed="true">♪ 音楽</button>
+          <button type="button" class="tbtn" id="btnSfx" aria-pressed="true">効果音</button>
+          <button type="button" class="tbtn" id="btnSave">セーブ</button>
+          <button type="button" class="tbtn" id="btnPrint">世界の版画</button>
+          <button type="button" class="tbtn" id="btnAbout">このゲームについて</button>
+          <button type="button" class="tbtn" id="btnReset">最初から</button>
+          <button type="button" class="tbtn" id="btnBreak" title="世界をくずす（見せるだけ。もとにもどせる）">くずす</button>
+        </div>
+        <div class="row looks" id="looks">
+          <label>ルック <select id="lookSel" aria-label="ルック（絵の画風）">
+            <option value="voxel">ボクセル</option><option value="etch">銅版画</option><option value="real">リアル</option><option value="cyber">サイバー</option><option value="paint">絵画</option>
+          </select></label>
+          <label>背景 <select id="backSel" aria-label="背景">
+            <option value="dark">暗い宇宙</option><option value="space">宇宙</option><option value="clouds">雲の上</option><option value="room">部屋の中</option><option value="hand">手のひら</option><option value="fantasy">幻想</option><option value="neon">電脳</option><option value="auto">ルックにおまかせ</option>
+          </select></label>
+        </div>
+      </section>
     </div>
-  </aside>
+  </div>
+
+  <div class="overlay" id="overlay" hidden><div class="panel" id="panel"></div></div>
 </main>
 
 <dialog id="about">
   <h2>果ての滝の箱庭（試作）</h2>
-  <p>深淵に浮かぶ平らな大地です。川は世界の果てから滝になって落ちていきます。きみは神の手で地を盛ったり削ったり、泉をわかせたりして水をめぐらせ、草・シカ・オオカミ・サカナがいっしょにくらせる世界をつくります。8つのお題（世界の日）を順に。</p>
+  <p>深淵に浮かぶ平らな大地です。川は世界の果てから滝になって落ちていきます。きみは神の手で、はじめは岩と土だけの大地に泉をわかせ、土を動かし、草と生き物を放して、水と命がめぐる世界をつくります。1つの年に、新しいものが1つずつ来ます（全部で十の年）。</p>
+  <p>この世界では、何も生まれず、何も消えません。土は削った分だけ盛れ、泉は深淵の水をくみ上げ、滝は深淵へ返します。去った命も深淵を通って、少しずつつぼへ戻ってきます。だから、どの手にも得と損があります。</p>
   <h3>遊びかた</h3>
   <ul>
-    <li>下の道具を選んで、大地をなぞる・押す。「見る」ではドラッグで大地を回す（横）・傾ける（縦）。どの道具でも、大地の外をドラッグすれば回せる。</li>
-    <li>盛る・削る: 削った土は土ぶくろへ入り、盛るとへる。ふちを盛ると、水がせき止められて湖になる。</li>
-    <li>泉: 深淵の水がわき出る（6つまで）。泉を押すと止める／またわかせる。</li>
-    <li>季節: 1年は16日（春・夏・秋・冬が4日ずつ）。右上に季節と気温。</li>
-    <li>シカ・オオカミ・サカナ・サギは「命のつぼ」から放す（数字が残り。1日に1つずつふえる）。サカナは水の中へ。</li>
-    <li>太陽と月はつかんで動かせる。タップで止める。ホイール・＋－で寄る（寄ると滝の音が聞こえる）。</li>
-    <li>平行移動: 右ボタンでドラッグ、Shift を押しながらドラッグ、スマホは2本指（ピンチで寄る）。空をダブルクリックで真ん中へもどる。</li>
-    <li>くずす: 世界が崩れ落ちるところ、殻がはがれて中から何かが出てくるところを見られる。見せるだけなので、「もとにもどす」でいまの世界にもどる。</li>
-    <li>セーブ: 1日ごとと、ページを閉じるときに自動セーブ。「セーブ」でスロット3つと、ファイルへの書き出し・読みこみ。</li>
-    <li>キーボード: ←→↑↓ で見る向き、WASD で平行移動、スペースで止める、1〜8 で道具。</li>
+    <li>下の<b>土ぶくろ・水がめ・命のつぼ</b>を押すと、手に持つ。もう一度押すと手をあける。土ぶくろと命のつぼは、上に出る中身から選ぶ（削る・盛る／たね・生き物）。</li>
+    <li>土ぶくろ: 削った土はふくろへ入り、盛るとへる。ふちを盛ると、水がせき止められて湖になる。</li>
+    <li>水がめ: 大地を押すと泉がわく。泉を押すと止める／またわかせる。深淵の水が底をつくと、泉はわかない（水がめの中の水が深淵の水）。</li>
+    <li>命のつぼ: たねをまく・生き物を放す（サカナは水の中へ）。つぼの命は、去った命が戻ってくるのと、春ごとにふえる。</li>
+    <li>手をあけて生き物を押すと、その1匹の札が出る（遺伝子・おなか）。</li>
+    <li>太陽と月はつかんで動かせる。押すと止まる。右上の<b>天の輪</b>（外の輪が1年の季節、針が今日、中の点が太陽）を押すと時が止まる。下の › で速さ。</li>
+    <li>大地の外をドラッグで回す・傾ける。ホイール・2本指で寄る（寄ると滝の音が聞こえる）。右ボタン・Shift＋ドラッグ・2本指で平行移動。空をダブルクリックで真ん中へ。</li>
+    <li>右下の<b>観察帳</b>: いきものと遺伝子の移り変わり、水と土、見つけたこと、この世界の年、てびき（音・セーブ・世界の版画・ルック・くずす）。</li>
+    <li>お題が進まないときは、何日かたつと世界がそっと助けてくれる。時間の制限はない。</li>
+    <li>十の年のあとは、自由な箱庭として続けられる。はじめの画面の「自由な箱庭」からも遊べる。</li>
+    <li>キーボード: 1 土・2 水・3 命・Esc 手をあける・B 観察帳・スペース 止める・←→↑↓ 見る向き・WASD 平行移動・＋－ 寄る。</li>
   </ul>
   <h3>この世界のきまり</h3>
   <ul>
@@ -154,24 +179,25 @@
   <p>季節は、地球の自転の軸が 23.4 度かたむいたまま太陽のまわりを回るので、太陽の高さと昼の長さが変わって起きます。平らな大地の図には「夏は太陽が内がわ、冬は外がわを回る」と描くものがありますが、本当の地球ではそうなりません。寒い所のなかまほど体が大きい傾向（ベルクマンの規則）は本当に見られます（例外もたくさんあります）。</p>
   <p>生き残りやすい性質が子に伝わって積み重なり、生き物が変わっていく考え（自然選択）は、ダーウィンとウォレスが 1858 年に発表しました。本当の進化はふつう何百〜何万世代もかかります。この箱庭では、数十世代で目に見えるように、ずっと速くしています。</p>
   <p>大地を平らな円盤と考えた人は、昔たくさんいました。古代ギリシャのホメロスの詩では、平らな大地のまわりを大きな川オケアノスが取り巻き、タレスは大地が水に浮かぶと考えました。古代メソポタミアでは、大地の下に真水の海（アプスー）があり、泉や川の水はそこから来ると考えられていました。でも、<b>世界の果てから水が落ちる滝</b>は、近ごろの絵や物語でよく描かれる姿で、昔の人がそう書き残した例はあまり知られていません。「中世の人はみな大地が平らだと信じていた」もよくある誤解で、学のある人は大地が丸いと知っていました（天動説のプトレマイオスも、大地は丸いと考えていました）。</p>
-  <p class="small">版: 試作 v008（2026-10-13）・あそびラボ ・ 姉妹の箱庭: <a href="../heaven-spheres/">天をまわす箱庭</a></p>
+  <p class="small">版: 試作 v011（2026-10-13）・あそびラボ ・ 姉妹の箱庭: <a href="../heaven-spheres/">天をまわす箱庭</a></p>
   <form method="dialog"><button class="tbtn">とじる</button></form>
 </dialog>
 
-<script src="js/world.js?v=10"></script>
-<script src="js/life.js?v=10"></script>
-<script src="js/render.js?v=10"></script>
-<script src="js/backdrop.js?v=10"></script>
-<script src="js/style-voxel.js?v=10"></script>
-<script src="js/style-paint.js?v=10"></script>
-<script src="js/style-etch.js?v=10"></script>
-<script src="js/style-real.js?v=10"></script>
-<script src="js/style-cyber.js?v=10"></script>
-<script src="js/sound.js?v=10"></script>
-<script src="js/quests.js?v=10"></script>
-<script src="js/ui.js?v=10"></script>
-<script src="js/save.js?v=10"></script>
-<script src="js/collapse.js?v=10"></script>
-<script src="js/main.js?v=10"></script>
+<script src="js/world.js?v=11"></script>
+<script src="js/life.js?v=11"></script>
+<script src="js/render.js?v=11"></script>
+<script src="js/backdrop.js?v=11"></script>
+<script src="js/style-voxel.js?v=11"></script>
+<script src="js/style-paint.js?v=11"></script>
+<script src="js/style-etch.js?v=11"></script>
+<script src="js/style-real.js?v=11"></script>
+<script src="js/style-cyber.js?v=11"></script>
+<script src="js/sound.js?v=11"></script>
+<script src="js/chapters.js?v=11"></script>
+<script src="js/ui.js?v=11"></script>
+<script src="js/save.js?v=11"></script>
+<script src="js/book.js?v=11"></script>
+<script src="js/collapse.js?v=11"></script>
+<script src="js/main.js?v=11"></script>
 </body>
 </html>

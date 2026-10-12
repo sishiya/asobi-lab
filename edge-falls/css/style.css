@@ -1,66 +1,85 @@
-/* 果ての滝の箱庭: 遊ぶ所は深淵の夜空、まわりは羊皮紙（天をまわす箱庭と同じ系統）。ダークモードあり */
-:root{--bg:#e8dcbc;--ink:#3a2a1c;--muted:#6d5a44;--line:#cdb98f;--card:#f4ead0;--accent:#8c3c14;--water:#4a6a8a;color-scheme:light dark}
+/* 果ての滝の箱庭: 画面いっぱいが世界（深淵の夜空）。v011 から、まわりの羊皮紙の箱は「観察帳」の中へ。
+   世界の上の小物は、深淵の色にとける半透明と、羊皮紙の文字の色（--paper）だけで描く。四角い原色のボタンを置かない */
+:root{--bg:#e8dcbc;--ink:#3a2a1c;--muted:#6d5a44;--line:#cdb98f;--card:#f4ead0;--accent:#8c3c14;--water:#4a6a8a;
+  --paper:#efe3c4;--deep:rgba(12,16,30,.62);--deep2:rgba(12,16,30,.82);--glowc:255,226,150;color-scheme:light dark}
 @media (prefers-color-scheme:dark){:root{--bg:#1b1712;--ink:#efe3c4;--muted:#b3a283;--line:#3f3527;--card:#252019;--accent:#e08a50;--water:#8fb0cf}}
 *{box-sizing:border-box}
-html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--ink);font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif;line-height:1.6;display:flex;flex-direction:column}
+html,body{margin:0;height:100%;overflow:hidden}
+body{background:#0d1222;color:var(--ink);font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif;line-height:1.6}
 p{margin:0}
 button{font:inherit;color:inherit}
-.top{display:flex;align-items:center;gap:12px;padding:8px 16px;border-bottom:1px solid var(--line)}
-.top h1{flex:1;margin:0;font-size:20px;letter-spacing:.06em}
-.proto{font-size:12px;border:1px solid var(--muted);color:var(--muted);border-radius:4px;padding:0 6px;vertical-align:middle;letter-spacing:0}
-.back{color:var(--ink);text-decoration:none;font-size:22px;padding:0 4px}
-.icon-btn{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--card);cursor:pointer;font-size:16px}
-.icon-btn:hover{border-color:var(--accent)}
+[hidden]{display:none!important}
 
-.layout{flex:1;display:flex;gap:16px;padding:12px 16px 16px;min-height:0}
-.field{position:relative;flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#0d1222;touch-action:none}
+.stage{position:fixed;inset:0;overflow:hidden;background:#0d1222;touch-action:none}
 #view{display:block;width:100%;height:100%;cursor:grab}
 #view.grabbing{cursor:grabbing}
-#view.tool{cursor:crosshair}
-.tools{position:absolute;left:10px;right:60px;bottom:10px;display:flex;flex-wrap:wrap;gap:4px}
-.tools button{padding:5px 9px;border:1px solid rgba(239,227,196,.35);border-radius:8px;background:rgba(20,27,48,.78);color:#efe3c4;cursor:pointer;font-size:13px;position:relative}
-.tools button:hover{border-color:#efe3c4}
-.tools button[aria-pressed=true]{background:#efe3c4;color:#141b30;border-color:#efe3c4}
-.tools i{font-style:normal;font-size:11px;margin-left:4px;opacity:.85}
-.tools i.zero{color:#e07a6a}
-.zoom{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px}
-.zoom .icon-btn{background:rgba(20,27,48,.78);color:#efe3c4;border-color:rgba(239,227,196,.35)}
 
-.side{width:290px;flex:none;display:flex;flex-direction:column;gap:10px;overflow:auto}
-.box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
-.box.row{display:flex;gap:6px;flex-wrap:wrap}
-.label{font-size:12px;color:var(--muted);letter-spacing:.1em;margin-bottom:4px;display:flex;justify-content:space-between;gap:8px}
-.label b{color:var(--ink)}
-.qtext{font-weight:700;margin-bottom:6px}
-.small{font-size:13px;color:var(--muted)}
-.small b{color:var(--ink);font-size:16px}
-.hint{margin-top:6px;font-size:12px}
-.bar{display:block;height:8px;border:1px solid var(--ink);border-radius:4px;overflow:hidden;margin:4px 0}
-.bar i{display:block;height:100%;width:0;background:repeating-linear-gradient(135deg,var(--accent) 0 3px,transparent 3px 5px)}
-.bar.soil{display:inline-block;width:150px;vertical-align:middle;margin:0 0 0 6px}
-.bar.soil i{background:repeating-linear-gradient(135deg,#8a6a3a 0 3px,transparent 3px 5px)}
-.qstars{letter-spacing:.1em;color:var(--accent)}
-.hintbox{margin-top:4px;font-size:13px;color:var(--muted)}
-.hintbox summary{cursor:pointer}
-.hintbox p{margin-top:4px}
-.gtabs{margin-bottom:6px}
-.gtabs button{font-size:13px;padding:4px}
-#gchart{display:block;width:100%;height:60px;border-bottom:1px solid var(--line);margin-bottom:6px}
-.grows{display:grid;grid-template-columns:auto 1fr auto;gap:3px 8px;align-items:center;font-size:13px}
-.grows i{display:inline-block;width:10px;height:3px;margin-right:4px;vertical-align:middle}
-.gbar{position:relative;height:8px;border:1px solid var(--ink);border-radius:4px;overflow:hidden}
-.gbar b{display:block;height:100%;background:var(--water)}
-.gbar s{position:absolute;left:50%;top:-2px;bottom:-2px;border-left:1px dashed var(--ink);opacity:.6}
-.grows em{font-style:normal;font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
-.slot{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid #cdb98f;padding:6px 0}
-.slot p{margin:0;font-size:13px;color:#6d5a44}
-.slot .sbtn{display:flex;flex-direction:column;gap:4px}
-.slot .tbtn{padding:4px 8px;font-size:12px;white-space:nowrap}
-.hud{position:absolute;right:10px;top:10px;background:rgba(20,27,48,.78);color:#efe3c4;border:1px solid rgba(239,227,196,.35);border-radius:8px;padding:3px 10px;font-size:13px;pointer-events:none;white-space:nowrap}
-.hud b{font-size:15px}
-.card{position:absolute;left:10px;top:10px;background:rgba(244,234,208,.94);color:#3a2a1c;border:1px solid #3a2a1c;border-radius:6px;padding:8px 10px;font-size:13px;width:190px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
-.card[hidden]{display:none}
+/* 左上: もどる（小さく） */
+.back{position:absolute;left:12px;top:10px;color:var(--paper);opacity:.55;text-decoration:none;font-size:20px;padding:2px 6px;border-radius:6px}
+.back:hover,.back:focus-visible{opacity:1}
+
+/* 上のまんなか: いまのお題（1行。ふだんはうすく） */
+.quest{position:absolute;left:50%;top:10px;transform:translateX(-50%);max-width:min(560px,calc(100% - 210px));text-align:center;color:var(--paper);
+  text-shadow:0 1px 3px rgba(0,0,0,.9),0 0 12px rgba(0,0,0,.6);pointer-events:none;opacity:.78;transition:opacity .6s}
+.quest:hover{opacity:1}
+.qtitle{font-size:13px;letter-spacing:.2em;opacity:.8}
+.qtext{font-size:15px;letter-spacing:.04em}
+.qbar{height:2px;margin:5px auto 0;width:min(240px,70%);background:rgba(239,227,196,.18);border-radius:1px;overflow:hidden}
+.qbar i{display:block;height:100%;width:0;background:rgba(var(--glowc),.9);transition:width .8s}
+.quest.free .qtext,.quest.free .qbar{display:none}
+
+/* 右上: 天の輪 */
+.dial{position:absolute;right:10px;top:8px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.dialbtn{width:72px;height:72px;padding:0;border:0;border-radius:50%;background:transparent;cursor:pointer}
+.dialbtn canvas{width:72px;height:72px;display:block}
+.dialbtn:focus-visible{outline:2px solid var(--paper);outline-offset:2px}
+.pips{display:flex;gap:2px}
+.pips button{border:0;background:transparent;color:var(--paper);opacity:.4;cursor:pointer;font-size:13px;padding:0 5px;min-height:24px;letter-spacing:-.1em}
+.pips button[aria-pressed=true]{opacity:1;text-shadow:0 0 8px rgba(var(--glowc),.8)}
+.dialtxt{font-size:12px;color:var(--paper);opacity:.75;text-shadow:0 1px 2px #000;white-space:nowrap}
+
+/* 章のことば（世界の上に、にじむように） */
+.line{isolation:isolate;position:absolute;left:50%;top:24%;transform:translate(-50%,-50%);text-align:center;color:var(--paper);pointer-events:none;opacity:0;transition:opacity 1.6s;width:min(640px,92%);
+  text-shadow:0 1px 4px rgba(0,0,0,.95),0 0 24px rgba(0,0,0,.7)}
+.line::before{content:"";position:absolute;inset:-30px -40px;z-index:-1;background:radial-gradient(closest-side,rgba(6,8,16,.62),rgba(6,8,16,.35) 60%,transparent)}
+.line.on{opacity:1}
+.line b{display:block;font-size:clamp(22px,4vw,34px);font-weight:400;letter-spacing:.3em;margin-bottom:6px}
+.line span{font-size:clamp(14px,2vw,17px);letter-spacing:.05em}
+
+/* 知らせ: 下の一行（手に持つものの上） */
+.toast{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);color:var(--paper);font-size:14px;opacity:0;transition:opacity .5s;pointer-events:none;
+  max-width:min(620px,92%);text-align:center;text-shadow:0 1px 3px #000,0 0 14px rgba(0,0,0,.8);background:radial-gradient(closest-side,rgba(8,10,20,.5),transparent);padding:6px 20px}
+.toast.on{opacity:1}
+body.fan-open .toast{bottom:140px}
+
+/* 下: 手に持つもの3つ */
+.hands{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:14px;align-items:flex-end}
+.hand{display:flex;flex-direction:column;align-items:center;gap:0;width:62px;padding:6px 0 4px;border:0;border-radius:14px;background:radial-gradient(closest-side,var(--deep),transparent);color:var(--paper);cursor:pointer;transition:transform .2s}
+.hand canvas{width:44px;height:44px;image-rendering:pixelated;display:block;transition:transform .2s}
+.hand span{font-size:12px;opacity:.7;letter-spacing:.2em}
+.hand:hover canvas{transform:translateY(-3px)}
+.hand[aria-pressed=true] canvas{transform:translateY(-8px) scale(1.08)}
+.hand[aria-pressed=true] span{opacity:1}
+.hand[aria-pressed=true]::after{content:"";position:absolute;bottom:2px;width:22px;height:2px;border-radius:1px;background:rgba(var(--glowc),.9);box-shadow:0 0 8px rgba(var(--glowc),.8)}
+.hand{position:relative}
+.hand:focus-visible,.bookbtn:focus-visible{outline:2px solid var(--paper);outline-offset:2px}
+.glow{animation:glow 1.4s ease-in-out 4}
+@keyframes glow{0%,100%{filter:none}50%{filter:drop-shadow(0 0 10px rgba(var(--glowc),.95)) brightness(1.25)}}
+/* 手に持ったものの中身（上に並ぶ） */
+.fan{position:absolute;bottom:92px;transform:translateX(-50%);display:flex;gap:6px;padding:4px 8px;border-radius:12px;background:var(--deep);box-shadow:0 0 18px rgba(0,0,0,.4)}
+.fan button{display:flex;align-items:center;gap:4px;border:0;background:transparent;color:var(--paper);opacity:.6;cursor:pointer;font-size:13px;padding:4px 6px;border-radius:8px;white-space:nowrap;min-height:36px}
+.fan button img{width:24px;height:24px;image-rendering:pixelated}
+.fan button em{font-style:normal;font-size:11px;opacity:.85;margin-left:2px}
+.fan button[aria-pressed=true]{opacity:1;background:rgba(239,227,196,.12)}
+.fan button.empty em{color:#e8a08a}
+
+/* 右下: 観察帳 */
+.bookbtn{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;align-items:center;border:0;background:radial-gradient(closest-side,var(--deep),transparent);border-radius:14px;padding:6px 6px 4px;cursor:pointer;color:var(--paper)}
+.bookbtn canvas{width:40px;height:40px;image-rendering:pixelated}
+.bookbtn span{font-size:11px;opacity:.7;letter-spacing:.1em}
+
+/* 生き物の札 */
+.card{position:absolute;left:12px;top:44px;background:rgba(244,234,208,.94);color:#3a2a1c;border:1px solid #3a2a1c;border-radius:6px;padding:8px 10px;font-size:13px;width:190px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
 .card h4{margin:0 0 4px;font-size:14px;display:flex;justify-content:space-between}
 .card h4 button{border:0;background:transparent;cursor:pointer;font-size:14px;padding:0 2px;color:#3a2a1c}
 .card .row{display:grid;grid-template-columns:5.5em 1fr;gap:6px;align-items:center;margin:2px 0}
@@ -68,36 +87,94 @@ button{font:inherit;color:inherit}
 .card .gbar b{background:#4a6a8a}
 .card .gbar s{border-color:#3a2a1c}
 .card p{margin:2px 0;color:#6d5a44;font-size:12px}
-#chart{display:block;width:100%;height:80px;border-bottom:1px solid var(--line);margin-bottom:6px}
+
+/* 観察帳: 右がわに開く羊皮紙の本（スマホは下から） */
+.book{position:absolute;right:0;top:0;bottom:0;width:min(400px,100%);padding:12px;display:flex;pointer-events:none}
+.pages{pointer-events:auto;position:relative;flex:1;background:#f4ead0;color:#3a2a1c;border:2px solid #3a2a1c;outline:1px solid #3a2a1c;outline-offset:3px;border-radius:4px;
+  box-shadow:0 6px 30px rgba(0,0,0,.55);overflow:auto;padding:12px 16px 16px;
+  background-image:radial-gradient(ellipse at 30% 0%,rgba(255,255,255,.35),transparent 60%),radial-gradient(ellipse at 100% 100%,rgba(140,100,50,.12),transparent 60%)}
+.tabs{display:flex;flex-wrap:wrap;gap:2px 10px;border-bottom:1px solid #cdb98f;padding:0 28px 6px 0;margin-bottom:10px}
+.tabs button{border:0;background:transparent;cursor:pointer;font-size:13px;color:#6d5a44;padding:4px 0;border-bottom:2px solid transparent}
+.tabs button[aria-selected=true]{color:#3a2a1c;border-bottom-color:#8c3c14}
+.close{position:absolute;right:8px;top:6px;border:0;background:transparent;font-size:20px;cursor:pointer;color:#3a2a1c;width:32px;height:32px}
+.page h3{font-size:15px;margin:10px 0 6px;letter-spacing:.08em;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.page h3:first-child{margin-top:0}
+.page h3 small{font-size:12px;color:#6d5a44;font-weight:400;letter-spacing:0}
+.note{font-size:13px;color:#6d5a44;margin:6px 0}
+.note b{color:#3a2a1c}
+.locked{font-size:14px;color:#8a785c;border:1px dashed #cdb98f;border-radius:6px;padding:20px 14px;text-align:center}
+#chart{display:block;width:100%;height:110px;border-bottom:1px solid #cdb98f;margin-bottom:6px}
 .legend{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:13px}
-.legend i,.wleg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px;border:1px solid var(--ink)}
-.wbar{display:flex;height:12px;border:1px solid var(--ink);border-radius:4px;overflow:hidden;margin:4px 0}
+.legend i,.wleg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px;border:1px solid #3a2a1c}
+.gtabs{margin-bottom:6px}
+.gtabs button{font-size:13px;padding:4px}
+#gchart{display:block;width:100%;height:70px;border-bottom:1px solid #cdb98f;margin-bottom:6px}
+.grows{display:grid;grid-template-columns:auto 1fr auto;gap:3px 8px;align-items:center;font-size:13px}
+.grows i{display:inline-block;width:10px;height:3px;margin-right:4px;vertical-align:middle}
+.gbar{position:relative;height:8px;border:1px solid #3a2a1c;border-radius:4px;overflow:hidden}
+.gbar b{display:block;height:100%;background:#4a6a8a}
+.gbar s{position:absolute;left:50%;top:-2px;bottom:-2px;border-left:1px dashed #3a2a1c;opacity:.6}
+.grows em{font-style:normal;font-variant-numeric:tabular-nums;color:#6d5a44;font-size:12px}
+.wbar{display:flex;height:12px;border:1px solid #3a2a1c;border-radius:4px;overflow:hidden;margin:4px 0}
 .wbar i{display:block;height:100%;transition:width .5s}
 .land{background:#4f86b8}.cloud{background:#dfe6ee}.abyss{background:#1d2742}
 .wleg{display:flex;gap:10px;flex-wrap:wrap;font-size:12px}
-.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.seg button{flex:1;padding:6px 4px;border:0;background:transparent;cursor:pointer;font-size:14px}
-.seg button+button{border-left:1px solid var(--line)}
-.seg button[aria-pressed=true]{background:var(--ink);color:var(--card)}
-.tbtn{padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:transparent;cursor:pointer;font-size:13px}
-.tbtn:hover{border-color:var(--accent)}
-.tbtn[aria-pressed=false],.icon-btn[aria-pressed=false]{color:var(--muted);text-decoration:line-through}
-.tbtn.main{background:var(--ink);color:var(--card);border-color:var(--ink);font-size:16px;padding:8px 22px}
+.bar{display:block;height:8px;border:1px solid #3a2a1c;border-radius:4px;overflow:hidden;margin:4px 0}
+.bar i{display:block;height:100%;width:0;background:repeating-linear-gradient(135deg,#8a6a3a 0 3px,transparent 3px 5px)}
+.seg{display:flex;border:1px solid #cdb98f;border-radius:8px;overflow:hidden}
+.seg button{flex:1;padding:6px 4px;border:0;background:transparent;cursor:pointer;font-size:14px;color:#3a2a1c}
+.seg button+button{border-left:1px solid #cdb98f}
+.seg button[aria-pressed=true]{background:#3a2a1c;color:#f4ead0}
+.finds{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.finds figure{margin:0;font-size:12px}
+.finds img,.finds .blank{display:block;width:100%;aspect-ratio:3/2;object-fit:cover;border:1px solid #3a2a1c;filter:sepia(.85) contrast(1.15) brightness(.95);background:#e2d4b0}
+.finds .blank{display:flex;align-items:center;justify-content:center;color:#b3a283;font-size:22px;filter:none;border-style:dashed;border-color:#cdb98f}
+.finds figcaption b{display:block;font-size:13px;margin-top:3px}
+.finds figcaption span{color:#8a785c;font-size:11px}
+.finds figcaption p{color:#6d5a44;margin:1px 0 0}
+.finds .unfound figcaption b{color:#b3a283;font-weight:400}
+.years{list-style:none;margin:0;padding:0}
+.years li{border-top:1px solid #cdb98f;padding:8px 0}
+.years li b{font-size:14px;letter-spacing:.06em}
+.years li span{float:right;font-size:12px;color:#8a785c}
+.years li p{font-size:13px;color:#6d5a44;margin-top:3px}
+.years li .hint{color:#8c3c14}
+.years li.later b{color:#b3a283;font-weight:400}
+.years li.now{background:rgba(140,60,20,.06);padding-left:6px;padding-right:6px}
+.howto{margin:0 0 10px;padding-left:18px;font-size:13px;color:#3a2a1c}
+.row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.looks label{font-size:13px;display:flex;align-items:center;gap:4px}
+.looks select{font:inherit;font-size:13px;background:#f4ead0;color:#3a2a1c;border:1px solid #cdb98f;border-radius:6px;padding:2px 4px}
 
-.toast{position:absolute;left:50%;top:48px;transform:translateX(-50%);background:rgba(244,234,208,.92);color:#3a2a1c;padding:6px 14px;border-radius:6px;font-size:14px;opacity:0;transition:opacity .4s;pointer-events:none;max-width:90%;text-align:center}
-.toast.on{opacity:1}
+.tbtn{padding:6px 10px;border:1px solid #cdb98f;border-radius:8px;background:transparent;cursor:pointer;font-size:13px;color:#3a2a1c}
+.tbtn:hover{border-color:#8c3c14}
+.tbtn[aria-pressed=false]{color:#8a785c;text-decoration:line-through}
+.tbtn.main{background:#3a2a1c;color:#f4ead0;border-color:#3a2a1c;font-size:16px;padding:8px 22px}
+
+/* 札（セーブ・最初から・章のおわりなど、必要なときだけ） */
 .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,8,16,.45);padding:16px}
-.overlay[hidden]{display:none}
 .panel{background:#f4ead0;color:#3a2a1c;border:2px solid #3a2a1c;outline:1px solid #3a2a1c;outline-offset:3px;border-radius:4px;max-width:460px;padding:18px 20px;max-height:100%;overflow:auto}
 .panel h2{margin:0 0 8px;font-size:22px;letter-spacing:.08em;text-align:center}
 .panel p{margin:0 0 10px;font-size:15px}
 .panel ul{margin:0 0 10px;padding-left:20px;font-size:14px}
-.panel .stars{text-align:center;font-size:28px;letter-spacing:.2em;color:#8c3c14}
 .panel .btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px}
-.panel .tbtn{color:#3a2a1c;border-color:#cdb98f}
-.panel .tbtn.main{background:#3a2a1c;color:#f4ead0}
 .panel .small{color:#6d5a44;font-size:13px}
 .panel .truth{font-size:13px;border-top:1px solid #cdb98f;padding-top:8px}
+.panel .chron{font-size:13px;columns:2;column-gap:16px}
+.slot{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid #cdb98f;padding:6px 0}
+.slot p{margin:0;font-size:13px;color:#6d5a44}
+.slot .sbtn{display:flex;flex-direction:column;gap:4px}
+.slot .tbtn{padding:4px 8px;font-size:12px;white-space:nowrap}
+/* はじめの画面: 箱を出さず、世界の上に題とことばだけ */
+body.titling .overlay{background:radial-gradient(ellipse at 50% 40%,rgba(5,8,16,.15),rgba(5,8,16,.55))}
+.panel.titlecard{background:transparent;border:0;outline:0;color:var(--paper);text-align:center;max-width:560px;text-shadow:0 1px 4px #000,0 0 20px rgba(0,0,0,.8)}
+.panel.titlecard h2.title{font-size:clamp(30px,6vw,46px);font-weight:400;letter-spacing:.32em;margin-bottom:16px}
+.panel.titlecard .sub{font-size:clamp(13px,3.6vw,15px);letter-spacing:.06em;margin-bottom:10px;opacity:.9}
+.panel.titlecard .small{color:var(--paper);opacity:.7}
+.panel.titlecard .tbtn{color:var(--paper);border-color:rgba(239,227,196,.4);text-shadow:none;background:rgba(12,16,30,.4)}
+.panel.titlecard .tbtn.main{background:rgba(239,227,196,.92);color:#141b30;border-color:transparent}
+body.titling .hands,body.titling .bookbtn,body.titling .quest,body.titling .dial{opacity:0;pointer-events:none}
+.hands,.bookbtn,.dial{transition:opacity 1.2s}
 
 dialog{max-width:580px;background:var(--card);color:var(--ink);border:2px solid var(--ink);border-radius:6px;padding:16px 20px}
 dialog::backdrop{background:rgba(0,0,0,.4)}
@@ -107,23 +184,21 @@ dialog ul{margin:0;padding-left:20px;font-size:14px}
 dialog p{font-size:14px;margin:0 0 6px}
 dialog a{color:var(--accent)}
 
-@media (max-width:760px){
-  .layout{flex-direction:column;padding:8px 12px 12px;gap:10px}
-  .field{flex:none;height:min(110vw,66vh)}
-  .side{width:auto;overflow:visible}
-  .top h1{font-size:17px}
-  .tools button{padding:4px 7px;font-size:12px}
-  .looks{flex-direction:column;align-items:flex-start}
-  .toast{top:84px}
+@media (max-width:640px){
+  .quest{top:8px;max-width:calc(100% - 140px);left:calc(50% - 30px)}
+  .qtext{font-size:13px}
+  .dial{right:6px;top:6px}
+  .dialbtn,.dialbtn canvas{width:60px;height:60px}
+  .hands{gap:8px}
+  .hand{width:56px}
+  .hand canvas{width:40px;height:40px}
+  .toast{bottom:88px;font-size:13px}
+  .fan{bottom:84px;max-width:calc(100vw - 16px);overflow-x:auto}
+  .book{top:auto;height:72%;width:100%;padding:8px}
+  .line{top:30%}
 }
-.looks{position:absolute;left:10px;top:10px;display:flex;gap:6px;flex-wrap:wrap;max-width:calc(100% - 150px)}
-.looks label{display:flex;align-items:center;gap:4px;background:rgba(20,27,48,.78);color:#efe3c4;border:1px solid rgba(239,227,196,.35);border-radius:8px;padding:2px 4px 2px 8px;font-size:12px}
-.looks select{background:transparent;color:#efe3c4;border:0;font:inherit;font-size:13px;cursor:pointer;padding:2px}
-.looks option{background:#141b30;color:#efe3c4}
 .restore{display:none;position:absolute;left:50%;bottom:14px;transform:translateX(-50%);padding:7px 18px;border-radius:8px;border:1px solid rgba(239,227,196,.5);background:rgba(20,27,48,.85);color:#efe3c4;font:inherit;font-size:14px;cursor:pointer}
 body.collapsing .restore{display:block}
-body.collapsing .tools,body.collapsing .hud,body.collapsing .card{display:none}
-body.thumb .top,body.thumb .side,body.thumb .zoom,body.thumb .tools,body.thumb .hud,body.thumb .toast,body.thumb .looks{display:none}
-body.thumb .layout{padding:0}
-body.thumb .field{border:0;border-radius:0;flex:1;height:100vh}
-@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+body.collapsing .hands,body.collapsing .fan,body.collapsing .dial,body.collapsing .card,body.collapsing .quest,body.collapsing .bookbtn,body.collapsing .book{display:none}
+body.thumb .back,body.thumb .hands,body.thumb .fan,body.thumb .dial,body.thumb .toast,body.thumb .quest,body.thumb .bookbtn,body.thumb .line,body.thumb .card{display:none!important}
+@media (prefers-reduced-motion:reduce){.toast,.line,.quest{transition:none}.glow{animation:none;filter:drop-shadow(0 0 8px rgba(var(--glowc),.9))}}
