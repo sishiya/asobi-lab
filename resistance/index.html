@@ -5,7 +5,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Mono:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=5">
 
 <div id="app">
   <main id="stage">
@@ -19,19 +19,32 @@
       <div class="meter" title="この夜に使えるスプレーの残り"><span>スプレー</span><i><b id="sprayBar"></b></i></div>
       <div class="meter night" title="夜の残り"><span id="nightLbl">夜</span><i><b id="nightBar"></b></i></div>
       <button class="btn small" id="btnEnd">この夜を終える</button>
+      <span class="tb-right"><button class="btn small sndBtn" aria-pressed="true">音: オン</button><button class="btn small" id="btnMenu">❚❚ メニュー</button></span>
     </div>
     <div id="frame">
       <canvas id="view" aria-label="台所の床を上から見た図。夜になると、すき間から虫が出てきて食べこぼしを食べに行きます"></canvas>
       <div id="toast" hidden></div>
       <div id="banner" hidden><b id="banTitle"></b><div id="banBody"></div></div>
 
-      <div class="ov" id="startOv">
+      <div class="ov title" id="titleOv">
+        <div class="titlebox">
+          <p class="kicker">あそびラボ</p>
+          <h1 class="gtitle">退治するほど<br>手ごわくなる</h1>
+          <p class="tag">10夜で台所の虫を全滅させろ。<br>でも、生き残りの子は強くなる。</p>
+          <div class="tbtns">
+            <button class="btn go" id="tNew">はじめから</button>
+            <button class="btn tcont" id="tCont" hidden>つづきから<small id="tContInfo"></small></button>
+          </div>
+          <div class="tlinks"><button id="tHow">あそびかた</button><button id="tSet">せってい</button><button id="tAbout">このゲームについて</button></div>
+          <p class="tbest" id="tBest"></p>
+          <p class="tver"><span id="tVer"></span> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
+        </div>
+      </div>
+
+      <div class="ov" id="startOv" hidden>
         <div class="ovbox">
-          <h2 class="ovh big">退治するほど手ごわくなる</h2>
-          <p class="goal"><b>10夜のうちに、台所の虫を全滅させよう。</b>はじめは数匹とスリッパだけ。夜ごとに道具がふえ、虫もとなりから入ってくる。生き残った虫の子は、あなたの退治のしかたに強くなっていく。</p>
-          <p id="bestLine" class="best"></p>
-          <h3 class="ovh3">虫の見た目</h3>
-          <p>チャバネゴキブリがもとです。<b>虫が苦手な人は「まる」</b>がおすすめ。退治したときは、ふわっと消えるだけで、つぶれた絵も音も出ません。あとからでも変えられます。</p>
+          <h2 class="ovh">虫の見た目をえらぶ</h2>
+          <p>チャバネゴキブリがもとです。<b>虫が苦手な人は「まる」</b>がおすすめ。退治したときは、ふわっと消えるだけで、つぶれた絵も、虫の音も出ません。あとからメニューでも変えられます。</p>
           <div class="styles" id="styleChoice">
             <button data-v="dot"><canvas width="120" height="88"></canvas><b>まる</b><small>記号だけ</small></button>
             <button data-v="cute" aria-pressed="true"><canvas width="120" height="88"></canvas><b>デフォルメ</b><small>まるい虫</small></button>
@@ -65,10 +78,85 @@
           <p id="endLesson" class="lesson"></p>
           <div class="row center">
             <button class="btn go" id="btnAgain">もう一度</button>
+            <button class="btn" id="btnTitle">タイトルへ</button>
           </div>
         </div>
       </div>
     </div>
+    <div class="ov sheet" id="menuOv" hidden>
+      <div class="ovbox narrow">
+        <h2 class="ovh" id="menuTitle">一時停止中</h2>
+        <div class="mbtns">
+          <button class="btn go" id="mResume">つづける</button>
+          <button class="btn" id="mHow">あそびかた</button>
+          <button class="btn" id="mSet">せってい（音・見た目）</button>
+          <button class="btn" id="mRestart">第1夜からやり直す</button>
+          <button class="btn" id="mTitle">タイトルへもどる</button>
+        </div>
+        <p class="small center">Esc・P でも止められます。別のタブに行くと自動で止まります。</p>
+      </div>
+    </div>
+
+    <div class="ov sheet" id="howOv" hidden>
+      <div class="ovbox wide">
+        <h2 class="ovh">あそびかた</h2>
+        <ol class="how">
+          <li><b>目標</b>: 10夜のうちに、台所の虫を<b>全滅</b>させる。早いほど ★ が多い（★3 は第5夜まで）。</li>
+          <li><b>道具</b>: <kbd>1</kbd> スリッパ（クリック・タップで叩く）、<kbd>2</kbd> スプレー（押している間、霧。第2夜から）、<kbd>3</kbd> 毒エサ（床に置く。第3夜から）。</li>
+          <li><b>夜が明けると</b>、生き残った虫が子を残す。第2・3夜には、となりの家からも入ってくる。</li>
+          <li><b>強化</b>: 夜が明けるたびに、3枚から1枚えらぶ。「薬を使わない」対策（片づける・ふさぐ）は、進化ではかわせない。</li>
+          <li><b>進化</b>: 子は、親から性質を受けつぐ。スリッパで叩かれにくい虫・スプレーが効かない虫・毒エサを食べない虫が生き残ると、その子が増える。<b>同じ手ばかりだと勝てない</b>。夜の始まりの警告と「虫のようす」を見て、手を変えよう。</li>
+        </ol>
+        <p class="small">一時停止は <kbd>Esc</kbd> か <kbd>P</kbd>。夜の始まりに自動でセーブされ、タイトルの「つづきから」で続きを遊べます。</p>
+        <div class="row center"><button class="btn go" data-close="howOv">とじる</button></div>
+      </div>
+    </div>
+
+    <div class="ov sheet" id="setOv" hidden>
+      <div class="ovbox narrow">
+        <h2 class="ovh">せってい</h2>
+        <div class="setrow"><span>音</span><button class="btn sndBtn" aria-pressed="true">音: オン</button></div>
+        <p class="small">音は道具と画面の音だけです（虫の音は出ません）。</p>
+        <div class="setrow"><span>虫の見た目</span>
+          <div class="seg small" id="segStyle2">
+            <button data-v="dot" aria-pressed="false">まる</button>
+            <button data-v="cute" aria-pressed="true">デフォルメ</button>
+            <button data-v="real" aria-pressed="false">リアル寄り</button>
+          </div>
+        </div>
+        <p class="small">動きを減らす設定（パソコン・スマホの設定）にしていると、画面のゆれや動きをおさえます。</p>
+        <div class="setrow"><span>データ</span><button class="btn small" id="sWipe">記録とつづきを消す</button></div>
+        <div class="row center"><button class="btn go" data-close="setOv">とじる</button></div>
+      </div>
+    </div>
+
+    <div class="ov sheet" id="aboutOv" hidden>
+      <div class="ovbox wide">
+        <h2 class="ovh">このゲームについて</h2>
+        <p><b>退治するほど手ごわくなる</b> ver. <span id="aboutVer"></span>（あそびラボ）</p>
+        <p>台所の虫（チャバネゴキブリがもと）を退治すると、生き残ったものが子を残し、世代ごとに手ごわくなっていく。<b>自然選択による進化</b>と、薬が効かなくなる「抵抗性」のしくみを、遊びのルールにしました。毒エサを食べない虫・殺虫剤が効きにくい虫は、本当に見つかっています。くわしい話と出どころは、画面の「しくみと本当の話」にあります。</p>
+        <p class="small">本物のしくみをもとにした、とても簡単なゲームです。数字の多くは遊べるようにした仮定です。家での虫の退治のしかたの助言ではありません。</p>
+        <p class="small">あそびラボ。絵と音は、すべてプログラムで描いて鳴らしています。フォント: Dela Gothic One・Zen Kaku Gothic New・IBM Plex Mono（Google Fonts、SIL Open Font License）。ライブラリは使っていません。広告・アカウント・課金はありません。記録はこのブラウザの中にだけ保存します。</p>
+        <div class="row center"><button class="btn go" data-close="aboutOv">とじる</button></div>
+      </div>
+    </div>
+
+    <div class="ov sheet" id="askOv" hidden>
+      <div class="ovbox narrow">
+        <p id="askMsg" class="askmsg"></p>
+        <div class="row center"><button class="btn" id="askNo">やめる</button><button class="btn go" id="askYes">はい</button></div>
+      </div>
+    </div>
+
+    <div class="ov sheet" id="errOv" hidden>
+      <div class="ovbox narrow">
+        <h2 class="ovh">うまく動かなくなりました</h2>
+        <p>ページを読みこみ直すと、夜の始まりから続けられます。</p>
+        <p class="small mono" id="errMsg"></p>
+        <div class="row center"><button class="btn go" id="errReload">読みこみ直す</button></div>
+      </div>
+    </div>
+
     <p id="hint"><b>叩く</b>: 虫をクリック（タップ）。影が落ちる前に気づいた虫は逃げる。<b>スプレー</b>（第2夜から）: 押している間、霧が出る。<b>毒エサ</b>（第3夜から）: 床に置く（もう一度押すと片づける。次の夜にも残る）。夜が明けると、生き残った虫が子を残します。</p>
   </main>
 
@@ -180,9 +268,11 @@
   </aside>
 </div>
 
-<script src="js/genes.js"></script>
-<script src="js/world.js"></script>
-<script src="js/draw.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/game.js"></script>
-<script src="js/main.js"></script>
+<script src="js/sound.js?v=5"></script>
+<script src="js/genes.js?v=5"></script>
+<script src="js/world.js?v=5"></script>
+<script src="js/draw.js?v=5"></script>
+<script src="js/ui.js?v=5"></script>
+<script src="js/game.js?v=5"></script>
+<script src="js/screens.js?v=5"></script>
+<script src="js/main.js?v=5"></script>

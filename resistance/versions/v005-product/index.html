@@ -1,0 +1,277 @@
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>退治するほど手ごわくなる</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%232a2118'/><path d='M12 48 C22 30 34 44 52 16' fill='none' stroke='%23ff6f61' stroke-width='5' stroke-linecap='round'/><ellipse cx='22' cy='22' rx='8' ry='6' fill='%23c08b5c'/><circle cx='26' cy='20' r='1.8' fill='%23fff'/><ellipse cx='44' cy='44' rx='8' ry='6' fill='%23c08b5c'/><circle cx='48' cy='42' r='1.8' fill='%23fff'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Mono:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/style.css?v=5">
+
+<div id="app">
+  <main id="stage">
+    <div id="toolbar" role="group" aria-label="道具">
+      <div class="seg tools" id="segTool">
+        <button data-v="swat" aria-pressed="true">叩く<kbd>1</kbd></button>
+        <button data-v="spray" aria-pressed="false">スプレー<kbd>2</kbd></button>
+        <button data-v="bait" aria-pressed="false">毒エサ<kbd>3</kbd></button>
+      </div>
+      <div class="nightno" id="nightNo">第1夜<small>/10</small></div>
+      <div class="meter" title="この夜に使えるスプレーの残り"><span>スプレー</span><i><b id="sprayBar"></b></i></div>
+      <div class="meter night" title="夜の残り"><span id="nightLbl">夜</span><i><b id="nightBar"></b></i></div>
+      <button class="btn small" id="btnEnd">この夜を終える</button>
+      <span class="tb-right"><button class="btn small sndBtn" aria-pressed="true">音: オン</button><button class="btn small" id="btnMenu">❚❚ メニュー</button></span>
+    </div>
+    <div id="frame">
+      <canvas id="view" aria-label="台所の床を上から見た図。夜になると、すき間から虫が出てきて食べこぼしを食べに行きます"></canvas>
+      <div id="toast" hidden></div>
+      <div id="banner" hidden><b id="banTitle"></b><div id="banBody"></div></div>
+
+      <div class="ov title" id="titleOv">
+        <div class="titlebox">
+          <p class="kicker">あそびラボ</p>
+          <h1 class="gtitle">退治するほど<br>手ごわくなる</h1>
+          <p class="tag">10夜で台所の虫を全滅させろ。<br>でも、生き残りの子は強くなる。</p>
+          <div class="tbtns">
+            <button class="btn go" id="tNew">はじめから</button>
+            <button class="btn tcont" id="tCont" hidden>つづきから<small id="tContInfo"></small></button>
+          </div>
+          <div class="tlinks"><button id="tHow">あそびかた</button><button id="tSet">せってい</button><button id="tAbout">このゲームについて</button></div>
+          <p class="tbest" id="tBest"></p>
+          <p class="tver"><span id="tVer"></span> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
+        </div>
+      </div>
+
+      <div class="ov" id="startOv" hidden>
+        <div class="ovbox">
+          <h2 class="ovh">虫の見た目をえらぶ</h2>
+          <p>チャバネゴキブリがもとです。<b>虫が苦手な人は「まる」</b>がおすすめ。退治したときは、ふわっと消えるだけで、つぶれた絵も、虫の音も出ません。あとからメニューでも変えられます。</p>
+          <div class="styles" id="styleChoice">
+            <button data-v="dot"><canvas width="120" height="88"></canvas><b>まる</b><small>記号だけ</small></button>
+            <button data-v="cute" aria-pressed="true"><canvas width="120" height="88"></canvas><b>デフォルメ</b><small>まるい虫</small></button>
+            <button data-v="real"><canvas width="120" height="88"></canvas><b>リアル寄り</b><small>ゴキブリの形</small></button>
+          </div>
+          <button class="btn go" id="btnStart">第1夜をはじめる</button>
+        </div>
+      </div>
+
+      <div class="ov" id="resultOv" hidden>
+        <div class="ovbox wide">
+          <h2 class="ovh" id="resTitle"></h2>
+          <div id="resBody"></div>
+          <div id="cardsBox">
+            <h3 class="ovh3">強化をひとつえらぶ</h3>
+            <div class="gcards" id="cards"></div>
+          </div>
+          <div class="row center">
+            <button class="btn go" id="btnNext">次の夜へ</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="ov" id="endOv" hidden>
+        <div class="ovbox wide">
+          <h2 class="ovh big" id="endTitle"></h2>
+          <p class="stars" id="endStars"></p>
+          <p id="endMsg"></p>
+          <canvas id="endChart" width="640" height="300" aria-label="夜ごとの虫の数と4つの性質の変化のグラフ"></canvas>
+          <div class="legend-row" id="endLegend"></div>
+          <p id="endLesson" class="lesson"></p>
+          <div class="row center">
+            <button class="btn go" id="btnAgain">もう一度</button>
+            <button class="btn" id="btnTitle">タイトルへ</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ov sheet" id="menuOv" hidden>
+      <div class="ovbox narrow">
+        <h2 class="ovh" id="menuTitle">一時停止中</h2>
+        <div class="mbtns">
+          <button class="btn go" id="mResume">つづける</button>
+          <button class="btn" id="mHow">あそびかた</button>
+          <button class="btn" id="mSet">せってい（音・見た目）</button>
+          <button class="btn" id="mRestart">第1夜からやり直す</button>
+          <button class="btn" id="mTitle">タイトルへもどる</button>
+        </div>
+        <p class="small center">Esc・P でも止められます。別のタブに行くと自動で止まります。</p>
+      </div>
+    </div>
+
+    <div class="ov sheet" id="howOv" hidden>
+      <div class="ovbox wide">
+        <h2 class="ovh">あそびかた</h2>
+        <ol class="how">
+          <li><b>目標</b>: 10夜のうちに、台所の虫を<b>全滅</b>させる。早いほど ★ が多い（★3 は第5夜まで）。</li>
+          <li><b>道具</b>: <kbd>1</kbd> スリッパ（クリック・タップで叩く）、<kbd>2</kbd> スプレー（押している間、霧。第2夜から）、<kbd>3</kbd> 毒エサ（床に置く。第3夜から）。</li>
+          <li><b>夜が明けると</b>、生き残った虫が子を残す。第2・3夜には、となりの家からも入ってくる。</li>
+          <li><b>強化</b>: 夜が明けるたびに、3枚から1枚えらぶ。「薬を使わない」対策（片づける・ふさぐ）は、進化ではかわせない。</li>
+          <li><b>進化</b>: 子は、親から性質を受けつぐ。スリッパで叩かれにくい虫・スプレーが効かない虫・毒エサを食べない虫が生き残ると、その子が増える。<b>同じ手ばかりだと勝てない</b>。夜の始まりの警告と「虫のようす」を見て、手を変えよう。</li>
+        </ol>
+        <p class="small">一時停止は <kbd>Esc</kbd> か <kbd>P</kbd>。夜の始まりに自動でセーブされ、タイトルの「つづきから」で続きを遊べます。</p>
+        <div class="row center"><button class="btn go" data-close="howOv">とじる</button></div>
+      </div>
+    </div>
+
+    <div class="ov sheet" id="setOv" hidden>
+      <div class="ovbox narrow">
+        <h2 class="ovh">せってい</h2>
+        <div class="setrow"><span>音</span><button class="btn sndBtn" aria-pressed="true">音: オン</button></div>
+        <p class="small">音は道具と画面の音だけです（虫の音は出ません）。</p>
+        <div class="setrow"><span>虫の見た目</span>
+          <div class="seg small" id="segStyle2">
+            <button data-v="dot" aria-pressed="false">まる</button>
+            <button data-v="cute" aria-pressed="true">デフォルメ</button>
+            <button data-v="real" aria-pressed="false">リアル寄り</button>
+          </div>
+        </div>
+        <p class="small">動きを減らす設定（パソコン・スマホの設定）にしていると、画面のゆれや動きをおさえます。</p>
+        <div class="setrow"><span>データ</span><button class="btn small" id="sWipe">記録とつづきを消す</button></div>
+        <div class="row center"><button class="btn go" data-close="setOv">とじる</button></div>
+      </div>
+    </div>
+
+    <div class="ov sheet" id="aboutOv" hidden>
+      <div class="ovbox wide">
+        <h2 class="ovh">このゲームについて</h2>
+        <p><b>退治するほど手ごわくなる</b> ver. <span id="aboutVer"></span>（あそびラボ）</p>
+        <p>台所の虫（チャバネゴキブリがもと）を退治すると、生き残ったものが子を残し、世代ごとに手ごわくなっていく。<b>自然選択による進化</b>と、薬が効かなくなる「抵抗性」のしくみを、遊びのルールにしました。毒エサを食べない虫・殺虫剤が効きにくい虫は、本当に見つかっています。くわしい話と出どころは、画面の「しくみと本当の話」にあります。</p>
+        <p class="small">本物のしくみをもとにした、とても簡単なゲームです。数字の多くは遊べるようにした仮定です。家での虫の退治のしかたの助言ではありません。</p>
+        <p class="small">あそびラボ。絵と音は、すべてプログラムで描いて鳴らしています。フォント: Dela Gothic One・Zen Kaku Gothic New・IBM Plex Mono（Google Fonts、SIL Open Font License）。ライブラリは使っていません。広告・アカウント・課金はありません。記録はこのブラウザの中にだけ保存します。</p>
+        <div class="row center"><button class="btn go" data-close="aboutOv">とじる</button></div>
+      </div>
+    </div>
+
+    <div class="ov sheet" id="askOv" hidden>
+      <div class="ovbox narrow">
+        <p id="askMsg" class="askmsg"></p>
+        <div class="row center"><button class="btn" id="askNo">やめる</button><button class="btn go" id="askYes">はい</button></div>
+      </div>
+    </div>
+
+    <div class="ov sheet" id="errOv" hidden>
+      <div class="ovbox narrow">
+        <h2 class="ovh">うまく動かなくなりました</h2>
+        <p>ページを読みこみ直すと、夜の始まりから続けられます。</p>
+        <p class="small mono" id="errMsg"></p>
+        <div class="row center"><button class="btn go" id="errReload">読みこみ直す</button></div>
+      </div>
+    </div>
+
+    <p id="hint"><b>叩く</b>: 虫をクリック（タップ）。影が落ちる前に気づいた虫は逃げる。<b>スプレー</b>（第2夜から）: 押している間、霧が出る。<b>毒エサ</b>（第3夜から）: 床に置く（もう一度押すと片づける。次の夜にも残る）。夜が明けると、生き残った虫が子を残します。</p>
+  </main>
+
+  <aside id="panel">
+    <header class="brand">
+      <h1>退治するほど手ごわくなる</h1>
+      <p><b>10夜で全滅させよう。</b>生き残りの子は、あなたのやり方に強くなる。</p>
+    </header>
+
+    <section class="card" id="genCard">
+      <div class="ro-top"><span class="lbl" id="genLbl">第1夜</span><span class="ro-tag" id="genTime"></span></div>
+      <div class="ro-num"><b id="popNo" class="pop">50</b><small>匹のこっている</small></div>
+      <div class="ro-grid" id="nightStats"></div>
+    </section>
+
+    <section>
+      <h2>虫のようす</h2>
+      <div id="enemy"></div>
+      <p class="cap">棒がのびるほど手ごわい。<span class="tick"></span>は、ふつうの虫。</p>
+    </section>
+
+    <section>
+      <h2>虫を性質で色分け</h2>
+      <div class="seg small" id="segColor">
+        <button data-v="none" aria-pressed="true">なし</button>
+        <button data-v="wary" aria-pressed="false">警戒心</button>
+        <button data-v="sense" aria-pressed="false">察知</button>
+        <button data-v="kdr" aria-pressed="false">殺虫剤</button>
+        <button data-v="gav" aria-pressed="false">糖ぎらい</button>
+      </div>
+      <p class="cap" id="colorCap"></p>
+    </section>
+
+    <section>
+      <h2>手に入れた強化</h2>
+      <ul class="owned" id="owned"><li class="none">まだない（夜が明けるたびにひとつ）</li></ul>
+    </section>
+
+    <details class="notes">
+      <summary>研究ノート（性質の分布・夜ごとのグラフ）</summary>
+      <p class="cap">色のついた棒が生きている虫、<span class="gray">灰色</span>がこの夜に退治された虫。点線は第1夜の形です。</p>
+      <div id="hists"></div>
+      <canvas id="chart" width="640" height="300" aria-label="夜ごとの虫の数と4つの性質の変化のグラフ"></canvas>
+      <div class="legend-row" id="chartLegend"></div>
+    </details>
+
+    <section>
+      <h2>見た目</h2>
+      <div class="seg small" id="segStyle">
+        <button data-v="dot" aria-pressed="false">まる</button>
+        <button data-v="cute" aria-pressed="true">デフォルメ</button>
+        <button data-v="real" aria-pressed="false">リアル寄り</button>
+      </div>
+      <div class="row"><button class="btn small" id="btnReset">はじめからやり直す</button></div>
+    </section>
+
+    <section class="explain">
+      <h2>しくみと本当の話</h2>
+      <details open>
+        <summary>虫が「慣れて強くなる」のではない</summary>
+        <p>スプレーをかけられた虫が、だんだん薬に慣れていくわけではありません。はじめから、<b>まれに</b>薬が効きにくい遺伝子を持つ虫がまじっています。薬が効く虫ばかりが死ぬと、残った虫の子には、その遺伝子を持つものが多くなります。これを何世代もくり返すと、ほとんどが効きにくい虫になります。これが<b>自然選択</b>による進化です。ここでは、あなたのやり方が「選ぶ側（環境）」になっています。</p>
+        <p>はじめの1世代目にも、殺虫剤に強い遺伝子・糖ぎらいの遺伝子を持つ虫が、それぞれ数匹だけいます（「虫を性質で色分け」で探せます）。</p>
+      </details>
+      <details>
+        <summary>4つの性質</summary>
+        <p><b>警戒心</b>: 強いほど、すき間から出てくるのがまれで、外にいる時間も短い。叩かれにくいかわりに、食べる量が減って子が少なくなります。</p>
+        <p><b>危険の察知</b>: 鋭いほど、遠くのスリッパの動きや霧に気づき、すぐ逃げます。かわりに、何もないのにびくっと逃げ帰ることも増えます。本物のゴキブリは、おしりの先の2本の突起（尾角）の毛で空気の動きを感じて逃げます。</p>
+        <p><b>殺虫剤に強い</b>: 神経のスイッチ（ナトリウムチャネル）の形が少しちがうと、ピレスロイドという種類の殺虫剤が効きにくくなります（kdr と呼ばれる）。この遺伝子は2本そろうと大きく効きます（1本では少しだけ）。</p>
+        <p><b>糖ぎらい</b>: 毒エサの甘み（ブドウ糖）を、苦いと感じて食べない。1本でもかなり効きます。かわりに育ちが遅く、交尾がうまくいかないことがあります。</p>
+        <p>強い性質には、それぞれ<b>代わりの損</b>があります。道具を使わない世代が続くと、損のぶんだけ、少しずつ減っていきます。ただし、全部の虫が持つようになってしまうと、比べる相手がいないので、やめてもなかなか戻りません。</p>
+      </details>
+      <details>
+        <summary>片づける・ふさぐ</summary>
+        <p>食べこぼしを片づける・すき間をふさぐのは、薬を使わない対策です。薬なら、効かない遺伝子を持つ虫が生き残って増えますが、食べものや住みかがないことは、遺伝子ではかわせません。本物の虫の退治でも、薬だけでは解決せず、片づけとすき間ふさぎが大切だとされています（カリフォルニア大学の IPM の手引き）。</p>
+        <p>このゲームでは、食べこぼし1か所で1晩に虫20匹ぶんが満腹になれます。食べられなかった虫は、子が少なくなります。</p>
+      </details>
+      <details>
+        <summary>本当にあったこと</summary>
+        <p><b>毒エサを食べないゴキブリ</b>: 1980年代、ブドウ糖で虫を引きよせる毒エサが広く使われました。1993年、アメリカで、ブドウ糖を食べないチャバネゴキブリの集団が見つかりました。ほかの糖（果糖など）は食べます。親から子へ伝わる性質で、主に1つの遺伝子で決まります。2013年の研究で、この虫ではブドウ糖が<b>苦味を感じる神経</b>を刺激することが分かりました。2022年の研究では、糖ぎらいのメスが、交尾の前にオスがくれる甘い贈りもの（唾液でブドウ糖に変わる）をいやがって、交尾がうまくいかないことがあると分かりました。</p>
+        <p><b>殺虫剤が効かないゴキブリ</b>: ピレスロイドが効きにくいチャバネゴキブリは世界じゅうで見つかっています。2019年の研究では、実際のアパートで薬の使い方を変えて数世代を追い、効きにくさが短い間に強まることや、1つの薬で強くなると別の薬も効きにくくなる（交差抵抗性）ことを報告しています。</p>
+        <p><b>すばやく逃げる</b>: ワモンゴキブリは、ヒキガエルの舌がとどく前の空気の動きを感じて逃げはじめます（1978年の研究）。</p>
+      </details>
+      <details>
+        <summary>簡単にしたところ</summary>
+        <p>1回の夜（40秒）を、<b>1世代（約3か月）</b>の間の退治をまとめたものとしています。10夜は約2年半です。本物のチャバネゴキブリは、1年に3〜4世代、1匹のメスが卵のさやを4〜8個（1つに30〜40個）産みます。ここでは子の数を「食べた量」から決め、台所に住める数を80匹までにしています。</p>
+        <p>警戒心と察知の強さ・効き目の数字、代わりの損の大きさは、このゲームのための<b>仮定</b>です。本物の殺虫剤への強さには、kdr のほかに、薬を分解する力などたくさんのしくみがあります。毒エサは本物では数時間〜数日かけて効きますが、ここでは数秒です。虫は見やすいように大きく描いています。スリッパが落ちるまでの時間や、虫の反応の時間も、遊べるようにゆっくりにしています。</p>
+      </details>
+      <details>
+        <summary>おもな出どころ</summary>
+        <ul class="src">
+          <li>Silverman, J. &amp; Bieman, D. N. (1993) Glucose aversion in the German cockroach, <i>Blattella germanica</i>. Journal of Insect Physiology 39.</li>
+          <li>Wada-Katsumata, A., Silverman, J. &amp; Schal, C. (2013) Changes in taste neurons support the emergence of an adaptive behavior in cockroaches. Science 340: 972–975.</li>
+          <li>Wada-Katsumata, A., Hatano, E., McPherson, S., Silverman, J. &amp; Schal, C. (2022) Rapid evolution of an adaptive taste polymorphism disrupts courtship behavior. Communications Biology 5.</li>
+          <li>Schal 研究室（ノースカロライナ州立大学）「<a href="https://schal-lab.cals.ncsu.edu/research-projects/glucose-aversion-in-cockroaches" target="_blank" rel="noopener">Glucose-aversion in cockroaches</a>」（糖ぎらいのものは育ちが遅く、生き残りが少ない）</li>
+          <li>Dong, K. (1997) A single amino acid change in the para sodium channel protein is associated with knockdown-resistance (kdr) to pyrethroid insecticides in German cockroach. Insect Biochemistry and Molecular Biology 27.</li>
+          <li>Fardisi, M., Gondhalekar, A. D., Ashbrook, A. R. &amp; Scharf, M. E. (2019) Rapid evolutionary responses to insecticide resistance management interventions by the German cockroach (<i>Blattella germanica</i> L.). Scientific Reports 9.</li>
+          <li>Camhi, J. M., Tom, W. &amp; Volman, S. (1978) The escape behavior of the cockroach <i>Periplaneta americana</i> II. Detection of natural predators by air displacement. Journal of Comparative Physiology 128: 203–212.</li>
+          <li>カリフォルニア大学 UC IPM「<a href="https://ipm.ucanr.edu/home-and-landscape/cockroaches/" target="_blank" rel="noopener">Cockroaches（Pest Notes）</a>」（薬だけでは解決しない・片づけとすき間ふさぎ）</li>
+          <li>フロリダ大学 IFAS（Koehler, P. G. ほか）「<a href="https://entnemdept.ufl.edu/projex/gallery/dl/cockroaches/text/german_cockroach.htm" target="_blank" rel="noopener">German cockroach</a>」（卵のさやの数、1年の世代の数、成虫の寿命）</li>
+        </ul>
+        <p class="note">警戒心・察知・代わりの損の数字、遺伝子の数（量的な性質は6か所）、食べこぼしの量と強化の数字は、このゲームのための仮定です。</p>
+      </details>
+      <details>
+        <summary>このゲームについて</summary>
+        <p>本物のしくみをもとにした、とても簡単なゲームです。家での虫の退治のしかたの助言ではありません。殺虫剤や毒エサは、製品の表示に従って使ってください。</p>
+        <p>使っているもの: フォント Dela Gothic One・Zen Kaku Gothic New・IBM Plex Mono（Google Fonts、SIL Open Font License）。ライブラリは使っていません（Canvas 2D）。</p>
+      </details>
+    </section>
+  </aside>
+</div>
+
+<script src="js/sound.js?v=5"></script>
+<script src="js/genes.js?v=5"></script>
+<script src="js/world.js?v=5"></script>
+<script src="js/draw.js?v=5"></script>
+<script src="js/ui.js?v=5"></script>
+<script src="js/game.js?v=5"></script>
+<script src="js/screens.js?v=5"></script>
+<script src="js/main.js?v=5"></script>

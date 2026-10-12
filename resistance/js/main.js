@@ -2,7 +2,8 @@
 'use strict';
 
 const S = {
-  phase: 'start',          // start | night | result | end
+  phase: 'title',          // title | start | night | result | end
+  paused: false, warned: false, tickSec: 99,
   gen: 1, pop: null, first: null, world: null, pending: null,
   hist: [], tool: 'swat', colorBy: 'none', style: 'cute', pointer: null,
   taken: {}, dealt: [], chosen: null, used: {swat: 0, spray: 0, bait: 0},
@@ -22,8 +23,6 @@ function reset() {
   S.hist = [histRow(1, S.pop, null)]; S.taken = {}; S.used = {swat: 0, spray: 0, bait: 0}; S.arrived = 0; S.tool = 'swat';
   S.world = newWorld(S.pop); S.phase = 'start'; S.pending = null; S.bannerT = 0;
   $('resultOv').hidden = true; $('endOv').hidden = true; $('banner').hidden = true;
-  const b = loadBest();
-  $('bestLine').innerHTML = b ? `いちばんの記録: <span class="stars">${starText(b.stars)}</span> 第${b.nights}夜で全滅` : '';
   syncOwned();
   refreshPanel();
 }
@@ -31,8 +30,9 @@ function reset() {
 function startNight() {
   const prevBaits = S.world ? S.world.baits.slice(0, TOOL.baitMax) : [];
   S.world = newWorld(S.pop, prevBaits);
-  S.phase = 'night';
+  S.phase = 'night'; S.paused = false; S.tickSec = 99;
   $('startOv').hidden = true; $('resultOv').hidden = true;
+  saveRun();
   // 夜の始まりの札: 敵のようすの警告
   const warn = S.gen > 1 ? warnings(S.pop) : [];
   const fresh = Object.keys(UNLOCK).filter(k => UNLOCK[k] === S.gen && S.gen > 1);
@@ -43,6 +43,10 @@ function startNight() {
     fresh.map(k => `<p class="new">${TOOL_NAME[k]}が使えるようになった！</p>`).join('') +
     (S.gen > 1 ? (warn.length ? warn.map(w => `<p class="warn">${w}</p>`).join('') : '<p>目立った変化はまだない。</p>') : '');
   $('banner').hidden = false; S.bannerT = warn.length || fresh.length ? 2.8 : 1.6;
+  S.warned = warn.length > 0;
+  Sound.setAmbient(true); Sound.play('night');
+  if (fresh.length) setTimeout(() => Sound.play('unlock'), 600);
+  else if (warn.length) setTimeout(() => Sound.play('warn'), 600);
   syncButtons();
 }
 
@@ -56,7 +60,9 @@ function finishNight() {
   const arrive = ARRIVE[S.gen + 1] || 0;
   S.pending = {gen: S.gen, before, survivors, kids, rec, arrive};
   $('banner').hidden = true;
+  Sound.setSpray(false); Sound.setAmbient(false);
   if (!kids.length && S.gen >= lastArrival) return endGame(true);
+  Sound.play(kids.length ? 'dawn' : 'wipe');
   if (S.gen >= NIGHTS) { S.hist.push(histRow(S.gen + 1, kids, null)); return endGame(false); }
   S.phase = 'result';
   showResult(S, S.pending);
@@ -81,12 +87,15 @@ function endGame(win) {
   S.phase = 'end';
   const p = S.pending;
   const stars = win ? starsFor(S.gen) : 0;
+  clearRun(); markPlayed();
+  Sound.play(win ? 'win' : 'lose');
+  for (let i = 0; i < stars; i++) setTimeout(() => Sound.play('star'), 900 + i * 380);
   if (win) {
     const b = loadBest();
     if (!b || stars > b.stars || (stars === b.stars && S.gen < b.nights)) saveBest({stars, nights: S.gen});
   }
   $('endTitle').textContent = win ? `第${S.gen}夜で全滅させた！` : '台所は虫のものになった';
-  $('endStars').innerHTML = win ? starText(stars) : '';
+  $('endStars').innerHTML = win ? [0, 1, 2].map(i => `<span class="${i < stars ? 'on' : 'off'}" style="animation-delay:${0.9 + i * 0.38}s">${i < stars ? '★' : '☆'}</span>`).join('') : '';
   $('endStars').hidden = !win;
   $('endMsg').innerHTML = win
     ? `${S.gen < NIGHTS ? `のこり ${NIGHTS - S.gen} 夜を残して、` : 'ぎりぎりで、'}虫がいなくなりました。${stars < 3 ? `★3 は第${STAR_AT[0]}夜まで。` : ''}`
@@ -128,6 +137,7 @@ function syncButtons() {
   }
   for (const b of $('segColor').children) b.setAttribute('aria-pressed', b.dataset.v === S.colorBy);
   for (const b of $('segStyle').children) b.setAttribute('aria-pressed', b.dataset.v === S.style);
+  for (const b of $('segStyle2').children) b.setAttribute('aria-pressed', b.dataset.v === S.style);
   for (const b of $('styleChoice').children) b.setAttribute('aria-pressed', b.dataset.v === S.style);
   const t = TRAIT[S.colorBy];
   $('colorCap').innerHTML = t ? `<b style="color:${t.color}">${t.name}</b>が強い虫ほど、この色になります（${t.kind === 'poly' ? '弱い虫は灰色' : '遺伝子が2本で濃く、1本で半分、持っていない虫は灰色'}）。` : '色分けすると、どの虫が手ごわいかが見えます。';
@@ -155,16 +165,25 @@ function updateMeters() {
   const left = S.phase === 'night' ? Math.max(0, NIGHT - w.t) : 0;
   $('nightBar').style.width = pct(left / NIGHT);
   $('nightLbl').textContent = S.phase === 'night' ? `のこり${Math.ceil(left)}秒` : '夜';
+  $('nightLbl').parentNode.classList.toggle('hurry', S.phase === 'night' && left <= 5);
 }
 
 let lastT = performance.now(), panelT = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
   try {
-    if (S.phase === 'night') {
+    if (S.phase === 'title' && attract) stepWorld(attract, dt);
+    if (S.phase === 'night' && !S.paused) {
       if (S.bannerT > 0) { S.bannerT -= dt; if (S.bannerT <= 0) $('banner').hidden = true; }
       else {
-        stepWorld(S.world, dt);
+        const w = S.world;
+        stepWorld(w, dt);
+        // スリッパが床に当たった音（当たった・空ぶり）
+        for (const s of w.swats) if (s.t >= TOOL.strike && !s.snd) { s.snd = true; Sound.play(s.hit ? 'slap' : 'miss'); }
+        if (w.spraying && w.sprayLeft <= 0) { w.spraying = null; Sound.setSpray(false); Sound.play('empty'); }
+        const left = Math.ceil(NIGHT - w.t);
+        if (left <= 5 && left < S.tickSec && left > 0) { S.tickSec = left; Sound.play('tick'); }
+        tickTips(w, {dodge: w.rec.dodges > 0, tough: w.rec.tough > 0, warn: S.warned});
         if (S.world.t >= NIGHT) finishNight();
         panelT += dt;
         if (panelT > 0.25 && S.phase === 'night') { panelT = 0; updateGenCard(S); updateHists(S.world, S.first); }
@@ -172,7 +191,7 @@ function frame(now) {
     }
     updateMeters();
     render();
-  } catch (e) { window.__rzErr = e; console.error(e); }
+  } catch (e) { onError(e); }
   requestAnimationFrame(frame);
 }
 
@@ -184,29 +203,30 @@ function toWorld(e) {
 function wirePointer() {
   cv.addEventListener('pointerdown', e => {
     const p = toWorld(e); S.pointer = p;
-    if (S.phase !== 'night') return;
+    if (S.phase !== 'night' || S.paused) return;
     if (S.bannerT > 0) { S.bannerT = 0; $('banner').hidden = true; }   // 札はタップで閉じる
     cv.setPointerCapture(e.pointerId);
     const w = S.world;
-    if (S.tool === 'swat') swat(w, p.x, p.y);
-    else if (S.tool === 'spray') { if (w.sprayLeft > 0) w.spraying = {x: p.x, y: p.y}; else toast('この夜のスプレーは使い切りました'); }
+    if (S.tool === 'swat') { if (swat(w, p.x, p.y)) Sound.play('swing'); }
+    else if (S.tool === 'spray') { if (w.sprayLeft > 0) { w.spraying = {x: p.x, y: p.y}; Sound.setSpray(true); } else { Sound.play('empty'); toast('この夜のスプレーは使い切りました'); } }
     else if (S.tool === 'bait') {
       const r = placeBait(w, p.x, p.y);
-      if (r === 'full') toast(`毒エサは${TOOL.baitMax}つまで。置いたものを押すと片づけられます`);
-      if (r === 'placed') toast('毒エサを置きました。次の夜にも残ります', 2200);
+      if (r === 'full') { Sound.play('empty'); toast(`毒エサは${TOOL.baitMax}つまで。置いたものを押すと片づけられます`); }
+      if (r === 'placed') { Sound.play('bait'); toast('毒エサを置きました。次の夜にも残ります', 2200); }
+      if (r === 'removed') Sound.play('unbait');
     }
   });
   cv.addEventListener('pointermove', e => {
     const p = toWorld(e); S.pointer = p;
     if (S.world && S.world.spraying) { S.world.spraying.x = p.x; S.world.spraying.y = p.y; }
   });
-  const up = () => { if (S.world && S.world.spraying) S.world.spraying = null; };
+  const up = () => { if (S.world && S.world.spraying) S.world.spraying = null; Sound.setSpray(false); };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   cv.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') S.pointer = null; up(); });
   window.addEventListener('keydown', e => {
     if (e.target.closest && e.target.closest('input,textarea')) return;
     const k = {'1': 'swat', '2': 'spray', '3': 'bait'}[e.key];
-    if (k && toolOpen(k, S.gen)) { S.tool = k; syncButtons(); }
+    if (k && toolOpen(k, S.gen) && !S.paused) { S.tool = k; Sound.play('click'); syncButtons(); }
   });
 }
 
@@ -215,13 +235,18 @@ function wireUI() {
   seg('segTool', v => { if (toolOpen(v, S.gen)) S.tool = v; });
   seg('segColor', v => { S.colorBy = v; });
   seg('segStyle', v => { S.style = v; savePrefs(); });
+  seg('segStyle2', v => { S.style = v; savePrefs(); Sound.play('click'); });
   seg('styleChoice', v => { S.style = v; savePrefs(); });
-  $('btnStart').addEventListener('click', () => startNight());
+  $('btnStart').addEventListener('click', () => { Sound.play('click'); startNight(); });
   $('btnNext').addEventListener('click', nextGeneration);
-  $('cards').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.chosen = S.dealt.find(c => c.id === b.dataset.id); syncButtons(); });
-  $('btnEnd').addEventListener('click', () => { if (S.phase === 'night' && confirm('この夜を終えますか？（生き残った虫が子を残します）')) finishNight(); });
-  $('btnAgain').addEventListener('click', () => { reset(); $('startOv').hidden = false; });
-  $('btnReset').addEventListener('click', () => { if (confirm('第1夜からやり直しますか？')) { reset(); $('startOv').hidden = false; } });
+  $('cards').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.chosen = S.dealt.find(c => c.id === b.dataset.id); Sound.play('pick'); syncButtons(); });
+  $('btnEnd').addEventListener('click', () => {
+    if (S.phase !== 'night') return;
+    setPaused(true);
+    ask('この夜を終えますか？<br><small>生き残った虫が子を残します。</small>', '夜を終える', () => { setPaused(false); finishNight(); });
+  });
+  $('btnAgain').addEventListener('click', () => { Sound.play('click'); newGame(); });
+  $('btnReset').addEventListener('click', () => ask('第1夜からやり直しますか？（いまのゲームは消えます）', 'やり直す', newGame));
   $('hint').addEventListener('click', () => $('hint').classList.toggle('open'));
   for (const b of $('styleChoice').children) drawSample(b.querySelector('canvas'), b.dataset.v);
 }
@@ -230,12 +255,14 @@ function init() {
   loadPrefs();
   buildHists(); buildLegend(); buildLegend('endLegend'); buildEnemy();
   reset();
-  wireUI(); wirePointer();
+  wireUI(); wirePointer(); wireScreens();
+  showTitle();
   // フォントが来たら台所の絵を描き直す
   if (document.fonts) document.fonts.ready.then(() => { kitchenCache = null; for (const b of $('styleChoice').children) drawSample(b.querySelector('canvas'), b.dataset.v); });
   // サムネイル用（tools/make-thumbs.ps1）: デフォルメで第1夜を少し進めて止める
   if (/[?&]thumb\b/.test(location.search)) {
     document.body.classList.add('thumb');
+    leaveTitle(); reset();
     S.style = 'cute'; startNight(); S.bannerT = 0; $('banner').hidden = true;
     for (let t = 0; t < 10; t += 1 / 30) stepWorld(S.world, 1 / 30);
     S.phase = 'thumb';
@@ -251,4 +278,4 @@ window.__rz = {
   pick(i = 0) { S.chosen = S.dealt[i]; syncButtons(); nextGeneration(); },
   render, swat: (x, y) => swat(S.world, x, y),
 };
-try { init(); } catch (e) { window.__rzErr = e; console.error(e); }
+try { init(); } catch (e) { onError(e); }

@@ -82,16 +82,19 @@ function updateEnemy(bugs) {
 // ---- 終わりの画面 ----
 function lessonText(hist, used) {
   const first = Object.fromEntries(TRAITS.map(t => [t.id, baseOf(t)])), last = hist[hist.length - 1];   // ふつうの虫とくらべる
-  const rises = TRAITS.map(t => ({t, d: last[t.id] - first[t.id]})).sort((a, b) => b.d - a.d);
+  // はっきり変わったものだけ（数が少ないと偶然でもぶれるので、しきいを高めに）
+  const rises = TRAITS.map(t => ({t, d: last[t.id] - first[t.id]})).filter(r => r.d > (r.t.kind === 'poly' ? 0.1 : 0.2)).sort((a, b) => b.d - a.d);
   const top = rises[0];
   const most = Object.entries(used).sort((a, b) => b[1] - a[1])[0];
   const toolName = {swat: 'スリッパ', spray: 'スプレー', bait: '毒エサ'}[most[0]];
   const share = most[1] / Math.max(1, used.swat + used.spray + used.bait);
+  // その道具で選ばれる性質（スリッパ→警戒心・察知、スプレー→殺虫剤、毒エサ→糖ぎらい）
+  const selects = {swat: ['wary', 'sense'], spray: ['kdr'], bait: ['gav']}[most[0]];
   let s = `いちばん多く退治したのは<b>${toolName}</b>（${pct(share)}）。`;
-  if (top.d > 0.05) {
+  if (top) {
     const v = x => top.t.kind === 'poly' ? x.toFixed(2) : pct(x);
     s += `そのあいだに<b style="color:${top.t.color}">${top.t.name}</b>${top.t.kind === 'poly' ? 'の平均' : top.t.id === 'kdr' ? '虫の割合' : 'の虫の割合'}が <b>${v(last[top.t.id])}</b> になりました（ふつうの虫は ${v(first[top.t.id])}）。`;
-    s += share > 0.7 ? 'ひとつの道具にたよると、その道具に強い虫が選ばれて残ります。' : '';
+    s += share > 0.6 && selects.includes(top.t.id) ? `${toolName}にたよったので、${toolName}に強い虫が選ばれて残りました。` : '';
   } else s += '虫の性質は、あまり変わりませんでした。進化が追いつく前に退治できたということです。';
   return s;
 }
