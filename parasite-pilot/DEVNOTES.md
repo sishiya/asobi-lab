@@ -10,7 +10,7 @@
 - **読む順**: `../CLAUDE.md` → このファイル → 下の「ファイル構成」で関係するファイルだけ。
 - **動かし方**: Claude は `../.claude/launch.json` の `games`（http://localhost:8780/parasite-pilot/）。ユーザーは `start.bat parasite-pilot`。
 - **デバッグ用**: `window.__pp` — `G`（いまの状態）、`openStage(i)`、`show(画面)`、`pause()` `resume()`、`step(秒)`（Browser ペインが裏だと rAF が止まるので、これで進める）、`Demo`（`Demo.step(秒)`・`Demo.D`）、`Sound`、`best()` `prog()`。面を始めるのは札の「はじめる」（`[data-act=start]`）。記録を空にするには localStorage の `asobi-lab/parasite-pilot/best-v1` と `progress-v1` を消して再読みこみ（2面・3面はロックされる）。
-- **区切りごとに**（あそびラボの `../RULES.md` 3章）: 確認 → 下の「状態」 → `launcher.html` の「すべての版」の表に1行（versions に残さない版は Git のリンク）→ 公開前チェック → コミット → push。節目なら `versions/v0NN-名前/` に index.html・css・js を丸ごとコピー（アクセス解析の1行は消し、← の行き先を `../../../archive.html` に）してカードも。版の名前はコミットメッセージの頭に。
+- **区切りごとに**（あそびラボの `../RULES.md` 3章）: 確認 → 下の「状態」 → `launcher.html` の「すべての版」の表に1行（versions に残さない版は Git のリンク）→ 公開前チェック → コミット → push。節目なら `versions/v0NN-名前/` に index.html・css・js を丸ごとコピー（アクセス解析の1行は消し、← の行き先を `../../../archive.html` に）してカードも。版の名前はコミットメッセージの頭に。JS・CSS を変えたら `index.html` の `?v=` を版の番号に上げる（いまは `?v=2`）。
 
 ## ファイル構成
 
