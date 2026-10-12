@@ -226,7 +226,7 @@ const PAINT = (() => {
     for (const f of L.fx) {
       const p = proj(f.x, f.y, f.z);
       if (f.type === 'puff') { ctx.fillStyle = `rgba(235,235,225,${0.6 * (1 - f.t / 1.2)})`; ctx.beginPath(); ctx.arc(p.x, p.y - V.s * 0.3, V.s * (0.4 + f.t), 0, 7); ctx.fill(); }
-      else { ctx.save(); ctx.globalAlpha = Math.max(0, 1 - f.t / 2.5); drawAnimalVec(ctx, { kind: f.kind, dir: f.t * 3, phase: f.t }, p, V.s, PAL); ctx.restore(); }
+      else if (f.type === 'fall') { ctx.save(); ctx.globalAlpha = Math.max(0, 1 - f.t / 2.5); drawAnimalVec(ctx, { kind: f.kind, dir: f.t * 3, phase: f.t }, p, V.s, PAL); ctx.restore(); }
     }
     for (const cl of W.clouds) drawCloud(ctx, cl, t);
     drawBodies(ctx, t);

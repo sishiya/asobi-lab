@@ -145,7 +145,7 @@ function stepAnimal(a, dt) {
   if (a.age > K.life * (0.8 + 0.4 * ((a.phase * 7) % 1))) { die(a, 'old'); return; }
   if (a.e > K.repE && a.age > K.adult && a.cd <= 0) {
     const c = spawn(a.kind, a.x + (Math.random() - 0.5), a.y + (Math.random() - 0.5), K.childE);
-    if (c) { a.e -= K.childE + 1; a.cd = K.cd * (0.8 + Math.random() * 0.4); L.born++; }
+    if (c) { a.e -= K.childE + 1; a.cd = K.cd * (0.8 + Math.random() * 0.4); L.born++; L.fx.push({ type: 'born', x: c.x, y: c.y, z: heightAt(c.x, c.y, true), t: 0 }); }
   }
 }
 

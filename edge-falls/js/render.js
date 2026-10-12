@@ -25,14 +25,13 @@ for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
 }
 
 const STYLES = {};
-const STYLE_KEY = 'asobi-lab/edge-falls/style';
 let styleName = 'voxel';
-try { styleName = new URLSearchParams(location.search).get('style') || localStorage.getItem(STYLE_KEY) || 'voxel'; } catch (e) { /* なし */ }
+// 本命はボクセル（2026-10-12 ユーザー）。絵画・銅版画は開発用に ?style=paint / ?style=etch で
+try { styleName = new URLSearchParams(location.search).get('style') || 'voxel'; } catch (e) { /* なし */ }
 const style = () => STYLES[styleName] || STYLES.voxel;
 function setStyle(n) {
   if (!STYLES[n]) return;
   styleName = n;
-  try { localStorage.setItem(STYLE_KEY, n); } catch (e) { /* なし */ }
   buf = null; layout(V.cw, V.ch);
 }
 
@@ -127,7 +126,10 @@ function cellColors() {
     if (h >= 13.5) { r = 236; gg = 238; b = 244; }
     else if (slope > 1.6 || h > 10.5) { const t = Math.min(1, Math.max(0, (h - 8) / 5)); r = mix(132, 150, t); gg = mix(118, 142, t); b = mix(104, 138, t); }
     else if (h < 3.2 || (m[i] > 0.95 && h < 5)) { r = 218; gg = 198; b = 146; }
-    else { const t = Math.min(1, (h - 3) / 8); r = mix(156, 128, t); gg = mix(112, 96, t); b = mix(72, 70, t); }
+    else {                                    // 土: 乾いた所は黄土色、しめった所はこげ茶
+      const t = Math.min(1, (h - 3) / 8), wet = Math.min(1, m[i] * 1.4);
+      r = mix(mix(206, 178, t), mix(150, 124, t), wet); gg = mix(mix(178, 152, t), mix(110, 94, t), wet); b = mix(mix(118, 110, t), mix(72, 70, t), wet);
+    }
     r *= jit; gg *= jit; b *= jit;
     SR[i] = r * 0.82; SG[i] = gg * 0.8; SB[i] = b * 0.78;
     // 草・花
@@ -319,10 +321,9 @@ const cloudZ = cl => 19 + (cl.seed % 3);
 
 function drawWorld(ctx, t, hover) {
   cellColors();
-  style().draw(ctx, t);
+  const own = style().draw(ctx, t, hover);   // 画風が足もとの印を描いたら true
   V.dirty = false;
-  // 足もとの印（どの画風でも同じ）
-  if (hover) {
+  if (hover && !own) {
     ctx.strokeStyle = styleName === 'etch' ? style().hover : hover.color || style().hover; ctx.lineWidth = 1.5;
     const p = proj(hover.x, hover.y, hover.z);
     ctx.beginPath(); ctx.ellipse(p.x, p.y, hover.r * V.s, hover.r * V.s * V.tilt, 0, 0, 7); ctx.stroke();

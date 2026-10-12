@@ -6,6 +6,8 @@
 const VOX = (() => {
   const STRATA = [[170, 128, 84], [142, 104, 70], [188, 152, 104], [124, 94, 70], [160, 120, 80]];
   const OUT = [0, 0, 0];
+  // 整数のハッシュ（0〜1）。面の細かな模様に
+  const ih = (a, b) => { let h = (a * 374761393 + b * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) & 1023) / 1023; };
 
   function rimColor(i, zabs, dz, L, ix, iy, row) {
     let r, g, b;
@@ -71,7 +73,8 @@ const VOX = (() => {
             for (let row = Math.max(yF, 0); row < ybuf; row++) {
               const dz = (row - yF) / hb;
               const seam = Math.floor(dz) !== Math.floor(dz + 1 / hb) ? 0.88 : 1;
-              const kk = k * seam * (row === yF ? 1.12 : 1);
+              const tex = 0.93 + 0.12 * ih(ix * 31 + iy * 17 + (axis ? 7 : 0), Math.floor((z - dz) * 3));
+              const kk = k * seam * tex * (row === yF ? 1.12 : 1);
               d32[row * BW + px] = rgba(SR[i] * kk, SG[i] * kk, SB[i] * kk); dep[row * BW + px] = vF;
             }
             ybuf = Math.max(yF, 0); step = true;
@@ -84,6 +87,9 @@ const VOX = (() => {
               let k = 1;
               if (row === yz - 1 && step) k = 1.1;                 // 段の角を明るく
               else if (row === ya && !water) k = 0.94;            // 奥のさかい
+              const vv = (row + 0.5 - base) / (sb * tl), wx = C + u * c + vv * s, wy = C - u * s + vv * c;
+              if (water) k *= ((Math.floor(wx * 1.5 + tw * 0.5) + Math.floor(wy * 0.75) * 3) % 5 === 0) ? 1.1 : 0.98;   // さざ波（流れる縞）
+              else k *= 0.93 + 0.12 * ih(Math.floor(wx * 4), Math.floor(wy * 4));                                              // 土や草の粒
               let r = OUT[0] * k, g = OUT[1] * k, b = OUT[2] * k;
               if (water && Lm > 0.55 && row === ((ya + yz) >> 1) && ((HASH[i] * 97 + tw) % 9) < 0.6) { r = 250; g = 252; b = 255; }
               d32[row * BW + px] = rgba(r, g, b); dep[row * BW + px] = vF;
@@ -93,6 +99,23 @@ const VOX = (() => {
         }
         if (tmx < tmy) { ix += sx; tt = tmx; tmx += tdx; axis = 0; } else { iy += sy; tt = tmy; tmy += tdy; axis = 1; }
       }
+    }
+  }
+
+  // 画素の輪郭: 外がわのふちと、手前の稜線を暗く
+  const edgeList = [];
+  function outline() {
+    const BW = buf.width, BH = buf.height;
+    edgeList.length = 0;
+    for (let y = 1; y < BH - 1; y++) for (let x = 1; x < BW - 1; x++) {
+      const k = y * BW + x;
+      if (!(d32[k] >>> 24)) continue;
+      if (!(d32[k - 1] >>> 24) || !(d32[k + 1] >>> 24) || !(d32[k - BW] >>> 24) || !(d32[k + BW] >>> 24)) edgeList.push(k, 0.55);
+      else if (dep[k - BW] < dep[k] - 4) edgeList.push(k, 0.78);
+    }
+    for (let n = 0; n < edgeList.length; n += 2) {
+      const k = edgeList[n], m = edgeList[n + 1], c = d32[k];
+      d32[k] = rgba((c & 255) * m, ((c >> 8) & 255) * m, ((c >> 16) & 255) * m);
     }
   }
 
@@ -114,6 +137,11 @@ const VOX = (() => {
           if (st < 2.5) { r = 246; g = 250; b = 255; } else if (edge) { r = 120; g = 166; b = 208; }
           blend(Y * BW + X, r, g, b, a0 * Math.min(1, fade * 2.2));
         }
+      }
+      // 落ち口のしぶき
+      for (let k = 0; k < Math.min(8, wpx * 2); k++) {
+        const X = bx0 + Math.floor(hash2(k, f.b + fr) * wpx), Y = by0 - 1 - Math.floor(hash2(fr, k + f.b) * 3);
+        if (X >= 0 && X < BW && Y >= 0 && Y < BH) blend(Y * BW + X, 248, 252, 255, 0.8);
       }
       // 霧（下のほうに、ちらちら）
       const n = Math.min(40, wpx * 5);
@@ -193,6 +221,11 @@ const VOX = (() => {
         const ox = (hash2(k, cl.seed) - 0.5) * r * 1.4 * V.s / V.bs, oy = ((t * 1.6 + k * 0.37) % 1) * (g.y - p.y);
         bctx.fillRect(Math.round(p.x + ox), Math.round(p.y + oy), 1, 2);
       }
+      bctx.fillStyle = 'rgba(220,236,255,0.7)';                      // 地面のはね
+      for (let k = 0; k < 5; k++) if (hash2(k, Math.floor(t * 8) + cl.seed) > 0.5) {
+        const ox = (hash2(k, cl.seed + 3) - 0.5) * r * 1.4 * V.s / V.bs;
+        bctx.fillRect(Math.round(g.x + ox) - 1, Math.round(g.y) - 1, 1, 1); bctx.fillRect(Math.round(g.x + ox) + 1, Math.round(g.y) - 1, 1, 1);
+      }
     }
     bctx.globalAlpha = 0.93 * fade;
     for (let k = 0; k < 4; k++) {
@@ -238,10 +271,31 @@ const VOX = (() => {
     }
   }
 
+  // 空: 段々の色を市松でつなぎ（ディザ）、星雲も画素で。大きさが変わったときだけ作る
+  let bg = null;
+  function makeBg() {
+    const BW = buf.width, BH = buf.height;
+    const c = document.createElement('canvas'); c.width = BW; c.height = BH;
+    const x = c.getContext('2d'), im = x.createImageData(BW, BH), d = new Uint32Array(im.data.buffer);
+    const STOPS = [[27, 37, 70], [22, 30, 58], [17, 23, 46], [13, 18, 36], [10, 13, 28], [7, 9, 20], [5, 7, 14]];
+    const neb = [[0.25, 0.3, 0.22, [70, 52, 110]], [0.75, 0.18, 0.18, [40, 70, 120]], [0.6, 0.75, 0.2, [60, 40, 90]]];
+    for (let y = 0; y < BH; y++) for (let xx = 0; xx < BW; xx++) {
+      const f = y / BH * (STOPS.length - 1), i = Math.floor(f), fr = f - i;
+      const pk = fr > (((xx + y) & 1) ? 0.66 : 0.33) ? Math.min(i + 1, STOPS.length - 1) : i;
+      let r = STOPS[pk][0], g = STOPS[pk][1], b = STOPS[pk][2];
+      for (const [nx, ny, nr, col] of neb) {
+        const dd = Math.hypot(xx / BW - nx, (y / BH - ny) * 0.7) / nr;
+        if (dd < 1) { const a = (1 - dd) * 0.35, th = ((xx * 3 + y * 5) % 4) / 4; if (a > th * 0.35) { r = mix(r, col[0], a); g = mix(g, col[1], a); b = mix(b, col[2], a); } }
+      }
+      d[y * BW + xx] = rgba(r, g, b);
+    }
+    x.putImageData(im, 0, 0);
+    bg = { c, w: BW, h: BH };
+  }
   function drawBackground(ctx, t) {
-    const g = ctx.createLinearGradient(0, 0, 0, V.ch);
-    g.addColorStop(0, '#1b2546'); g.addColorStop(0.5, '#0e1428'); g.addColorStop(1, '#05070e');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, V.cw, V.ch);
+    if (!bg || bg.w !== buf.width || bg.h !== buf.height) makeBg();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(bg.c, 0, 0, bg.w * V.bs, bg.h * V.bs);
     const bs = V.bs;
     for (let k = 0; k < 160; k++) {
       const x = Math.floor(((((k * 7919 % 1000) / 1000 + V.yaw / 6.283 * 0.5) % 1 + 1) % 1) * V.cw / bs) * bs;
@@ -249,12 +303,15 @@ const VOX = (() => {
       ctx.globalAlpha = 0.3 + 0.4 * (Math.sin(t * 1.3 + k * 1.7) > 0.6 ? 1 : 0.5);
       ctx.fillStyle = k % 9 === 0 ? '#ffe8b0' : '#dfe8ff';
       ctx.fillRect(x, y, bs, bs);
+      if (k % 23 === 0) { ctx.globalAlpha *= 0.5; ctx.fillRect(x - bs, y, bs, bs); ctx.fillRect(x + bs, y, bs, bs); ctx.fillRect(x, y - bs, bs, bs); ctx.fillRect(x, y + bs, bs, bs); }
     }
     ctx.globalAlpha = 1;
   }
 
-  function draw(ctx, t) {
+  let fire = null;
+  function draw(ctx, t, hover) {
     renderVoxel(t);
+    outline();
     drawFalls(t);
     bctx.putImageData(img, 0, 0);
     // 泉
@@ -267,6 +324,10 @@ const VOX = (() => {
     const k = Math.max(1, Math.round(V.s / V.bs / 4.5));
     for (const it of sceneItems()) {
       const bx = it.p.x / V.bs, by = it.p.y / V.bs;
+      if (!(it.type === 'animal' && it.a.kind === 'fish')) {         // 足もとの影
+        const w = 5 * k;
+        bctx.fillStyle = 'rgba(10,14,8,0.28)'; bctx.fillRect(Math.round(bx - w / 2), Math.round(by) - k, w, k);
+      }
       if (it.type === 'tree') {
         const L = lumAt(it.i % N, it.i / N | 0);
         if (it.t < 0.4) sprite(SPR.sap, palAt('tree', L), bx, by, k, false);
@@ -277,8 +338,26 @@ const VOX = (() => {
         sprite(SPR[a.kind][fr], palAt(a.kind, Math.max(0.55, lumAt(a.x, a.y))), bx, by + (a.kind === 'fish' ? 1 : 0), k, fl);
       }
     }
+    // 夜の草むらにホタル
+    if (!fire) { fire = []; for (let n = 0; n < 60; n++) fire.push(INS[Math.floor(hash2(n, 77) * INS.length)]); }
+    fire.forEach((i, n) => {
+      if (W.veg[i] < 0.5 || LUM[i] > 0.5 || Math.sin(t * 2.3 + n * 1.7) < 0.2) return;
+      const x = i % N + Math.sin(t * 0.7 + n) * 0.8, y = (i / N | 0) + Math.cos(t * 0.6 + n * 2) * 0.8;
+      const p = pb(x, y, Zq[i] + 1.2 + Math.sin(t * 1.5 + n) * 0.5);
+      const bx = Math.round(p.x), by = Math.round(p.y);
+      if (bx < 0 || by < 0 || bx >= buf.width || by >= buf.height || dep[by * buf.width + bx] > p.v + 1.5) return;
+      bctx.fillStyle = 'rgba(232,255,138,0.9)'; bctx.fillRect(bx, by, 1, 1);
+      bctx.fillStyle = 'rgba(232,255,138,0.3)'; bctx.fillRect(bx - 1, by, 3, 1); bctx.fillRect(bx, by - 1, 1, 3);
+    });
     for (const f of L.fx) {
       const p = pb(f.x, f.y, f.z);
+      if (f.type === 'born') {                                        // 子が生まれた: 小さなきらめき
+        const a = 1 - f.t / 1.2, up = Math.round(f.t * 6), x = Math.round(p.x), y = Math.round(p.y) - 3 - up;
+        bctx.fillStyle = 'rgba(255,236,150,' + a + ')';
+        bctx.fillRect(x, y - 1, 1, 3); bctx.fillRect(x - 1, y, 3, 1);
+        if (f.t > 0.3) { bctx.fillRect(x - 3, y + 2, 1, 1); bctx.fillRect(x + 3, y + 1, 1, 1); }
+        continue;
+      }
       if (f.type === 'puff') {
         bctx.fillStyle = `rgba(235,235,225,${0.7 * (1 - f.t / 1.2)})`;
         const r = Math.round(1 + f.t * 3);
@@ -289,11 +368,21 @@ const VOX = (() => {
         bctx.globalAlpha = 1;
       }
     }
+    // 足もとの印（画素の輪）
+    if (hover) {
+      bctx.fillStyle = hover.color || '#fff';
+      const n = Math.max(16, Math.round(hover.r * V.s / V.bs * 5));
+      for (let q = 0; q < n; q++) {
+        const a = q / n * Math.PI * 2, p = pb(hover.x + Math.cos(a) * hover.r, hover.y + Math.sin(a) * hover.r, hover.z + 0.3);
+        bctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1);
+      }
+    }
     for (const cl of W.clouds) drawCloud(cl, t);
     drawBodies(t);
     drawBackground(ctx, t);
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(buf, 0, 0, buf.width * V.bs, buf.height * V.bs);
+    return true;
   }
 
   return { label: 'ボクセル', quant: true, bs: cw => Math.max(2, Math.round(cw / 400)), draw, hover: 'rgba(255,250,230,0.85)' };

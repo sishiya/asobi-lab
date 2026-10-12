@@ -173,9 +173,6 @@ addEventListener('keydown', e => {
   e.preventDefault(); layout(V.cw, V.ch);
 });
 
-function syncStyleBtns() { document.querySelectorAll('[data-style]').forEach(b => b.setAttribute('aria-pressed', b.dataset.style === styleName)); }
-document.querySelectorAll('[data-style]').forEach(b => b.addEventListener('click', () => { setStyle(b.dataset.style); syncStyleBtns(); Sound.play('click'); }));
-
 function setSpeed(v) {
   G.speed = v;
   document.querySelectorAll('[data-speed]').forEach(b => b.setAttribute('aria-pressed', +b.dataset.speed === v));
@@ -223,7 +220,7 @@ function start() {
 
 // ---- はじめ ----
 newGame();
-syncSoundBtns(); syncStyleBtns();
+syncSoundBtns();
 resize();
 if (THUMB) {
   document.body.classList.add('thumb');
