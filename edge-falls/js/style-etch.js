@@ -87,6 +87,7 @@ const ETCH = (() => {
     ctx.lineCap = 'round';
     for (const f of fallList()) {
       const { top, wid, L, q, b } = f;
+      ctx.save(); ctx.globalAlpha = f.a;
       ctx.fillStyle = 'rgba(239,231,206,0.9)';
       ctx.fillRect(top.x - wid / 2, top.y, wid, L * 0.75);
       const n = Math.max(2, Math.round(wid / 3));
@@ -106,6 +107,7 @@ const ETCH = (() => {
         const x = top.x + (hash2(k, b + Math.floor(t * 4)) - 0.5) * wid * 3, y = top.y + L * (0.6 + 0.4 * hash2(b, k + Math.floor(t * 4)));
         ctx.fillRect(x, y, 1, 1);
       }
+      ctx.restore();
     }
   }
 
@@ -113,7 +115,13 @@ const ETCH = (() => {
     const sz = Math.max(4, V.s * (0.5 + it.t * 0.9)), { x, y } = it.p;
     ctx.strokeStyle = '#3a2a1c'; ctx.lineWidth = 0.9;
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - sz * 0.6); ctx.stroke();
-    ctx.fillStyle = it.conifer ? '#a9b58a' : '#b9c48e';
+    const se = seasonOf();
+    if (se === 3 && !it.conifer) {                     // 冬ははだかの枝
+      ctx.beginPath();
+      for (let k = 0; k < 5; k++) { const a = -Math.PI / 2 + (k - 2) * 0.45; ctx.moveTo(x, y - sz * 0.5); ctx.lineTo(x + Math.cos(a) * sz * 0.45, y - sz * 0.5 + Math.sin(a) * sz * 0.55); }
+      ctx.stroke(); return;
+    }
+    ctx.fillStyle = it.conifer ? (se === 3 ? '#e6e2d2' : '#a9b58a') : se === 2 ? '#dcae6a' : se === 0 && it.hi > 0.55 ? '#e8c2c0' : '#b9c48e';
     ctx.beginPath();
     if (it.conifer) { ctx.moveTo(x, y - sz * 1.6); ctx.lineTo(x + sz * 0.4, y - sz * 0.45); ctx.lineTo(x - sz * 0.4, y - sz * 0.45); ctx.closePath(); }
     else { for (let k = 0; k < 7; k++) { const a = k / 7 * Math.PI * 2; ctx.arc(x + Math.cos(a) * sz * 0.28, y - sz * 0.85 + Math.sin(a) * sz * 0.25, sz * 0.2, a - 1.6, a + 1.6); } ctx.closePath(); }
@@ -195,7 +203,7 @@ const ETCH = (() => {
       engrave();
       bctx.putImageData(img, 0, 0);
     }
-    drawBackground(ctx, t);
+    if (!drawBackdrop(ctx, t)) drawBackground(ctx, t);
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(buf, 0, 0, buf.width * V.bs, buf.height * V.bs);
     drawFalls(ctx, t);
@@ -217,6 +225,6 @@ const ETCH = (() => {
     drawBodies(ctx, t);
   }
 
-  return { label: '銅版画', quant: false, bs: cw => Math.max(1, cw / 760), draw, hover: 'rgba(58,42,28,0.9)' };
+  return { label: '銅版画', fixedHover: true, quant: false, bs: cw => Math.max(1, cw / 760), draw, hover: 'rgba(58,42,28,0.9)' };
 })();
 STYLES.etch = ETCH;

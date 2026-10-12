@@ -131,24 +131,24 @@ const VOX = (() => {
 
   // 滝（v008）: となり合う滝を1枚のすだれにまとめる（柱が並んで見えないように）。明暗の帯が流れ落ち、
   //   下ほど横へ広がって薄くなり、ちぎれて粒になる。落ち口にしぶき、下に霧。
-  const FC = { q: null, top: null, len: null };
+  const FC = { q: null, top: null, len: null, a: null };
   function drawFalls(t) {
     const BW = buf.width, BH = buf.height, bs = V.bs;
-    if (!FC.q || FC.q.length !== BW) { FC.q = new Float32Array(BW); FC.top = new Float32Array(BW); FC.len = new Float32Array(BW); }
-    const Q = FC.q, TOP = FC.top, LEN = FC.len;
+    if (!FC.q || FC.q.length !== BW) { FC.q = new Float32Array(BW); FC.top = new Float32Array(BW); FC.len = new Float32Array(BW); FC.a = new Float32Array(BW); }
+    const Q = FC.q, TOP = FC.top, LEN = FC.len, AL = FC.a;
     Q.fill(0); TOP.fill(1e9);
     for (const f of fallList()) {
       const x0 = (f.top.x - f.wid / 2) / bs, x1 = (f.top.x + f.wid / 2) / bs;
       for (let X = Math.max(0, Math.floor(x0)); X <= Math.min(BW - 1, Math.ceil(x1)); X++) {
         const w = Math.max(0, Math.min(1, Math.min(X - x0, x1 - X) + 0.6));
-        if (f.q * w > Q[X]) { Q[X] = f.q * w; LEN[X] = f.L / bs; }
+        if (f.q * w > Q[X]) { Q[X] = f.q * w; LEN[X] = f.L / bs; AL[X] = f.a; }
         TOP[X] = Math.min(TOP[X], f.top.y / bs);
       }
     }
     const sp = 34, fr = Math.floor(t * 10);
     for (let X = 0; X < BW; X++) {
       const q = Q[X]; if (q < 0.01) continue;
-      const top = TOP[X], L = LEN[X], a0 = Math.min(0.95, 0.38 + q * 0.6), ph = hash2(X, 3) * 30;
+      const top = TOP[X], L = LEN[X], a0 = Math.min(0.95, 0.38 + q * 0.6) * AL[X], ph = hash2(X, 3) * 30;
       const edge = Q[X - 1] < q * 0.5 || Q[X + 1] < q * 0.5;
       for (let yy = -1; yy < L; yy++) {
         const f = yy / L, Y = Math.round(top + yy);
@@ -165,7 +165,7 @@ const VOX = (() => {
         blend(Y * BW + XX, r, g, b, a0 * (1 - f * 0.75));
       }
       // 落ち口のしぶき・下の霧
-      if (hash2(X, fr) < 0.35 * q) { const Y = Math.round(top - 1 - hash2(fr, X) * 3); if (Y >= 0) blend(Y * BW + X, 250, 252, 255, 0.85); }
+      if (hash2(X, fr) < 0.35 * Math.min(1, q) * AL[X]) { const Y = Math.round(top - 1 - hash2(fr, X) * 3); if (Y >= 0) blend(Y * BW + X, 250, 252, 255, 0.85); }
       for (let n = 0; n < 2; n++) {
         const hy = hash2(X + n * 31, fr), Y = Math.round(top + L * (0.7 + 0.3 * hy)), XX = X + Math.round((hash2(fr, X + n) - 0.5) * 10);
         if (Y >= 0 && Y < BH && XX >= 0 && XX < BW) blend(Y * BW + XX, 226, 236, 250, 0.22 * q);
@@ -478,12 +478,12 @@ const VOX = (() => {
     }
     for (const cl of W.clouds) drawCloud(cl, t);
     drawBodies(t);
-    drawSky(ctx, t);
+    if (!drawBackdrop(ctx, t)) drawSky(ctx, t);
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(buf, 0, 0, buf.width * V.bs, buf.height * V.bs);
     return true;
   }
 
-  return { label: 'ボクセル', quant: true, bs: cw => Math.max(2, Math.round(cw / 400)), draw, hover: 'rgba(255,250,230,0.85)' };
+  return { label: 'ボクセル', drawsSel: true, quant: true, bs: cw => Math.max(2, Math.round(cw / 400)), draw, hover: 'rgba(255,250,230,0.85)' };
 })();
 STYLES.voxel = VOX;

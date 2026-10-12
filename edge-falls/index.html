@@ -8,7 +8,7 @@
 <title>果ての滝の箱庭</title>
 <meta name="description" content="深淵に浮かぶ平らな大地。川は世界の果てから滝になって落ちる。泉と雨で水をめぐらせ、草・シカ・オオカミ・サカナの生態系をつくる箱庭ゲーム（試作）。">
 <meta name="theme-color" content="#141b30">
-<link rel="stylesheet" href="css/style.css?v=8">
+<link rel="stylesheet" href="css/style.css?v=9">
 </head>
 <body>
 <header class="top">
@@ -39,6 +39,14 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <div class="card" id="card" hidden></div>
     <div class="hud" id="hud" aria-live="off"></div>
+    <div class="looks" id="looks">
+      <label>ルック<select id="lookSel" aria-label="ルック（絵の画風）">
+        <option value="voxel">ボクセル</option><option value="etch">銅版画</option><option value="real">リアル</option><option value="cyber">サイバー</option><option value="paint">絵画</option>
+      </select></label>
+      <label>背景<select id="backSel" aria-label="背景">
+        <option value="dark">暗い宇宙</option><option value="space">宇宙</option><option value="clouds">雲の上</option><option value="room">部屋の中</option><option value="hand">手のひら</option><option value="fantasy">幻想</option><option value="neon">電脳</option><option value="auto">ルックにおまかせ</option>
+      </select></label>
+    </div>
     <div class="overlay" id="overlay" hidden><div class="panel" id="panel"></div></div>
   </section>
 
@@ -147,16 +155,19 @@
   <form method="dialog"><button class="tbtn">とじる</button></form>
 </dialog>
 
-<script src="js/world.js?v=8"></script>
-<script src="js/life.js?v=8"></script>
-<script src="js/render.js?v=8"></script>
-<script src="js/style-voxel.js?v=8"></script>
-<script src="js/style-paint.js?v=8"></script>
-<script src="js/style-etch.js?v=8"></script>
-<script src="js/sound.js?v=8"></script>
-<script src="js/quests.js?v=8"></script>
-<script src="js/ui.js?v=8"></script>
-<script src="js/save.js?v=8"></script>
-<script src="js/main.js?v=8"></script>
+<script src="js/world.js?v=9"></script>
+<script src="js/life.js?v=9"></script>
+<script src="js/render.js?v=9"></script>
+<script src="js/backdrop.js?v=9"></script>
+<script src="js/style-voxel.js?v=9"></script>
+<script src="js/style-paint.js?v=9"></script>
+<script src="js/style-etch.js?v=9"></script>
+<script src="js/style-real.js?v=9"></script>
+<script src="js/style-cyber.js?v=9"></script>
+<script src="js/sound.js?v=9"></script>
+<script src="js/quests.js?v=9"></script>
+<script src="js/ui.js?v=9"></script>
+<script src="js/save.js?v=9"></script>
+<script src="js/main.js?v=9"></script>
 </body>
 </html>

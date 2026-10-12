@@ -241,6 +241,12 @@ function setSpeed(v) {
 }
 document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => { setSpeed(+b.dataset.speed); Sound.play('click'); }));
 
+// ルックと背景（実験。2026-10-13 ユーザー）
+const lookSel = document.getElementById('lookSel'), backSel = document.getElementById('backSel');
+lookSel.value = STYLES[styleName] ? styleName : 'voxel'; backSel.value = backName === 'auto' || BACKS[backName] ? backName : 'dark';
+lookSel.addEventListener('change', () => { setStyle(lookSel.value); lookSel.blur(); });
+backSel.addEventListener('change', () => { setBack(backSel.value); backSel.blur(); });
+
 function syncSoundBtns() {
   document.querySelectorAll('.btnBgm').forEach(b => b.setAttribute('aria-pressed', Sound.get('bgm')));
   $('btnSfx').setAttribute('aria-pressed', Sound.get('sfx'));
@@ -315,4 +321,4 @@ if (THUMB) {
   requestAnimationFrame(frame);
 }
 
-window.__ef = { W, L, G, V, setStyle, step: s => { simulate(s); checkWorld(); updateSide(lastStats); }, setSpeed, newGame, stats: () => waterStats(), setTool };
+window.__ef = { W, L, G, V, setStyle, setBack, step: s => { simulate(s); checkWorld(); updateSide(lastStats); }, setSpeed, newGame, stats: () => waterStats(), setTool };

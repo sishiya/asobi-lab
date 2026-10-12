@@ -26,12 +26,15 @@ for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
 
 const STYLES = {};
 let styleName = 'voxel';
-// 本命はボクセル（2026-10-12 ユーザー）。絵画・銅版画は開発用に ?style=paint / ?style=etch で
-try { styleName = new URLSearchParams(location.search).get('style') || 'voxel'; } catch (e) { /* なし */ }
+// 本命はボクセル（2026-10-12 ユーザー）。2026-10-13 ユーザー「ルックをかえる実験をしたい」→ 遊ぶ所の左上の
+//   「ルック」で切りかえ（ボクセル・銅版画・リアル・サイバー・絵画）、選んだものを覚える。?style= があればそちらを先に
+const LOOK_KEY = 'asobi-lab/edge-falls/look';
+try { styleName = new URLSearchParams(location.search).get('style') || localStorage.getItem(LOOK_KEY) || 'voxel'; } catch (e) { /* なし */ }
 const style = () => STYLES[styleName] || STYLES.voxel;
 function setStyle(n) {
   if (!STYLES[n]) return;
   styleName = n;
+  try { localStorage.setItem(LOOK_KEY, n); } catch (e) { /* なし */ }
   buf = null; layout(V.cw, V.ch);
 }
 
@@ -230,6 +233,148 @@ function renderSmooth(rimColor, rootColor) {
   }
 }
 
+// なめらかな地形を、画素ごとに色を決めて描く（リアル・サイバー）。
+//   top(o) → rgba。o は {i, fx, fy, wx, wy, z, gx, gy, v, px, row}（使い回すので覚えておかない）。
+//   段の面は top の色を face 倍に暗くする。描いたあと SURF に画素ごとの世界の点（x,y,z）が残る。
+const SO = { i: 0, fx: 0, fy: 0, wx: 0, wy: 0, z: 0, gx: 0, gy: 0, v: 0, px: 0, row: 0 };
+let SURF = null;
+function renderSurface(rimColor, rootColor, top, face = 0.72) {
+  const BW = buf.width, BH = buf.height;
+  d32.fill(0); dep.fill(-1e9);
+  if (!SURF || SURF.length !== BW * BH * 3) SURF = new Float32Array(BW * BH * 3);
+  const c = Math.cos(V.yaw), s = Math.sin(V.yaw);
+  const sb = V.s / V.bs, cxb = V.cx / V.bs, cyb = V.cy / V.bs, hb = V.s * V.hf / V.bs, tl = V.tilt;
+  const dv = 1 / (sb * tl);
+  for (let px = 0; px < BW; px++) {
+    const u = (px + 0.5 - cxb) / sb;
+    if (Math.abs(u) >= RD - 0.6) continue;
+    const ve = Math.sqrt((RD - 0.6) ** 2 - u * u);
+    const ybot = Math.min(BH, Math.ceil(cyb + ve * sb * tl + THICK * hb));
+    renderRoot(px, u, ybot, false, rootColor);
+    let ybuf = ybot, first = true;
+    for (let v = ve; v >= -ve && ybuf > 0; v -= dv) {
+      const wx = C + u * c + v * s, wy = C - u * s + v * c;
+      const xi = wx | 0, yi = wy | 0, fx = wx - xi, fy = wy - yi, i = yi * N + xi;
+      const z = (Zs[i] * (1 - fx) + Zs[i + 1] * fx) * (1 - fy) + (Zs[i + N] * (1 - fx) + Zs[i + N + 1] * fx) * fy;
+      const y = cyb + v * sb * tl - z * hb;
+      let yt = Math.floor(y);
+      if (yt < ybuf) {
+        SO.i = i; SO.fx = fx; SO.fy = fy; SO.wx = wx; SO.wy = wy; SO.z = z; SO.v = v; SO.px = px;
+        SO.gx = (Zs[i + 1] - Zs[i]) * (1 - fy) + (Zs[i + N + 1] - Zs[i + N]) * fy;
+        SO.gy = (Zs[i + N] - Zs[i]) * (1 - fx) + (Zs[i + N + 1] - Zs[i + 1]) * fx;
+        if (yt < 0) yt = 0;
+        SO.row = yt;
+        const col = top(SO);
+        const k0 = yt * BW + px;
+        d32[k0] = col; dep[k0] = v; SURF[k0 * 3] = wx; SURF[k0 * 3 + 1] = wy; SURF[k0 * 3 + 2] = z;
+        if (first) {
+          for (let row = yt + 1; row < ybuf; row++) { d32[row * BW + px] = rimColor(row, (row - y) / hb, u, i); dep[row * BW + px] = v + 0.5; }
+        } else {
+          const k = ybuf - yt > 2 ? face : 1;
+          const fc = k === 1 ? col : rgba((col & 255) * k, ((col >> 8) & 255) * k, ((col >> 16) & 255) * k);
+          for (let row = yt + 1; row < ybuf; row++) { const kk = row * BW + px; d32[kk] = fc; dep[kk] = v; SURF[kk * 3] = wx; SURF[kk * 3 + 1] = wy; SURF[kk * 3 + 2] = z - (row - yt) / hb; }
+        }
+        ybuf = yt;
+      }
+      first = false;
+    }
+  }
+}
+
+// 模様（0〜1、くり返す）: 雲海の雲（128）と、地の細かな模様（256）
+let CLOUDTEX = null, DETAIL = null;
+function valueNoise(S, cell0, oct, seed) {
+  const out = new Float32Array(S * S);
+  for (let o = 0, amp = 0.55, cell = cell0; o < oct; o++, amp *= 0.5, cell /= 2) {
+    const G = S / cell, lat = Array.from({ length: G * G }, (_, k) => hash2(k + o * 999 + seed, 17));
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const gx = x / cell, gy = y / cell, xi = Math.floor(gx), yi = Math.floor(gy), fx = gx - xi, fy = gy - yi;
+      const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+      const v = (k1, k2) => lat[((k2 % G) * G) + (k1 % G)];
+      const a = v(xi, yi), b = v(xi + 1, yi), c = v(xi, yi + 1), d = v(xi + 1, yi + 1);
+      out[y * S + x] += amp * ((a + (b - a) * sx) * (1 - sy) + (c + (d - c) * sx) * sy);
+    }
+  }
+  return out;
+}
+const cloudTex = () => CLOUDTEX || (CLOUDTEX = valueNoise(128, 32, 4, 0));
+const detailTex = () => DETAIL || (DETAIL = valueNoise(256, 32, 5, 4242));
+const DTX = { t: null };
+const detailAt = (x, y) => (DTX.t || (DTX.t = detailTex()))[(((y * 9) & 255) << 8) | ((x * 9) & 255)];
+
+// 遠景のドーム（背景）: 地平線より上は sky(o)、下は below(o)（below が null なら下も sky で、alt は負）。
+//   o = {alt, sg（太陽の向きの近さ）, dist（下の平面までの遠さ）, wx, wy（下の平面の点）, n（雲の模様）, x, y, dAz, az}
+//   F 画素を1つにした粗さで描き、なめらかに広げる。星は star(星, t) が色を返す。
+//   空の向き→画面の点に使う値 {yh, ppr, cx, look, F} を返す（月や惑星を ctx に描くとき）。
+const DO = { alt: 0, sg: 0, dist: 0, wx: 0, wy: 0, n: 0, x: 0, y: 0, dAz: 0, az: 0 };
+const STARS_D = Array.from({ length: 420 }, (_, k) => ({ az: hash2(k, 1) * Math.PI * 2, alt: Math.asin(hash2(k, 2) * 2 - 1) * 0.95, m: hash2(k, 3) }));
+let dome = null;
+const wrapAng = a => { a = (a + Math.PI) % (2 * Math.PI); if (a < 0) a += 2 * Math.PI; return a - Math.PI; };
+function domePoint(g, az, alt) { return { x: (g.cx + wrapAng(az - g.look) * g.ppr) * g.F, y: (g.yh - alt * g.ppr) * g.F, r: g.ppr * g.F }; }
+function drawDome(ctx, t, F, sky, below, star) {
+  const W2 = Math.ceil(V.cw / F), H2 = Math.ceil(V.ch / F);
+  if (!dome || dome.c.width !== W2 || dome.c.height !== H2) {
+    const c = document.createElement('canvas'); c.width = W2; c.height = H2;
+    const x = c.getContext('2d'), im = x.createImageData(W2, H2);
+    dome = { c, x, im, d: new Uint32Array(im.data.buffer) };
+  }
+  const ctex = cloudTex();
+  const ppr = V.cw / 1.25 / F;
+  const el = Math.asin(V.tilt), yh = (V.cy - V.panY) / F - el * ppr * 0.9 + V.panY / F * 0.15;
+  const cx = V.cw / 2 / F, look = -Math.PI / 2 - V.yaw, cl = Math.cos(look), sl = Math.sin(look);
+  const sunD = wrapAng(W.sun.a - look), drift = t * 0.015, d = dome.d;
+  for (let y = 0; y < H2; y++) {
+    const isBelow = below && y >= yh;
+    const beta = isBelow ? (y - yh) / ppr + 0.006 : 0, dist = isBelow ? 1 / Math.tan(beta) : 0;
+    DO.alt = (yh - y) / ppr; DO.dist = dist; DO.y = y;
+    for (let x = 0; x < W2; x++) {
+      const dAz = (x - cx) / ppr, da = wrapAng(dAz - sunD);
+      DO.sg = Math.exp(-da * da * 1.6); DO.x = x; DO.dAz = dAz; DO.az = look + dAz;
+      if (!isBelow) d[y * W2 + x] = sky(DO);
+      else {
+        const lw = dAz * dist;
+        DO.wx = dist * cl - lw * sl; DO.wy = dist * sl + lw * cl;
+        DO.n = ctex[((Math.floor((DO.wy * 0.55) * 32) & 127) << 7) | (Math.floor((DO.wx * 0.55 + drift) * 32) & 127)];
+        d[y * W2 + x] = below(DO);
+      }
+    }
+  }
+  if (star) for (const st of STARS_D) {
+    const x = Math.round(cx + wrapAng(st.az - look) * ppr), y = Math.round(yh - st.alt * ppr);
+    if (x < 0 || x >= W2 || y < 0 || y >= H2 || (below && (st.alt < 0.02 || y >= yh))) continue;
+    const c = star(st, t); if (c) d[y * W2 + x] = c;
+  }
+  dome.x.putImageData(dome.im, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(dome.c, 0, 0, W2 * F, H2 * F);
+  return { yh, ppr, cx, look, F };
+}
+
+// 山のかげ（区画ごと。太陽へ向かって地形をたどる）。重いので 0.4 秒ごと
+const SHADOW = new Float32Array(NN).fill(1);
+let shT = -1;
+function updateShadow(t) {
+  if (shT >= 0 && t - shT < 0.4) return; shT = t;
+  const sR = bodyR(W.sun), sx = C + sR * Math.cos(W.sun.a), sy = C + sR * Math.sin(W.sun.a);
+  for (const i of INS) {
+    const x0 = i % N, y0 = i / N | 0, z0 = Zs[i] + 0.3;
+    const dx = sx - x0, dy = sy - y0, len = Math.hypot(dx, dy);
+    if (len < 1) { SHADOW[i] = 1; continue; }
+    const ux = dx / len, uy = dy / len, slope = (HS - z0) / len;
+    let lt = 1;
+    for (let d = 1.5; d < 26 && d < len; d += 1.5) {
+      const x = Math.round(x0 + ux * d), y = Math.round(y0 + uy * d);
+      if (x < 0 || y < 0 || x >= N || y >= N) break;
+      const j = y * N + x; if (!inside[j]) break;
+      const over = Zs[j] - (z0 + slope * d);
+      if (over > 0) { lt = Math.min(lt, Math.max(0, 1 - over * 0.8)); if (lt <= 0) break; }
+    }
+    SHADOW[i] = SHADOW[i] * 0.3 + lt * 0.7;
+  }
+  for (let i = 0; i < NN; i++) if (!inside[i]) { const j = NEAR[i]; SHADOW[i] = j >= 0 ? SHADOW[j] : 1; }
+}
+const bilin = (A, i, fx, fy) => (A[i] * (1 - fx) + A[i + 1] * fx) * (1 - fy) + (A[i + N] * (1 - fx) + A[i + N + 1] * fx) * fy;
+
 // 岩の根（大地の下の、先のとがった岩）。quant=true はボクセルの段々
 function renderRoot(px, u, ybot, quant, rootColor) {
   const BW = buf.width, BH = buf.height;
@@ -326,20 +471,36 @@ function sceneItems() {
   return items;
 }
 
-// 滝（手前に見えるものだけ）: {b, q, top(画面), wid(画面), L(画面の長さ)}
+// 滝（手前に見えるものだけ）: {b, q, a, top(画面), wid(画面), L(画面の長さ)}
+//   2026-10-13 ユーザー「滝は水量に応じて増減させて」「パカパカ表示非表示がきりかわるのもおかしい」:
+//   W.fall は1秒ごとに段で変わるので、描く用の FV を毎コマなめらかに追わせる（となりの区分とも少しならす）。
+//   太さ・長さ・濃さ a を量で決め、少ない滝は消える前にうすくなる。奥へ回りこむ滝もうすくしてから消す。
+const FV = new Float32Array(BINS);
+let fvLast = 0;
+function updateFallVis() {
+  const now = performance.now(), dt = fvLast ? Math.min(0.5, (now - fvLast) / 1000) : 1; fvLast = now;
+  const k = 1 - Math.exp(-dt / 0.9);
+  for (let b = 0; b < BINS; b++) {
+    const tq = W.fall[b] * 0.6 + (W.fall[(b + 1) % BINS] + W.fall[(b + BINS - 1) % BINS]) * 0.2;
+    FV[b] += (tq - FV[b]) * k;
+  }
+}
 function fallList() {
   const c = Math.cos(V.yaw), s = Math.sin(V.yaw), out = [];
-  const L = (THICK + 26) * V.s * V.hf + RD * V.s * 0.3;
+  const L0 = (THICK + 26) * V.s * V.hf + RD * V.s * 0.3;
   for (let b = 0; b < BINS; b++) {
-    const q = W.fall[b];
-    if (q < 0.015) continue;
+    const q = FV[b];
+    if (q < 0.004) continue;
     const a = (b + 0.5) / BINS * Math.PI * 2;
     const ex = C + Math.cos(a) * (RD - 0.8), ey = C + Math.sin(a) * (RD - 0.8);
     const top = proj(ex, ey, surfAt(ex, ey));
-    if (top.v < -RD * 0.12) continue;
+    const back = Math.min(1, (top.v + RD * 0.12) / (RD * 0.1));
+    if (back <= 0) continue;
+    const sq = Math.min(1.5, Math.sqrt(q));
     const tu = -Math.sin(a) * c - Math.cos(a) * s;
-    const wid = Math.max(2, (2 * Math.PI * RD / BINS) * V.s * Math.abs(tu) * Math.min(1.1, 0.5 + q * 0.5) + V.s * 0.5);
-    out.push({ b, q, top, wid, L });
+    const wid = Math.max(1, (2 * Math.PI * RD / BINS) * V.s * Math.abs(tu) * (0.2 + 0.75 * sq) + V.s * 0.5 * Math.min(1, sq * 1.5));
+    const L = L0 * (0.45 + 0.55 * Math.min(1, sq));
+    out.push({ b, q, a: Math.min(1, q / 0.06) * back, top, wid, L });
   }
   return out;
 }
@@ -352,10 +513,20 @@ const cloudZ = cl => 19 + (cl.seed % 3);
 
 function drawWorld(ctx, t, hover) {
   cellColors();
+  updateFallVis();
   const own = style().draw(ctx, t, hover);   // 画風が足もとの印を描いたら true
+  drawBackFront(ctx, t);
   V.dirty = false;
+  // 選んだ1匹の角かっこ（自分で描かない画風のとき）
+  if (typeof G !== 'undefined' && G.sel && !style().drawsSel && L.list.includes(G.sel)) {
+    const a = G.sel, p = proj(a.x, a.y, surfAt(a.x, a.y) + (a.alt || 0)), r = Math.max(6, V.s * 1.1);
+    ctx.strokeStyle = style().selColor || '#ffe066'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const x = p.x + sx * r, y = p.y - r * 0.6 + sy * r; ctx.moveTo(x - sx * r * 0.45, y); ctx.lineTo(x, y); ctx.lineTo(x, y - sy * r * 0.45); }
+    ctx.stroke();
+  }
   if (hover && !own) {
-    ctx.strokeStyle = styleName === 'etch' ? style().hover : hover.color || style().hover; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = style().fixedHover ? style().hover : hover.color || style().hover; ctx.lineWidth = 1.5;
     const p = proj(hover.x, hover.y, hover.z);
     ctx.beginPath(); ctx.ellipse(p.x, p.y, hover.r * V.s, hover.r * V.s * V.tilt, 0, 0, 7); ctx.stroke();
   }

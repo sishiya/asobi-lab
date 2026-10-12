@@ -106,7 +106,7 @@ const PAINT = (() => {
 
   function drawFalls(ctx, t) {
     for (const f of fallList()) {
-      const { top, wid, L, q, b } = f, al = Math.min(0.9, 0.35 + q * 0.45);
+      const { top, wid, L, q, b } = f, al = Math.min(0.9, 0.35 + q * 0.45) * f.a;
       const gr = ctx.createLinearGradient(0, top.y, 0, top.y + L);
       gr.addColorStop(0, `rgba(232,244,255,${al})`); gr.addColorStop(0.5, `rgba(190,214,240,${al * 0.6})`); gr.addColorStop(1, 'rgba(190,214,240,0)');
       ctx.fillStyle = gr;
@@ -206,7 +206,7 @@ const PAINT = (() => {
   const PAL = { deer: ['#b07a44', '#5a3a1c'], wolf: ['#8e9098', '#3d3f46'], fish: ['#f0a050', '#7a3e14'], bird: ['#c4ccd4', '#5a5e66'], shadow: 'rgba(20,20,10,0.25)' };
 
   function draw(ctx, t) {
-    drawSky(ctx, t);
+    if (!drawBackdrop(ctx, t)) drawSky(ctx, t);
     if (V.dirty || !pc) { renderSmooth(rimColor, rootColor); repaint(-1); }
     else if (++cnt % 2 === 0) {           // 2コマに1回、帯を1本ずつ塗り直す
       if (band === 0) renderSmooth(rimColor, rootColor);
