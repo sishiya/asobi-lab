@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>宿主をあやつれ</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%234f7a2a'/><circle cx='36' cy='36' r='15' fill='none' stroke='%23fff6dc' stroke-width='4'/><path d='M36 36a6 6 0 1 1 6-6' fill='none' stroke='%23fff6dc' stroke-width='4' stroke-linecap='round'/><path d='M14 50h34M20 46l-6-20M26 46l-2-22' stroke='%23fff6dc' stroke-width='4' stroke-linecap='round'/></svg>">
+<script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
+<meta name="theme-color" content="#f3eedf" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#151812" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="top">
+  <a class="back" href="../archive.html" aria-label="あそびラボの保管庫へ戻る">←</a>
+  <h1>宿主をあやつれ</h1>
+  <span class="tag">試作</span>
+  <button type="button" class="icon-btn" id="btnAbout" aria-label="このゲームについて">?</button>
+</header>
+
+<main>
+  <!-- 面えらび -->
+  <section id="menu">
+    <p class="lead">きみは<b>寄生者</b>。生きものの体の中にすみ、その生きもの（<b>宿主</b>）を、こっそり<b>あやつって</b>、次の行き先へ連れて行こう。宿主は、自分で決めたつもりで動いている。</p>
+    <div class="stages" id="stageList"></div>
+    <p class="small">登場する寄生者と、あやつり方は本物です（ゲームなので、動きや数字は簡単にしています）。各面のあとに「本物の話」があります。</p>
+  </section>
+
+  <!-- あそぶ画面 -->
+  <section id="play" hidden>
+    <div class="playhead">
+      <span class="who" id="who"></span>
+      <span class="time" id="time"></span>
+    </div>
+    <div class="gauge" aria-label="あやつり力"><span class="lbl">あやつり力</span><span class="bar"><i id="gaugeBar"></i></span></div>
+    <div class="field" id="field">
+      <canvas id="view" aria-label="ゲームの画面"></canvas>
+      <div class="toast" id="toast" hidden></div>
+      <div class="overlay" id="overlay" hidden></div>
+    </div>
+    <div class="mind"><span class="mind-who" id="mindWho">宿主の気持ち</span><span class="mind-text" id="mind">…</span></div>
+    <div class="controls">
+      <button type="button" class="ability" id="btnAbility"></button>
+      <button type="button" class="quiet" id="btnQuit">面えらびへ</button>
+    </div>
+    <p class="small hint">画面を押さえると、その方へ宿主を引っぱる（矢印キーでも）。宿主の気持ちに逆らうほど、あやつり力が早く減る。特別なあやつりはボタンかスペースキー。</p>
+  </section>
+</main>
+
+<dialog id="about">
+  <h2>このゲームについて</h2>
+  <p>寄生する生きものの中には、宿主の行動を変えて、自分が次の宿主にたどりつきやすくするものがいます。宿主にとっては、ふつうなら近よらない場所や相手のところへ、自分から行ってしまうことになります。</p>
+  <p>このゲームでは寄生者になって、それを体験します。宿主の「気持ち」を見ていると、あやつられている間も、宿主は自分で決めたつもりでいるのがわかります。</p>
+  <h3>簡単にしたところ</h3>
+  <p>本物の寄生者は、一匹の宿主をその場で操縦しているわけではありません。宿主の体の中の物質や神経に働きかけて、「好きなもの・こわいもの」の感じ方を、長い時間をかけて少し変えます。それが、たくさんの宿主の中で積み重なると、次の宿主にたどりつく寄生者がふえる、ということです。ゲームでは、それを指で引っぱる形にしています。</p>
+  <p>研究には、まだ確かめきれていないところもあります。各面のあとの「本物の話」に出どころを書いています。</p>
+  <p class="small">記録（★）はこのブラウザにだけ保存します。消えることがあります。 <button type="button" class="link" id="btnReset">記録を消す</button></p>
+  <form method="dialog"><button class="quiet">閉じる</button></form>
+</dialog>
+
+<script src="js/core.js"></script>
+<script src="js/stages.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

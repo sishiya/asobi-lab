@@ -1,0 +1,84 @@
+/* 宿主をあやつれ。スマホを先に。押す所は 44px 以上 */
+:root{--bg:#f3eedf;--ink:#24281e;--muted:#6a6a58;--line:#d8d0b8;--card:#fbf8ef;--accent:#4f7a2a;--accent2:#b8521f;--bar:#e3dcc6;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#151812;--ink:#e9e6d6;--muted:#a3a08a;--line:#34382b;--card:#1d2118;--accent:#9cc861;--accent2:#f08a5a;--bar:#2c3024}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;line-height:1.7;-webkit-tap-highlight-color:transparent}
+p{word-break:auto-phrase;text-wrap:pretty}
+button{font:inherit;color:inherit}
+
+.top{display:flex;align-items:center;gap:10px;max-width:980px;margin:0 auto;padding:10px 16px}
+.top h1{font-size:19px;margin:0;line-height:1.3}
+.back,.icon-btn{display:inline-grid;place-items:center;min-width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card);text-decoration:none;color:var(--ink);font-size:18px;cursor:pointer}
+.icon-btn{margin-left:auto}
+.tag{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:0 8px}
+
+main{max-width:980px;margin:0 auto;padding:0 16px 40px}
+.lead{margin:8px 0 16px}
+.small{font-size:13px;color:var(--muted)}
+
+/* 面えらび */
+.stages{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.stage-card{display:flex;flex-direction:column;gap:6px;text-align:left;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card);cursor:pointer}
+.stage-card:hover,.stage-card:focus-visible{border-color:var(--accent);outline:none}
+.stage-card .no{font-size:12px;color:var(--muted)}
+.stage-card b{font-size:18px;line-height:1.4}
+.stage-card .route{font-size:14px}
+.stage-card .route i{font-style:normal;color:var(--accent2)}
+.stage-card .stars{font-size:14px;color:var(--accent2);letter-spacing:2px}
+.stage-card .stars.none{color:var(--muted);letter-spacing:0}
+
+/* あそぶ画面 */
+.playhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:2px 0 4px}
+.who{font-weight:700}
+.time{flex:none;font-variant-numeric:tabular-nums;color:var(--muted)}
+.gauge{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px}
+.gauge .bar{flex:1;height:10px;border-radius:99px;background:var(--bar);overflow:hidden}
+.gauge i{display:block;height:100%;width:100%;background:var(--accent);border-radius:99px;transition:background .2s}
+.gauge i.low{background:var(--accent2)}
+.field{position:relative;width:min(100%,calc(66vh*10/7));margin:0 auto;aspect-ratio:10/7;border-radius:12px;overflow:hidden;background:#222}
+#view{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.toast{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:rgba(20,22,16,.82);color:#f4f0e0;font-size:14px;padding:4px 12px;border-radius:99px;pointer-events:none;max-width:92%;text-align:center}
+.mind{display:flex;gap:10px;align-items:baseline;margin:8px auto 0;width:min(100%,calc(66vh*10/7));padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);min-height:44px}
+.mind-who{flex:none;font-size:12px;color:var(--muted)}
+.mind-text{font-size:15px}
+.mind-text.pulled{color:var(--accent2)}
+.controls{display:flex;gap:10px;margin:10px auto 0;width:min(100%,calc(66vh*10/7))}
+.ability{flex:1;min-height:52px;border-radius:12px;border:2px solid var(--accent);background:var(--card);font-weight:700;cursor:pointer}
+.ability.on{background:var(--accent);color:var(--bg)}
+.ability:disabled{opacity:.45;cursor:default}
+.quiet{min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:transparent;cursor:pointer}
+.hint{width:min(100%,calc(66vh*10/7));margin:8px auto 0}
+
+/* 面の始まり・終わりの札（画面の上にかさねる） */
+.overlay[hidden],.toast[hidden]{display:none}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:12px;background:rgba(10,12,8,.55);overflow:auto}
+.panel{width:min(100%,560px);max-height:100%;overflow:auto;background:var(--card);color:var(--ink);border-radius:14px;padding:16px 18px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+.panel h2{font-size:19px;margin:0 0 6px;line-height:1.4}
+.panel h3{font-size:15px;margin:12px 0 2px}
+.panel p{margin:6px 0;font-size:14px}
+.panel ul{margin:4px 0;padding-left:1.2em;font-size:14px}
+.panel .stars{color:var(--accent2);font-size:20px;letter-spacing:3px}
+.panel .src{font-size:12px;color:var(--muted)}
+.panel .src li{margin:2px 0}
+.panel .row{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.go{min-height:48px;padding:0 20px;border-radius:12px;border:0;background:var(--accent);color:var(--bg);font-weight:700;cursor:pointer}
+.lose h2{color:var(--accent2)}
+@media (max-width:639px){ /* スマホでは画面が小さいので、札は画面いっぱいに */
+  .overlay{position:fixed;z-index:10;padding:16px}
+  .who{font-size:14px}
+}
+
+dialog{max-width:min(560px,calc(100% - 32px));border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);padding:16px 18px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog h2{font-size:19px;margin:0 0 6px}
+dialog h3{font-size:15px;margin:12px 0 2px}
+dialog p{font-size:14px}
+.link{background:none;border:0;color:var(--accent2);text-decoration:underline;cursor:pointer;padding:0}
+
+/* サムネイル撮影（?thumb） */
+body.thumb{overflow:hidden}
+body.thumb .top,body.thumb #menu,body.thumb .playhead,body.thumb .gauge,body.thumb .mind,body.thumb .controls,body.thumb .hint{display:none!important}
+body.thumb main{padding:0;max-width:none}
+body.thumb #play{display:block!important}
+body.thumb .field{position:fixed;inset:0;width:100vw;height:100vh;aspect-ratio:auto;border-radius:0}
