@@ -28,12 +28,12 @@ STAGES.push({
   facts: {
     body: [
       'ロイコクロリディウムは、カタツムリの体の中で「胞子のう」というふくろをのばし、その先を<b>触角の中</b>まで入れる。ふくらんだ触角は緑や黄色のしまもようで、ぴくぴく動く。',
-      '鳥がそれを<b>イモムシとまちがえて</b>ついばむ、と考えられている（鳥が本当にだまされるのかを確かめた研究はまだ少ない）。',
-      'ポーランドの研究では、寄生されたカタツムリは、そうでないものより<b>よく動き、明るく目立つ場所や高い所</b>にいることが多かった。',
+      '鳥がそれを<b>イモムシとまちがえて</b>ついばむ、と考えられている。ただし、野生の鳥がこの触角をねらうところを記録した研究はまだなく、飼われた鳥での古い観察（1874年）があるだけ。',
+      'ポーランドの森で、同じ場所にすむカタツムリをくらべた研究では、寄生されたものは<b>よく動き、明るく開けた場所や、地面から高い所</b>にいることが多かった。それまで「寄生されたカタツムリは葉の上に出てくる」という話は、データのない1922年の論文がもとだった。',
       '鳥のおなかの中でおとなになり、卵がふんといっしょに外へ。それをカタツムリが食べて、また始まる（これを「生活環」という）。',
     ],
     src: [
-      'Wesołowska, W. & Wesołowski, T. (2014) Do Leucochloridium sporocysts manipulate the behaviour of their snail hosts? J. Zool. 292: 151–155.',
+      'Wesołowska, W. & Wesołowski, T. (2014) Do Leucochloridium sporocysts manipulate the behaviour of their snail hosts? J. Zool. 292: 151–155. doi:10.1111/jzo.12094',
     ],
   },
   init(G) {
@@ -191,14 +191,14 @@ STAGES.push({
   },
   facts: {
     body: [
-      'トキソプラズマに感染したラットは、ネコのおしっこのにおいを<b>さけなくなり、むしろ近よる</b>ようになった（イギリスの実験）。',
-      'マウスの実験では、変わったのは<b>ネコのにおいへのこわさ</b>が中心で、ほかのこわいもの（明るい所など）へのこわがり方は、あまり変わらなかった。何でもこわくなくなるのではない、というのがおもしろいところ（ゲームでヘビをこわがるままにしたのはこのため）。',
+      'ふつうのラットは、ネコのおしっこのにおいがする場所をさける。トキソプラズマに感染したラットは<b>さけなくなり、むしろ近よる</b>ものもいた（イギリスの実験）。',
+      'マウスとラットの実験では、ネコのにおいが<b>こわいものから、ひかれるものに</b>変わった。いっぽうで、不安の強さ、覚えたこわさ、においを感じる力などは変わらなかった。何でもこわくなくなるのではない、というのがおもしろいところ（ゲームでヘビをこわがるままにしたのはこのため）。',
       'トキソプラズマは<b>ネコの仲間のおなかの中</b>でだけ、次の世代のもと（オーシスト）を作れる。ネズミの中では、休むすがたで待っている。',
       '人を含め、ほかの多くの動物にも感染する。人ではふつう症状がほとんど出ないが、人の行動にも影響するという研究は、まだ確かなことがわかっていない。',
     ],
     src: [
-      'Berdoy, M., Webster, J.P. & Macdonald, D.W. (2000) Fatal attraction in rats infected with Toxoplasma gondii. Proc. R. Soc. B 267: 1591–1594.',
-      'Vyas, A. et al. (2007) Behavioral changes induced by Toxoplasma infection of rodents are highly specific to aversion of cat odors. PNAS 104: 6442–6447.',
+      'Berdoy, M., Webster, J.P. & Macdonald, D.W. (2000) Fatal attraction in rats infected with Toxoplasma gondii. Proc. R. Soc. B 267: 1591–1594. doi:10.1098/rspb.2000.1182',
+      'Vyas, A. et al. (2007) Behavioral changes induced by Toxoplasma infection of rodents are highly specific to aversion of cat odors. PNAS 104: 6442–6447. doi:10.1073/pnas.0608310104',
     ],
   },
   init(G) {
@@ -362,16 +362,16 @@ STAGES.push({
   },
   facts: {
     body: [
-      'ハリガネムシに寄生されたカマドウマやコオロギは、<b>自分から水に飛びこむ</b>。水に入ると、ハリガネムシがおしりから泳ぎ出る。',
-      'なぜ水に向かうのか。寄生された虫は<b>光にひかれる</b>ようになり、夜の水面に映る光をたよりに水辺へ行く、という説がある（ゲームの「光にひかれる」はこれ）。',
+      'ハリガネムシに寄生されたカマドウマやコオロギは、<b>自分から水に飛びこむ</b>。水に入ると、ハリガネムシがおしりから泳ぎ出る。フランスの研究では、寄生された虫は遠くから水を見つけるのではなく、まず<b>あてもなくうろうろ</b>して、水の近くに来ると飛びこむのでは、と考えられている。',
+      '実験で、寄生されたコオロギは<b>光のほうへ歩く</b>ようになった（寄生されていないものは、半分ほどが光に近よらなかった）。夜の水面に映る光をたよりに水辺へ行くのでは、と考えられている（ゲームの「光にひかれる」はこれ）。ただし、水そのものを使って確かめたわけではない。ハリガネムシが出ていくと、コオロギは1日もたたずにふつうにもどった。',
       'カエルや魚に宿主ごと食べられても、ハリガネムシは相手の口やえらから<b>にげ出す</b>ことがある。',
-      '日本の研究: 紀伊半島の川では、渓流の魚（キリクチ）が1年に食べるエネルギーの<b>約6割</b>が、ハリガネムシに飛びこまされたカマドウマなどだった。小さな寄生虫が、森と川の食べものの流れを変えている。',
+      '日本の研究: 紀伊半島の渓流で、ハリガネムシに寄生されたカマドウマやキリギリスの仲間は、寄生されていないものの<b>約20倍</b>、川に入りやすかった。そこにすむキリクチ（絶滅が心配されているイワナの仲間）が1年にとるエネルギーの<b>約6割</b>が、こうした虫だった。小さな寄生虫が、森と川の食べものの流れを変えている。',
     ],
     src: [
       'Thomas, F. et al. (2002) Do hairworms (Nematomorpha) manipulate the water seeking behaviour of their terrestrial hosts? J. Evol. Biol. 15: 356–361.',
-      'Ponton, F. et al. (2006) Parasite survives predation on its host. Nature 440: 756.',
-      'Ponton, F. et al. (2011) Water-seeking behavior in worm-infected crickets and reversibility of parasitic manipulation. Behav. Ecol. 22: 392–400.',
-      'Sato, T. et al. (2011) Nematomorph parasites drive energy flow through a riparian ecosystem. Ecology 92: 201–207.',
+      'Ponton, F. et al. (2006) Parasite survives predation on its host. Nature 440: 756. doi:10.1038/440756a',
+      'Ponton, F. et al. (2011) Water-seeking behavior in worm-infected crickets and reversibility of parasitic manipulation. Behav. Ecol. 22: 392–400. doi:10.1093/beheco/arq215',
+      'Sato, T. et al. (2011) Nematomorph parasites drive energy flow through a riparian ecosystem. Ecology 92: 201–207. doi:10.1890/09-1565.1',
     ],
   },
   init(G) {
