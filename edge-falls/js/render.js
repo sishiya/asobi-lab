@@ -247,8 +247,23 @@ function drawAnimalVec(ctx, a, p, sz, pal) {
   const f = (Math.cos(a.dir) * c - Math.sin(a.dir) * s) >= 0 ? 1 : -1;
   ctx.save(); ctx.translate(p.x, p.y); ctx.scale(f, 1);
   ctx.lineWidth = pal.lw || Math.max(1, sz * 0.1); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  const [body, dark] = pal[a.kind];
+  const [body, dark] = pal[a.kind] || ['#c8ccd2', '#555a62'];
   const ink = pal.ink || dark;
+  if (a.kind === 'bird') {
+    ctx.fillStyle = body; ctx.strokeStyle = ink;
+    if (a.alt > 0.5) {                                   // とんでいる: 翼をはばたく
+      const wg = Math.sin(a.phase * 8) * sz * 0.35;
+      ctx.beginPath(); ctx.moveTo(-sz * 0.6, -wg); ctx.quadraticCurveTo(0, sz * 0.15, sz * 0.6, -wg); ctx.lineWidth = Math.max(1.5, sz * 0.14); ctx.strokeStyle = body; ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, 0, sz * 0.3, sz * 0.12, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#d8b040'; ctx.lineWidth = Math.max(1, sz * 0.06); ctx.beginPath(); ctx.moveTo(sz * 0.3, 0); ctx.lineTo(sz * 0.6, 0); ctx.stroke();
+    } else {
+      ctx.strokeStyle = dark; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, sz * 0.5); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, -sz * 0.08, sz * 0.32, sz * 0.18, -0.3, 0, 7); ctx.fill(); if (pal.ink) ctx.stroke();
+      ctx.strokeStyle = body; ctx.lineWidth = Math.max(1.5, sz * 0.1); ctx.beginPath(); ctx.moveTo(sz * 0.2, -sz * 0.15); ctx.quadraticCurveTo(sz * 0.15, -sz * 0.55, sz * 0.32, -sz * 0.62); ctx.stroke();
+      ctx.strokeStyle = '#d8b040'; ctx.lineWidth = Math.max(1, sz * 0.06); ctx.beginPath(); ctx.moveTo(sz * 0.32, -sz * 0.62); ctx.lineTo(sz * 0.62, -sz * 0.58); ctx.stroke();
+    }
+    ctx.restore(); return;
+  }
   if (a.kind === 'fish') {
     const wig = Math.sin(a.phase * 9) * 0.2;
     ctx.fillStyle = body; ctx.strokeStyle = ink;
@@ -285,8 +300,9 @@ function sceneItems() {
     return dep[by * BW + bx] > p.v + 1.6;
   };
   for (const a of L.list) {
-    const z = a.kind === 'fish' ? surfAt(a.x, a.y) - 0.25 : surfAt(a.x, a.y);
+    const z = a.kind === 'fish' ? surfAt(a.x, a.y) - 0.25 : surfAt(a.x, a.y) + (a.alt || 0);
     const p = proj(a.x, a.y, z);
+    if (a.kind === 'bird' && a.alt > 0.5) { items.push({ type: 'animal', a, p, ground: proj(a.x, a.y, surfAt(a.x, a.y)) }); continue; }   // とんでいる鳥は山にかくれない
     if (!hidden(p)) items.push({ type: 'animal', a, p });
   }
   for (const i of INS) {

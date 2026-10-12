@@ -185,7 +185,7 @@ const ETCH = (() => {
     }
   }
 
-  const PAL = { deer: ['#d9b48a', '#3a2a1c'], wolf: ['#c4c0b4', '#3a2a1c'], fish: ['#e8b67e', '#3a2a1c'], ink: '#3a2a1c', lw: 1 };
+  const PAL = { deer: ['#d9b48a', '#3a2a1c'], wolf: ['#c4c0b4', '#3a2a1c'], fish: ['#e8b67e', '#3a2a1c'], bird: ['#e6e2d6', '#3a2a1c'], ink: '#3a2a1c', lw: 1 };
 
   let cnt = 0;
   function draw(ctx, t) {

@@ -158,6 +158,8 @@ const VOX = (() => {
     deer: [['......a', '.....a.', '....hhd', 'wbbbbh.', '.BBBBB.', '.l...l.'], ['......a', '.....a.', '....hhd', 'wbbbbh.', '.BBBBB.', '..l.l..']],
     wolf: [['.....e..', '....hhh.', 'tbbbbhhd', 'tBBBBB..', '.l...l..'], ['.....e..', '....hhh.', 'tbbbbhhd', 'tBBBBB..', '..l.l...']],
     fish: [['t.ff.', 'tfffe', 't.ff.'], ['..ff.', 'tfffe', '..ff.']],
+    bird: [['....hkk', '....n..', '...n...', '.bbbb..', 'bBBbb..', '..l....', '..l....'], ['....hkk', '....n..', '....n..', '.bbbb..', 'bBBbb..', '..l....', '..l....']],
+    birdFly: [['ww.....ww', '.wwbbbww.', '...bbbhkk'], ['.........', '..bbbbhkk', '.wwbbbww.', 'ww.....ww']],
     tree: ['..LLL..', '.LLGLL.', 'LLGLLLL', 'LLLLLDL', '.LDLLD.', '...T...', '...T...'],
     pine: ['...L...', '..LGL..', '.LLLLL.', '..LGL..', '.LLLDL.', 'LLLLLDL', '...T...'],
     sap: ['.L.', 'LGL', '.T.'],
@@ -166,6 +168,7 @@ const VOX = (() => {
     deer: { a: [232, 220, 192], h: [176, 122, 68], d: [58, 36, 20], b: [168, 116, 63], B: [138, 92, 48], w: [242, 234, 216], l: [90, 58, 28] },
     wolf: { e: [74, 76, 84], h: [154, 156, 164], d: [42, 42, 48], b: [139, 141, 148], B: [109, 111, 120], t: [125, 127, 136], l: [61, 63, 70] },
     fish: { t: [217, 122, 48], f: [239, 154, 74], e: [42, 26, 16] },
+    bird: { h: [242, 242, 236], k: [232, 192, 64], n: [216, 216, 212], b: [154, 164, 174], B: [124, 134, 144], l: [106, 90, 64], w: [200, 208, 216] },
     tree: { L: [90, 160, 67], G: [143, 208, 106], D: [63, 122, 52], T: [107, 74, 42] },
     pine: { L: [63, 127, 74], G: [106, 168, 106], D: [45, 94, 56], T: [107, 74, 42] },
   };
@@ -179,7 +182,7 @@ const VOX = (() => {
   }
   // 遺伝子で色を変えた色見本（5段に丸めて覚えておく）
   //   シカ: 泳ぐ力→青みがかった灰色、大きさ→こい茶。オオカミ: 速さ→砂色、大きさ→こい灰。サカナ: 泳ぐ力→赤
-  const TINT = { deer: [['swim', [112, 132, 150], 'bBh'], ['size', [96, 60, 30], 'bB']], wolf: [['speed', [196, 176, 132], 'bBht'], ['size', [70, 70, 78], 'bB']], fish: [['strength', [214, 64, 44], 'ft']] };
+  const TINT = { deer: [['swim', [112, 132, 150], 'bBh'], ['size', [96, 60, 30], 'bB']], wolf: [['speed', [196, 176, 132], 'bBht'], ['size', [70, 70, 78], 'bB']], fish: [['strength', [214, 64, 44], 'ft']], bird: [['size', [90, 98, 110], 'bBw'], ['beak', [240, 150, 40], 'k']] };
   function palGene(a, L) {
     const q = Math.round(L * 10), parts = TINT[a.kind].map(([g]) => Math.round(Math.max(0, a.g[g] - 0.35) / 0.65 * 4));
     const key = a.kind + q + ':' + parts.join(',');
@@ -337,10 +340,10 @@ const VOX = (() => {
       bctx.fillRect(Math.round(p.x) - 1, Math.round(p.y) - 1, 3, 1);
       if (sp.on) { const k = Math.floor(t * 6) % 4; bctx.fillStyle = 'rgba(220,244,255,0.9)'; bctx.fillRect(Math.round(p.x), Math.round(p.y) - 2 - k, 1, 1); bctx.fillRect(Math.round(p.x) + (k % 2 ? 1 : -1), Math.round(p.y) - 1 - (k >> 1), 1, 1); }
     }
-    const k = Math.max(1, Math.round(V.s / V.bs / 4.5));
+    const k = Math.max(1, Math.round(V.s / V.bs / 3.2));          // 寄るほど画素の絵も大きく
     for (const it of sceneItems()) {
       const bx = it.p.x / V.bs, by = it.p.y / V.bs;
-      if (!(it.type === 'animal' && it.a.kind === 'fish')) {         // 足もとの影
+      if (!(it.type === 'animal' && (it.a.kind === 'fish' || it.a.alt > 0.5))) {         // 足もとの影
         const w = 5 * k;
         bctx.fillStyle = 'rgba(10,14,8,0.28)'; bctx.fillRect(Math.round(bx - w / 2), Math.round(by) - k, w, k);
       }
@@ -351,7 +354,11 @@ const VOX = (() => {
       } else {
         const a = it.a, fl = (Math.cos(a.dir) * Math.cos(V.yaw) - Math.sin(a.dir) * Math.sin(V.yaw)) < 0;
         const fr = Math.floor(a.phase * 6) % 2;
-        sprite(SPR[a.kind][fr], palGene(a, Math.max(0.55, lumAt(a.x, a.y))), bx, by + (a.kind === 'fish' ? 1 : 0), k, fl);
+        if (a.kind === 'bird' && a.alt > 0.5) {                      // とんでいるサギ: 地面に影
+          const gx = it.ground.x / V.bs, gy = it.ground.y / V.bs;
+          bctx.fillStyle = 'rgba(10,14,8,0.25)'; bctx.fillRect(Math.round(gx - 3 * k), Math.round(gy) - k, 6 * k, k);
+          sprite(SPR.birdFly[Math.floor(a.phase * 5) % 2], palGene(a, 1), bx, by, k, fl);
+        } else sprite(SPR[a.kind][fr], palGene(a, Math.max(0.55, lumAt(a.x, a.y))), bx, by + (a.kind === 'fish' ? 1 : 0), k, fl);
         if (typeof G !== 'undefined' && G.sel === a) {               // 選んだ1匹: 黄色い角かっこ
           const x0 = Math.round(bx) - 5 * k, x1 = Math.round(bx) + 4 * k, y0 = Math.round(by) - 8 * k, y1 = Math.round(by) + k;
           bctx.fillStyle = '#ffe066';

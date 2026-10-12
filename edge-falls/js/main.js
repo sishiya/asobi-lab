@@ -10,7 +10,7 @@ function newGame(seed = (Math.random() * 1e9) | 0) {
   newWorld(seed); resetLife(); HIST.length = 0;
   V.yaw = Math.PI / 2 - W.bigFall + 0.35;   // いちばん大きな滝が手前に
   G.qi = 0; G.qStart = 0; G.streak = 0; G.sel = null;
-  prevCounts = { deer: 0, wolf: 0, fish: 0 };
+  prevCounts = { deer: 0, wolf: 0, fish: 0, bird: 0 };
 }
 
 function resize() {
@@ -47,7 +47,7 @@ let lastStats = null;
 function checkWorld() {
   const s = waterStats(); lastStats = s;
   // いなくなった知らせ
-  for (const k of ['deer', 'wolf', 'fish']) {
+  for (const k of ['deer', 'wolf', 'fish', 'bird']) {
     if (prevCounts[k] > 0 && L.counts[k] === 0) { toast(KINDS[k].name + 'が いなくなった'); Sound.play('extinct'); }
     prevCounts[k] = L.counts[k];
   }
@@ -75,8 +75,8 @@ function checkWorld() {
 }
 
 // ---- 入力 ----
-const RAD = { raise: 3.2, dig: 3.2, grass: 3, spring: 1.2, deer: 1, wolf: 1, fish: 1 };
-const TOOLCOL = { raise: '#ffe9b0', dig: '#e8b48a', grass: '#b8e890', spring: '#bfe6ff', deer: '#e8c49a', wolf: '#c8ccd8', fish: '#ffc890' };
+const RAD = { raise: 3.2, dig: 3.2, grass: 3, spring: 1.2, deer: 1, wolf: 1, fish: 1, bird: 1 };
+const TOOLCOL = { raise: '#ffe9b0', dig: '#e8b48a', grass: '#b8e890', spring: '#bfe6ff', deer: '#e8c49a', wolf: '#c8ccd8', fish: '#ffc890', bird: '#e0e8f0' };
 
 function setTool(t) {
   G.tool = t;
@@ -213,7 +213,7 @@ addEventListener('keydown', e => {
     const k = e.key.toLowerCase();
     panBy(k === 'a' ? 40 : k === 'd' ? -40 : 0, k === 'w' ? 40 : k === 's' ? -40 : 0);
   }
-  else if (e.key >= '1' && e.key <= '8') setTool(['look', 'raise', 'dig', 'spring', 'grass', 'deer', 'wolf', 'fish'][+e.key - 1]);
+  else if (e.key >= '1' && e.key <= '9') setTool(['look', 'raise', 'dig', 'spring', 'grass', 'deer', 'wolf', 'fish', 'bird'][+e.key - 1]);
   else return;
   e.preventDefault(); layout(V.cw, V.ch);
 });
@@ -282,9 +282,10 @@ if (THUMB) {
   simulate(20);
   const sx = W.lake ? C + W.lake.x * RD : C, sy = W.lake ? C + W.lake.y * RD : C;
   for (let k = 0; k < 6; k++) release('fish', sx + (k % 3 - 1), sy + (k / 3 | 0));
-  W.stock = { deer: 20, wolf: 4, fish: 0 };
+  W.stock = { deer: 20, wolf: 4, fish: 0, bird: 2 };
   for (let k = 0; k < 14; k++) { const a = k * 0.7, r = 10 + k; release('deer', C + Math.cos(a) * r, C + Math.sin(a) * r); }
   release('wolf', C + 5, C - 8); release('wolf', C - 8, C + 6);
+  release('bird', sx + 3, sy + 2); release('bird', sx - 2, sy + 3);
   simulate(25);
   setSpeed(0);              // 止めた絵を描きつづける（大きさが変わっても消えないように）
   requestAnimationFrame(frame);

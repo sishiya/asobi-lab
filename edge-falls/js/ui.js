@@ -50,7 +50,7 @@ const HIST = [];
 function updateSide(s) {
   $('day').textContent = '第 ' + W.day + ' 日';
   $('nGrass').textContent = Math.round(s.grass * 100);
-  $('nDeer').textContent = L.counts.deer; $('nWolf').textContent = L.counts.wolf; $('nFish').textContent = L.counts.fish;
+  $('nDeer').textContent = L.counts.deer; $('nWolf').textContent = L.counts.wolf; $('nFish').textContent = L.counts.fish; $('nBird').textContent = L.counts.bird;
   $('fallRate').textContent = s.out.toFixed(1);
   const tot = s.land + s.clouds + s.abyss || 1;
   $('wLand').style.width = (s.land / tot * 100) + '%';
@@ -58,7 +58,7 @@ function updateSide(s) {
   $('wAbyss').style.width = (s.abyss / tot * 100) + '%';
   $('soilBar').style.width = Math.min(100, W.soil / 300 * 100) + '%';
   $('nSpring').textContent = W.springs.length;
-  for (const [k, id] of [['deer', 'stDeer'], ['wolf', 'stWolf'], ['fish', 'stFish']]) {
+  for (const [k, id] of [['deer', 'stDeer'], ['wolf', 'stWolf'], ['fish', 'stFish'], ['bird', 'stBird']]) {
     const el = $(id); el.textContent = W.stock[k]; el.classList.toggle('zero', W.stock[k] <= 0);
   }
   updateQuestBox(s);
@@ -67,7 +67,7 @@ function updateSide(s) {
 
 // 半日ごとに記録して、移り変わりのグラフ
 function recordHist(s) {
-  HIST.push({ g: s.grass, d: L.counts.deer, w: L.counts.wolf, f: L.counts.fish, gs: { deer: geneStats('deer'), wolf: geneStats('wolf'), fish: geneStats('fish') } });
+  HIST.push({ g: s.grass, d: L.counts.deer, w: L.counts.wolf, f: L.counts.fish, b: L.counts.bird, gs: { deer: geneStats('deer'), wolf: geneStats('wolf'), fish: geneStats('fish'), bird: geneStats('bird') } });
   if (HIST.length > 240) HIST.shift();
   drawChart(); drawGeneChart();
 }
@@ -89,6 +89,7 @@ function drawChart() {
   line('#ef9a4a', p => p.f / maxA);
   line('#c08040', p => p.d / maxA);
   line('#7d8597', p => p.w * 4 / maxA);
+  line('#9ab4cc', p => (p.b || 0) * 4 / maxA);
 }
 
 // ---- 遺伝子の箱 ----
@@ -113,7 +114,7 @@ function drawGeneChart() {
   if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
   const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
   ctx.strokeStyle = 'rgba(128,128,128,0.4)'; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke(); ctx.setLineDash([]);
-  const pts = HIST.filter(p => p.gs && p.gs[gKind].n > 0);
+  const pts = HIST.filter(p => p.gs && p.gs[gKind] && p.gs[gKind].n > 0);
   if (pts.length < 2) return;
   GENES[gKind].forEach(([k], n) => {
     ctx.strokeStyle = GCOL[n]; ctx.lineWidth = 1.6; ctx.beginPath();
@@ -136,4 +137,4 @@ function updateCard() {
     `<div class="row"><span>おなか</span>${gbar(Math.max(0, a.e / a.tr.eMax))}</div><p>生まれて ${days} 日</p>`;
   el.hidden = false;
 }
-const DIE_WORD = { eaten: 'オオカミに食べられた', hunger: '飢えて死んだ', thirst: 'のどがかわいて死んだ', drown: '深い水でおぼれた', fall: '滝から落ちた', dry: '水がなくなって死んだ', old: '年をとって死んだ' };
+const DIE_WORD = { caught: 'サギに食べられた', eaten: 'オオカミに食べられた', hunger: '飢えて死んだ', thirst: 'のどがかわいて死んだ', drown: '深い水でおぼれた', fall: '滝から落ちた', dry: '水がなくなって死んだ', old: '年をとって死んだ' };

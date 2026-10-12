@@ -11,7 +11,7 @@ const DAY = 60;                 // 1日の秒数（×1 のとき）
 const RS = 0.6 * RD, HS = 30;   // 太陽・月の道の半径（地の上に落とした所）と高さ
 const BINS = 96;                // 滝の向きの区分
 const SPRING_MAX = 6;
-const STOCK_MAX = { deer: 10, wolf: 4, fish: 12 };
+const STOCK_MAX = { deer: 10, wolf: 4, fish: 12, bird: 3 };
 
 const inside = new Uint8Array(N * N);
 const INS = [];
@@ -62,7 +62,7 @@ function newWorld(seed) {
   W.sun = { a: rnd() * Math.PI * 2, v: 2 * Math.PI / DAY, stop: false, drag: false };
   W.moon = { a: W.sun.a + Math.PI * (0.6 + rnd() * 0.8), v: 2 * Math.PI / (DAY * 1.07), stop: false, drag: false };
   W.clouds = []; W.vapor = 0; W.outRate = 0; W.rainRate = 0;
-  W.soil = 120; W.stock = { deer: 6, wolf: 2, fish: 8 };
+  W.soil = 120; W.stock = { deer: 6, wolf: 2, fish: 8, bird: 1 };
   W.events = [];
 
   // 地形: ゆるい丸屋根（ふちへ向かって低い）＋ノイズ＋山2つ＋湖のくぼみ＋ふちの岩

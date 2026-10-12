@@ -36,7 +36,7 @@ function unpackCells(str, scale, Type, arr) {
 const r3 = (k, v) => typeof v === 'number' ? Math.round(v * 1000) / 1000 : v;
 
 function snapshot() {
-  const KI = { deer: 0, wolf: 1, fish: 2 };
+  const KI = { deer: 0, wolf: 1, fish: 2, bird: 3 };
   return {
     seed: W.seed, t: W.t, day: W.day, soil: W.soil, abyss: W.abyss, vapor: W.vapor, outRate: W.outRate,
     stock: W.stock, sun: { a: W.sun.a, stop: W.sun.stop }, moon: { a: W.moon.a, stop: W.moon.stop },
@@ -88,17 +88,18 @@ function applyWorld(s) {
   unpackCells(s.cells.moist, 255, Uint8Array, W.moist); unpackCells(s.cells.tree, 255, Uint8Array, W.tree);
   W.t = num(s.t, 0); W.day = num(s.day, 1); W.soil = num(s.soil, 120); W.abyss = num(s.abyss, 900);
   W.vapor = num(s.vapor, 0); W.outRate = num(s.outRate, 0);
-  for (const k of ['deer', 'wolf', 'fish']) W.stock[k] = Math.max(0, Math.min(STOCK_MAX[k], num(s.stock && s.stock[k], 0)));
+  for (const k of ['deer', 'wolf', 'fish', 'bird']) W.stock[k] = Math.max(0, Math.min(STOCK_MAX[k], num(s.stock && s.stock[k], 0)));
   W.sun.a = num(s.sun.a, 0); W.sun.stop = !!s.sun.stop; W.moon.a = num(s.moon.a, 0); W.moon.stop = !!s.moon.stop;
   W.springs = (s.springs || []).filter(p => inside[p[0]]).slice(0, SPRING_MAX).map(p => ({ i: p[0], on: !!p[1] }));
   W.clouds = (s.clouds || []).slice(0, 24).map(c => ({ x: c[0], y: c[1], water: c[2], age: c[3], seed: c[4], rain: 0 }));
   resetLife();
-  const KN = ['deer', 'wolf', 'fish'];
+  const KN = ['deer', 'wolf', 'fish', 'bird'];
   for (const r of s.animals || []) {
     const kind = KN[r[0]]; if (!kind) continue;
     const g = {}; GENES[kind].forEach(([k], n) => { g[k] = clamp01(num(r[10 + n], 0.5)); });
     const a = spawn(kind, num(r[1], C), num(r[2], C), num(r[3], 5), g);
     if (!a) continue;
+    if (kind === 'bird') a.alt = 0;
     a.th = num(r[4], 0); a.age = num(r[5], 0); a.cd = num(r[6], 0); a.dir = num(r[7], 0); a.wet = num(r[8], 0); a.gen = num(r[9], 1) | 0;
   }
   if (s.stats) { L.born = num(s.stats.born, 0); L.eaten = num(s.stats.eaten, 0); L.fell = num(s.stats.fell, 0); }
@@ -127,11 +128,11 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) autoS
 addEventListener('pagehide', autoSave);
 
 // ---- 画面 ----
-const KNAME = { deer: 'シカ', wolf: 'オオカミ', fish: 'サカナ' };
+const KNAME = { deer: 'シカ', wolf: 'オオカミ', fish: 'サカナ', bird: 'サギ' };
 function metaText(rec) {
   if (!rec || !rec.meta) return 'からっぽ';
   const m = rec.meta, c = m.counts || {};
-  return `第 ${m.day} 日・${['deer', 'wolf', 'fish'].map(k => KNAME[k] + ' ' + (c[k] || 0)).join('・')}<br><small>${m.at || ''}</small>`;
+  return `第 ${m.day} 日・${['deer', 'wolf', 'fish', 'bird'].map(k => KNAME[k] + ' ' + (c[k] || 0)).join('・')}<br><small>${m.at || ''}</small>`;
 }
 
 function openSavePanel() {

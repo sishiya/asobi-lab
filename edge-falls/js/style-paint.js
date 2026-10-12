@@ -203,7 +203,7 @@ const PAINT = (() => {
     }
   }
 
-  const PAL = { deer: ['#b07a44', '#5a3a1c'], wolf: ['#8e9098', '#3d3f46'], fish: ['#f0a050', '#7a3e14'], shadow: 'rgba(20,20,10,0.25)' };
+  const PAL = { deer: ['#b07a44', '#5a3a1c'], wolf: ['#8e9098', '#3d3f46'], fish: ['#f0a050', '#7a3e14'], bird: ['#c4ccd4', '#5a5e66'], shadow: 'rgba(20,20,10,0.25)' };
 
   function draw(ctx, t) {
     drawSky(ctx, t);

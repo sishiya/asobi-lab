@@ -8,7 +8,7 @@
 <title>果ての滝の箱庭</title>
 <meta name="description" content="深淵に浮かぶ平らな大地。川は世界の果てから滝になって落ちる。泉と雨で水をめぐらせ、草・シカ・オオカミ・サカナの生態系をつくる箱庭ゲーム（試作）。">
 <meta name="theme-color" content="#141b30">
-<link rel="stylesheet" href="css/style.css?v=6">
+<link rel="stylesheet" href="css/style.css?v=7">
 </head>
 <body>
 <header class="top">
@@ -30,6 +30,7 @@
       <button type="button" data-tool="deer" aria-pressed="false" title="シカを放す">シカ<i id="stDeer"></i></button>
       <button type="button" data-tool="wolf" aria-pressed="false" title="オオカミを放す">オオカミ<i id="stWolf"></i></button>
       <button type="button" data-tool="fish" aria-pressed="false" title="サカナを放す">サカナ<i id="stFish"></i></button>
+      <button type="button" data-tool="bird" aria-pressed="false" title="サギを放す（サカナを食べる鳥）">サギ<i id="stBird"></i></button>
     </div>
     <div class="zoom">
       <button type="button" class="icon-btn" id="zoomIn" aria-label="寄る">＋</button>
@@ -57,6 +58,7 @@
         <span><i style="background:#c08040"></i>シカ <b id="nDeer">0</b></span>
         <span><i style="background:#7d8597"></i>オオカミ <b id="nWolf">0</b></span>
         <span><i style="background:#ef9a4a"></i>サカナ <b id="nFish">0</b></span>
+        <span><i style="background:#9ab4cc"></i>サギ <b id="nBird">0</b></span>
       </div>
     </div>
 
@@ -66,6 +68,7 @@
         <button type="button" data-gk="deer" aria-pressed="true">シカ</button>
         <button type="button" data-gk="wolf" aria-pressed="false">オオカミ</button>
         <button type="button" data-gk="fish" aria-pressed="false">サカナ</button>
+        <button type="button" data-gk="bird" aria-pressed="false">サギ</button>
       </div>
       <canvas id="gchart" aria-label="遺伝子の平均の移り変わり"></canvas>
       <div class="grows" id="grows"></div>
@@ -112,7 +115,7 @@
     <li>下の道具を選んで、大地をなぞる・押す。「見る」ではドラッグで大地を回す（横）・傾ける（縦）。どの道具でも、大地の外をドラッグすれば回せる。</li>
     <li>盛る・削る: 削った土は土ぶくろへ入り、盛るとへる。ふちを盛ると、水がせき止められて湖になる。</li>
     <li>泉: 深淵の水がわき出る（6つまで）。泉を押すと止める／またわかせる。</li>
-    <li>シカ・オオカミ・サカナは「命のつぼ」から放す（数字が残り。1日に1つずつふえる）。サカナは水の中へ。</li>
+    <li>シカ・オオカミ・サカナ・サギは「命のつぼ」から放す（数字が残り。1日に1つずつふえる）。サカナは水の中へ。</li>
     <li>太陽と月はつかんで動かせる。タップで止める。ホイール・＋－で寄る（寄ると滝の音が聞こえる）。</li>
     <li>平行移動: 右ボタンでドラッグ、Shift を押しながらドラッグ、スマホは2本指（ピンチで寄る）。空をダブルクリックで真ん中へもどる。</li>
     <li>セーブ: 1日ごとと、ページを閉じるときに自動セーブ。「セーブ」でスロット3つと、ファイルへの書き出し・読みこみ。</li>
@@ -123,11 +126,11 @@
     <li>大地は平らな円盤。水は低い方へ流れ、ふちを越えると滝になって深淵へ落ちる。落ちた水の多くは深淵にたまり、泉からまたわき出る。のこりはしぶきの霧になって空へのぼる。</li>
     <li>太陽は大地の下へは沈まず、上をぐるりと回る。太陽から遠い所が夜。日の当たる水は雲になり、雲は天といっしょにめぐって、山にぶつかると雨になる。</li>
     <li>月が上を通ると、水がそちらへ寄る（潮）。月の下のふちから、水がよけいにあふれる。</li>
-    <li>草はうるおいと光で育つ。シカは草を、オオカミはシカを、サカナは水草を食べる。腹がいっぱいの大人は子を残す。深い水に入ると流され、ふちまで流されると滝から落ちる。</li>
+    <li>草はうるおいと光で育つ。シカは草を、オオカミはシカを、サカナは水草を、サギはサカナを食べる。サギはとんで水辺へ行き、浅い水に立ってサカナをねらう（深い所のサカナはとれない）。腹がいっぱいの大人は子を残す。深い水に入ると流され、ふちまで流されると滝から落ちる。</li>
   </ul>
   <h3>遺伝子と進化</h3>
   <ul>
-    <li>生き物はそれぞれ3つの遺伝子を持つ。シカは「あしの速さ・体の大きさ・泳ぐ力」、オオカミは「あしの速さ・体の大きさ・ねばり強さ」、サカナは「泳ぐ力・体の大きさ・浅瀬への強さ」。</li>
+    <li>生き物はそれぞれ3つの遺伝子を持つ。シカは「あしの速さ・体の大きさ・泳ぐ力」、オオカミは「あしの速さ・体の大きさ・ねばり強さ」、サカナは「泳ぐ力・体の大きさ・浅瀬への強さ」、サギは「つばさ・体の大きさ・くちばしの長さ」（くちばしが長いほど深い所のサカナに届く。大きなサカナは飲みこみにくい）。</li>
     <li>子は親と近くの相手の遺伝子を半分ずつもらい、少しだけ変わる（突然変異）。</li>
     <li>どの遺伝子にも得と損がある（速いシカはオオカミから逃げきれるが、たくさん食べないといけない）。世界のきびしさに合ったものが生き残って子を残し、平均が動いていく。オオカミがいなければ速さはいらなくなり、流れのない湖では泳ぐ力はいらなくなる。</li>
   </ul>
@@ -135,20 +138,20 @@
   <p>地球は丸く、果てはありません。水は重力で地球の中心へ引かれるので、どこまで行っても落ちません。川の水は海へ行き、海や陸から蒸発して雲になり、雨になってまた川へ（水の循環）。泉の水は、雨がしみこんだ地下水です。昼と夜は地球が回るから、潮は月と太陽の引く力の差で、地球の両がわがふくらみます。</p>
   <p>生き残りやすい性質が子に伝わって積み重なり、生き物が変わっていく考え（自然選択）は、ダーウィンとウォレスが 1858 年に発表しました。本当の進化はふつう何百〜何万世代もかかります。この箱庭では、数十世代で目に見えるように、ずっと速くしています。</p>
   <p>大地を平らな円盤と考えた人は、昔たくさんいました。古代ギリシャのホメロスの詩では、平らな大地のまわりを大きな川オケアノスが取り巻き、タレスは大地が水に浮かぶと考えました。古代メソポタミアでは、大地の下に真水の海（アプスー）があり、泉や川の水はそこから来ると考えられていました。でも、<b>世界の果てから水が落ちる滝</b>は、近ごろの絵や物語でよく描かれる姿で、昔の人がそう書き残した例はあまり知られていません。「中世の人はみな大地が平らだと信じていた」もよくある誤解で、学のある人は大地が丸いと知っていました（天動説のプトレマイオスも、大地は丸いと考えていました）。</p>
-  <p class="small">版: 試作 v006（2026-10-13）・あそびラボ ・ 姉妹の箱庭: <a href="../heaven-spheres/">天をまわす箱庭</a></p>
+  <p class="small">版: 試作 v007（2026-10-13）・あそびラボ ・ 姉妹の箱庭: <a href="../heaven-spheres/">天をまわす箱庭</a></p>
   <form method="dialog"><button class="tbtn">とじる</button></form>
 </dialog>
 
-<script src="js/world.js?v=6"></script>
-<script src="js/life.js?v=6"></script>
-<script src="js/render.js?v=6"></script>
-<script src="js/style-voxel.js?v=6"></script>
-<script src="js/style-paint.js?v=6"></script>
-<script src="js/style-etch.js?v=6"></script>
-<script src="js/sound.js?v=6"></script>
-<script src="js/quests.js?v=6"></script>
-<script src="js/ui.js?v=6"></script>
-<script src="js/save.js?v=6"></script>
-<script src="js/main.js?v=6"></script>
+<script src="js/world.js?v=7"></script>
+<script src="js/life.js?v=7"></script>
+<script src="js/render.js?v=7"></script>
+<script src="js/style-voxel.js?v=7"></script>
+<script src="js/style-paint.js?v=7"></script>
+<script src="js/style-etch.js?v=7"></script>
+<script src="js/sound.js?v=7"></script>
+<script src="js/quests.js?v=7"></script>
+<script src="js/ui.js?v=7"></script>
+<script src="js/save.js?v=7"></script>
+<script src="js/main.js?v=7"></script>
 </body>
 </html>
