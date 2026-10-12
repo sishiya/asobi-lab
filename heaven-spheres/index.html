@@ -9,7 +9,7 @@
 <meta name="description" content="天動説の世界で、月と太陽の天球を神の手で回し、潮の満ち引きで海の生き物を陸へ上げ、種を分けたり出会わせたりする箱庭ゲーム（試作）。">
 <meta name="theme-color" content="#efe3c4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1b1712" media="(prefers-color-scheme: dark)">
-<link rel="stylesheet" href="css/style.css?v=2">
+<link rel="stylesheet" href="css/style.css?v=3">
 </head>
 <body>
 <header class="top">
@@ -22,6 +22,7 @@
 <main class="layout">
   <section class="field" id="field">
     <canvas id="view" aria-label="天動説の世界。真ん中に大地と海、まわりに月・太陽・恒星の天球"></canvas>
+    <button type="button" class="tbtn globe-btn" id="btnGlobe" aria-pressed="false" title="地球儀で見る／輪切りで見る">地球儀</button>
     <div class="zoom">
       <button type="button" class="icon-btn" id="zoomIn" aria-label="寄る">＋</button>
       <button type="button" class="icon-btn" id="zoomOut" aria-label="引く">－</button>
@@ -87,6 +88,7 @@
     <li>大地のふちを外へなぞると盛り上がり、内へなぞるとへこむ。削った土は土ぶくろへ入り、盛るとへる。</li>
     <li>「周転円」で月を小さな円に乗せると、月が近づく日・遠ざかる日ができる。</li>
     <li>ホイール・ピンチ・＋－で寄る。空や大地の奥をドラッグすると動かせる。スペースで止める。</li>
+    <li>「地球儀」で、輪切りの世界を球の赤道に巻いて見られる。ドラッグで回すと裏側も見える（見るだけ。さわる操作は輪切りで）。生き物が住むのは赤道にそった帯だけで、まわりは未知の地。</li>
   </ul>
   <h3>この世界のきまり（天動説）</h3>
   <ul>
@@ -98,16 +100,17 @@
   </ul>
   <h3>本当は</h3>
   <p>潮の満ち引きは月と太陽の引く力（重力）で起きます。動いているのは天球ではなく地球のほうです（太陽のまわりを回り、自分も回る）。水が地球をおおうのも、元素の性質ではなく重力のためです。この試作では津波を「天球を回しすぎたせい」にしていますが、本当の津波はおもに海の底の地震などで起きます。昼と夜の気温の差は、地球が1日で回るのでならされています。月のように昼と夜が約2週間ずつ続くと、昼は100度をこえ、夜は-150度より冷えます。</p>
-  <p class="small">版: 試作 v002（2026-10-12）・あそびラボ</p>
+  <p class="small">版: 試作 v003（2026-10-12）・あそびラボ</p>
   <form method="dialog"><button class="tbtn">とじる</button></form>
 </dialog>
 
-<script src="js/world.js?v=2"></script>
-<script src="js/life.js?v=2"></script>
-<script src="js/draw.js?v=2"></script>
-<script src="js/sound.js?v=2"></script>
-<script src="js/quests.js?v=2"></script>
-<script src="js/ui.js?v=2"></script>
-<script src="js/main.js?v=2"></script>
+<script src="js/world.js?v=3"></script>
+<script src="js/life.js?v=3"></script>
+<script src="js/draw.js?v=3"></script>
+<script src="js/globe.js?v=3"></script>
+<script src="js/sound.js?v=3"></script>
+<script src="js/quests.js?v=3"></script>
+<script src="js/ui.js?v=3"></script>
+<script src="js/main.js?v=3"></script>
 </body>
 </html>

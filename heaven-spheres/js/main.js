@@ -4,6 +4,9 @@
 const canvas = $('#view'), ctx = canvas.getContext('2d');
 let Wd, L, view, G, fly = null;
 let speed = 1, thumbMode = false;
+// 見え方: 'slice'（輪切り。さわれる）か 'globe'（地球儀。回して見るだけ）
+let mode = 'slice';
+const cam = { yaw: Math.PI / 2 - 4.0, pitch: 0.45, z: 1.3 };   // はじめは西の大陸の浜が正面
 
 function newGame(seed) {
   Wd = makeWorld(seed || 1);
@@ -67,6 +70,7 @@ canvas.addEventListener('pointerdown', e => {
   try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* とれなくても動かせる */ }
   const [ox, oy] = local(e);
   ptrs.set(e.pointerId, { x: ox, y: oy });
+  if (mode === 'globe' && ptrs.size === 1) { drag = { type: 'globe', x: ox, y: oy }; canvas.classList.add('grabbing'); return; }
   if (ptrs.size === 2) {
     if (drag?.s) drag.s.held = false;
     drag = null;
@@ -84,6 +88,7 @@ canvas.addEventListener('pointerdown', e => {
 });
 canvas.addEventListener('pointermove', e => {
   const p = ptrs.get(e.pointerId), [ox, oy] = local(e);
+  if (!p && mode === 'globe') return;
   if (!p) {
     const [wx, wy] = toWorld(ox, oy), k = pick(wx, wy);
     hover = k.type === 'sphere' ? k.s.key : null;
@@ -93,9 +98,15 @@ canvas.addEventListener('pointermove', e => {
   p.x = ox; p.y = oy;
   if (pinch && ptrs.size === 2) {
     const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
-    zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, d / pinch.d); pinch.d = d; return;
+    zoomBy((a.x + b.x) / 2, (a.y + b.y) / 2, d / pinch.d); pinch.d = d; return;
   }
   if (!drag) return;
+  if (drag.type === 'globe') {
+    // 地球儀を回す: 横で地軸まわり、たてで見下ろす角度
+    cam.yaw -= (ox - drag.x) * 0.008;
+    cam.pitch = Math.max(-1.3, Math.min(1.3, cam.pitch + (oy - drag.y) * 0.008));
+    drag.x = ox; drag.y = oy; return;
+  }
   drag.moved += Math.hypot(ox - drag.x, oy - drag.y);
   const [wx, wy] = toWorld(ox, oy);
   const ang = Math.atan2(wy - CY, wx - CX), r = Math.hypot(wx - CX, wy - CY);
@@ -150,9 +161,22 @@ function endPtr(e) {
 canvas.addEventListener('pointerup', endPtr);
 canvas.addEventListener('pointercancel', endPtr);
 canvas.addEventListener('pointerleave', () => { hover = null; });
-canvas.addEventListener('wheel', e => { e.preventDefault(); zoomAt(...local(e), Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
-$('#zoomIn').onclick = () => zoomAt(cw / 2, ch / 2, 1.4);
-$('#zoomOut').onclick = () => zoomAt(cw / 2, ch / 2, 1 / 1.4);
+// 寄る・引く（地球儀のときは真ん中を中心に）
+function zoomBy(px, py, f) {
+  if (mode === 'globe') cam.z = Math.max(0.8, Math.min(3, cam.z * f));
+  else zoomAt(px, py, f);
+}
+canvas.addEventListener('wheel', e => { e.preventDefault(); zoomBy(...local(e), Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+$('#zoomIn').onclick = () => zoomBy(cw / 2, ch / 2, 1.4);
+$('#zoomOut').onclick = () => zoomBy(cw / 2, ch / 2, 1 / 1.4);
+function setMode(m) {
+  mode = m; drag = null; ptrs.clear(); pinch = null;
+  $('#btnGlobe').setAttribute('aria-pressed', String(m === 'globe'));
+  $('#btnGlobe').textContent = m === 'globe' ? '輪切り' : '地球儀';
+  $('#field').classList.toggle('globe', m === 'globe');
+  toast(m === 'globe' ? '地球儀で見る（ドラッグで回す）。天球を回す・大地をなぞるのは輪切りで' : '輪切りで見る', 3);
+}
+$('#btnGlobe').onclick = () => { Sound.play('click'); setMode(mode === 'globe' ? 'slice' : 'globe'); };
 $('#epi').oninput = e => { Wd.epi = e.target.value / 100 * EPI_MAX; updateMoon(Wd, 0); };
 
 // キー: ←→ 月、Shift＋←→ 太陽、スペースで止める
@@ -250,6 +274,7 @@ function step(realDt) {
   Sound.update(Wd.maxU, simDt === 0);
 }
 function render() {
+  if (mode === 'globe') { drawGlobe(ctx, Wd, L, cam, cw, ch, dpr); return; }
   drawWorld(ctx, Wd, L, view, cw, ch, dpr, { hover: drag?.s?.key || hover, brush: drag?.type === 'sculpt' ? drag.brush : null, raise: drag?.raise, labels });
 }
 function frame(now) {
@@ -275,7 +300,7 @@ if (/[?&]thumb\b/.test(location.search)) {
 
 // デバッグ用（DEVNOTES）。Browser ペインが裏だと rAF が止まるので step で進める
 window.__hs = {
-  get W() { return Wd; }, get L() { return L; }, get G() { return G; }, get view() { return view; },
+  get W() { return Wd; }, get L() { return L; }, get G() { return G; }, get view() { return view; }, cam, setMode,
   step(sec) { for (let t = sec; t > 0; t -= 0.05) step(Math.min(0.05, t)); render(); },
   setSpeed, newGame, stats: () => lifeStats(L),
 };

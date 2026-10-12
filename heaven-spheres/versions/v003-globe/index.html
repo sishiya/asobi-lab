@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23efe3c4'/><circle cx='32' cy='32' r='25' fill='none' stroke='%233a2a1c' stroke-width='3'/><circle cx='32' cy='32' r='17' fill='none' stroke='%233a2a1c' stroke-width='2.5' stroke-dasharray='4 3'/><circle cx='32' cy='32' r='9' fill='%2385a3a8' stroke='%233a2a1c' stroke-width='2.5'/><circle cx='54' cy='22' r='5' fill='%23e7c35f' stroke='%233a2a1c' stroke-width='2'/></svg>">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>天をまわす箱庭</title>
+<meta name="description" content="天動説の世界で、月と太陽の天球を神の手で回し、潮の満ち引きで海の生き物を陸へ上げ、種を分けたり出会わせたりする箱庭ゲーム（試作）。">
+<meta name="theme-color" content="#efe3c4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1b1712" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="css/style.css?v=3">
+</head>
+<body>
+<header class="top">
+  <a class="back" href="../../../archive.html" aria-label="あそびラボの保管庫へ戻る">←</a>
+  <h1>天をまわす箱庭 <span class="proto">試作</span></h1>
+  <button type="button" class="icon-btn btnBgm" aria-label="音楽" aria-pressed="true" title="音楽のオン・オフ">♪</button>
+  <button type="button" class="icon-btn" id="btnAbout" aria-label="このゲームについて">?</button>
+</header>
+
+<main class="layout">
+  <section class="field" id="field">
+    <canvas id="view" aria-label="天動説の世界。真ん中に大地と海、まわりに月・太陽・恒星の天球"></canvas>
+    <button type="button" class="tbtn globe-btn" id="btnGlobe" aria-pressed="false" title="地球儀で見る／輪切りで見る">地球儀</button>
+    <div class="zoom">
+      <button type="button" class="icon-btn" id="zoomIn" aria-label="寄る">＋</button>
+      <button type="button" class="icon-btn" id="zoomOut" aria-label="引く">－</button>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="overlay" id="overlay" hidden><div class="panel" id="panel"></div></div>
+  </section>
+
+  <aside class="side">
+    <div class="box quest">
+      <p class="label"><span id="questLabel">第一の日のお題</span><span class="qstars" id="questStars"></span></p>
+      <p class="qtext" id="questText"></p>
+      <div class="bar"><i id="questBar"></i></div>
+      <p class="small"><b id="questNum">0</b><span id="questUnit"></span></p>
+      <details class="hintbox"><summary>ヒント</summary><p id="questHint"></p></details>
+    </div>
+
+    <div class="box species">
+      <p class="label">種の移り変わり</p>
+      <canvas id="spChart" aria-label="種ごとの数の移り変わり"></canvas>
+      <div class="splist" id="spList"></div>
+      <p class="small hint">名前を押すと、その種のいる所へ寄る。</p>
+    </div>
+
+    <div class="box stats">
+      <p><span id="day">第 1 日</span>・<span id="gen">第 1 世代</span>・生き物 <b id="pop">0</b></p>
+      <p>潮: <b id="tide">―</b></p>
+      <p>気温: <b id="temp">―</b></p>
+      <div class="genes" id="genes"></div>
+    </div>
+
+    <div class="box">
+      <p class="label">神の手</p>
+      <p class="small hint">天球の帯をドラッグで回す。タップで止める。大地のふちを外へなぞると盛る、内へなぞると削る。</p>
+      <p class="small">土ぶくろ <span class="bar soil"><i id="soilBar"></i></span></p>
+      <label class="small epi">周転円 <input type="range" id="epi" min="0" max="100" value="0"></label>
+    </div>
+
+    <div class="box">
+      <p class="label">時の速さ</p>
+      <div class="seg" role="group" aria-label="時の速さ">
+        <button type="button" data-speed="0" aria-pressed="false" aria-label="止める">❚❚</button>
+        <button type="button" data-speed="1" aria-pressed="true">×1</button>
+        <button type="button" data-speed="4" aria-pressed="false">×4</button>
+        <button type="button" data-speed="16" aria-pressed="false">×16</button>
+      </div>
+    </div>
+
+    <div class="box row">
+      <button type="button" class="tbtn btnBgm" aria-pressed="true">♪ 音楽</button>
+      <button type="button" class="tbtn" id="btnSfx" aria-pressed="true">効果音</button>
+      <button type="button" class="tbtn" id="btnReset">最初から</button>
+    </div>
+  </aside>
+</main>
+
+<dialog id="about">
+  <h2>天をまわす箱庭（試作）</h2>
+  <p>天動説の世界です。大地は世界の真ん中で動かず、まわりを月・太陽・星の天球がめぐっています。きみは神の手で天球を回し、大地の形を変えられます。5つのお題（創世の日）を順に。</p>
+  <h3>遊びかた</h3>
+  <ul>
+    <li>天球の帯（目盛りのついた輪）をドラッグで回す。はなすと勢いが残り、ゆっくりふつうの速さにもどる。タップで止める／また動かす。いちばん外の恒星天を回すと、すべての天球がいっしょに回る。キーボードは ←→ で月、Shift＋←→ で太陽。</li>
+    <li>大地のふちを外へなぞると盛り上がり、内へなぞるとへこむ。削った土は土ぶくろへ入り、盛るとへる。</li>
+    <li>「周転円」で月を小さな円に乗せると、月が近づく日・遠ざかる日ができる。</li>
+    <li>ホイール・ピンチ・＋－で寄る。空や大地の奥をドラッグすると動かせる。スペースで止める。</li>
+    <li>「地球儀」で、輪切りの世界を球の赤道に巻いて見られる。ドラッグで回すと裏側も見える（見るだけ。さわる操作は輪切りで）。生き物が住むのは赤道にそった帯だけで、まわりは未知の地。</li>
+  </ul>
+  <h3>この世界のきまり（天動説）</h3>
+  <ul>
+    <li>元素は自分の場所へ帰る。地がいちばん下、その上に水、空気、火。だから水は大地をおおって海になる。</li>
+    <li>月と太陽は水を引きよせる。真下と反対がわがふくらむ（潮）。月と太陽が並ぶと大潮。月が近いほど強く引く。</li>
+    <li>天球を急に回すと、海が取り残されて揺れもどる。回しすぎると津波になる。</li>
+    <li>太陽を止めると、昼の側は焼けて水が蒸発し、雲になって涼しい所に雨をふらせる。夜の側は凍え、凍った海は動かない。</li>
+    <li>生き物は近くの似た相手と子を残す。海や浅瀬で隔てられ、ちがう草（東はやわらかい、西はかたい）を食べていると、別の種に分かれる。</li>
+  </ul>
+  <h3>本当は</h3>
+  <p>潮の満ち引きは月と太陽の引く力（重力）で起きます。動いているのは天球ではなく地球のほうです（太陽のまわりを回り、自分も回る）。水が地球をおおうのも、元素の性質ではなく重力のためです。この試作では津波を「天球を回しすぎたせい」にしていますが、本当の津波はおもに海の底の地震などで起きます。昼と夜の気温の差は、地球が1日で回るのでならされています。月のように昼と夜が約2週間ずつ続くと、昼は100度をこえ、夜は-150度より冷えます。</p>
+  <p class="small">版: 試作 v003（2026-10-12）・あそびラボ</p>
+  <form method="dialog"><button class="tbtn">とじる</button></form>
+</dialog>
+
+<script src="js/world.js?v=3"></script>
+<script src="js/life.js?v=3"></script>
+<script src="js/draw.js?v=3"></script>
+<script src="js/globe.js?v=3"></script>
+<script src="js/sound.js?v=3"></script>
+<script src="js/quests.js?v=3"></script>
+<script src="js/ui.js?v=3"></script>
+<script src="js/main.js?v=3"></script>
+</body>
+</html>
