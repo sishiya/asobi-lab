@@ -1,7 +1,7 @@
 // 牧場: 裏の計算（Worker）、走る練習、カードの絵、牧場のカードと選択、生まれた子、かけ合わせ。
 
 // ---------- 裏の計算（Worker） ----------
-const worker = new Worker('js/worker.js');
+const worker = new Worker('js/worker.js?v=3');
 const waiting = new Map();
 let reqId = 1;
 worker.onmessage = e => {
@@ -19,7 +19,7 @@ function measure(list, done) { // 記録のないものの記録をはかる
 // 走る練習: 体はそのままで、走り方だけを小さな群れで PRACTICE.gens 世代育て、よくなったら入れかえる。
 // おまかせの進化とぶつからないように別の Worker で、1匹ずつ順番に
 const PRACTICE = {gens: 6, size: 10};
-const practiceWorker = new Worker('js/worker.js');
+const practiceWorker = new Worker('js/worker.js?v=3');
 const practiceQueue = [];
 let practicing = null;
 function practice(x) {

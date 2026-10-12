@@ -12,7 +12,7 @@
 - **動かし方**: Claude は `../.claude/launch.json` の `games`（http://localhost:8780/dino-race/）。Worker を使うので file:// では動かない。
 - **動かし方（ユーザー）**: ルートの `start.bat dino-race`。
 - **デバッグ用**: `window.__dino` — `VIEW`（いま見ている場面 `VIEW.R`）、`ranch`、`kids`、`prog`、`stepView(秒)`（Browser ペインが裏だと rAF が止まるので、これで進める。描画をはさまないとカメラが追いつかない）、`finishView()`、`startView(genomes, labels, {mode})`、`setTab()`、`openDetail(x)`、`openPick(cup)`、`showEnding()`、`showTitle()`、`exportSave()`、`ask(文, opts)`。エラーは `window.__dinoErr`。タイトルを出さずに読み直すなら `sessionStorage.setItem('asobi-lab/dino-race/skip-title','1')`。かけっこは「結果へ」ボタン（`#btnSkip`）で残りを一気に計算して終えられる。物理だけ試すなら `test.html`（genome・sim・ga だけ読む。`evaluate([...])`、`makePop()`、`stepGeneration()`）。
-- **区切りごとに**（RULES 3章: ふだんは commit、節目だけ versions）: ① 「確認のしかた」を通す ② 下の「状態」 ③ 節目なら `versions/v0NN-名前/` に index.html・css・js を丸ごとコピー（アクセス解析の1行は消す）して `launcher.html` にカード ④ 公開前チェック → コミット → push（2026-10-09 ユーザー: 公開前チェックで問題なければ push してよい）。
+- **区切りごとに**（RULES 3章: ふだんは commit、節目だけ versions）: ① 「確認のしかた」を通す ② 下の「状態」 ③ 節目なら `versions/v0NN-名前/` に index.html・css・js を丸ごとコピー（アクセス解析の1行は消す）して `launcher.html` にカード ④ JS・CSS を変えたら `index.html` の `?v=` の番号を上げる ⑤ 公開前チェック → コミット → push（2026-10-09 ユーザー: 公開前チェックで問題なければ push してよい）。
 - **ユーザーの好み**: 恐竜・遺伝的アルゴリズム（アストロノーカ）・本物のしくみ。絵は図鑑の骨格図ふう（2026-10-09 決定）。子ども向けすぎる絵はいや。日本語。
 
 ## ファイル構成
@@ -90,6 +90,7 @@
 - v001 はスマホで、走るようす（上）と牧場のボタン（下）の間を何度もスクロールした。目標がなく何を育てればいいか分からなかった → v002 でタブ・下のバー・シート・大会。
 - 結果の順位でゴーストも数えて、自分が「2位」になった → ゴーストは「–」で、順位は恐竜だけで数える。
 - 大会に出る恐竜を選ぶシートで、出られない恐竜が上に並んで出られる子が隠れた → 出られる恐竜を先に。
+- **公開版で古い JS がキャッシュから読まれた**（v003）: Pages は CSS・JS を10分ほどキャッシュさせるので、HTML だけ新しく main.js が古いまま読まれ「`$` が二重」のエラーになった → `index.html` の css・js と `ranch.js` の Worker に `?v=3` を付けた。**JS・CSS を変えて push するときは、この番号を上げる**（`index.html` を `?v=` で検索）。
 - **dialog の close はあとから届く**（v003）: かけっこの開始でシートを閉じ、同じ流れで結果のシートを開くと、古い close があとから来て「結果を閉じた」と取り違えた（エンディングがすぐ出た）→ close の処理で、シートがまた開いていたら何もしない。
 - 隠れたタブのカードの絵は幅 0 で描けない → `paintPortraits()` は幅 0 を飛ばし、タブを開いたときに描く。
 
