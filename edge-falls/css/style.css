@@ -24,6 +24,10 @@ button{font:inherit;color:inherit}
 .tools button[aria-pressed=true]{background:#efe3c4;color:#141b30;border-color:#efe3c4}
 .tools i{font-style:normal;font-size:11px;margin-left:4px;opacity:.85}
 .tools i.zero{color:#e07a6a}
+.styles{position:absolute;left:10px;top:10px;display:flex;border:1px solid rgba(239,227,196,.35);border-radius:8px;overflow:hidden;background:rgba(20,27,48,.78)}
+.styles button{padding:4px 9px;border:0;background:transparent;color:#efe3c4;cursor:pointer;font-size:12px}
+.styles button+button{border-left:1px solid rgba(239,227,196,.25)}
+.styles button[aria-pressed=true]{background:#efe3c4;color:#141b30}
 .zoom{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px}
 .zoom .icon-btn{background:rgba(20,27,48,.78);color:#efe3c4;border-color:rgba(239,227,196,.35)}
 
@@ -89,7 +93,7 @@ dialog a{color:var(--accent)}
   .top h1{font-size:17px}
   .tools button{padding:4px 7px;font-size:12px}
 }
-body.thumb .top,body.thumb .side,body.thumb .zoom,body.thumb .tools,body.thumb .toast{display:none}
+body.thumb .top,body.thumb .side,body.thumb .zoom,body.thumb .tools,body.thumb .styles,body.thumb .toast{display:none}
 body.thumb .layout{padding:0}
 body.thumb .field{border:0;border-radius:0;flex:1;height:100vh}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}

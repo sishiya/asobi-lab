@@ -53,6 +53,8 @@ function newWorld(seed) {
   const A = () => new Float32Array(N * N);
   W.g = A(); W.w = A(); W.fL = A(); W.fR = A(); W.fU = A(); W.fD = A();
   W.veg = A(); W.alg = A(); W.moist = A(); W.light = A();
+  W.tree = A(); W.tseed = A();          // 木（草がよく茂る所に、ゆっくり育つ）
+  for (const i of INS) W.tseed[i] = rnd();
   W.fall = new Float32Array(BINS);       // 滝の量（なめらかにしたもの。描く用）
   W.fallNow = new Float32Array(BINS);    // この1秒に落ちた量をためる
   W.mist = new Float32Array(BINS);
@@ -106,6 +108,7 @@ function newWorld(seed) {
   for (const i of INS) {
     if (W.w[i] > 0.1) W.alg[i] = 0.25;
     else if (W.moist[i] > 0.35 && rnd() < 0.5) W.veg[i] = 0.3 + rnd() * 0.3;
+    if (W.tseed[i] < 0.07 && W.veg[i] > 0.3 && W.g[i] < 13) W.tree[i] = 0.3 + rnd() * 0.7;
   }
   updateLight();
   // いちばん大きな滝の向き（はじめに手前に見せる）
@@ -219,6 +222,11 @@ function stepPlants(dt) {
       const grow = m[i] * L[i] * (0.03 * v[i] * (1 - v[i]) + 0.0012 * nb);
       const wither = m[i] < 0.12 ? 0.012 : 0;
       v[i] = Math.min(1, Math.max(0, v[i] + (grow - wither * v[i]) * dt));
+    }
+    if (W.tseed[i] < 0.07) {          // 木: 草が茂って乾いた所で育ち、草がなくなるか水につかると枯れる
+      const tr = W.tree;
+      if (v[i] > 0.6 && w[i] < 0.05 && W.g[i] < 13) tr[i] = Math.min(1, tr[i] + 0.004 * dt);
+      else if (v[i] < 0.15 || w[i] > 0.3) tr[i] = Math.max(0, tr[i] - 0.02 * dt);
     }
     if (w[i] > 0.08) a[i] = Math.min(1, a[i] + (0.035 * L[i] * (a[i] * (1 - a[i]) + 0.01)) * dt);
     else a[i] = Math.max(0, a[i] - 0.3 * dt);

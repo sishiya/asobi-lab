@@ -1,14 +1,21 @@
 'use strict';
-// 絵: 深淵に浮かぶ円盤を斜め上から見る。
-//   地形は「斜めから見たボクセル」: 画面の列ごとに、手前のふちから奥へ地面をたどり、
-//   前より上に出た所だけを塗る（ImageData、半分ほどの解像度）。手前のふちの断面は地層。
-//   その上に canvas で、滝・雲・太陽と月・生き物・知らせを描く。
+// 絵の土台（v002）: 見え方 V・投影・画面→大地・区画の色・なめらかな地形の描き方・岩の根。
+//   画風は style-voxel.js（ボクセル）・style-paint.js（絵画）・style-etch.js（銅版画）。STYLES から選ぶ。
+//   どの画風も、地形はまず低い解像度の画素の板 buf（ImageData d32）に描き、それを画面に広げる。
+//   dep は画素ごとの「手前からの近さ v」（生き物や木が山のかげに隠れるかを見る）。
 
 const V = { yaw: -0.5, tilt: 0.56, zoom: 1, cw: 0, ch: 0, s: 8, cx: 0, cy: 0, hf: 0.4, bs: 2 };
-const THICK = 7;                       // 大地の厚み（ふちの断面）
-const Z = new Float32Array(N * N), CR = new Float32Array(N * N), CG = new Float32Array(N * N), CB = new Float32Array(N * N);
-// 大地の外の区画は、いちばん近いふちの区画の値を使う（なめらかに描くため）
-const NEAR = new Int32Array(N * N).fill(-1);
+const THICK = 8;          // 大地の厚み（ふちの断面）
+const ROOT_D = 90;        // 岩の根の深さ（傾けて見ても、ふちのかげから先が出るように深く）
+const NN = N * N;
+const Zs = new Float32Array(NN), Zq = new Float32Array(NN);       // 地＋水の高さ（なめらか／ボクセル用にそろえたもの）
+const TR = new Float32Array(NN), TG = new Float32Array(NN), TB = new Float32Array(NN);   // 上の面の色
+const SR = new Float32Array(NN), SG = new Float32Array(NN), SB = new Float32Array(NN);   // 横の面（土）の色
+const LUM = new Float32Array(NN);                                  // 明るさ（昼夜・雲のかげ）
+const HASH = new Float32Array(NN).map((_, i) => { const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); });
+const hash2 = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
+// 大地の外の区画は、いちばん近いふちの区画の値を使う
+const NEAR = new Int32Array(NN).fill(-1);
 for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
   const i = y * N + x;
   if (inside[i]) { NEAR[i] = i; continue; }
@@ -16,30 +23,52 @@ for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
   const j = Math.round(C + (y - C) * k) * N + Math.round(C + (x - C) * k);
   NEAR[i] = inside[j] ? j : -1;
 }
-const STARS = Array.from({ length: 140 }, (_, k) => ({ x: (k * 7919 % 1000) / 1000, y: (k * 104729 % 997) / 997, r: (k % 5 === 0) ? 1.4 : 0.7, tw: k * 1.7 }));
-const ROOT = Array.from({ length: 48 }, (_, k) => 0.75 + 0.25 * Math.abs(Math.sin(k * 12.9898) * 43758.5453 % 1));
 
-let buf = null, bctx = null, img = null, d32 = null;
+const STYLES = {};
+const STYLE_KEY = 'asobi-lab/edge-falls/style';
+let styleName = 'voxel';
+try { styleName = new URLSearchParams(location.search).get('style') || localStorage.getItem(STYLE_KEY) || 'voxel'; } catch (e) { /* なし */ }
+const style = () => STYLES[styleName] || STYLES.voxel;
+function setStyle(n) {
+  if (!STYLES[n]) return;
+  styleName = n;
+  try { localStorage.setItem(STYLE_KEY, n); } catch (e) { /* なし */ }
+  buf = null; layout(V.cw, V.ch);
+}
+
+let buf = null, bctx = null, img = null, d32 = null, dep = null;
 
 function layout(cw, ch) {
   V.cw = cw; V.ch = ch;
   const el = Math.asin(V.tilt);
   V.hf = Math.cos(el) * 0.5;
-  const fitW = cw * 0.9 / (2 * RD), fitH = ch * 0.86 / (2 * RD * V.tilt + (16 + THICK + 10) * V.hf);
+  const fitW = cw * 0.9 / (2 * RD), fitH = ch * 0.84 / (2 * RD * V.tilt + (16 + THICK + 12) * V.hf);
   V.s = Math.min(fitW, fitH) * V.zoom;
   V.cx = cw / 2; V.cy = ch * 0.5 - (THICK + 4) * V.s * V.hf * 0.6 + (16 * V.s * V.hf) * 0.25;
-  V.bs = Math.max(2, cw / 640);
-  const BW = Math.ceil(cw / V.bs), BH = Math.ceil(ch / V.bs);
+  V.bs = style().bs(cw);
+  const BW = Math.max(1, Math.ceil(cw / V.bs)), BH = Math.max(1, Math.ceil(ch / V.bs));
   if (!buf || buf.width !== BW || buf.height !== BH) {
     buf = document.createElement('canvas'); buf.width = BW; buf.height = BH;
     bctx = buf.getContext('2d'); img = bctx.createImageData(BW, BH); d32 = new Uint32Array(img.data.buffer);
+    dep = new Float32Array(BW * BH);
   }
+  V.dirty = true;
 }
 
 function proj(x, y, z) {
   const dx = x - C, dy = y - C, c = Math.cos(V.yaw), s = Math.sin(V.yaw);
   const u = dx * c - dy * s, v = dx * s + dy * c;
   return { x: V.cx + u * V.s, y: V.cy + v * V.s * V.tilt - z * V.s * V.hf, v };
+}
+// 板（buf）の座標で
+function pb(x, y, z) { const p = proj(x, y, z); p.x /= V.bs; p.y /= V.bs; return p; }
+
+// 見えている面の高さ（ボクセルはそろえた高さ、ほかはなめらか）
+function surfAt(x, y) {
+  if (style().quant) { const i = NEAR[Math.round(y) * N + Math.round(x)]; return i >= 0 ? Zq[i] : 0; }
+  const xi = Math.max(0, Math.min(N - 2, Math.floor(x))), yi = Math.max(0, Math.min(N - 2, Math.floor(y)));
+  const fx = x - xi, fy = y - yi, i = yi * N + xi;
+  return (Zs[i] * (1 - fx) + Zs[i + 1] * fx) * (1 - fy) + (Zs[i + N] * (1 - fx) + Zs[i + N + 1] * fx) * fy;
 }
 
 // 画面の点 → 大地の点（見えている面）。なければ null
@@ -50,7 +79,7 @@ function pick(sx, sy) {
   const ve = Math.sqrt(RD * RD - u * u) - 0.5;
   for (let v = ve; v >= -ve; v -= 0.2) {
     const wx = C + u * c + v * s, wy = C - u * s + v * c;
-    const z = heightAt(wx, wy, true);
+    const z = surfAt(wx, wy);
     const y = V.cy + v * V.s * V.tilt - z * V.s * V.hf;
     if (y <= sy) {
       if (v === ve && sy > y + THICK * V.s * V.hf) return null;
@@ -61,349 +90,241 @@ function pick(sx, sy) {
 }
 
 const mix = (a, b, t) => a + (b - a) * t;
+const clamp255 = v => v < 0 ? 0 : v > 255 ? 255 : v;
+const rgba = (r, g, b) => (255 << 24) | ((clamp255(b) & 255) << 16) | ((clamp255(g) & 255) << 8) | (clamp255(r) & 255);
+function blend(k, r, g, b, a) {           // d32[k] に色を重ねる
+  const o = d32[k];
+  if (!(o >>> 24)) { d32[k] = (((a * 255) & 255) << 24) | ((b & 255) << 16) | ((g & 255) << 8) | (r & 255); return; }
+  const or = o & 255, og = (o >> 8) & 255, ob = (o >> 16) & 255, oa = o >>> 24;
+  d32[k] = (Math.max(oa, (a * 255) | 0) << 24) | ((ob + (b - ob) * a) << 16) | ((og + (g - og) * a) << 8) | (or + (r - or) * a);
+}
 
-// 区画の色と高さ（毎フレーム）
+// 区画の色（土台の自然な色。画風ごとにこれを使って塗り分ける）
+const shadeCloud = new Float32Array(NN);
+const NB4 = [-1, 1, -N, N];
 function cellColors() {
   const g = W.g, w = W.w, veg = W.veg, alg = W.alg, m = W.moist, Lt = W.light;
-  for (const i of INS) Z[i] = g[i] + w[i];
-  const lx = Math.cos(W.sun.a), ly = Math.sin(W.sun.a);
   for (const i of INS) {
+    Zs[i] = g[i] + w[i];
+    const gq = Math.round(g[i]);
+    Zq[i] = w[i] > 0.06 ? Math.max(gq, Math.round((g[i] + w[i]) * 2) / 2) : gq;
+  }
+  // 雲のかげ（太陽と反対へ少しずらす）
+  shadeCloud.fill(1);
+  const sx = Math.cos(W.sun.a), sy = Math.sin(W.sun.a);
+  for (const cl of W.clouds) {
+    const r = 2 + Math.sqrt(cl.water) * 0.55, cx = cl.x - sx * 4, cy = cl.y - sy * 4, k = Math.min(1, cl.water / 4);
+    for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(N - 1, cy + r); y++)
+      for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(N - 1, cx + r); x++)
+        if ((x - cx) ** 2 + (y - cy) ** 2 < r * r) shadeCloud[y * N + x] *= 1 - 0.18 * k;
+  }
+  for (const i of INS) {
+    const h = g[i], jit = 0.95 + HASH[i] * 0.1;
+    let slope = 0;
+    for (const o of NB4) { const j = i + o; if (inside[j]) slope = Math.max(slope, Math.abs(Zs[j] - Zs[i])); }
+    // 土・岩・雪（横の面にも使う）
     let r, gg, b;
-    const h = g[i];
-    // 土の色（高さで）
-    if (h < 2.5) { r = 204; gg = 188; b = 138; }
-    else if (h < 9) { const t = (h - 2.5) / 6.5; r = mix(170, 142, t); gg = mix(140, 116, t); b = mix(96, 86, t); }
-    else if (h < 14) { const t = (h - 9) / 5; r = mix(142, 132, t); gg = mix(116, 126, t); b = mix(86, 122, t); }
-    else { r = 236; gg = 236; b = 240; }
-    const dm = 1 - 0.18 * m[i]; r *= dm; gg *= dm; b *= dm;
+    if (h >= 13.5) { r = 236; gg = 238; b = 244; }
+    else if (slope > 1.6 || h > 10.5) { const t = Math.min(1, Math.max(0, (h - 8) / 5)); r = mix(132, 150, t); gg = mix(118, 142, t); b = mix(104, 138, t); }
+    else if (h < 3.2 || (m[i] > 0.95 && h < 5)) { r = 218; gg = 198; b = 146; }
+    else { const t = Math.min(1, (h - 3) / 8); r = mix(156, 128, t); gg = mix(112, 96, t); b = mix(72, 70, t); }
+    r *= jit; gg *= jit; b *= jit;
+    SR[i] = r * 0.82; SG[i] = gg * 0.8; SB[i] = b * 0.78;
+    // 草・花
     const v = veg[i];
-    if (v > 0.02 && h < 14) { const t = Math.min(1, v * 1.1); r = mix(r, mix(120, 62, v), t); gg = mix(gg, mix(165, 118, v), t); b = mix(b, mix(70, 48, v), t); }
-    const wd = w[i];
-    if (wd > 0.03) {
-      const t = Math.min(1, wd / 3.2);
-      let wr = mix(118, 26, t), wg = mix(188, 70, t), wb = mix(204, 128, t);
-      const a = alg[i] * 0.45; wr = mix(wr, 70, a); wg = mix(wg, 132, a); wb = mix(wb, 92, a);
-      const sp = (W.fL[i] + W.fR[i] + W.fU[i] + W.fD[i]) / (wd + 0.15);
-      if (sp > 2.5) { const f = Math.min(0.55, (sp - 2.5) * 0.12); wr = mix(wr, 235, f); wg = mix(wg, 245, f); wb = mix(wb, 250, f); }
-      const k = Math.min(1, (wd - 0.03) / 0.25);
-      r = mix(r, wr, k); gg = mix(gg, wg, k); b = mix(b, wb, k);
+    if (v > 0.03 && h < 13.5 && slope < 2.5) {
+      const tone = HASH[i] > 0.5 ? 1 : 0.9, t = Math.min(1, v * 1.4);
+      r = mix(r, mix(150, 66, v) * tone, t); gg = mix(gg, mix(188, 132, v) * tone, t); b = mix(b, mix(84, 52, v) * tone, t);
+      if (v > 0.6 && HASH[i] > 0.972) { if (HASH[i] > 0.986) { r = 246; gg = 222; b = 92; } else { r = 240; gg = 236; b = 236; } }
     }
-    // 日の向きに向いた坂は明るく
-    const gx = (Z[inside[i + 1] ? i + 1 : i] - Z[inside[i - 1] ? i - 1 : i]) * 0.5;
-    const gy = (Z[inside[i + N] ? i + N : i] - Z[inside[i - N] ? i - N : i]) * 0.5;
-    const sh = Math.max(0.62, Math.min(1.3, 1 - 0.28 * (gx * lx + gy * ly)));
-    // 昼と夜
-    const lum = 0.28 + 0.72 * Lt[i];
-    CR[i] = Math.min(255, r * sh * lum * 0.92); CG[i] = Math.min(255, gg * sh * lum * 0.96); CB[i] = Math.min(255, b * sh * Math.min(1, lum + 0.12));
+    // 水
+    const wd = w[i];
+    if (wd > 0.06) {
+      const t = Math.min(1, wd / 3);
+      let wr = mix(92, 22, t), wg = mix(186, 78, t), wb = mix(204, 138, t);
+      const a = alg[i] * 0.5; wr = mix(wr, 64, a); wg = mix(wg, 140, a); wb = mix(wb, 96, a);
+      const sp = (W.fL[i] + W.fR[i] + W.fU[i] + W.fD[i]) / (wd + 0.15);
+      let shore = false;
+      for (const o of NB4) { const j = i + o; if (inside[j] && w[j] <= 0.06) shore = true; }
+      const foam = Math.min(0.6, Math.max(0, sp - 2.2) * 0.13) + (shore ? 0.22 : 0);
+      wr = mix(wr, 236, foam); wg = mix(wg, 246, foam); wb = mix(wb, 250, foam);
+      const k = Math.min(1, (wd - 0.06) / 0.2);
+      r = mix(r, wr, k); gg = mix(gg, wg, k); b = mix(b, wb, k);
+      SR[i] = wr * 0.7; SG[i] = wg * 0.75; SB[i] = wb * 0.85;
+    }
+    // くぼみの影（まわりが高いほど暗い）
+    let ao = 0;
+    for (const o of NB4) { const j = i + o; if (inside[j] && Zq[j] > Zq[i]) ao++; }
+    const sh = 1 - 0.06 * ao;
+    TR[i] = r * sh; TG[i] = gg * sh; TB[i] = b * sh;
+    LUM[i] = (0.3 + 0.7 * Lt[i]) * shadeCloud[i];
   }
-  for (let i = 0; i < N * N; i++) if (!inside[i]) {
+  for (let i = 0; i < NN; i++) if (!inside[i]) {
     const j = NEAR[i];
-    if (j >= 0) { Z[i] = Z[j]; CR[i] = CR[j]; CG[i] = CG[j]; CB[i] = CB[j]; } else Z[i] = 0;
+    if (j >= 0) { Zs[i] = Zs[j]; Zq[i] = Zq[j]; TR[i] = TR[j]; TG[i] = TG[j]; TB[i] = TB[j]; SR[i] = SR[j]; SG[i] = SG[j]; SB[i] = SB[j]; LUM[i] = LUM[j]; }
+    else { Zs[i] = Zq[i] = 0; }
   }
 }
+// 昼夜の色: 夜は青く暗く
+function lit(r, g, b, L, out) { out[0] = r * L * 0.95; out[1] = g * L * 0.98; out[2] = b * Math.min(1, L + 0.14); return out; }
 
-// 地層の色（ふちの断面）
-const STRATA = [[96, 70, 46], [168, 132, 92], [138, 102, 70], [188, 156, 112], [118, 92, 68], [158, 124, 88]];
-function strata(dz, u) {
-  if (dz < 0.6) return STRATA[0];
-  const k = Math.floor((dz + Math.sin(u * 0.35) * 0.5 + 0.4) / 1.25);
-  return STRATA[1 + ((k % 5) + 5) % 5];
-}
-
-function renderTerrain() {
+// なめらかな地形（絵画・銅版画）。rimColor(row,dz,u)→ふちの断面の色、rootColor(t,row,u,d)→岩の根の色
+const TMP = [0, 0, 0];
+function renderSmooth(rimColor, rootColor) {
   const BW = buf.width, BH = buf.height;
-  d32.fill(0);
+  d32.fill(0); dep.fill(-1e9);
   const c = Math.cos(V.yaw), s = Math.sin(V.yaw);
   const sb = V.s / V.bs, cxb = V.cx / V.bs, cyb = V.cy / V.bs, hb = V.s * V.hf / V.bs, tl = V.tilt;
   const dv = 1 / (sb * tl);
+  const lx = Math.cos(W.sun.a), ly = Math.sin(W.sun.a);
   for (let px = 0; px < BW; px++) {
     const u = (px + 0.5 - cxb) / sb;
     if (Math.abs(u) >= RD - 0.6) continue;
     const ve = Math.sqrt((RD - 0.6) ** 2 - u * u);
-    let ybuf = Math.min(BH, Math.ceil(cyb + ve * sb * tl + THICK * hb));
-    let first = true;
+    const ybot = Math.min(BH, Math.ceil(cyb + ve * sb * tl + THICK * hb));
+    renderRoot(px, u, ybot, false, rootColor);
+    let ybuf = ybot, first = true;
     for (let v = ve; v >= -ve && ybuf > 0; v -= dv) {
       const wx = C + u * c + v * s, wy = C - u * s + v * c;
-      const xi = wx | 0, yi = wy | 0, fx = wx - xi, fy = wy - yi;
-      const i = yi * N + xi;
+      const xi = wx | 0, yi = wy | 0, fx = wx - xi, fy = wy - yi, i = yi * N + xi;
       const w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy), w01 = (1 - fx) * fy, w11 = fx * fy;
-      const z = Z[i] * w00 + Z[i + 1] * w10 + Z[i + N] * w01 + Z[i + N + 1] * w11;
+      const z = Zs[i] * w00 + Zs[i + 1] * w10 + Zs[i + N] * w01 + Zs[i + N + 1] * w11;
       const y = cyb + v * sb * tl - z * hb;
       let yt = Math.floor(y);
       if (yt < ybuf) {
-        const r = CR[i] * w00 + CR[i + 1] * w10 + CR[i + N] * w01 + CR[i + N + 1] * w11;
-        const g = CG[i] * w00 + CG[i + 1] * w10 + CG[i + N] * w01 + CG[i + N + 1] * w11;
-        const b = CB[i] * w00 + CB[i + 1] * w10 + CB[i + N] * w01 + CB[i + N + 1] * w11;
-        const top = (255 << 24) | ((b & 255) << 16) | ((g & 255) << 8) | (r & 255);
+        // 日の向きの坂は明るく
+        const gx = (Zs[i + 1] - Zs[i]) * (1 - fy) + (Zs[i + N + 1] - Zs[i + N]) * fy;
+        const gy = (Zs[i + N] - Zs[i]) * (1 - fx) + (Zs[i + N + 1] - Zs[i + 1]) * fx;
+        const sh = Math.max(0.6, Math.min(1.35, 1 - 0.3 * (gx * lx + gy * ly)));
+        const bil = A => A[i] * w00 + A[i + 1] * w10 + A[i + N] * w01 + A[i + N + 1] * w11;
+        lit(bil(TR), bil(TG), bil(TB), bil(LUM) * sh, TMP);
+        const top = rgba(TMP[0], TMP[1], TMP[2]);
         if (yt < 0) yt = 0;
         if (first) {
-          d32[yt * BW + px] = top;
-          for (let row = yt + 1; row < ybuf; row++) {
-            const dz = (row - y) / hb, col = strata(dz, u), k = 0.78 - Math.min(0.3, dz * 0.02);
-            d32[row * BW + px] = (255 << 24) | ((col[2] * k) << 16) | ((col[1] * k) << 8) | (col[0] * k);
-          }
+          d32[yt * BW + px] = top; dep[yt * BW + px] = v;
+          for (let row = yt + 1; row < ybuf; row++) { d32[row * BW + px] = rimColor(row, (row - y) / hb, u); dep[row * BW + px] = v + 0.5; }
         } else {
-          // 1〜2 画素の段は上の面と同じ色（縞にならないように）。それより高い崖は暗く
-          const steep = ybuf - yt > 2;
-          d32[yt * BW + px] = top;
-          const k = steep ? 0.72 : 1;
-          const face = (255 << 24) | (((b * k) & 255) << 16) | (((g * k) & 255) << 8) | ((r * k) & 255);
-          for (let row = yt + 1; row < ybuf; row++) d32[row * BW + px] = face;
+          const k = ybuf - yt > 2 ? 0.72 : 1;
+          const face = rgba(TMP[0] * k, TMP[1] * k, TMP[2] * k);
+          d32[yt * BW + px] = top; dep[yt * BW + px] = v;
+          for (let row = yt + 1; row < ybuf; row++) { d32[row * BW + px] = face; dep[row * BW + px] = v; }
         }
         ybuf = yt;
       }
       first = false;
     }
   }
-  bctx.putImageData(img, 0, 0);
 }
 
-function drawBackground(ctx, t) {
-  const g = ctx.createLinearGradient(0, 0, 0, V.ch);
-  g.addColorStop(0, '#1d2742'); g.addColorStop(0.55, '#0d1222'); g.addColorStop(1, '#04060b');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, V.cw, V.ch);
-  for (const st of STARS) {
-    const x = ((st.x + V.yaw / (Math.PI * 2) * 0.6) % 1 + 1) % 1 * V.cw, y = st.y * V.ch;
-    ctx.globalAlpha = 0.35 + 0.35 * Math.sin(t * 1.3 + st.tw);
-    ctx.fillStyle = '#e8eefc'; ctx.fillRect(x, y, st.r, st.r);
+// 岩の根（大地の下の、先のとがった岩）。quant=true はボクセルの段々
+function renderRoot(px, u, ybot, quant, rootColor) {
+  const BW = buf.width, BH = buf.height;
+  const sb = V.s / V.bs, cyb = V.cy / V.bs, hb = V.s * V.hf / V.bs, tl = V.tilt;
+  let prev = ybot;
+  const step = quant ? 2 : 1;
+  for (let d = step; d <= ROOT_D; d += step) {
+    const t = d / ROOT_D;
+    const key = quant ? Math.floor(u) : Math.floor(u / 3);
+    const r = (RD - 0.6) * Math.pow(1 - t, 0.75) + (hash2(key, d) - 0.5) * (quant ? 3 : 2.5);
+    if (Math.abs(u) >= r) break;
+    const vk = Math.sqrt(r * r - u * u);
+    const yk = Math.min(BH, Math.round(cyb + vk * sb * tl + (THICK + d) * hb));
+    for (let row = Math.max(prev, 0); row < yk; row++) d32[row * BW + px] = rootColor(t, row, u, d);
+    if (yk > prev) prev = yk;
   }
-  ctx.globalAlpha = 1;
 }
 
-// 大地の下の岩の根
-function drawRoot(ctx) {
-  const n = ROOT.length, pts = [];
-  for (let k = 0; k <= n; k++) {
-    const a = k / n * Math.PI * 2;
-    const p = proj(C + Math.cos(a) * (RD - 0.6), C + Math.sin(a) * (RD - 0.6), -THICK);
-    if (p.v >= -1) pts.push(p);
-  }
-  ctx.beginPath();
-  // 手前のふち（左から右へ）を下の線として、根の先へ
-  pts.sort((a, b) => a.x - b.x);
-  if (!pts.length) return;
-  const low = Math.max(...pts.map(p => p.y));
-  const apex = { x: proj(C, C, 0).x, y: low + RD * V.s * 0.5 };
-  ctx.moveTo(pts[0].x, pts[0].y);
-  for (let k = 0; k < n; k++) {
-    const t = k / (n - 1);
-    const x = mix(pts[pts.length - 1].x, apex.x, t), y = mix(pts[pts.length - 1].y, apex.y, t * t);
-    const j = ROOT[k] * V.s * 2.2 * Math.sin(t * Math.PI);
-    ctx.lineTo(x - j * (1 - t), y + (k % 2 ? j * 0.3 : 0));
-  }
-  for (let k = n - 1; k >= 0; k--) {
-    const t = k / (n - 1);
-    const x = mix(pts[0].x, apex.x, t), y = mix(pts[0].y, apex.y, t * t);
-    const j = ROOT[(k + 17) % n] * V.s * 2.2 * Math.sin(t * Math.PI);
-    ctx.lineTo(x + j * (1 - t), y + (k % 2 ? j * 0.3 : 0));
-  }
-  ctx.closePath();
-  const g = ctx.createLinearGradient(0, pts[0].y, 0, apex.y);
-  g.addColorStop(0, '#6b5038'); g.addColorStop(0.45, '#4a3828'); g.addColorStop(1, 'rgba(40,30,24,0)');
-  ctx.fillStyle = g; ctx.fill();
-}
-
-function drawFalls(ctx, t) {
+// 生き物（線と面で。絵画と銅版画）。pal: {deer:[体,こい色], wolf, fish, ink, lw, shadow}
+function drawAnimalVec(ctx, a, p, sz, pal) {
   const c = Math.cos(V.yaw), s = Math.sin(V.yaw);
-  const L = (THICK + 26) * V.s * V.hf + RD * V.s * 0.25;
+  const f = (Math.cos(a.dir) * c - Math.sin(a.dir) * s) >= 0 ? 1 : -1;
+  ctx.save(); ctx.translate(p.x, p.y); ctx.scale(f, 1);
+  ctx.lineWidth = pal.lw || Math.max(1, sz * 0.1); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const [body, dark] = pal[a.kind];
+  const ink = pal.ink || dark;
+  if (a.kind === 'fish') {
+    const wig = Math.sin(a.phase * 9) * 0.2;
+    ctx.fillStyle = body; ctx.strokeStyle = ink;
+    ctx.beginPath(); ctx.ellipse(0, 0, sz * 0.5, sz * 0.24, 0, 0, 7);
+    ctx.moveTo(-sz * 0.42, 0); ctx.lineTo(-sz * 0.75, -sz * (0.22 + wig)); ctx.lineTo(-sz * 0.75, sz * (0.22 - wig)); ctx.closePath();
+    ctx.fill(); if (pal.ink) ctx.stroke();
+  } else {
+    const deer = a.kind === 'deer', leg = Math.sin(a.phase * 10) * sz * 0.12;
+    if (pal.shadow) { ctx.fillStyle = pal.shadow; ctx.beginPath(); ctx.ellipse(0, sz * 0.42, sz * 0.45, sz * 0.1, 0, 0, 7); ctx.fill(); }
+    ctx.strokeStyle = dark;
+    ctx.beginPath();
+    ctx.moveTo(-sz * 0.28, 0); ctx.lineTo(-sz * 0.28 + leg, sz * 0.42); ctx.moveTo(sz * 0.26, 0); ctx.lineTo(sz * 0.26 - leg, sz * 0.42);
+    ctx.stroke();
+    ctx.fillStyle = body; ctx.strokeStyle = ink;
+    ctx.beginPath(); ctx.ellipse(0, -sz * 0.05, sz * 0.42, sz * 0.22, 0, 0, 7);
+    if (deer) { ctx.moveTo(sz * 0.3, -sz * 0.12); ctx.lineTo(sz * 0.5, -sz * 0.5); ctx.lineTo(sz * 0.62, -sz * 0.4); ctx.closePath(); }
+    else { ctx.moveTo(sz * 0.32, -sz * 0.18); ctx.lineTo(sz * 0.7, -sz * 0.22); ctx.lineTo(sz * 0.45, -sz * 0.42); ctx.lineTo(sz * 0.46, -sz * 0.55); ctx.lineTo(sz * 0.38, -sz * 0.36); ctx.closePath(); }
+    ctx.fill(); if (pal.ink) ctx.stroke();
+    ctx.strokeStyle = deer ? dark : body;
+    ctx.beginPath();
+    if (deer) { ctx.moveTo(sz * 0.5, -sz * 0.5); ctx.lineTo(sz * 0.46, -sz * 0.75); ctx.moveTo(sz * 0.52, -sz * 0.6); ctx.lineTo(sz * 0.64, -sz * 0.78); }
+    else { ctx.moveTo(-sz * 0.4, -sz * 0.1); ctx.quadraticCurveTo(-sz * 0.65, -sz * 0.05, -sz * 0.72, sz * 0.15); }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// 奥から並べた、描くもの一覧（生き物・木）。山のかげに入ったものは除く
+function sceneItems() {
+  const items = [], BW = buf.width, BH = buf.height;
+  const hidden = p => {
+    const bx = Math.round(p.x / V.bs), by = Math.round(p.y / V.bs) - 1;
+    if (bx < 0 || by < 0 || bx >= BW || by >= BH) return false;
+    return dep[by * BW + bx] > p.v + 1.6;
+  };
+  for (const a of L.list) {
+    const z = a.kind === 'fish' ? surfAt(a.x, a.y) - 0.25 : surfAt(a.x, a.y);
+    const p = proj(a.x, a.y, z);
+    if (!hidden(p)) items.push({ type: 'animal', a, p });
+  }
+  for (const i of INS) {
+    const t = W.tree[i];
+    if (t < 0.08) continue;
+    const x = i % N + (HASH[i] - 0.5) * 0.6, y = (i / N | 0) + (HASH[(i * 7) % NN] - 0.5) * 0.6;
+    const p = proj(x, y, surfAt(x, y));
+    if (!hidden(p)) items.push({ type: 'tree', i, t, p, conifer: W.g[i] > 8.5, hi: HASH[i] });
+  }
+  items.sort((m, n) => m.p.v - n.p.v);
+  return items;
+}
+
+// 滝（手前に見えるものだけ）: {b, q, top(画面), wid(画面), L(画面の長さ)}
+function fallList() {
+  const c = Math.cos(V.yaw), s = Math.sin(V.yaw), out = [];
+  const L = (THICK + 26) * V.s * V.hf + RD * V.s * 0.3;
   for (let b = 0; b < BINS; b++) {
     const q = W.fall[b];
     if (q < 0.015) continue;
     const a = (b + 0.5) / BINS * Math.PI * 2;
     const ex = C + Math.cos(a) * (RD - 0.8), ey = C + Math.sin(a) * (RD - 0.8);
-    const top = proj(ex, ey, heightAt(ex, ey, true));
-    if (top.v < -RD * 0.12) continue;      // 向こうがわの滝は大地のかげ
+    const top = proj(ex, ey, surfAt(ex, ey));
+    if (top.v < -RD * 0.12) continue;
     const tu = -Math.sin(a) * c - Math.cos(a) * s;
     const wid = Math.max(2, (2 * Math.PI * RD / BINS) * V.s * Math.abs(tu) * Math.min(1.1, 0.5 + q * 0.5) + V.s * 0.5);
-    const al = Math.min(0.92, 0.3 + q * 0.45);
-    const gr = ctx.createLinearGradient(0, top.y, 0, top.y + L);
-    gr.addColorStop(0, `rgba(225,240,255,${al})`); gr.addColorStop(0.55, `rgba(190,215,240,${al * 0.55})`); gr.addColorStop(1, 'rgba(190,215,240,0)');
-    ctx.fillStyle = gr;
-    ctx.fillRect(top.x - wid / 2, top.y, wid, L);
-    // 流れ落ちる筋
-    ctx.fillStyle = `rgba(255,255,255,${al * 0.7})`;
-    const sp = 40 * V.s * V.hf;
-    for (let k = 0; k < 3; k++) {
-      const off = ((t * sp * (0.8 + k * 0.15) + k * 41 + b * 17) % L);
-      const x = top.x - wid / 2 + ((k * 0.37 + b * 0.13) % 1) * wid;
-      ctx.globalAlpha = 1 - off / L;
-      ctx.fillRect(x, top.y + off, Math.max(1, wid * 0.12), Math.min(L - off, V.s * 2.2));
-    }
-    ctx.globalAlpha = 1;
-    // 霧
-    if (q > 0.12) {
-      for (let k = 0; k < 3; k++) {
-        const ph = (t * 0.25 + k / 3 + b * 0.07) % 1;
-        const yy = top.y + L * (0.35 + 0.6 * ph), rr = (wid * 0.6 + V.s * 1.2) * (0.6 + ph);
-        ctx.fillStyle = `rgba(220,232,250,${0.12 * (1 - ph) * Math.min(1, q)})`;
-        ctx.beginPath(); ctx.arc(top.x + Math.sin(t * 0.7 + b + k) * wid * 0.5, yy, rr, 0, 7); ctx.fill();
-      }
-    }
+    out.push({ b, q, top, wid, L });
   }
-}
-
-function drawSpring(ctx, sp, t) {
-  const x = sp.i % N, y = sp.i / N | 0, p = proj(x, y, Z[sp.i] + 0.2);
-  const r = Math.max(3, V.s * 0.7);
-  ctx.strokeStyle = sp.on ? 'rgba(200,235,255,0.95)' : 'rgba(120,120,120,0.9)'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.ellipse(p.x, p.y, r, r * V.tilt, 0, 0, 7); ctx.stroke();
-  if (sp.on) {
-    const k = (t * 0.8) % 1;
-    ctx.globalAlpha = 1 - k; ctx.beginPath(); ctx.ellipse(p.x, p.y, r * (1 + k * 1.5), r * V.tilt * (1 + k * 1.5), 0, 0, 7); ctx.stroke(); ctx.globalAlpha = 1;
-  }
-}
-
-function drawAnimal(ctx, a, p) {
-  const sz = Math.max(5, V.s * (a.kind === 'fish' ? 0.75 : a.kind === 'wolf' ? 1.05 : 1.0));
-  const c = Math.cos(V.yaw), s = Math.sin(V.yaw);
-  const su = Math.cos(a.dir) * c - Math.sin(a.dir) * s;
-  const f = su >= 0 ? 1 : -1;
-  ctx.save(); ctx.translate(p.x, p.y); ctx.scale(f, 1);
-  ctx.lineWidth = Math.max(1, sz * 0.12); ctx.lineCap = 'round';
-  if (a.kind === 'fish') {
-    ctx.globalAlpha = 0.9;
-    const wig = Math.sin(a.phase * 9) * 0.2;
-    ctx.fillStyle = '#ef9a4a'; ctx.strokeStyle = '#7a3e14';
-    ctx.beginPath(); ctx.ellipse(0, 0, sz * 0.5, sz * 0.24, 0, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(-sz * 0.42, 0); ctx.lineTo(-sz * 0.75, -sz * (0.22 + wig)); ctx.lineTo(-sz * 0.75, sz * (0.22 - wig)); ctx.closePath(); ctx.fill();
-    ctx.globalAlpha = 1;
-  } else {
-    const deer = a.kind === 'deer';
-    const body = deer ? '#a8743f' : '#8b8d94', dark = deer ? '#5a3a1c' : '#3d3f46';
-    const leg = Math.sin(a.phase * 10) * sz * 0.12;
-    ctx.strokeStyle = dark;
-    ctx.beginPath();
-    ctx.moveTo(-sz * 0.28, 0); ctx.lineTo(-sz * 0.28 + leg, sz * 0.42);
-    ctx.moveTo(sz * 0.26, 0); ctx.lineTo(sz * 0.26 - leg, sz * 0.42);
-    ctx.stroke();
-    ctx.fillStyle = body;
-    ctx.beginPath(); ctx.ellipse(0, -sz * 0.05, sz * 0.42, sz * 0.22, 0, 0, 7); ctx.fill();
-    if (deer) {
-      ctx.beginPath(); ctx.moveTo(sz * 0.3, -sz * 0.12); ctx.lineTo(sz * 0.5, -sz * 0.5); ctx.lineTo(sz * 0.62, -sz * 0.4); ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(sz * 0.5, -sz * 0.5); ctx.lineTo(sz * 0.46, -sz * 0.75); ctx.moveTo(sz * 0.52, -sz * 0.6); ctx.lineTo(sz * 0.64, -sz * 0.78); ctx.stroke();
-      ctx.fillStyle = '#f2ead8'; ctx.beginPath(); ctx.arc(-sz * 0.44, -sz * 0.12, sz * 0.08, 0, 7); ctx.fill();
-    } else {
-      ctx.beginPath(); ctx.moveTo(sz * 0.32, -sz * 0.18); ctx.lineTo(sz * 0.7, -sz * 0.22); ctx.lineTo(sz * 0.45, -sz * 0.42); ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(sz * 0.42, -sz * 0.36); ctx.lineTo(sz * 0.46, -sz * 0.55); ctx.lineTo(sz * 0.52, -sz * 0.36); ctx.fill();
-      ctx.strokeStyle = body; ctx.beginPath(); ctx.moveTo(-sz * 0.4, -sz * 0.1); ctx.quadraticCurveTo(-sz * 0.65, -sz * 0.05, -sz * 0.72, sz * 0.15); ctx.stroke();
-    }
-  }
-  ctx.restore();
-}
-
-function drawCloud(ctx, cl) {
-  const r = 2 + Math.sqrt(cl.water) * 0.55;
-  const z = 19 + (cl.seed % 3);
-  const gz = heightAt(cl.x, cl.y, true);
-  const sh = proj(cl.x, cl.y, gz);
-  ctx.fillStyle = `rgba(10,20,30,${0.07 * Math.min(1, cl.water / 4)})`;
-  ctx.beginPath(); ctx.ellipse(sh.x, sh.y, r * V.s, r * V.s * V.tilt, 0, 0, 7); ctx.fill();
-  const p = proj(cl.x, cl.y, z);
-  if (cl.rain > 0.12) {
-    ctx.strokeStyle = 'rgba(170,195,225,0.35)'; ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let k = 0; k < 7; k++) {
-      const ox = ((k * 0.29 + cl.seed) % 1 - 0.5) * r * V.s * 1.4, oy = ((performance.now() / 300 + k * 0.37) % 1) * (sh.y - p.y);
-      ctx.moveTo(p.x + ox, p.y + oy); ctx.lineTo(p.x + ox - 1, p.y + oy + V.s * 1.2);
-    }
-    ctx.stroke();
-  }
-  const dark = Math.min(0.45, cl.water / 80);
-  const shade = Math.round(250 - dark * 120);
-  const fade = Math.min(1, cl.age / 3, cl.water / 2);
-  for (let k = 0; k < 5; k++) {
-    const ox = Math.sin(cl.seed + k * 2.1) * r * 0.6, oy = Math.cos(cl.seed * 0.7 + k * 1.7) * r * 0.22;
-    const rr = r * V.s * (0.5 + 0.12 * Math.sin(cl.seed + k));
-    const x = p.x + ox * V.s, y = p.y + oy * V.s - (k === 2 ? rr * 0.3 : 0);
-    const gr = ctx.createRadialGradient(x, y - rr * 0.2, rr * 0.1, x, y, rr);
-    gr.addColorStop(0, `rgba(${shade + 5},${shade + 5},${shade + 8},${0.75 * fade})`);
-    gr.addColorStop(0.7, `rgba(${shade},${shade},${shade + 4},${0.55 * fade})`);
-    gr.addColorStop(1, `rgba(${shade},${shade},${shade + 4},0)`);
-    ctx.fillStyle = gr;
-    ctx.beginPath(); ctx.arc(x, y, rr, 0, 7); ctx.fill();
-  }
-}
-
-function drawBody(ctx, b, isSun, t) {
-  const p = proj(C + RS * Math.cos(b.a), C + RS * Math.sin(b.a), HS);
-  const r = Math.max(10, V.s * (isSun ? 2.0 : 1.6));
-  // 地へおろした線（どこを照らしているか）
-  const gp = proj(C + RS * Math.cos(b.a), C + RS * Math.sin(b.a), heightAt(C + RS * Math.cos(b.a), C + RS * Math.sin(b.a), true));
-  ctx.strokeStyle = isSun ? 'rgba(255,220,120,0.25)' : 'rgba(210,220,255,0.18)'; ctx.setLineDash([3, 5]); ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(p.x, p.y + r); ctx.lineTo(gp.x, gp.y); ctx.stroke(); ctx.setLineDash([]);
-  if (isSun) {
-    const g = ctx.createRadialGradient(p.x, p.y, r * 0.3, p.x, p.y, r * 3);
-    g.addColorStop(0, 'rgba(255,225,130,0.55)'); g.addColorStop(1, 'rgba(255,200,90,0)');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r * 3, 0, 7); ctx.fill();
-    ctx.strokeStyle = '#f6c450'; ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2 + t * 0.2; ctx.moveTo(p.x + Math.cos(a) * r * 1.2, p.y + Math.sin(a) * r * 1.2); ctx.lineTo(p.x + Math.cos(a) * r * 1.6, p.y + Math.sin(a) * r * 1.6); }
-    ctx.stroke();
-    ctx.fillStyle = '#ffd866'; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill();
-    ctx.strokeStyle = '#b8862a'; ctx.lineWidth = 1.5; ctx.stroke();
-  } else {
-    ctx.fillStyle = '#e9ecf4'; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill();
-    // 満ち欠け: 太陽から離れるほど満ちる
-    const ph = ((W.moon.a - W.sun.a) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
-    const lit = (1 - Math.cos(ph)) / 2;
-    ctx.fillStyle = 'rgba(30,38,60,0.85)';
-    ctx.beginPath(); ctx.arc(p.x + r * 2 * lit * (ph < Math.PI ? 1 : -1), p.y, r * 1.02, 0, 7);
-    ctx.save(); ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.clip();
-    ctx.beginPath(); ctx.arc(p.x + r * 2 * lit * (ph < Math.PI ? 1 : -1), p.y, r * 1.02, 0, 7); ctx.fill(); ctx.restore();
-    ctx.strokeStyle = '#9aa3b8'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.stroke();
-  }
-  if (b.stop) {
-    ctx.fillStyle = '#f4ead0'; ctx.strokeStyle = '#3a2a1c'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(p.x + r * 0.9, p.y - r * 0.9, 6, 0, 7); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#3a2a1c'; ctx.fillRect(p.x + r * 0.9 - 2.5, p.y - r * 0.9 - 2.5, 2, 5); ctx.fillRect(p.x + r * 0.9 + 0.5, p.y - r * 0.9 - 2.5, 2, 5);
-  }
-  return { x: p.x, y: p.y, r, v: p.v };
-}
-
-function drawOrbit(ctx) {
-  ctx.strokeStyle = 'rgba(230,220,190,0.22)'; ctx.lineWidth = 1; ctx.setLineDash([4, 6]);
-  const p = proj(C, C, HS);
-  ctx.beginPath(); ctx.ellipse(p.x, p.y, RS * V.s, RS * V.s * V.tilt, 0, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+  return out;
 }
 
 const bodyHit = { sun: null, moon: null };
+const bodyPos = b => proj(C + RS * Math.cos(b.a), C + RS * Math.sin(b.a), HS);
+const moonPhase = () => { const ph = ((W.moon.a - W.sun.a) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2); return { ph, lit: (1 - Math.cos(ph)) / 2 }; };
+const cloudR = cl => 2 + Math.sqrt(cl.water) * 0.55;
+const cloudZ = cl => 19 + (cl.seed % 3);
 
 function drawWorld(ctx, t, hover) {
   cellColors();
-  renderTerrain();
-  drawBackground(ctx, t);
-  drawRoot(ctx);
-  ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(buf, 0, 0, buf.width * V.bs, buf.height * V.bs);
-  drawFalls(ctx, t);
-  for (const sp of W.springs) drawSpring(ctx, sp, t);
-  // 生き物（奥から）
-  const items = [];
-  for (const a of L.list) {
-    const z = a.kind === 'fish' ? W.g[cellOf(a.x, a.y)] + W.w[cellOf(a.x, a.y)] * 0.7 : heightAt(a.x, a.y, true);
-    const p = proj(a.x, a.y, z);
-    items.push({ a, p });
-  }
-  items.sort((m, n) => m.p.v - n.p.v);
-  for (const it of items) drawAnimal(ctx, it.a, it.p);
-  for (const f of L.fx) {
-    const p = proj(f.x, f.y, f.z);
-    if (f.type === 'puff') {
-      ctx.fillStyle = `rgba(235,235,225,${0.6 * (1 - f.t / 1.2)})`;
-      ctx.beginPath(); ctx.arc(p.x, p.y - V.s * 0.3, V.s * (0.4 + f.t), 0, 7); ctx.fill();
-    } else {
-      ctx.save(); ctx.globalAlpha = Math.max(0, 1 - f.t / 2.5); ctx.translate(p.x, p.y); ctx.scale(1 - f.t * 0.3, 1 - f.t * 0.3); ctx.rotate(f.t * 2);
-      drawAnimal(ctx, { kind: f.kind, dir: 0, phase: f.t }, { x: 0, y: 0 }); ctx.restore();
-    }
-  }
-  // 足もとの印
+  style().draw(ctx, t);
+  V.dirty = false;
+  // 足もとの印（どの画風でも同じ）
   if (hover) {
-    ctx.strokeStyle = hover.color || 'rgba(255,250,230,0.85)'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = styleName === 'etch' ? style().hover : hover.color || style().hover; ctx.lineWidth = 1.5;
     const p = proj(hover.x, hover.y, hover.z);
     ctx.beginPath(); ctx.ellipse(p.x, p.y, hover.r * V.s, hover.r * V.s * V.tilt, 0, 0, 7); ctx.stroke();
   }
-  drawOrbit(ctx);
-  for (const cl of W.clouds) drawCloud(ctx, cl);
-  bodyHit.sun = drawBody(ctx, W.sun, true, t);
-  bodyHit.moon = drawBody(ctx, W.moon, false, t);
 }
