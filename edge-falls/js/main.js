@@ -35,6 +35,7 @@ function simulate(sec) {
     if (Math.floor(W.t / DAY) !== dayBefore) {
       W.day = Math.floor(W.t / DAY) + 1;
       for (const k in W.stock) W.stock[k] = Math.min(STOCK_MAX[k], W.stock[k] + 1);
+      G.needSave = true;                    // 1日ごとに自動セーブ（ループの中で）
     }
     if (G.qi === 3 || G.qi === 4) {
       if (questCond(G.qi, lastStats)) G.streak += h / DAY; else G.streak = 0;
@@ -230,7 +231,8 @@ function syncSoundBtns() {
 document.querySelectorAll('.btnBgm').forEach(b => b.addEventListener('click', () => { Sound.unlock(); Sound.set('bgm', !Sound.get('bgm')); syncSoundBtns(); }));
 $('btnSfx').onclick = () => { Sound.unlock(); Sound.set('sfx', !Sound.get('sfx')); syncSoundBtns(); Sound.play('click'); };
 $('btnAbout').onclick = () => $('about').showModal();
-$('btnReset').onclick = () => showPanel('<h2>最初から</h2><p>新しい大地で、第一の日からやり直す。</p>',
+$('btnSave').onclick = () => { Sound.unlock(); openSavePanel(); };
+$('btnReset').onclick = () => showPanel('<h2>最初から</h2><p>新しい大地で、第一の日からやり直す。いまの世界は、セーブのスロットに残していなければ消える（自動セーブも次の日に上書きされる）。</p>',
   [{ label: 'やり直す', main: true, fn: () => { newGame(); G.started = true; } }, { label: 'やめる' }]);
 
 // ---- ループ ----
@@ -245,6 +247,7 @@ function frame(now) {
     if (ptr.t >= every) { ptr.t = 0; useTool(ptr.w, false); }
   }
   const s = checkWorld();
+  if (G.needSave && !THUMB) { G.needSave = false; autoSave(); }
   accSide += dt;
   if (accSide > 0.25) { accSide = 0; updateSide(s); }
   drawWorld(ctx, t, hover);
@@ -253,13 +256,19 @@ function frame(now) {
 }
 
 function start() {
+  const cont = readSlot('auto');
   showPanel(`<h2>果ての滝の箱庭</h2>
     <p>深淵に浮かぶ、平らな大地。川は世界の果てから滝になって落ちていく。</p>
     <ul>
       <li>下の道具で、地を<b>盛る・削る</b>、<b>泉</b>をわかせる、<b>草</b>のたねをまく、<b>シカ・オオカミ・サカナ</b>を放す。</li>
       <li>大地の外をドラッグすると回せる。太陽と月はつかんで動かせる。</li>
       <li>水・草・食べる・食べられるがつり合う世界をつくろう。お題は8つ。</li>
-    </ul>`, [{ label: 'はじめる', main: true, fn: () => { G.started = true; G.qStart = W.t; } }]);
+    </ul>` + (cont ? `<p class="small">つづき: ${metaText(cont)}</p>` : ''),
+    (cont ? [{ label: 'つづきから', main: true, fn: async () => {
+      try { await loadRecord(cont); G.started = true; toast('第 ' + W.day + ' 日から'); }
+      catch (e) { toast('つづきを読みこめなかった: ' + e.message); G.started = true; G.qStart = W.t; }
+    } }, { label: 'はじめから', fn: () => { G.started = true; G.qStart = W.t; } }]
+      : [{ label: 'はじめる', main: true, fn: () => { G.started = true; G.qStart = W.t; } }]));
 }
 
 // ---- はじめ ----

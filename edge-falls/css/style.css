@@ -53,6 +53,10 @@ button{font:inherit;color:inherit}
 .gbar b{display:block;height:100%;background:var(--water)}
 .gbar s{position:absolute;left:50%;top:-2px;bottom:-2px;border-left:1px dashed var(--ink);opacity:.6}
 .grows em{font-style:normal;font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
+.slot{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid #cdb98f;padding:6px 0}
+.slot p{margin:0;font-size:13px;color:#6d5a44}
+.slot .sbtn{display:flex;flex-direction:column;gap:4px}
+.slot .tbtn{padding:4px 8px;font-size:12px;white-space:nowrap}
 .card{position:absolute;left:10px;top:10px;background:rgba(244,234,208,.94);color:#3a2a1c;border:1px solid #3a2a1c;border-radius:6px;padding:8px 10px;font-size:13px;width:190px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
 .card[hidden]{display:none}
 .card h4{margin:0 0 4px;font-size:14px;display:flex;justify-content:space-between}
@@ -90,6 +94,7 @@ button{font:inherit;color:inherit}
 .panel .btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px}
 .panel .tbtn{color:#3a2a1c;border-color:#cdb98f}
 .panel .tbtn.main{background:#3a2a1c;color:#f4ead0}
+.panel .small{color:#6d5a44;font-size:13px}
 .panel .truth{font-size:13px;border-top:1px solid #cdb98f;padding-top:8px}
 
 dialog{max-width:580px;background:var(--card);color:var(--ink);border:2px solid var(--ink);border-radius:6px;padding:16px 20px}

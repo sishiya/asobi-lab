@@ -8,7 +8,7 @@
 <title>果ての滝の箱庭</title>
 <meta name="description" content="深淵に浮かぶ平らな大地。川は世界の果てから滝になって落ちる。泉と雨で水をめぐらせ、草・シカ・オオカミ・サカナの生態系をつくる箱庭ゲーム（試作）。">
 <meta name="theme-color" content="#141b30">
-<link rel="stylesheet" href="css/style.css?v=5">
+<link rel="stylesheet" href="css/style.css?v=6">
 </head>
 <body>
 <header class="top">
@@ -98,6 +98,7 @@
     <div class="box row">
       <button type="button" class="tbtn btnBgm" aria-pressed="true">♪ 音楽</button>
       <button type="button" class="tbtn" id="btnSfx" aria-pressed="true">効果音</button>
+      <button type="button" class="tbtn" id="btnSave">セーブ</button>
       <button type="button" class="tbtn" id="btnReset">最初から</button>
     </div>
   </aside>
@@ -114,6 +115,7 @@
     <li>シカ・オオカミ・サカナは「命のつぼ」から放す（数字が残り。1日に1つずつふえる）。サカナは水の中へ。</li>
     <li>太陽と月はつかんで動かせる。タップで止める。ホイール・＋－で寄る（寄ると滝の音が聞こえる）。</li>
     <li>平行移動: 右ボタンでドラッグ、Shift を押しながらドラッグ、スマホは2本指（ピンチで寄る）。空をダブルクリックで真ん中へもどる。</li>
+    <li>セーブ: 1日ごとと、ページを閉じるときに自動セーブ。「セーブ」でスロット3つと、ファイルへの書き出し・読みこみ。</li>
     <li>キーボード: ←→↑↓ で見る向き、WASD で平行移動、スペースで止める、1〜8 で道具。</li>
   </ul>
   <h3>この世界のきまり</h3>
@@ -133,19 +135,20 @@
   <p>地球は丸く、果てはありません。水は重力で地球の中心へ引かれるので、どこまで行っても落ちません。川の水は海へ行き、海や陸から蒸発して雲になり、雨になってまた川へ（水の循環）。泉の水は、雨がしみこんだ地下水です。昼と夜は地球が回るから、潮は月と太陽の引く力の差で、地球の両がわがふくらみます。</p>
   <p>生き残りやすい性質が子に伝わって積み重なり、生き物が変わっていく考え（自然選択）は、ダーウィンとウォレスが 1858 年に発表しました。本当の進化はふつう何百〜何万世代もかかります。この箱庭では、数十世代で目に見えるように、ずっと速くしています。</p>
   <p>大地を平らな円盤と考えた人は、昔たくさんいました。古代ギリシャのホメロスの詩では、平らな大地のまわりを大きな川オケアノスが取り巻き、タレスは大地が水に浮かぶと考えました。古代メソポタミアでは、大地の下に真水の海（アプスー）があり、泉や川の水はそこから来ると考えられていました。でも、<b>世界の果てから水が落ちる滝</b>は、近ごろの絵や物語でよく描かれる姿で、昔の人がそう書き残した例はあまり知られていません。「中世の人はみな大地が平らだと信じていた」もよくある誤解で、学のある人は大地が丸いと知っていました（天動説のプトレマイオスも、大地は丸いと考えていました）。</p>
-  <p class="small">版: 試作 v005（2026-10-12）・あそびラボ ・ 姉妹の箱庭: <a href="../heaven-spheres/">天をまわす箱庭</a></p>
+  <p class="small">版: 試作 v006（2026-10-13）・あそびラボ ・ 姉妹の箱庭: <a href="../heaven-spheres/">天をまわす箱庭</a></p>
   <form method="dialog"><button class="tbtn">とじる</button></form>
 </dialog>
 
-<script src="js/world.js?v=5"></script>
-<script src="js/life.js?v=5"></script>
-<script src="js/render.js?v=5"></script>
-<script src="js/style-voxel.js?v=5"></script>
-<script src="js/style-paint.js?v=5"></script>
-<script src="js/style-etch.js?v=5"></script>
-<script src="js/sound.js?v=5"></script>
-<script src="js/quests.js?v=5"></script>
-<script src="js/ui.js?v=5"></script>
-<script src="js/main.js?v=5"></script>
+<script src="js/world.js?v=6"></script>
+<script src="js/life.js?v=6"></script>
+<script src="js/render.js?v=6"></script>
+<script src="js/style-voxel.js?v=6"></script>
+<script src="js/style-paint.js?v=6"></script>
+<script src="js/style-etch.js?v=6"></script>
+<script src="js/sound.js?v=6"></script>
+<script src="js/quests.js?v=6"></script>
+<script src="js/ui.js?v=6"></script>
+<script src="js/save.js?v=6"></script>
+<script src="js/main.js?v=6"></script>
 </body>
 </html>
