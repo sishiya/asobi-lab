@@ -107,7 +107,9 @@ function useTool(p, first) {
   const t = G.tool;
   if (t === 'raise' || t === 'dig') {
     const m = sculpt(p.x, p.y, (t === 'raise' ? 1 : -1) * 0.9 * (first ? 1 : 0.5));
-    if (t === 'raise' && W.soil <= 0 && first) toast('土ぶくろがからっぽ。どこかを削ると、土がたまる');
+    if (t === 'raise' && W.soil < 1 && (first || !G.soilWarn)) { toast('土ぶくろがからっぽ。どこかを「削る」と、土がたまる', 4); Sound.play('no'); G.soilWarn = 1; }
+    if (W.soil >= 1) G.soilWarn = 0;
+    drawMeters();
     if (Math.abs(m) > 0.05 && Math.random() < 0.4) Sound.play('soil');
     G.did.soil = 1;
   } else if (t === 'grass') {
@@ -129,7 +131,7 @@ function useTool(p, first) {
 // 指が2本: 平行移動とピンチで寄る
 const touches = new Map();
 let pinch = null;
-function pinchState() { const [a, b] = [...touches.values()]; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, d: Math.hypot(a.x - b.x, a.y - b.y) || 1 }; }
+function pinchState() { const [a, b] = [...touches.values()]; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, d: Math.hypot(a.x - b.x, a.y - b.y) || 1, a: Math.atan2(b.y - a.y, b.x - a.x) }; }
 function panBy(dx, dy) { V.panX = (V.panX || 0) + dx; V.panY = (V.panY || 0) + dy; layout(V.cw, V.ch); }
 cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('dblclick', e => { const p = local(e); if (!pick(p.x, p.y) && !hitBody(p)) { V.panX = V.panY = 0; layout(V.cw, V.ch); } });   // 空をダブルクリックで真ん中へ
@@ -163,7 +165,10 @@ cv.addEventListener('pointermove', e => {
     if (pinch && touches.size === 2) {
       const n = pinchState();
       panBy(n.x - pinch.x, n.y - pinch.y);
-      V.zoom = Math.max(0.6, Math.min(3, V.zoom * n.d / pinch.d)); layout(V.cw, V.ch);
+      V.zoom = Math.max(0.6, Math.min(3, V.zoom * n.d / pinch.d));
+      let da = n.a - pinch.a; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
+      V.yaw -= da;                                   // 2本指でひねると回る（スマホ。手に持っていても回せる）
+      layout(V.cw, V.ch); G.did.rotate = 1;
       pinch = n; return;
     }
   }
@@ -199,6 +204,7 @@ function endPtr(e) {
     let best = null, bd = 2.2 * 2.2;
     if (w) for (const a of L.list) { const d = (a.x - w.x) ** 2 + (a.y - w.y) ** 2; if (d < bd) { bd = d; best = a; } }
     G.sel = best; if (best) Sound.play('click'); updateCard();
+    if (G.hand && !w) { setHand(null); Sound.play('release'); }   // 何もない空を押すと手放す（2026-10-13 ユーザー）
   }
   cv.classList.remove('grabbing');
   ptr = null;
@@ -230,7 +236,7 @@ addEventListener('keydown', e => {
   if (e.target.closest && (e.target.closest('dialog') || e.target.closest('select'))) return;
   const mk = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   if (MOVE_KEYS.includes(mk)) { held.add(mk); e.preventDefault(); return; }
-  if (e.key === ' ') { setSpeed(G.speed ? 0 : G.lastSpeed); }
+  if (e.key === ' ') { if (G.started && !COL) { setSpeed(G.speed ? 0 : G.lastSpeed); Sound.play('pin'); G.did.speed = 1; } }
   else if (e.key === 'Escape') { if (!$('book').hidden) closeBook(); else setHand(null); }
   else if (e.key === '1' || e.key === '2' || e.key === '3') {
     const h = ['soil', 'water', 'life'][+e.key - 1], ok = { soil: G.unlock.soil, water: G.unlock.water, life: G.unlock.seed }[h];
@@ -243,12 +249,16 @@ addEventListener('keydown', e => {
   e.preventDefault();
 });
 
+// ボタンを押したあとに残る「選ばれた状態」でスペースがボタンを押さないように（スペースはいつも時を止める・動かす）
+addEventListener('keyup', e => { if (e.key === ' ' && !(e.target.closest && e.target.closest('dialog, select, input'))) e.preventDefault(); });
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('.hand, .speeds button, .dialbtn, .fan button, .bookbtn'); if (b) b.blur(); });
 function setSpeed(v) {
   G.speed = v; if (v) G.lastSpeed = v;
-  document.querySelectorAll('[data-speed]').forEach(b => b.setAttribute('aria-pressed', G.speed > 0 && +b.dataset.speed === v));
+  document.body.classList.toggle('paused', v === 0 && G.started);
+  document.querySelectorAll('[data-speed]').forEach(b => b.setAttribute('aria-pressed', +b.dataset.speed === G.speed));
   drawDial();
 }
-document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => { Sound.unlock(); setSpeed(+b.dataset.speed); Sound.play('click'); G.did.speed = 1; }));
+document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => { Sound.unlock(); setSpeed(+b.dataset.speed); Sound.play(+b.dataset.speed ? 'click' : 'pin'); G.did.speed = 1; }));
 
 // 世界をくずす（v010。見せるだけで、もとにもどせる）
 $('btnBreak').onclick = () => { if (COL) return; closeBook(); showPanel('<h2>世界をくずす</h2><p>この大地をくずしてみる。見せるだけなので、いつでも「もとにもどす」で、いまの世界にもどれる。</p>',
@@ -273,10 +283,13 @@ $('btnReset').onclick = () => { closeBook(); showPanel('<h2>最初から</h2><p>
   [{ label: '第一の年から', main: true, fn: () => { newGame(); G.started = true; enterChapter(0); } }, { label: '自由な箱庭で', fn: () => { newGame(undefined, false); G.started = true; } }, { label: 'やめる' }]); };
 
 // ---- ループ ----
-let last = performance.now();
+let last = performance.now(), animT = 0;
+// 絵の時計（雨・滝・さざ波・生き物の足などの動き）。時を止めると止まる。速くすると少しだけ速く（×16 でも 2 倍まで。2026-10-13 ユーザー）
+const ANIM_RATE = { 0: 0, 1: 1, 4: 1.5, 16: 2 };
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
-  const t = now / 1000;
+  if (!(G.started && G.speed === 0 && !COL)) animT += dt * (COL || !G.started ? 1 : ANIM_RATE[G.speed] ?? 1);
+  const t = animT;
   if (!V.cw) resize();
   moveByKeys(dt); stepLater(dt);
   if (G.started && G.speed > 0 && !COL) simulate(dt * G.speed);
@@ -319,7 +332,7 @@ newGame();
 syncSoundBtns();
 resize();
 if (THUMB) {
-  document.body.classList.add('thumb');
+  document.body.classList.add('thumb'); document.body.classList.remove('titling');
   newGame(7, false); resize(); G.started = true;
   V.tilt = 0.5; layout(V.cw, V.ch);
   simulate(20);

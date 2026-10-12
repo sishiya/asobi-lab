@@ -80,26 +80,37 @@ function syncHands() {
   // 手に持っているものの中身（扇のように上に並ぶ）
   const fan = $('fan');
   if (G.hand === 'soil' || G.hand === 'life') {
-    const items = G.hand === 'soil' ? [['dig', '削る（すくう）'], ['raise', '盛る']] : LIFE_SUBS.filter(([k]) => k === 'seed' || u[k]);
+    const items = G.hand === 'soil' ? [['dig', '削る（土がたまる）'], ['raise', '盛る（土を使う）']] : LIFE_SUBS.filter(([k]) => k === 'seed' || u[k]);
     fan.innerHTML = items.map(([k, label]) => {
-      const n = KINDS[k] ? `<em>${W.stock[k]}</em>` : '';
+      const n = KINDS[k] ? `<em>${W.stock[k]}</em>` : k === 'raise' ? `<em id="soilN">${Math.floor(W.soil)}</em>` : '';
       const ic = k === 'dig' ? iconURL('bagd', c => drawBag(c, 0.5, false)) : k === 'raise' ? iconURL('bagr', c => drawBag(c, 0.8, true)) : k === 'seed' ? iconURL('seed', drawSeed) : iconURL('c' + k, c => drawCreature(c, k));
       return `<button type="button" data-sub="${k}" aria-pressed="${G.sub[G.hand] === k}"${KINDS[k] && W.stock[k] <= 0 ? ' class="empty"' : ''}><img src="${ic}" alt="">${label}${n}</button>`;
     }).join('');
     const hb = document.querySelector(`.hand[data-hand="${G.hand}"]`), r = hb.getBoundingClientRect(), fr = field.getBoundingClientRect();
     fan.style.left = Math.max(8, r.left - fr.left + r.width / 2) + 'px';
     fan.hidden = false; document.body.classList.add('fan-open');
+    const fw = fan.offsetWidth, cxp = r.left - fr.left + r.width / 2;   // 画面からはみ出さないように
+    fan.style.left = Math.max(fw / 2 + 8, Math.min(fr.width - fw / 2 - 8, cxp)) + 'px';
     fan.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => { G.sub[G.hand] = b.dataset.sub; setHand(G.hand); Sound.play('click'); });
   } else { fan.hidden = true; document.body.classList.remove('fan-open'); }
 }
 let handSig = '';
+function drawMeters() {
+  $('soilMeter').style.width = Math.min(100, W.soil / SOIL_FULL * 100) + '%';
+  $('waterMeter').style.width = Math.min(100, W.abyss / 1300 * 100) + '%';
+  const n = $('soilN'); if (n) n.textContent = Math.floor(W.soil);
+  const bag = document.querySelector('.hand[data-hand="soil"]');
+  bag.classList.toggle('empty', W.soil < 1);
+}
+const SOIL_FULL = 300;
 function drawHands() {
+  drawMeters();
   const lifeN = ['deer', 'wolf', 'fish', 'bird'].reduce((s, k) => s + ((G.unlock || {})[k] ? W.stock[k] : 0), 0);
-  const sig = [Math.round(W.soil / 20), Math.round(W.abyss / 60), lifeN, G.sub.soil].join();
+  const sig = [Math.round(W.soil / 15), Math.round(W.abyss / 60), lifeN, G.sub.soil].join();
   if (sig === handSig) return; handSig = sig;
   for (const b of document.querySelectorAll('.hand')) {
     const c = b.querySelector('canvas').getContext('2d');
-    if (b.dataset.hand === 'soil') drawBag(c, Math.min(1, W.soil / 300), G.sub.soil === 'raise');
+    if (b.dataset.hand === 'soil') drawBag(c, Math.min(1, W.soil / SOIL_FULL), G.sub.soil === 'raise');
     else if (b.dataset.hand === 'water') drawJar(c, Math.min(1, W.abyss / 1000));
     else drawPot(c, lifeN + 1, lifeN > 0);
   }
@@ -119,29 +130,49 @@ function glowHand(key) {
 (() => { const c = $('btnBook').querySelector('canvas').getContext('2d'); drawBook(c); })();
 
 // ---- 天の輪（季節と時の速さ） ----
-const SEASON_COL = ['#e8a8c0', '#7fbf6a', '#e09a48', '#b8cce8'];
+// 画素の天の輪（v011 のあと。2026-10-13 ユーザー「下のアイコンは感じがいいので、右上も色味とルックに統一感を」「小さくて最初よく見えなかった」）
+//   30×30 の画素。外の輪＝1年（春・夏・秋・冬の土の色に近い落ち着いた色。いまの季節だけ明るい）、まわりは真鍮のふち、
+//   中は深淵の夜空に、平らな大地と太陽・月の点。針＝今日。止めているときは真ん中に ❚❚。
+const SEASON_PX = [['#e0a2b0', '#a07884'], ['#8cc064', '#5e8044'], ['#e0983e', '#a06a32'], ['#c0d2ea', '#7c8aa0']];
 function drawDial() {
-  const cvd = $('dialCv'), c = cvd.getContext('2d'), S = cvd.width, R = S / 2;
-  c.clearRect(0, 0, S, S);
-  c.save(); c.translate(R, R);
-  const p = seasonPhase();
-  for (let k = 0; k < 4; k++) {          // 外の輪: 1年（上が春のはじめ、時計回り）
-    c.strokeStyle = SEASON_COL[k]; c.globalAlpha = seasonOf() === k ? 0.95 : 0.45; c.lineWidth = S * 0.09;
-    c.beginPath(); c.arc(0, 0, R * 0.8, -Math.PI / 2 + k * Math.PI / 2 + 0.05, -Math.PI / 2 + (k + 1) * Math.PI / 2 - 0.05); c.stroke();
+  const c = $('dialCv').getContext('2d'); c.clearRect(0, 0, 60, 60);
+  const p = seasonPhase(), se = seasonOf(), cx = 14.5, cy = 14.5;
+  for (let y = 0; y < 30; y++) for (let x = 0; x < 30; x++) {
+    const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy);
+    if (d > 14.6) continue;
+    let col;
+    if (d > 13.6) col = '#4a3018';                                    // 外のふち（こげ茶）
+    else if (d > 10.6) {                                              // 季節の輪
+      const a = ((Math.atan2(dy, dx) + Math.PI / 2) / (Math.PI * 2) + 1) % 1, k = Math.floor(a * 4) % 4;
+      col = SEASON_PX[k][k === se ? 0 : 1];
+      if (Math.abs(a * 4 - Math.round(a * 4)) < 0.035) col = '#3a2414';   // 季節のさかい
+      if (d > 12.8 && k === se) col = '#efe3c4';                         // いまの季節のふちを明るく
+    } else if (d > 9.8) col = '#b48756';                              // 真鍮の内ふち
+    else col = (hash2(x, y) > 0.94 ? '#5a6488' : '#141b30');          // 深淵の夜空と星
+    px(c, x, y, 1, 1, col);
   }
-  c.globalAlpha = 1;
-  c.fillStyle = 'rgba(12,16,30,0.82)'; c.beginPath(); c.arc(0, 0, R * 0.64, 0, 7); c.fill();
-  c.strokeStyle = 'rgba(239,227,196,0.35)'; c.lineWidth = 1.5; c.stroke();
-  // 内: 太陽の道（昼と夜）。太陽の点がめぐる
-  const sa = W.sun.a - V.yaw - Math.PI / 2;
-  c.strokeStyle = 'rgba(239,227,196,0.25)'; c.setLineDash([2, 3]); c.beginPath(); c.arc(0, 0, R * 0.38 * (W.rs / RS), 0, 7); c.stroke(); c.setLineDash([]);
-  c.fillStyle = '#ffd866'; c.beginPath(); c.arc(Math.cos(sa) * R * 0.38 * (W.rs / RS), Math.sin(sa) * R * 0.38 * (W.rs / RS), S * 0.05, 0, 7); c.fill();
-  // 針（今日）
-  const a = -Math.PI / 2 + p * Math.PI * 2;
-  c.strokeStyle = '#efe3c4'; c.lineWidth = S * 0.025; c.beginPath(); c.moveTo(Math.cos(a) * R * 0.66, Math.sin(a) * R * 0.66); c.lineTo(Math.cos(a) * R * 0.95, Math.sin(a) * R * 0.95); c.stroke();
-  if (G.speed === 0) { c.fillStyle = 'rgba(239,227,196,0.9)'; c.fillRect(-S * 0.08, -S * 0.1, S * 0.05, S * 0.2); c.fillRect(S * 0.03, -S * 0.1, S * 0.05, S * 0.2); }
-  c.restore();
+  px(c, 12, 14, 6, 2, '#7a9a58'); px(c, 13, 13, 4, 1, '#9cbc70'); px(c, 12, 16, 6, 1, '#6e4c2a');   // まん中の平らな大地
+  // 太陽と月（見ている向きに合わせて回る）
+  const at = (a, r) => [Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r)];
+  const [mx, my] = at(W.moon.a - V.yaw - Math.PI / 2, 6.5); px(c, mx - 1, my - 1, 2, 2, '#dfe6ee');
+  const [sx, sy] = at(W.sun.a - V.yaw - Math.PI / 2, 6.5 * (W.rs / RS)); px(c, sx - 1, sy - 1, 3, 3, '#ffd866'); px(c, sx, sy, 1, 1, '#fff6c0');
+  // 針（今日）: 輪の上に明るい印
+  const na = -Math.PI / 2 + p * Math.PI * 2;
+  for (let r = 10; r <= 14; r++) { const [x, y] = at(na, r); px(c, x, y, 1, 1, r === 14 ? '#4a3018' : '#fff2c8'); }
+  if (G.speed === 0) { px(c, 11, 10, 3, 10, 'rgba(239,227,196,.92)'); px(c, 16, 10, 3, 10, 'rgba(239,227,196,.92)'); }
 }
+// 速さの印（真鍮の小さな札。手に持つものと同じ画素の絵）
+function drawSpeedIcon(ctx, v) {
+  ctx.clearRect(0, 0, 32, 32);
+  px(ctx, 3, 3, 10, 10, '#4a3018'); px(ctx, 2, 4, 12, 8, '#4a3018'); px(ctx, 4, 2, 8, 12, '#4a3018');
+  px(ctx, 3, 4, 10, 8, '#b48756'); px(ctx, 4, 3, 8, 10, '#b48756'); px(ctx, 4, 4, 8, 1, '#d8b070');
+  const ink = '#2a1a0c';
+  if (v === 0) { px(ctx, 5, 5, 2, 6, ink); px(ctx, 9, 5, 2, 6, ink); return; }
+  const n = v === 1 ? 1 : v === 4 ? 2 : 3, w = 3, x0 = 8 - Math.round(n * w / 2);
+  for (let k = 0; k < n; k++) { const x = x0 + k * w; px(ctx, x, 5, 1, 6, ink); px(ctx, x + 1, 6, 1, 4, ink); px(ctx, x + 2, 7, 1, 2, ink); }
+}
+document.querySelectorAll('.speeds [data-speed]').forEach(b => drawSpeedIcon(b.querySelector('canvas').getContext('2d'), +b.dataset.speed));
+
 $('dialBtn').addEventListener('click', () => { Sound.unlock(); setSpeed(G.speed ? 0 : (G.lastSpeed || 1)); Sound.play('pin'); G.did.speed = 1; });
 
 // ---- ことば（章のはじめ） ----

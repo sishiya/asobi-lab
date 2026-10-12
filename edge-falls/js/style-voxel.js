@@ -28,10 +28,17 @@ const VOX = (() => {
     const side = 0.78 + 0.22 * Math.max(-1, Math.min(1, -(u || 0) / (RD * 0.7)));
     const j = 0.84 + hash2(sec, d) * 0.28;
     let k = (1 - 0.82 * Math.pow(t, 0.8)) * side * j;
-    const dm = (d + (hash2(sec >> 1, 5) * 4 | 0)) % 8;
-    if (dm < 2) k *= 1.22; else if (dm < 4) k *= 0.66;
+    // 段は向きの組ごとに間と傾きがちがう（規則的に並ばないように。2026-10-13 ユーザー）
+    const g9 = sec / 9 | 0, P = 6 + (hash2(g9, 5) * 8 | 0), tilt = (hash2(g9, 6) - 0.5) * 0.9;
+    const dm = ((d + sec * tilt + hash2(g9, 7) * P) % P + P) % P;
+    if (dm < 1.6) k *= 1.2; else if (dm < 3.4) k *= 0.7;
+    if (hash2(sec, 61) > 0.78 && t > 0.08) k *= 0.72 + 0.12 * hash2(sec, d >> 3);   // しみ出した水の筋（たての汚れ）
     if (d <= 3) k *= 0.6;
-    const r = mix(112, 44, t), g = mix(92, 38, t), b = mix(74, 46, t);
+    let r = mix(112, 44, t), g = mix(92, 38, t), b = mix(74, 46, t);
+    const tone = hash2(sec >> 2, (d >> 4) + 9);                                     // 岩のちがい（赤み・青み）をまだらに
+    r *= 0.92 + 0.16 * tone; b *= 1.06 - 0.12 * tone;
+    if (t < 0.14 && hash2(sec * 7, 3) > 0.8 && d < 4 + hash2(sec, 8) * 12) return rgba(58 * k + 10, 44 * k + 8, 30 * k + 6);   // 垂れた根
+    if (t < 0.3 && hash2(sec * 5, d) > 0.975) return rgba(r * k * 0.8, g * k * 1.15, b * k * 0.7);                              // 苔
     if (hash2(sec * 3, d) > 0.97) return rgba(r * k * 1.5, g * k * 1.45, b * k * 1.3);   // ところどころ明るい岩
     return rgba(r * k, g * k, b * k);
   }
