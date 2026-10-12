@@ -112,6 +112,34 @@ function drawWorld(ctx, Wd, L, view, cw, ch, dpr, opt) {
     ctx.quadraticCurveTo(...P(r + s, a + d * 0.008), ...P(r + s * 0.4, a + d * 0.02)); ctx.stroke();
   }
 
+  // 氷（凍った水）と、焼けた地
+  for (let i = 0; i < N; i++) {
+    const T = Wd.T[i], a0 = cellAngle(i) - TAU / N / 2, a1 = a0 + TAU / N;
+    if (Wd.ice[i]) {
+      const r0 = R0 + g[i], r1 = r0 + h[i];
+      ctx.fillStyle = 'rgba(240,246,250,.85)'; ctx.beginPath();
+      ctx.arc(CX, CY, r1 + 0.5, a0, a1); ctx.arc(CX, CY, r0, a1, a0, true); ctx.fill();
+      if (i % 2 === 0) { ctx.strokeStyle = 'rgba(80,110,140,.6)'; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(...P(r1, a0)); ctx.lineTo(...P(r0 + h[i] * 0.4, a1)); ctx.stroke(); }
+    } else if (T > 35 && h[i] < 0.3) {
+      const r0 = R0 + g[i];
+      ctx.fillStyle = `rgba(190,70,20,${Math.min(0.5, (T - 35) / 50)})`; ctx.beginPath();
+      ctx.arc(CX, CY, r0, a0, a1); ctx.arc(CX, CY, r0 - 14, a1, a0, true); ctx.fill();
+    }
+  }
+  // 雲（蒸発した水）: いちばん涼しい側の空に
+  if (Wd.vapor > 0.5) {
+    const ca = Wd.sph[1].a + Math.PI * 0.6, n = Math.min(9, 2 + Wd.vapor / 20 | 0);
+    ctx.fillStyle = 'rgba(250,246,236,.92)'; ctx.strokeStyle = 'rgba(58,42,28,.7)'; ctx.lineWidth = lw;
+    for (let k = 0; k < n; k++) {
+      const [x, y] = P(292 - (k % 2) * 8, ca + (k - n / 2) * 0.09);
+      ctx.beginPath(); ctx.arc(x - 6, y, 6, 0, TAU); ctx.arc(x + 4, y - 3, 7, 0, TAU); ctx.arc(x + 11, y + 1, 5, 0, TAU);
+      ctx.fill(); ctx.stroke();
+    }
+  }
+
+  // 土地の名前
+  for (const rg of REGIONS) if (rg.label) arcLabel(ctx, rg.name, R0 - 22, rg.label * Math.PI / 180, 10, 'rgba(58,42,28,.6)');
+
   // 草
   ctx.strokeStyle = 'rgba(70,90,30,.75)'; ctx.lineWidth = lw;
   ctx.beginPath();
@@ -124,12 +152,27 @@ function drawWorld(ctx, Wd, L, view, cw, ch, dpr, opt) {
   ctx.stroke();
 
   // 生き物
-  for (const c of L.list) drawCreature(ctx, Wd, c, lw);
+  const col = new Map(L.species.map(s => [s.id, s.color]));
+  for (const c of L.list) drawCreature(ctx, Wd, c, lw, col.get(c.sp));
+
+  // 知らせの札（新しい種など）: その場所に線を引いて名前を出す
+  for (const lb of opt.labels || []) {
+    const a = lb.deg * Math.PI / 180, r = R0 + g[idx(a)];
+    ctx.globalAlpha = Math.min(1, lb.t);
+    ctx.strokeStyle = INK; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(...P(r + 6, a)); ctx.lineTo(...P(r + 46, a)); ctx.stroke();
+    const [x, y] = P(r + 52, a);
+    ctx.font = `600 ${12 / Math.max(1, sc / base * 0.6)}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const w = ctx.measureText(lb.text).width + 10;
+    ctx.fillStyle = 'rgba(244,234,208,.95)'; ctx.fillRect(x - w / 2, y - 9, w, 18);
+    ctx.strokeRect(x - w / 2, y - 9, w, 18);
+    ctx.fillStyle = INK; ctx.fillText(lb.text, x, y + 1);
+    ctx.globalAlpha = 1;
+  }
 
   // なぞっている場所
   if (opt.brush != null) {
     const r = R0 + g[idx(opt.brush)];
-    ctx.strokeStyle = opt.tool === 'raise' ? 'rgba(120,70,20,.8)' : 'rgba(40,40,90,.8)';
+    ctx.strokeStyle = opt.raise ? 'rgba(120,70,20,.8)' : 'rgba(40,40,90,.8)';
     ctx.lineWidth = 1.5 * lw; ctx.setLineDash([3 * lw, 3 * lw]);
     ctx.beginPath(); ctx.arc(...P(r, opt.brush), 16, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
   }
@@ -156,7 +199,13 @@ function drawBand(ctx, s, lw, hot) {
     ctx.moveTo(...P(s.r - 9, a)); ctx.lineTo(...P(long ? s.r + 9 : s.r - 3, a));
   }
   ctx.stroke();
-  arcLabel(ctx, s.name, s.r, s.a + Math.PI, 10, hot ? 'rgba(140,60,20,.95)' : 'rgba(58,42,28,.75)');
+  arcLabel(ctx, s.name + (s.stopped ? '（止めた）' : ''), s.r, s.a + Math.PI, 10, s.stopped ? 'rgba(160,40,20,1)' : hot ? 'rgba(140,60,20,.95)' : 'rgba(58,42,28,.75)');
+  if (s.stopped) {   // くぎ: 天球が止まっている
+    for (const a of [s.a + Math.PI - 0.25, s.a + Math.PI + 0.25]) {
+      const [x, y] = P(s.r, a);
+      ctx.fillStyle = '#8c3c14'; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, TAU); ctx.fill();
+    }
+  }
 }
 
 function drawStars(ctx, s, lw) {
@@ -197,8 +246,16 @@ function drawSunMoon(ctx, Wd, lw) {
   ctx.restore();
 
   // 月: 太陽との角度で満ち欠け（明るいがわを太陽に向ける）
-  const [mx, my] = P(moon.r, moon.a), rm = 18;
-  const phi = angDiff(sun.a, moon.a), k = Math.cos(phi);
+  // 周転円: 月の天球の上の点を中心にした小さな円。月はその上を回る
+  const mp = moonPos(Wd), [ex, ey] = P(moon.r, moon.a);
+  if (Wd.epi > 0.005) {
+    ctx.strokeStyle = 'rgba(58,42,28,.6)'; ctx.lineWidth = lw; ctx.setLineDash([4 * lw, 3 * lw]);
+    ctx.beginPath(); ctx.arc(ex, ey, Wd.epi * moon.r, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(CX + mp.x, CY + mp.y); ctx.stroke();
+    ctx.fillStyle = 'rgba(58,42,28,.7)'; ctx.beginPath(); ctx.arc(ex, ey, 2, 0, TAU); ctx.fill();
+  }
+  const mx = CX + mp.x, my = CY + mp.y, rm = 18 / Math.max(0.7, mp.d);
+  const phi = angDiff(sun.a, mp.a), k = Math.cos(phi);
   ctx.save(); ctx.translate(mx, my); ctx.rotate(Math.atan2(sy - my, sx - mx));
   ctx.beginPath(); ctx.arc(0, 0, rm, 0, TAU); ctx.fillStyle = '#5e5446'; ctx.fill();
   ctx.beginPath(); ctx.arc(0, 0, rm, -Math.PI / 2, Math.PI / 2);
@@ -212,18 +269,18 @@ function drawSunMoon(ctx, Wd, lw) {
 }
 
 // 生き物: 魚のような体に、遺伝子で脚・うろこがつく。lw は画面で 1px
-function drawCreature(ctx, Wd, c, lw) {
+function drawCreature(ctx, Wd, c, lw, spColor) {
   const i = idx(c.th), wet = Wd.h[i] > WET;
   const ground = R0 + Wd.g[i];
-  const r = wet ? ground + Math.min(Wd.h[i] * 0.45, 9) + Math.sin(c.bob) * 0.8 : ground + 2.6 + c.legs * 2;
+  const r = wet ? ground + Math.min(Wd.h[i] * 0.45, 9) + Math.sin(c.bob) * 0.8 : ground + 3.5 + c.legs * 3;
   const [x, y] = P(r, c.th);
   const fade = c.dead ? Math.max(0, 1 - c.dead / 1.6) : 1;
   if (fade <= 0) return;
   ctx.save(); ctx.globalAlpha = fade;
-  ctx.translate(x, y); ctx.rotate(c.th + Math.PI / 2); ctx.scale(c.dir, 1);
+  ctx.translate(x, y); ctx.rotate(c.th + Math.PI / 2); ctx.scale(c.dir * 1.35, 1.35);
   if (!wet && !c.dead) ctx.rotate(Math.sin(c.bob * 2) * 0.08 * (1 - c.legs));   // 陸でばたつく
   const t = c.legs, d = c.dry;
-  const col = `rgb(${120 + 40 * t | 0},${150 - 10 * d | 0},${165 - 90 * t | 0})`;
+  const col = spColor || '#7d9aa6';   // 種ごとの色
   ctx.lineWidth = 0.7; ctx.strokeStyle = INK;
   // 脚
   if (t > 0.2) {

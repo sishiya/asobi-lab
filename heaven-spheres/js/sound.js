@@ -1,66 +1,75 @@
 'use strict';
 // 音: WebAudio でその場で作る（音のファイルは使わない）。
-//   BGM: 天球の音楽。ゆっくりした和音のうなり（パッド）と、ときどき鳴る鐘のような音。調は昔の旋法ふう（ドリア）。
-//        月と太陽の天球の回る速さで、パッドの明るさと鐘の数が少し変わる。
+//   BGM: おだやかで眠くなるような音。ハ長調の五音音階（ド・レ・ミ・ソ・ラ）だけを使うので、どの音が重なってもにごらない。
+//        やわらかい正弦波の和音（ゆっくり息をするように大きさが揺れる）と、ときどき鳴るオルゴールのような音。高い音・強い音は使わない。
 //   環境音: 波の音。潮の流れが速いほど大きく、津波のときは低い鳴り。
-//   効果音: Sound.play(名前)。オン・オフは BGM と効果音べつべつに localStorage に覚える。
+//   効果音: Sound.play(名前)。BGM と効果音はべつべつにオン・オフでき、localStorage に覚える。
+//   ページが見えなくなったら（タブを替える・アプリを閉じる）音を止める。
 
 const Sound = (() => {
   const KEY = 'asobi-lab/heaven-spheres/sound';
   let pref = { bgm: true, sfx: true };
   try { Object.assign(pref, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { /* 覚えられなくても鳴らせる */ }
   let ac = null, out = null, bgmBus = null, sfxBus = null, noiseBuf = null, rev = null;
-  let pad = [], waves = null, nextBell = 0, chordIx = 0, nextChord = 0;
+  let pad = [], waves = null, nextNote = 0, chordIx = 0, nextChord = 0;
+  const BGM_VOL = 0.32, SFX_VOL = 0.6;
 
-  // D ドリアの音（Hz）。和音は 4 つを順にゆっくり
-  const ROOT = 146.83;
+  // ハ長調の五音音階。基準は C3（130.81Hz）。和音はゆっくり4つを回る（Cadd9・Am7・Fmaj7 ふう・G6sus ふう、五音音階の中だけで）
+  const ROOT = 130.81;
   const st = n => ROOT * Math.pow(2, n / 12);
-  const CHORDS = [[0, 7, 14, 17], [-2, 5, 12, 17], [3, 10, 15, 19], [-5, 2, 10, 14]];
-  const SCALE = [0, 2, 3, 5, 7, 9, 10, 12, 14, 15, 17, 19];
+  const CHORDS = [[0, 7, 14, 16], [-3, 4, 7, 12], [-7, 0, 9, 16], [-5, 2, 9, 14]];
+  const PENTA = [0, 2, 4, 7, 9];
+  const melodyNote = () => { const o = Math.random() < 0.7 ? 12 : 24; return PENTA[(Math.random() * 5) | 0] + o; };
 
   function unlock() {
-    if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+    if (ac) { if (ac.state === 'suspended' && !document.hidden) ac.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     ac = new AC();
     out = ac.createDynamicsCompressor(); out.connect(ac.destination);
-    bgmBus = ac.createGain(); bgmBus.gain.value = pref.bgm ? 0.5 : 0; bgmBus.connect(out);
-    sfxBus = ac.createGain(); sfxBus.gain.value = pref.sfx ? 0.6 : 0; sfxBus.connect(out);
+    bgmBus = ac.createGain(); bgmBus.gain.value = pref.bgm ? BGM_VOL : 0; bgmBus.connect(out);
+    sfxBus = ac.createGain(); sfxBus.gain.value = pref.sfx ? SFX_VOL : 0; sfxBus.connect(out);
     noiseBuf = ac.createBuffer(1, ac.sampleRate * 3, ac.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    // 残響（作った響き）: 鐘とパッドを広く
+    // 残響（作った響き）。長めにして、遠くで鳴っているように
     rev = ac.createConvolver();
-    const len = ac.sampleRate * 3.2, ir = ac.createBuffer(2, len, ac.sampleRate);
-    for (let c = 0; c < 2; c++) { const x = ir.getChannelData(c); for (let i = 0; i < len; i++) x[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
+    const len = ac.sampleRate * 4, ir = ac.createBuffer(2, len, ac.sampleRate);
+    for (let c = 0; c < 2; c++) { const x = ir.getChannelData(c); for (let i = 0; i < len; i++) x[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5); }
     rev.buffer = ir;
-    const rg = ac.createGain(); rg.gain.value = 0.35; rev.connect(rg); rg.connect(bgmBus);
+    const rlp = ac.createBiquadFilter(); rlp.type = 'lowpass'; rlp.frequency.value = 2500;
+    const rg = ac.createGain(); rg.gain.value = 0.45; rev.connect(rlp); rlp.connect(rg); rg.connect(bgmBus);
     startPad(); startWaves();
-    nextBell = ac.currentTime + 1.5; nextChord = ac.currentTime;
+    nextNote = ac.currentTime + 2; nextChord = ac.currentTime + 16;
   }
   addEventListener('pointerdown', unlock, { capture: true });
   addEventListener('keydown', unlock, { capture: true });
+  // 見えないあいだは音を止める
+  document.addEventListener('visibilitychange', () => {
+    if (!ac) return;
+    if (document.hidden) ac.suspend(); else ac.resume();
+  });
+  addEventListener('pagehide', () => { if (ac) ac.suspend(); });
 
   function save() { try { localStorage.setItem(KEY, JSON.stringify(pref)); } catch (e) { /* なし */ } }
   function set(kind, v) {
     pref[kind] = v; save();
     if (!ac) return;
-    (kind === 'bgm' ? bgmBus : sfxBus).gain.setTargetAtTime(v ? (kind === 'bgm' ? 0.5 : 0.6) : 0, ac.currentTime, 0.3);
+    (kind === 'bgm' ? bgmBus : sfxBus).gain.setTargetAtTime(v ? (kind === 'bgm' ? BGM_VOL : SFX_VOL) : 0, ac.currentTime, 0.4);
   }
 
-  // パッド: 和音の各音に、少しずらした2つの波。低い通過フィルタでやわらかく
+  // パッド: 和音の各音に正弦波を2つ（ほんの少しずらして、ゆるやかなうなり）。低い通過フィルタでさらにやわらかく
   function startPad() {
-    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 0.4;
-    const g = ac.createGain(); g.gain.value = 0.09;
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 650; lp.Q.value = 0.3;
+    const g = ac.createGain(); g.gain.value = 0.07;
     lp.connect(g); g.connect(bgmBus); g.connect(rev);
     for (let v = 0; v < 4; v++) {
-      const vg = ac.createGain(); vg.gain.value = 0.25; vg.connect(lp);
+      const vg = ac.createGain(); vg.gain.value = 0.22; vg.connect(lp);
       const os = [ac.createOscillator(), ac.createOscillator()];
-      os[0].type = 'sine'; os[1].type = 'triangle'; os[1].detune.value = 7;
-      os.forEach(o => { o.frequency.value = st(CHORDS[0][v]); o.connect(vg); o.start(); });
-      // ゆっくり揺れる大きさ
+      os.forEach((o, k) => { o.type = 'sine'; o.detune.value = k ? 4 : -4; o.frequency.value = st(CHORDS[0][v]); o.connect(vg); o.start(); });
+      // 息をするようにゆっくり揺れる大きさ（8〜12 秒で1回）
       const lfo = ac.createOscillator(), lg = ac.createGain();
-      lfo.frequency.value = 0.05 + v * 0.017; lg.gain.value = 0.12; lfo.connect(lg); lg.connect(vg.gain); lfo.start();
+      lfo.frequency.value = 0.08 + v * 0.013; lg.gain.value = 0.09; lfo.connect(lg); lg.connect(vg.gain); lfo.start();
       pad.push({ os, vg });
     }
     pad.lp = lp;
@@ -68,40 +77,39 @@ const Sound = (() => {
 
   function startWaves() {
     const s = ac.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
-    const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 500;
+    const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 450;
     const g = ac.createGain(); g.gain.value = 0;
     s.connect(f); f.connect(g); g.connect(sfxBus); s.start();
     waves = { f, g };
   }
 
-  function bell(freq, vol, t) {
-    const o = ac.createOscillator(), o2 = ac.createOscillator(), g = ac.createGain();
-    o.type = 'sine'; o2.type = 'sine'; o.frequency.value = freq; o2.frequency.value = freq * 2.76;   // 鐘らしい倍音
-    const g2 = ac.createGain(); g2.gain.value = 0.25;
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.5);
-    o.connect(g); o2.connect(g2); g2.connect(g); g.connect(bgmBus); g.connect(rev);
-    o.start(t); o2.start(t); o.stop(t + 3.6); o2.stop(t + 3.6);
+  // オルゴールのような音: 正弦波と、そのオクターブ上を少し。立ち上がりをやわらかく
+  function chime(freq, vol, t, bus) {
+    const o = ac.createOscillator(), o2 = ac.createOscillator(), g = ac.createGain(), g2 = ac.createGain();
+    o.type = 'sine'; o2.type = 'sine'; o.frequency.value = freq; o2.frequency.value = freq * 2;
+    g2.gain.value = 0.12;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + 3);
+    o.connect(g); o2.connect(g2); g2.connect(g); g.connect(bus || bgmBus); g.connect(rev);
+    o.start(t); o2.start(t); o.stop(t + 3.1); o2.stop(t + 3.1);
   }
 
-  // 毎フレーム: 天球の速さ（ふつう＝1）、潮の流れの速さ、潮の大きさ、止まっているか
-  function update(spin, flow, spring, paused) {
+  // 毎フレーム: 潮の流れの速さ、止まっているか
+  function update(flow, paused) {
     if (!ac || ac.state !== 'running') return;
     const t = ac.currentTime;
-    if (t >= nextChord) {                    // 12 秒ごとに次の和音へ、ゆっくり移る
+    if (t >= nextChord) {                    // 16 秒ごとに次の和音へ、とてもゆっくり移る
       chordIx = (chordIx + 1) % CHORDS.length;
-      pad.forEach((p, v) => p.os.forEach(o => o.frequency.setTargetAtTime(st(CHORDS[chordIx][v]), t, 1.8)));
-      nextChord = t + 12;
+      pad.forEach((p, v) => p.os.forEach(o => o.frequency.setTargetAtTime(st(CHORDS[chordIx][v]), t, 3)));
+      nextChord = t + 16;
     }
-    pad.lp.frequency.setTargetAtTime(700 + Math.min(1600, spin * 220) + spring * 300, t, 0.6);
-    if (t >= nextBell && !paused) {
-      const chord = CHORDS[chordIx];
-      const n = SCALE[(Math.random() * SCALE.length) | 0] + 12;
-      bell(st(Math.random() < 0.5 ? n : chord[(Math.random() * 4) | 0] + 12), 0.06, t);
-      nextBell = t + Math.max(0.6, (2.6 + Math.random() * 2.4) / Math.min(3, Math.max(1, spin * 0.6)));
+    if (t >= nextNote && !paused) {
+      chime(st(melodyNote()), 0.035, t);
+      if (Math.random() < 0.3) chime(st(melodyNote()), 0.025, t + 0.6);
+      nextNote = t + 3.5 + Math.random() * 4;
     }
-    const w = paused ? 0 : Math.min(1, 0.12 + flow / 140);
-    waves.g.gain.setTargetAtTime(w * 0.35, t, 0.4);
-    waves.f.frequency.setTargetAtTime(flow > 110 ? 260 : 380 + flow * 4, t, 0.3);
+    const w = paused ? 0 : Math.min(1, 0.1 + flow / 140);
+    waves.g.gain.setTargetAtTime(w * 0.3, t, 0.5);
+    waves.f.frequency.setTargetAtTime(flow > 110 ? 260 : 350 + flow * 3, t, 0.3);
   }
 
   function tone(type, f1, f2, dur, vol, delay = 0) {
@@ -118,16 +126,20 @@ const Sound = (() => {
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(f); f.connect(g); g.connect(sfxBus); s.start(t, Math.random()); s.stop(t + dur + 0.05);
   }
+  const bell = (n, vol, dt) => chime(st(n), vol, ac.currentTime + dt, sfxBus);
 
+  // 効果音（v001 と同じ。ユーザー「SE は丁度良い」2026-10-12）。鐘だけ BGM と同じ五音音階に合わせた
   const SFX = {
     click: () => tone('triangle', 784, 660, 0.08, 0.08),
     grab: () => { tone('sine', 220, 330, 0.25, 0.08); noise(0.2, 900, 2, 0.03); },
     release: () => tone('sine', 330, 247, 0.3, 0.06),
+    pin: () => { tone('triangle', 523, 523, 0.12, 0.08); tone('triangle', 392, 392, 0.2, 0.06, 0.08); },
     soil: () => noise(0.12, 300 + Math.random() * 200, 1.5, 0.05),
-    spring: () => { bell(st(19), 0.07, ac.currentTime); bell(st(26), 0.05, ac.currentTime + 0.25); },
+    spring: () => { bell(19, 0.07, 0); bell(26, 0.05, 0.25); },
     tsunami: () => { noise(2.2, 120, 0.8, 0.4, 0, 'lowpass'); tone('sine', 70, 45, 2, 0.18); },
-    lander: () => [0, 7, 12, 19].forEach((n, i) => bell(st(n + 12), 0.08, ac.currentTime + i * 0.18)),
-    win: () => [0, 3, 7, 10, 12, 19].forEach((n, i) => bell(st(n + 12), 0.1, ac.currentTime + i * 0.22)),
+    species: () => { bell(16, 0.07, 0); bell(21, 0.06, 0.2); bell(28, 0.05, 0.4); },
+    lander: () => [0, 7, 12, 19].forEach((n, i) => bell(n + 12, 0.08, i * 0.18)),
+    win: () => [0, 4, 7, 12, 16, 19].forEach((n, i) => bell(n + 12, 0.1, i * 0.22)),
     lose: () => { tone('sine', 294, 196, 1.2, 0.1); tone('sine', 220, 147, 1.4, 0.07, 0.3); },
   };
   function play(name) { if (ac && ac.state === 'running' && SFX[name]) SFX[name](); }

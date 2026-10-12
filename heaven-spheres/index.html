@@ -6,15 +6,16 @@
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>天をまわす箱庭</title>
-<meta name="description" content="天動説の世界で、月と太陽の天球を神の手で回し、潮の満ち引きで海の生き物を陸の生き物へ進化させる箱庭ゲーム（試作）。">
+<meta name="description" content="天動説の世界で、月と太陽の天球を神の手で回し、潮の満ち引きで海の生き物を陸へ上げ、種を分けたり出会わせたりする箱庭ゲーム（試作）。">
 <meta name="theme-color" content="#efe3c4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1b1712" media="(prefers-color-scheme: dark)">
-<link rel="stylesheet" href="css/style.css?v=1">
+<link rel="stylesheet" href="css/style.css?v=2">
 </head>
 <body>
 <header class="top">
   <a class="back" href="../archive.html" aria-label="あそびラボの保管庫へ戻る">←</a>
   <h1>天をまわす箱庭 <span class="proto">試作</span></h1>
+  <button type="button" class="icon-btn btnBgm" aria-label="音楽" aria-pressed="true" title="音楽のオン・オフ">♪</button>
   <button type="button" class="icon-btn" id="btnAbout" aria-label="このゲームについて">?</button>
 </header>
 
@@ -31,27 +32,32 @@
 
   <aside class="side">
     <div class="box quest">
-      <p class="label">第一の日のお題</p>
-      <p class="qtext">海の生き物を、陸で暮らせる生き物にしよう</p>
+      <p class="label"><span id="questLabel">第一の日のお題</span><span class="qstars" id="questStars"></span></p>
+      <p class="qtext" id="questText"></p>
       <div class="bar"><i id="questBar"></i></div>
-      <p class="small"><b id="landers">0</b> / <span id="goal">30</span> 匹が陸の生き物</p>
+      <p class="small"><b id="questNum">0</b><span id="questUnit"></span></p>
+      <details class="hintbox"><summary>ヒント</summary><p id="questHint"></p></details>
+    </div>
+
+    <div class="box species">
+      <p class="label">種の移り変わり</p>
+      <canvas id="spChart" aria-label="種ごとの数の移り変わり"></canvas>
+      <div class="splist" id="spList"></div>
+      <p class="small hint">名前を押すと、その種のいる所へ寄る。</p>
     </div>
 
     <div class="box stats">
       <p><span id="day">第 1 日</span>・<span id="gen">第 1 世代</span>・生き物 <b id="pop">0</b></p>
-      <p class="tide">潮: <b id="tide">―</b></p>
+      <p>潮: <b id="tide">―</b></p>
+      <p>気温: <b id="temp">―</b></p>
       <div class="genes" id="genes"></div>
     </div>
 
     <div class="box">
       <p class="label">神の手</p>
-      <div class="seg" role="group" aria-label="地をなぞる道具">
-        <button type="button" data-tool="look" aria-pressed="true">見る</button>
-        <button type="button" data-tool="raise" aria-pressed="false">盛る</button>
-        <button type="button" data-tool="dig" aria-pressed="false">削る</button>
-      </div>
+      <p class="small hint">天球の帯をドラッグで回す。タップで止める。大地のふちを外へなぞると盛る、内へなぞると削る。</p>
       <p class="small">土ぶくろ <span class="bar soil"><i id="soilBar"></i></span></p>
-      <p class="small hint">天球の帯をつかんで回す。大地は「盛る」「削る」でなぞる。</p>
+      <label class="small epi">周転円 <input type="range" id="epi" min="0" max="100" value="0"></label>
     </div>
 
     <div class="box">
@@ -65,7 +71,7 @@
     </div>
 
     <div class="box row">
-      <button type="button" class="tbtn" id="btnBgm" aria-pressed="true">♪ 音楽</button>
+      <button type="button" class="tbtn btnBgm" aria-pressed="true">♪ 音楽</button>
       <button type="button" class="tbtn" id="btnSfx" aria-pressed="true">効果音</button>
       <button type="button" class="tbtn" id="btnReset">最初から</button>
     </div>
@@ -74,29 +80,34 @@
 
 <dialog id="about">
   <h2>天をまわす箱庭（試作）</h2>
-  <p>天動説の世界です。大地は世界の真ん中で動かず、まわりを月・太陽・星の天球がめぐっています。きみは神の手で天球を回し、大地の形を変えられます。</p>
+  <p>天動説の世界です。大地は世界の真ん中で動かず、まわりを月・太陽・星の天球がめぐっています。きみは神の手で天球を回し、大地の形を変えられます。5つのお題（創世の日）を順に。</p>
   <h3>遊びかた</h3>
   <ul>
-    <li>天球の帯（目盛りのついた輪）をつかんで回す。はなすと勢いが残り、ゆっくりふつうの速さにもどる。キーボードは ←→ で月、Shift＋←→ で太陽。</li>
-    <li>「盛る」「削る」を選んで大地をなぞる。削った土は土ぶくろへ入り、盛るとへる。浜をくぼませると、潮が引いても水が残る「潮だまり」になる。</li>
-    <li>ホイール・ピンチ・＋－で寄る。「見る」のときは大地をドラッグして動かせる。スペースで止める。</li>
+    <li>天球の帯（目盛りのついた輪）をドラッグで回す。はなすと勢いが残り、ゆっくりふつうの速さにもどる。タップで止める／また動かす。いちばん外の恒星天を回すと、すべての天球がいっしょに回る。キーボードは ←→ で月、Shift＋←→ で太陽。</li>
+    <li>大地のふちを外へなぞると盛り上がり、内へなぞるとへこむ。削った土は土ぶくろへ入り、盛るとへる。</li>
+    <li>「周転円」で月を小さな円に乗せると、月が近づく日・遠ざかる日ができる。</li>
+    <li>ホイール・ピンチ・＋－で寄る。空や大地の奥をドラッグすると動かせる。スペースで止める。</li>
   </ul>
   <h3>この世界のきまり（天動説）</h3>
   <ul>
     <li>元素は自分の場所へ帰る。地がいちばん下、その上に水、空気、火。だから水は大地をおおって海になる。</li>
-    <li>月と太陽は水を引きよせる。真下と反対がわがふくらむ（潮）。月と太陽が重なるか反対にあると大潮。</li>
-    <li>天球を急に回すと、海が取り残されて揺れもどる。回しすぎると津波になって、生き物が流される。</li>
+    <li>月と太陽は水を引きよせる。真下と反対がわがふくらむ（潮）。月と太陽が並ぶと大潮。月が近いほど強く引く。</li>
+    <li>天球を急に回すと、海が取り残されて揺れもどる。回しすぎると津波になる。</li>
+    <li>太陽を止めると、昼の側は焼けて水が蒸発し、雲になって涼しい所に雨をふらせる。夜の側は凍え、凍った海は動かない。</li>
+    <li>生き物は近くの似た相手と子を残す。海や浅瀬で隔てられ、ちがう草（東はやわらかい、西はかたい）を食べていると、別の種に分かれる。</li>
   </ul>
   <h3>本当は</h3>
-  <p>潮の満ち引きは月と太陽の引く力（重力）で起きます。ただし動いているのは天球ではなく、地球のほうです（太陽のまわりを回り、自分も回る）。水が地球をおおうのも、元素の性質ではなく重力のためです。潮の満ち引きでできる浜や潮だまりが、生き物が陸へ上がるのを助けたという説があります。この試作では津波を「天球を回しすぎたせい」にしていますが、本当の津波はおもに海の底の地震などで起きます。</p>
-  <p class="small">版: 試作 v001（2026-10-12）・あそびラボ</p>
+  <p>潮の満ち引きは月と太陽の引く力（重力）で起きます。動いているのは天球ではなく地球のほうです（太陽のまわりを回り、自分も回る）。水が地球をおおうのも、元素の性質ではなく重力のためです。この試作では津波を「天球を回しすぎたせい」にしていますが、本当の津波はおもに海の底の地震などで起きます。昼と夜の気温の差は、地球が1日で回るのでならされています。月のように昼と夜が約2週間ずつ続くと、昼は100度をこえ、夜は-150度より冷えます。</p>
+  <p class="small">版: 試作 v002（2026-10-12）・あそびラボ</p>
   <form method="dialog"><button class="tbtn">とじる</button></form>
 </dialog>
 
-<script src="js/world.js?v=1"></script>
-<script src="js/life.js?v=1"></script>
-<script src="js/draw.js?v=1"></script>
-<script src="js/sound.js?v=1"></script>
-<script src="js/main.js?v=1"></script>
+<script src="js/world.js?v=2"></script>
+<script src="js/life.js?v=2"></script>
+<script src="js/draw.js?v=2"></script>
+<script src="js/sound.js?v=2"></script>
+<script src="js/quests.js?v=2"></script>
+<script src="js/ui.js?v=2"></script>
+<script src="js/main.js?v=2"></script>
 </body>
 </html>
