@@ -7,7 +7,7 @@
 //     中身 { app, v, meta: {day, counts, qi, at}, z: 'gzip'|'', data }。ファイルへの書き出しも同じ形。
 
 const SAVE_KEY = 'asobi-lab/edge-falls/save/';
-const SAVE_V = 1;
+const SAVE_V = 2;   // 2: 雪（v008）
 const SLOTS = ['slot1', 'slot2', 'slot3'];
 
 // ---- バイト列 ⇔ base64 ----
@@ -46,6 +46,7 @@ function snapshot() {
       g: packCells(W.g, 100, Int16Array), w: packCells(W.w, 1000, Uint16Array),
       veg: packCells(W.veg, 255, Uint8Array), alg: packCells(W.alg, 255, Uint8Array),
       moist: packCells(W.moist, 255, Uint8Array), tree: packCells(W.tree, 255, Uint8Array),
+      snow: packCells(W.snow, 1000, Uint16Array),
     },
     // [種類, x, y, おなか, のど, 年, 次の子まで, 向き, ぬれ, 世代, 遺伝子1〜3]
     animals: L.list.filter(a => !a.dead).map(a => [KI[a.kind], a.x, a.y, a.e, a.th, a.age, a.cd, a.dir, a.wet, a.gen, ...GENES[a.kind].map(([k]) => a.g[k])]),
@@ -86,6 +87,7 @@ function applyWorld(s) {
   unpackCells(s.cells.g, 100, Int16Array, W.g); unpackCells(s.cells.w, 1000, Uint16Array, W.w);
   unpackCells(s.cells.veg, 255, Uint8Array, W.veg); unpackCells(s.cells.alg, 255, Uint8Array, W.alg);
   unpackCells(s.cells.moist, 255, Uint8Array, W.moist); unpackCells(s.cells.tree, 255, Uint8Array, W.tree);
+  if (typeof s.cells.snow === 'string' && unb64(s.cells.snow).length >= INS.length * 2) unpackCells(s.cells.snow, 1000, Uint16Array, W.snow);
   W.t = num(s.t, 0); W.day = num(s.day, 1); W.soil = num(s.soil, 120); W.abyss = num(s.abyss, 900);
   W.vapor = num(s.vapor, 0); W.outRate = num(s.outRate, 0);
   for (const k of ['deer', 'wolf', 'fish', 'bird']) W.stock[k] = Math.max(0, Math.min(STOCK_MAX[k], num(s.stock && s.stock[k], 0)));
@@ -107,7 +109,7 @@ function applyWorld(s) {
   G.qi = Math.max(0, Math.min(QUESTS.length, num(s.quest.qi, 0) | 0)); G.qStart = num(s.quest.qStart, 0); G.streak = num(s.quest.streak, 0);
   G.sel = null;
   if (s.view) { V.yaw = num(s.view.yaw, V.yaw); V.tilt = Math.max(0.32, Math.min(0.92, num(s.view.tilt, V.tilt))); V.zoom = Math.max(0.6, Math.min(3, num(s.view.zoom, 1))); V.panX = num(s.view.panX, 0); V.panY = num(s.view.panY, 0); }
-  updateLight(); stepMoist(0.25);
+  updateLight(); stepClimate(0, true); stepMoist(0.25);
   prevCounts = { ...L.counts };
   layout(V.cw, V.ch);
 }

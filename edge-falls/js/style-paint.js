@@ -177,7 +177,7 @@ const PAINT = (() => {
   function drawBodies(ctx, t) {
     const o = proj(C, C, HS);
     ctx.strokeStyle = 'rgba(240,226,190,0.18)'; ctx.lineWidth = 1.5; ctx.setLineDash([2, 7]);
-    ctx.beginPath(); ctx.ellipse(o.x, o.y, RS * V.s, RS * V.s * V.tilt, 0, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); for (const R of [RS, W.rs]) { ctx.moveTo(o.x + R * V.s, o.y); ctx.ellipse(o.x, o.y, R * V.s, R * V.s * V.tilt, 0, 0, 7); } ctx.stroke(); ctx.setLineDash([]);
     for (const [key, b] of [['sun', W.sun], ['moon', W.moon]]) {
       const p = bodyPos(b), r = Math.max(10, V.s * (key === 'sun' ? 2.1 : 1.6));
       if (key === 'sun') {

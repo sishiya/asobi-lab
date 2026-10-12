@@ -29,7 +29,12 @@ function simulate(sec) {
     W.t += h;
     stepHeavens(h); stepWater(h, false); stepEvap(h); stepSky(h); stepLife(h);
     accPlant += h;
-    if (accPlant >= 0.25) { stepMoist(accPlant); stepPlants(accPlant); updateLight(); accPlant = 0; }
+    if (accPlant >= 0.25) {
+      stepMoist(accPlant); stepPlants(accPlant); updateLight(); stepClimate(accPlant); accPlant = 0;
+      const se = seasonOf();
+      if (G.season !== undefined && se !== G.season) G.seasonMsg = se;   // 季節が変わった（知らせはループで）
+      G.season = se;
+    }
     accHist += h;
     if (accHist >= DAY / 2) { accHist = 0; recordHist(waterStats()); }
     if (Math.floor(W.t / DAY) !== dayBefore) {
@@ -73,6 +78,8 @@ function checkWorld() {
   }
   return s;
 }
+
+const SEASON_MSG = ['春になった。雪がとけ、草がまた伸びはじめる', '夏になった。太陽の道が内がわへ。暑すぎる所に気をつけて', '秋になった。草の伸びがおそくなる', '冬になった。太陽の道が外がわへ。雪がふり、水が凍る'];
 
 // ---- 入力 ----
 const RAD = { raise: 3.2, dig: 3.2, grass: 3, spring: 1.2, deer: 1, wolf: 1, fish: 1, bird: 1 };
@@ -202,17 +209,27 @@ function zoomBy(k) { V.zoom = Math.max(0.6, Math.min(3, V.zoom * k)); layout(V.c
 $('zoomIn').onclick = () => zoomBy(1.2);
 $('zoomOut').onclick = () => zoomBy(1 / 1.2);
 
+// 押しているあいだ、なめらかに動く（2026-10-13 ユーザー「カカカではなく、スーっと」）。キーのくりかえしは使わない
+const held = new Set();
+const MOVE_KEYS = ['w', 'a', 's', 'd', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
+addEventListener('keyup', e => held.delete(e.key.length === 1 ? e.key.toLowerCase() : e.key));
+addEventListener('blur', () => held.clear());
+function moveByKeys(dt) {
+  if (!held.size) return;
+  const has = k => held.has(k);
+  const pan = 480 * dt, rot = 1.6 * dt, tl = 0.5 * dt;
+  if (has('a') || has('d') || has('w') || has('s')) { V.panX = (V.panX || 0) + (has('a') ? pan : 0) - (has('d') ? pan : 0); V.panY = (V.panY || 0) + (has('w') ? pan : 0) - (has('s') ? pan : 0); }
+  if (has('ArrowLeft')) V.yaw += rot;
+  if (has('ArrowRight')) V.yaw -= rot;
+  if (has('ArrowUp')) V.tilt = Math.max(0.32, V.tilt - tl);
+  if (has('ArrowDown')) V.tilt = Math.min(0.92, V.tilt + tl);
+  layout(V.cw, V.ch);
+}
 addEventListener('keydown', e => {
   if (e.target.closest && e.target.closest('dialog')) return;
-  if (e.key === 'ArrowLeft') V.yaw += 0.08;
-  else if (e.key === 'ArrowRight') V.yaw -= 0.08;
-  else if (e.key === 'ArrowUp') V.tilt = Math.max(0.32, V.tilt - 0.03);
-  else if (e.key === 'ArrowDown') V.tilt = Math.min(0.92, V.tilt + 0.03);
-  else if (e.key === ' ') { setSpeed(G.speed ? 0 : 1); }
-  else if ('wasdWASD'.includes(e.key) && e.key.length === 1) {            // WASD で平行移動
-    const k = e.key.toLowerCase();
-    panBy(k === 'a' ? 40 : k === 'd' ? -40 : 0, k === 'w' ? 40 : k === 's' ? -40 : 0);
-  }
+  const mk = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (MOVE_KEYS.includes(mk)) { held.add(mk); e.preventDefault(); return; }
+  if (e.key === ' ') { setSpeed(G.speed ? 0 : 1); }
   else if (e.key >= '1' && e.key <= '9') setTool(['look', 'raise', 'dig', 'spring', 'grass', 'deer', 'wolf', 'fish', 'bird'][+e.key - 1]);
   else return;
   e.preventDefault(); layout(V.cw, V.ch);
@@ -240,6 +257,7 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   const t = now / 1000;
+  moveByKeys(dt);
   if (G.started && G.speed > 0) simulate(dt * G.speed);
   if (ptr && ptr.mode === 'tool' && G.tool !== 'spring') {
     ptr.t += dt;
@@ -248,6 +266,9 @@ function frame(now) {
   }
   const s = checkWorld();
   if (G.needSave && !THUMB) { G.needSave = false; autoSave(); }
+  if (G.seasonMsg !== undefined) {
+    toast(SEASON_MSG[G.seasonMsg], 4); Sound.play('spring'); G.seasonMsg = undefined;
+  }
   accSide += dt;
   if (accSide > 0.25) { accSide = 0; updateSide(s); }
   drawWorld(ctx, t, hover);

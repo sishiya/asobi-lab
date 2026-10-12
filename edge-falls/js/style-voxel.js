@@ -22,11 +22,20 @@ const VOX = (() => {
     const k = (0.5 + 0.35 * L) * Math.max(0.55, 1 - dz * 0.025);
     return rgba(r * k, g * k, b * k);
   }
-  function rootColor(t, row, sec, d) {          // sec: 世界の向きの区分（回すといっしょに動く）
-    const j = 0.82 + hash2(sec, d) * 0.3, k = 1 - t * 0.6;
-    if (hash2(sec * 3, d) > 0.96) return rgba(150 * k, 120 * k, 92 * k);   // ところどころ明るい岩
-    return rgba(92 * j * k, 76 * j * k, 64 * j * k);
+  // 岩の根（v008）: 下ほど暗く（深淵へ消えていく）、左から光が当たって丸みが出る。
+  //   8 ずつの段で、出っぱりの上は明るく、その下は影。ふちのすぐ下は大地のかげで暗い。
+  function rootColor(t, row, sec, d, u) {
+    const side = 0.78 + 0.22 * Math.max(-1, Math.min(1, -(u || 0) / (RD * 0.7)));
+    const j = 0.84 + hash2(sec, d) * 0.28;
+    let k = (1 - 0.82 * Math.pow(t, 0.8)) * side * j;
+    const dm = (d + (hash2(sec >> 1, 5) * 4 | 0)) % 8;
+    if (dm < 2) k *= 1.22; else if (dm < 4) k *= 0.66;
+    if (d <= 3) k *= 0.6;
+    const r = mix(112, 44, t), g = mix(92, 38, t), b = mix(74, 46, t);
+    if (hash2(sec * 3, d) > 0.97) return rgba(r * k * 1.5, g * k * 1.45, b * k * 1.3);   // ところどころ明るい岩
+    return rgba(r * k, g * k, b * k);
   }
+
 
 
   function renderVoxel(t) {
@@ -89,10 +98,10 @@ const VOX = (() => {
               if (row === yz - 1 && step) k = 1.1;                 // 段の角を明るく
               else if (row === ya && !water) k = 0.94;            // 奥のさかい
               const vv = (row + 0.5 - base) / (sb * tl), wx = C + u * c + vv * s, wy = C - u * s + vv * c;
-              if (water) k *= ((Math.floor(wx * 1.5 + tw * 0.5) + Math.floor(wy * 0.75) * 3) % 5 === 0) ? 1.1 : 0.98;   // さざ波（流れる縞）
+              if (water) k *= ((Math.floor(wx * 1.5 + tw * 0.5) + Math.floor(wy * 0.75) * 3) % 5 === 0) ? 1.05 : 0.99;   // さざ波（流れる縞。強すぎると線のバグに見えるので弱く）
               else k *= 0.93 + 0.12 * ih(Math.floor(wx * 4), Math.floor(wy * 4));                                              // 土や草の粒
               let r = OUT[0] * k, g = OUT[1] * k, b = OUT[2] * k;
-              if (water && Lm > 0.55 && row === ((ya + yz) >> 1) && ((HASH[i] * 97 + tw) % 9) < 0.6) { r = 250; g = 252; b = 255; }
+              if (water && Lm > 0.65 && row === ((ya + yz) >> 1) && ((HASH[i] * 97 + tw) % 13) < 0.5) { r = mix(r, 226, 0.7); g = mix(g, 238, 0.7); b = mix(b, 248, 0.7); }   // きらめき（まわりの水の色になじませる）
               d32[row * BW + px] = rgba(r, g, b); dep[row * BW + px] = vF;
             }
             ybuf = ya;
@@ -120,35 +129,46 @@ const VOX = (() => {
     }
   }
 
+  // 滝（v008）: となり合う滝を1枚のすだれにまとめる（柱が並んで見えないように）。明暗の帯が流れ落ち、
+  //   下ほど横へ広がって薄くなり、ちぎれて粒になる。落ち口にしぶき、下に霧。
+  const FC = { q: null, top: null, len: null };
   function drawFalls(t) {
     const BW = buf.width, BH = buf.height, bs = V.bs;
-    const fr = Math.floor(t * 10);
+    if (!FC.q || FC.q.length !== BW) { FC.q = new Float32Array(BW); FC.top = new Float32Array(BW); FC.len = new Float32Array(BW); }
+    const Q = FC.q, TOP = FC.top, LEN = FC.len;
+    Q.fill(0); TOP.fill(1e9);
     for (const f of fallList()) {
-      const bx0 = Math.round((f.top.x - f.wid / 2) / bs), wpx = Math.max(1, Math.round(f.wid / bs));
-      const by0 = Math.round(f.top.y / bs), Lp = Math.round(f.L / bs);
-      const a0 = Math.min(0.95, 0.45 + f.q * 0.5);
-      for (let x = 0; x < wpx; x++) {
-        const X = bx0 + x; if (X < 0 || X >= BW) continue;
-        const hx = hash2(X, f.b), edge = x === 0 || x === wpx - 1;
-        for (let yy = -1; yy < Lp; yy++) {
-          const Y = by0 + yy; if (Y < 0) continue; if (Y >= BH) break;
-          const fade = 1 - yy / Lp;
-          const st = ((yy - t * 32 + hx * 40) % 9 + 9) % 9;
-          let r = 182, g = 214, b = 240;
-          if (st < 2.5) { r = 246; g = 250; b = 255; } else if (edge) { r = 120; g = 166; b = 208; }
-          blend(Y * BW + X, r, g, b, a0 * Math.min(1, fade * 2.2));
-        }
+      const x0 = (f.top.x - f.wid / 2) / bs, x1 = (f.top.x + f.wid / 2) / bs;
+      for (let X = Math.max(0, Math.floor(x0)); X <= Math.min(BW - 1, Math.ceil(x1)); X++) {
+        const w = Math.max(0, Math.min(1, Math.min(X - x0, x1 - X) + 0.6));
+        if (f.q * w > Q[X]) { Q[X] = f.q * w; LEN[X] = f.L / bs; }
+        TOP[X] = Math.min(TOP[X], f.top.y / bs);
       }
-      // 落ち口のしぶき
-      for (let k = 0; k < Math.min(8, wpx * 2); k++) {
-        const X = bx0 + Math.floor(hash2(k, f.b + fr) * wpx), Y = by0 - 1 - Math.floor(hash2(fr, k + f.b) * 3);
-        if (X >= 0 && X < BW && Y >= 0 && Y < BH) blend(Y * BW + X, 248, 252, 255, 0.8);
+    }
+    const sp = 34, fr = Math.floor(t * 10);
+    for (let X = 0; X < BW; X++) {
+      const q = Q[X]; if (q < 0.01) continue;
+      const top = TOP[X], L = LEN[X], a0 = Math.min(0.95, 0.38 + q * 0.6), ph = hash2(X, 3) * 30;
+      const edge = Q[X - 1] < q * 0.5 || Q[X + 1] < q * 0.5;
+      for (let yy = -1; yy < L; yy++) {
+        const f = yy / L, Y = Math.round(top + yy);
+        if (Y < 0) continue; if (Y >= BH) break;
+        const flow = yy - t * sp;
+        if (f > 0.3 && hash2(X * 7 + Math.floor(flow / 2), 11) < (f - 0.3) * 1.5) continue;       // ちぎれて粒に
+        const band = ((flow * 0.9 + ph) % 13 + 13) % 13;
+        let r = 150, g = 190, b = 228;
+        if (band < 3) { r = 246; g = 250; b = 255; } else if (band < 7) { r = 194; g = 222; b = 246; }
+        if (edge && f < 0.4) { r *= 0.8; g *= 0.86; b *= 0.92; }
+        if (yy <= 1) { r = 240; g = 248; b = 255; }                                                 // 落ち口のふくらみ
+        const dx = f > 0.15 ? Math.round((hash2(X, Math.floor(flow / 3)) - 0.5) * f * (4 + q * 6)) : 0;
+        const XX = X + dx; if (XX < 0 || XX >= BW) continue;
+        blend(Y * BW + XX, r, g, b, a0 * (1 - f * 0.75));
       }
-      // 霧（下のほうに、ちらちら）
-      const n = Math.min(40, wpx * 5);
-      for (let k = 0; k < n; k++) {
-        const X = bx0 - wpx + Math.floor(hash2(k + f.b * 31, fr) * wpx * 3), Y = by0 + Math.floor(Lp * (0.45 + 0.55 * hash2(fr, k * 7 + f.b)));
-        if (X >= 0 && X < BW && Y >= 0 && Y < BH) blend(Y * BW + X, 230, 240, 252, 0.3 * f.q);
+      // 落ち口のしぶき・下の霧
+      if (hash2(X, fr) < 0.35 * q) { const Y = Math.round(top - 1 - hash2(fr, X) * 3); if (Y >= 0) blend(Y * BW + X, 250, 252, 255, 0.85); }
+      for (let n = 0; n < 2; n++) {
+        const hy = hash2(X + n * 31, fr), Y = Math.round(top + L * (0.7 + 0.3 * hy)), XX = X + Math.round((hash2(fr, X + n) - 0.5) * 10);
+        if (Y >= 0 && Y < BH && XX >= 0 && XX < BW) blend(Y * BW + XX, 226, 236, 250, 0.22 * q);
       }
     }
   }
@@ -163,6 +183,7 @@ const VOX = (() => {
     tree: ['..LLL..', '.LLGLL.', 'LLGLLLL', 'LLLLLDL', '.LDLLD.', '...T...', '...T...'],
     pine: ['...L...', '..LGL..', '.LLLLL.', '..LGL..', '.LLLDL.', 'LLLLLDL', '...T...'],
     sap: ['.L.', 'LGL', '.T.'],
+    bare: ['.S.S.S.', 'T.T.T.T', '.T.T.T.', '..TTT..', '...T...', '...T...', '...T...'],
   };
   const PAL = {
     deer: { a: [232, 220, 192], h: [176, 122, 68], d: [58, 36, 20], b: [168, 116, 63], B: [138, 92, 48], w: [242, 234, 216], l: [90, 58, 28] },
@@ -171,6 +192,10 @@ const VOX = (() => {
     bird: { h: [242, 242, 236], k: [232, 192, 64], n: [216, 216, 212], b: [154, 164, 174], B: [124, 134, 144], l: [106, 90, 64], w: [200, 208, 216] },
     tree: { L: [90, 160, 67], G: [143, 208, 106], D: [63, 122, 52], T: [107, 74, 42] },
     pine: { L: [63, 127, 74], G: [106, 168, 106], D: [45, 94, 56], T: [107, 74, 42] },
+    treeSpring: { L: [104, 172, 76], G: [244, 178, 204], D: [74, 136, 60], T: [107, 74, 42] },
+    treeAutumn: { L: [214, 128, 46], G: [242, 194, 72], D: [176, 70, 40], T: [107, 74, 42] },
+    bare: { T: [112, 84, 58], S: [240, 244, 250] },
+    pineWinter: { L: [58, 112, 72], G: [236, 242, 248], D: [44, 88, 56], T: [107, 74, 42] },
   };
   const cache = {};
   function palAt(name, k) {
@@ -235,12 +260,12 @@ const VOX = (() => {
     const w = 250 - dark * 110 | 0;
     if (cl.rain > 0.12) {
       const g = pb(cl.x, cl.y, surfAt(cl.x, cl.y)), p = pb(cl.x, cl.y, z);
-      bctx.fillStyle = 'rgba(170,200,235,0.55)';
+      bctx.fillStyle = 'rgba(150,178,214,0.38)';
       for (let k = 0; k < 10; k++) {
         const ox = (hash2(k, cl.seed) - 0.5) * r * 1.4 * V.s / V.bs, oy = ((t * 1.6 + k * 0.37) % 1) * (g.y - p.y);
         bctx.fillRect(Math.round(p.x + ox), Math.round(p.y + oy), 1, 2);
       }
-      bctx.fillStyle = 'rgba(220,236,255,0.7)';                      // 地面のはね
+      bctx.fillStyle = 'rgba(196,216,240,0.45)';                     // 地面のはね
       for (let k = 0; k < 5; k++) if (hash2(k, Math.floor(t * 8) + cl.seed) > 0.5) {
         const ox = (hash2(k, cl.seed + 3) - 0.5) * r * 1.4 * V.s / V.bs;
         bctx.fillRect(Math.round(g.x + ox) - 1, Math.round(g.y) - 1, 1, 1); bctx.fillRect(Math.round(g.x + ox) + 1, Math.round(g.y) - 1, 1, 1);
@@ -259,12 +284,12 @@ const VOX = (() => {
     const bs = V.bs;
     // 道すじ（点線）
     bctx.fillStyle = 'rgba(240,228,190,0.35)';
-    for (let k = 0; k < 96; k += 2) { const a = k / 96 * Math.PI * 2; const p = pb(C + RS * Math.cos(a), C + RS * Math.sin(a), HS); bctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); }
+    for (const R of [RS, W.rs]) for (let k = 0; k < 96; k += 2) { const a = k / 96 * Math.PI * 2; const p = pb(C + R * Math.cos(a), C + R * Math.sin(a), HS); bctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); }   // 月の道と、季節で変わる太陽の道
     for (const [key, b] of [['sun', W.sun], ['moon', W.moon]]) {
       const p = bodyPos(b), R = Math.max(4, Math.round(V.s * (key === 'sun' ? 1.9 : 1.5) / bs));
       const cx = p.x / bs, cy = p.y / bs;
       // 地へおろした線
-      const g = pb(C + RS * Math.cos(b.a), C + RS * Math.sin(b.a), surfAt(C + RS * Math.cos(b.a), C + RS * Math.sin(b.a)));
+      const OR = bodyR(b), g = pb(C + OR * Math.cos(b.a), C + OR * Math.sin(b.a), surfAt(C + OR * Math.cos(b.a), C + OR * Math.sin(b.a)));
       bctx.fillStyle = key === 'sun' ? 'rgba(255,220,120,0.35)' : 'rgba(210,220,255,0.25)';
       for (let y = Math.round(cy + R + 2); y < g.y; y += 3) bctx.fillRect(Math.round(cx), y, 1, 1);
       if (key === 'sun') {
@@ -290,41 +315,97 @@ const VOX = (() => {
     }
   }
 
-  // 空: 段々の色を市松でつなぎ（ディザ）、星雲も画素で。大きさが変わったときだけ作る
-  let bg = null;
-  function makeBg() {
-    const BW = buf.width, BH = buf.height;
-    const c = document.createElement('canvas'); c.width = BW; c.height = BH;
-    const x = c.getContext('2d'), im = x.createImageData(BW, BH), d = new Uint32Array(im.data.buffer);
-    const STOPS = [[27, 37, 70], [22, 30, 58], [17, 23, 46], [13, 18, 36], [10, 13, 28], [7, 9, 20], [5, 7, 14]];
-    const neb = [[0.25, 0.3, 0.22, [70, 52, 110]], [0.75, 0.18, 0.18, [40, 70, 120]], [0.6, 0.75, 0.2, [60, 40, 90]]];
-    for (let y = 0; y < BH; y++) for (let xx = 0; xx < BW; xx++) {
-      const f = y / BH * (STOPS.length - 1), i = Math.floor(f), fr = f - i;
-      const pk = fr > (((xx + y) & 1) ? 0.66 : 0.33) ? Math.min(i + 1, STOPS.length - 1) : i;
-      let r = STOPS[pk][0], g = STOPS[pk][1], b = STOPS[pk][2];
-      for (const [nx, ny, nr, col] of neb) {
-        const dd = Math.hypot(xx / BW - nx, (y / BH - ny) * 0.7) / nr;
-        if (dd < 1) { const a = (1 - dd) * 0.35, th = ((xx * 3 + y * 5) % 4) / 4; if (a > th * 0.35) { r = mix(r, col[0], a); g = mix(g, col[1], a); b = mix(b, col[2], a); } }
+  // 遠景（v008。ユーザー「遠景がハリボテっぽい」）: 星の天球と、はるか下に広がる雲海。
+  //   見る向き（yaw）と傾き（tilt）で、地平線の高さも星も雲も動く（書き割りに見えないように）。
+  //   雲海は平らな雲の層を遠近で描く（遠いほど細かく、地平線でかすむ）。太陽の向きの地平線は少し暖かい色。遠くに小さな浮島。
+  //   板の画素 2 つを 1 つにした粗さで、毎コマ描く。
+  const SKYF = 2;
+  let sky = null, ctex = null;
+  const STARS3 = Array.from({ length: 260 }, (_, k) => ({ az: hash2(k, 1) * Math.PI * 2, alt: Math.asin(hash2(k, 2)) * 0.9 + 0.02, m: hash2(k, 3) }));
+  const ISLES = [[0.8, 0.06, 1.0], [2.5, 0.025, 0.55], [4.2, 0.09, 0.8], [5.4, 0.04, 0.45]];   // 向き・地平線からの下がり・大きさ
+  const wrapA = a => { a = (a + Math.PI) % (2 * Math.PI); if (a < 0) a += 2 * Math.PI; return a - Math.PI; };
+  function makeCloudTex() {
+    const S = 128, base = new Float32Array(S * S);
+    ctex = new Float32Array(S * S);
+    for (let o = 0, amp = 0.55, cell = 32; o < 4; o++, amp *= 0.5, cell /= 2) {
+      const G = S / cell, lat = Array.from({ length: G * G }, (_, k) => hash2(k + o * 999, 17));
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const gx = x / cell, gy = y / cell, xi = Math.floor(gx), yi = Math.floor(gy), fx = gx - xi, fy = gy - yi;
+        const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+        const v = (k1, k2) => lat[((k2 % G) * G) + (k1 % G)];
+        const a = v(xi, yi), b = v(xi + 1, yi), c = v(xi, yi + 1), d = v(xi + 1, yi + 1);
+        ctex[y * S + x] += amp * ((a + (b - a) * sx) * (1 - sy) + (c + (d - c) * sx) * sy);
       }
-      d[y * BW + xx] = rgba(r, g, b);
     }
-    x.putImageData(im, 0, 0);
-    bg = { c, w: BW, h: BH };
+    void base;
   }
-  function drawBackground(ctx, t) {
-    if (!bg || bg.w !== buf.width || bg.h !== buf.height) makeBg();
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(bg.c, 0, 0, bg.w * V.bs, bg.h * V.bs);
-    const bs = V.bs;
-    for (let k = 0; k < 160; k++) {
-      const x = Math.floor(((((k * 7919 % 1000) / 1000 + V.yaw / 6.283 * 0.5) % 1 + 1) % 1) * V.cw / bs) * bs;
-      const y = Math.floor((k * 104729 % 997) / 997 * V.ch / bs) * bs;
-      ctx.globalAlpha = 0.3 + 0.4 * (Math.sin(t * 1.3 + k * 1.7) > 0.6 ? 1 : 0.5);
-      ctx.fillStyle = k % 9 === 0 ? '#ffe8b0' : '#dfe8ff';
-      ctx.fillRect(x, y, bs, bs);
-      if (k % 23 === 0) { ctx.globalAlpha *= 0.5; ctx.fillRect(x - bs, y, bs, bs); ctx.fillRect(x + bs, y, bs, bs); ctx.fillRect(x, y - bs, bs, bs); ctx.fillRect(x, y + bs, bs, bs); }
+  function drawSky(ctx, t) {
+    const W2 = Math.ceil(buf.width / SKYF), H2 = Math.ceil(buf.height / SKYF);
+    if (!sky || sky.c.width !== W2 || sky.c.height !== H2) {
+      const c = document.createElement('canvas'); c.width = W2; c.height = H2;
+      const x = c.getContext('2d'), im = x.createImageData(W2, H2);
+      sky = { c, x, im, d: new Uint32Array(im.data.buffer) };
     }
-    ctx.globalAlpha = 1;
+    if (!ctex) makeCloudTex();
+    const f = V.bs * SKYF, ppr = V.cw / 1.25 / f;                 // 空の画素 / ラジアン
+    const el = Math.asin(V.tilt), yh = (V.cy - V.panY) / f - el * ppr * 0.9 + V.panY / f * 0.15;
+    const cx = V.cw / 2 / f, look = -Math.PI / 2 - V.yaw;
+    const sunD = wrapA(W.sun.a - look), wm = warmth();
+    const d = sky.d, drift = t * 0.015;
+    const HZ = [58 + 20 * wm, 62 + 12 * wm, 104];
+    for (let y = 0; y < H2; y++) {
+      const below = y >= yh;
+      const beta = below ? (y - yh) / ppr + 0.006 : 0, dist = below ? 1 / Math.tan(beta) : 0;
+      const alt = below ? 0 : (yh - y) / ppr;
+      for (let x = 0; x < W2; x++) {
+        const dAz = (x - cx) / ppr;
+        const da = wrapA(dAz - sunD), sg = Math.exp(-da * da * 1.6);         // 太陽の向き
+        let r, g, b;
+        if (!below) {
+          const k = Math.min(1, alt * 1.6);
+          r = mix(HZ[0], 12, k); g = mix(HZ[1], 16, k); b = mix(HZ[2], 38, k);
+          const glow = sg * Math.exp(-alt * 5) * (0.5 + 0.5 * wm);
+          r += 90 * glow; g += 52 * glow; b += 18 * glow;
+        } else {
+          const fw = dist, lw = dAz * dist;
+          const wx = fw * Math.cos(look) - lw * Math.sin(look), wy = fw * Math.sin(look) + lw * Math.cos(look);
+          const n = ctex[((Math.floor((wy * 0.55) * 32) & 127) << 7) | (Math.floor((wx * 0.55 + drift) * 32) & 127)];
+          const dens = Math.max(0, Math.min(1, (n - 0.42) / 0.22));
+          const lit = 0.75 + 0.25 * sg;
+          r = mix(16, mix(112, 200, n) * lit, dens); g = mix(16, mix(118, 204, n) * lit, dens); b = mix(34, mix(162, 236, n) * lit, dens);
+          r += 40 * sg * dens * wm; g += 20 * sg * dens * wm;
+          const haze = Math.min(1, dist * 0.09);                    // 遠いほど地平線の色へ
+          r = mix(r, HZ[0], haze); g = mix(g, HZ[1], haze); b = mix(b, HZ[2], haze);
+        }
+        // 色を段に丸めて、市松でならす（画素の絵らしく）
+        const dth = ((x + y) & 1) ? 3 : -3;
+        d[y * W2 + x] = rgba(Math.round((r + dth) / 7) * 7, Math.round((g + dth) / 7) * 7, Math.round((b + dth) / 7) * 7);
+      }
+    }
+    // 星（地平線より上だけ）
+    for (const st of STARS3) {
+      const x = Math.round(cx + wrapA(st.az - look) * ppr), y = Math.round(yh - st.alt * ppr);
+      if (x < 0 || x >= W2 || y < 0 || y >= yh || y >= H2) continue;
+      const tw = Math.sin(t * 1.5 + st.az * 40) > 0.7 ? 0.6 : 1;
+      const v = (150 + st.m * 105) * tw;
+      d[y * W2 + x] = rgba(v, v, Math.min(255, v + 20));
+    }
+    // 遠くの浮島
+    for (const [az, dep, sz] of ISLES) {
+      const x0 = Math.round(cx + wrapA(az - look) * ppr), y0 = Math.round(yh + dep * ppr);
+      const w = Math.max(3, Math.round(sz * ppr * 0.12));
+      if (x0 + w < 0 || x0 - w >= W2 || y0 < 0 || y0 >= H2) continue;
+      for (let k = -w; k <= w; k++) {
+        const X = x0 + k; if (X < 0 || X >= W2) continue;
+        const hgt = Math.round((1 - (k / w) ** 2) * w * 0.9 * (0.7 + 0.3 * hash2(k, az * 10)));
+        for (let yy = 0; yy <= hgt; yy++) { const Y = y0 + yy; if (Y < H2) d[Y * W2 + X] = rgba(34 + yy * 2, 32 + yy, 50); }
+        if (y0 - 1 >= 0) d[(y0 - 1) * W2 + X] = rgba(70, 104, 76);
+      }
+      for (let yy = 0; yy < w; yy++) { const Y = y0 + yy, X = x0 + Math.round(w * 0.4); if (Y < H2 && X >= 0 && X < W2) d[Y * W2 + X] = rgba(170, 196, 226); }
+    }
+    sky.x.putImageData(sky.im, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(sky.c, 0, 0, W2 * f, H2 * f);
   }
 
   let fire = null;
@@ -336,9 +417,9 @@ const VOX = (() => {
     // 泉
     for (const sp of W.springs) {
       const p = pb(sp.i % N, sp.i / N | 0, Zq[sp.i]);
-      bctx.fillStyle = sp.on ? '#d8f2ff' : '#777';
+      bctx.fillStyle = sp.on ? '#8fc4e2' : '#6a6a6a';
       bctx.fillRect(Math.round(p.x) - 1, Math.round(p.y) - 1, 3, 1);
-      if (sp.on) { const k = Math.floor(t * 6) % 4; bctx.fillStyle = 'rgba(220,244,255,0.9)'; bctx.fillRect(Math.round(p.x), Math.round(p.y) - 2 - k, 1, 1); bctx.fillRect(Math.round(p.x) + (k % 2 ? 1 : -1), Math.round(p.y) - 1 - (k >> 1), 1, 1); }
+      if (sp.on) { const k = Math.floor(t * 6) % 4; bctx.fillStyle = 'rgba(178,218,240,0.75)'; bctx.fillRect(Math.round(p.x), Math.round(p.y) - 2 - k, 1, 1); bctx.fillRect(Math.round(p.x) + (k % 2 ? 1 : -1), Math.round(p.y) - 1 - (k >> 1), 1, 1); }
     }
     const k = Math.max(1, Math.round(V.s / V.bs / 3.2));          // 寄るほど画素の絵も大きく
     for (const it of sceneItems()) {
@@ -349,8 +430,11 @@ const VOX = (() => {
       }
       if (it.type === 'tree') {
         const L = lumAt(it.i % N, it.i / N | 0);
+        const se = seasonOf(), cold = W.T[it.i] < 2;
         if (it.t < 0.4) sprite(SPR.sap, palAt('tree', L), bx, by, k, false);
-        else sprite(it.conifer ? SPR.pine : SPR.tree, palAt(it.conifer ? 'pine' : 'tree', L), bx, by, k, it.hi > 0.5);
+        else if (it.conifer) sprite(SPR.pine, palAt(se === 3 || cold ? 'pineWinter' : 'pine', L), bx, by, k, it.hi > 0.5);
+        else if (se === 3) sprite(SPR.bare, palAt('bare', L), bx, by, k, it.hi > 0.5);                  // 冬ははだか
+        else sprite(SPR.tree, palAt(se === 2 ? 'treeAutumn' : se === 0 && it.hi > 0.55 ? 'treeSpring' : 'tree', L), bx, by, k, it.hi > 0.5);
       } else {
         const a = it.a, fl = (Math.cos(a.dir) * Math.cos(V.yaw) - Math.sin(a.dir) * Math.sin(V.yaw)) < 0;
         const fr = Math.floor(a.phase * 6) % 2;
@@ -407,7 +491,7 @@ const VOX = (() => {
     }
     for (const cl of W.clouds) drawCloud(cl, t);
     drawBodies(t);
-    drawBackground(ctx, t);
+    drawSky(ctx, t);
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(buf, 0, 0, buf.width * V.bs, buf.height * V.bs);
     return true;

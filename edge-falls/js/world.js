@@ -4,13 +4,17 @@
 //       ふちの外へ出た水は果ての滝になって深淵へ落ちる（一部は霧になって雲へ）。深淵の水は泉からわく。
 //   空: 太陽と月が大地の上をぐるりと回る（沈まない）。太陽に近い所が昼。月の下へ水が寄る（潮）。
 //   雲: 太陽に照らされた水と滝のしぶきから生まれ、天といっしょにめぐり、山にぶつかると雨をふらせる。
-//   草と水草: うるおい（moist）と光（light）で育つ。
+//   草と水草: うるおい（moist）と光（light）と気温（T）で育つ。
+//   季節（v008）: 1年＝YEAR 日（春夏秋冬が4日ずつ）。太陽の道は夏は内がわ（強く照らす）、冬は外がわ。
+//     気温 T は季節・日のあたり・高さで決まる。0 度より下で雨は雪 snow になって積もり、水は凍る ice（流れない）。春に雪がとける。
 
 const N = 96, C = (N - 1) / 2, RD = 46;
 const DAY = 60;                 // 1日の秒数（×1 のとき）
 const RS = 0.6 * RD, HS = 30;   // 太陽・月の道の半径（地の上に落とした所）と高さ
 const BINS = 96;                // 滝の向きの区分
 const SPRING_MAX = 6;
+const YEAR = 16;                // 1年の日数（春夏秋冬 4日ずつ）
+const SEASONS = ['春', '夏', '秋', '冬'];
 const STOCK_MAX = { deer: 10, wolf: 4, fish: 12, bird: 3 };
 
 const inside = new Uint8Array(N * N);
@@ -54,6 +58,8 @@ function newWorld(seed) {
   W.g = A(); W.w = A(); W.fL = A(); W.fR = A(); W.fU = A(); W.fD = A();
   W.veg = A(); W.alg = A(); W.moist = A(); W.light = A();
   W.tree = A(); W.tseed = A();          // 木（草がよく茂る所に、ゆっくり育つ）
+  W.T = A(); W.snow = A(); W.ice = new Uint8Array(N * N);   // 気温・雪・氷
+  W.rs = RS; W.sunAmp = 1;
   for (const i of INS) W.tseed[i] = rnd();
   W.fall = new Float32Array(BINS);       // 滝の量（なめらかにしたもの。描く用）
   W.fallNow = new Float32Array(BINS);    // この1秒に落ちた量をためる
@@ -110,22 +116,47 @@ function newWorld(seed) {
     else if (W.moist[i] > 0.35 && rnd() < 0.5) W.veg[i] = 0.3 + rnd() * 0.3;
     if (W.tseed[i] < 0.07 && W.veg[i] > 0.3 && W.g[i] < 13) W.tree[i] = 0.3 + rnd() * 0.7;
   }
-  updateLight();
+  updateLight(); stepClimate(0, true);
   // いちばん大きな滝の向き（はじめに手前に見せる）
   let bb = 0; for (let b = 1; b < BINS; b++) if (W.mist[b] > W.mist[bb]) bb = b;
   W.bigFall = (bb + 0.5) / BINS * Math.PI * 2;
   W.fall.fill(0); W.mist.fill(0);
 }
 
+// 季節: 0〜1 の年の進み（はじめは春のなかごろ）、季節の番号、ふだんの気温、暖かさ（冬 0〜夏 1）
+const seasonPhase = () => (0.1 + W.t / (DAY * YEAR)) % 1;
+const seasonOf = (p = seasonPhase()) => Math.floor(p * 4) % 4;
+const warmth = (p = seasonPhase()) => (1 + Math.cos(2 * Math.PI * (p - 0.375))) / 2;
+const baseTemp = (p = seasonPhase()) => 1 + 26 * warmth(p);        // 冬のなかごろ 1 度（夜と山は凍る）、夏のなかごろ 27 度
+// 太陽の道の半径（夏は内がわ、冬は外がわ）。月はいつも RS
+const bodyR = b => b === W.sun ? W.rs : RS;
+
+// 気温・雪どけ・氷（0.25 秒ごと）。now=true はすぐにその気温に
+function stepClimate(dt, now) {
+  const p = seasonPhase(), wm = warmth(p), Tb = baseTemp(p);
+  W.rs = RD * (0.75 - 0.3 * wm); W.sunAmp = 0.78 + 0.22 * wm;
+  const T = W.T, w = W.w, sn = W.snow, ice = W.ice;
+  const k = now ? 1 : 1 - Math.exp(-dt / 8);
+  let sum = 0;
+  for (const i of INS) {
+    const target = Tb + 9 * (W.light[i] - 0.5) - 0.55 * Math.max(0, W.g[i] - 4);
+    T[i] += (target - T[i]) * k; sum += T[i];
+    if (sn[i] > 0 && T[i] > 1) { const m = Math.min(sn[i], 0.004 * (T[i] - 1) * dt); sn[i] -= m; w[i] += m; }
+    if (w[i] > 0.03 && T[i] < -1) ice[i] = 1; else if (T[i] > 0.5 || w[i] <= 0.03) ice[i] = 0;
+  }
+  W.Tavg = sum / INS.length;
+}
+const tempGrow = t => Math.max(0, Math.min(1, (t - 1) / 12)) * (t > 33 ? Math.max(0, 1 - (t - 33) / 8) : 1);   // 草が育つ気温
+
 // 太陽が地の上に落とす所
-const sunGround = () => ({ x: C + RS * Math.cos(W.sun.a), y: C + RS * Math.sin(W.sun.a) });
+const sunGround = () => ({ x: C + W.rs * Math.cos(W.sun.a), y: C + W.rs * Math.sin(W.sun.a) });
 const moonGround = () => ({ x: C + RS * Math.cos(W.moon.a), y: C + RS * Math.sin(W.moon.a) });
 
 function updateLight() {
   const s = sunGround();
   for (const i of INS) {
     const d = Math.hypot(i % N - s.x, (i / N | 0) - s.y);
-    W.light[i] = Math.min(1, Math.max(0.06, 1.25 - d / (1.25 * RD)));
+    W.light[i] = Math.min(1, Math.max(0.06, (1.25 - d / (1.25 * RD)) * W.sunAmp));
   }
 }
 
@@ -154,7 +185,7 @@ function stepWater(dt, prep) {
   const kd = dt * K;
   for (const i of INS) {
     const wi = w[i];
-    if (wi < 1e-4) { fL[i] = fR[i] = fU[i] = fD[i] = 0; continue; }
+    if (wi < 1e-4 || W.ice[i]) { fL[i] = fR[i] = fU[i] = fD[i] = 0; continue; }   // 凍った水は流れない
     const H = P[i], lip = H - wi;
     const fr = Math.max(0.2, 1 - dt * (0.35 + 0.12 / (wi + 0.04)));
     let l = fL[i] * fr + kd * (H - (inside[i - 1] ? P[i - 1] : lip)); if (l < 0) l = 0;
@@ -188,7 +219,7 @@ function stepWater(dt, prep) {
 function stepEvap(dt) {
   const w = W.w, L = W.light;
   for (const i of INS) {
-    if (w[i] > 0.02 && L[i] > 0.5) {
+    if (w[i] > 0.02 && L[i] > 0.5 && !W.ice[i]) {
       const e = Math.min(w[i], 0.006 * (L[i] - 0.5) * dt * 2);
       w[i] -= e; W.vapor += e;
     }
@@ -219,16 +250,17 @@ function stepPlants(dt) {
       let nb = 0;
       if (inside[i - 1]) nb += v[i - 1]; if (inside[i + 1]) nb += v[i + 1];
       if (inside[i - N]) nb += v[i - N]; if (inside[i + N]) nb += v[i + N];
-      const grow = m[i] * L[i] * (0.03 * v[i] * (1 - v[i]) + 0.0012 * nb);
-      const wither = m[i] < 0.12 ? 0.012 : 0;
+      const tg = tempGrow(W.T[i]);
+      const grow = m[i] * L[i] * tg * (0.03 * v[i] * (1 - v[i]) + 0.0012 * nb);
+      const wither = (m[i] < 0.12 ? 0.012 : 0) + (W.T[i] < -2 ? 0.0015 : 0);   // 乾くと、凍えると枯れる
       v[i] = Math.min(1, Math.max(0, v[i] + (grow - wither * v[i]) * dt));
     }
     if (W.tseed[i] < 0.07) {          // 木: 草が茂って乾いた所で育ち、草がなくなるか水につかると枯れる
       const tr = W.tree;
-      if (v[i] > 0.6 && w[i] < 0.05 && W.g[i] < 13) tr[i] = Math.min(1, tr[i] + 0.004 * dt);
+      if (v[i] > 0.6 && w[i] < 0.05 && W.g[i] < 13) tr[i] = Math.min(1, tr[i] + 0.004 * tempGrow(W.T[i]) * dt);
       else if (v[i] < 0.15 || w[i] > 0.3) tr[i] = Math.max(0, tr[i] - 0.02 * dt);
     }
-    if (w[i] > 0.08) a[i] = Math.min(1, a[i] + (0.035 * L[i] * (a[i] * (1 - a[i]) + 0.01)) * dt);
+    if (w[i] > 0.08) a[i] = Math.min(1, a[i] + (0.035 * L[i] * Math.max(0.15, tempGrow(W.T[i] + 4)) * (a[i] * (1 - a[i]) + 0.01)) * dt);   // 水の中は少し暖かい
     else a[i] = Math.max(0, a[i] - 0.3 * dt);
   }
 }
@@ -280,7 +312,7 @@ function stepSky(dt) {
     const per = q / 9;
     for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
       const j = (cy + oy * 2) * N + cx + ox * 2;
-      if (cx + ox * 2 >= 0 && cx + ox * 2 < N && cy + oy * 2 >= 0 && cy + oy * 2 < N && inside[j]) { w[j] += per; m[j] = 1; }
+      if (cx + ox * 2 >= 0 && cx + ox * 2 < N && cy + oy * 2 >= 0 && cy + oy * 2 < N && inside[j]) { if (W.T[j] < 0) W.snow[j] += per; else w[j] += per; m[j] = 1; }   // 寒い所は雪
       else W.abyss += per;
     }
     if (c.water < 0.25) { W.abyss += c.water; W.clouds.splice(k, 1); }
@@ -338,7 +370,7 @@ function addSpring(cx, cy) {
 
 function waterStats() {
   let land = 0, wet = 0, grass = 0, cells = 0, clouds = 0;
-  for (const i of INS) { cells++; land += W.w[i]; if (W.w[i] > 0.05) wet++; else if (W.veg[i] > 0.22) grass++; }
+  for (const i of INS) { cells++; land += W.w[i] + W.snow[i]; if (W.w[i] > 0.05) wet++; else if (W.veg[i] > 0.22) grass++; }
   for (const c of W.clouds) clouds += c.water;
   return { land, clouds: clouds + W.vapor, abyss: W.abyss, wet: wet / cells, grass: grass / cells, out: W.outRate };
 }

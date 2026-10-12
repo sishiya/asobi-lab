@@ -151,7 +151,7 @@ const ETCH = (() => {
   function drawBodies(ctx, t) {
     const o = proj(C, C, HS);
     ctx.strokeStyle = 'rgba(58,42,28,0.5)'; ctx.lineWidth = 0.8; ctx.setLineDash([2, 4]);
-    ctx.beginPath(); ctx.ellipse(o.x, o.y, RS * V.s, RS * V.s * V.tilt, 0, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); for (const R of [RS, W.rs]) { ctx.moveTo(o.x + R * V.s, o.y); ctx.ellipse(o.x, o.y, R * V.s, R * V.s * V.tilt, 0, 0, 7); } ctx.stroke(); ctx.setLineDash([]);
     for (const [key, b] of [['sun', W.sun], ['moon', W.moon]]) {
       const p = bodyPos(b), r = Math.max(11, V.s * (key === 'sun' ? 2 : 1.6));
       ctx.strokeStyle = '#3a2a1c'; ctx.lineWidth = 1.2;

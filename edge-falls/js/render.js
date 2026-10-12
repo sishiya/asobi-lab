@@ -119,6 +119,9 @@ function cellColors() {
       for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(N - 1, cx + r); x++)
         if ((x - cx) ** 2 + (y - cy) ** 2 < r * r) shadeCloud[y * N + x] *= 1 - 0.18 * k;
   }
+  // 季節の色の強さ（秋・冬）
+  const sp = seasonPhase(), cdist = (a, b) => { const d = Math.abs(a - b) % 1; return Math.min(d, 1 - d); };
+  const aut = Math.max(0, 1 - cdist(sp, 0.66) / 0.14), win = Math.max(0, 1 - cdist(sp, 0.9) / 0.16);
   for (const i of INS) {
     const h = g[i], jit = 0.95 + HASH[i] * 0.1;
     let slope = 0;
@@ -139,7 +142,9 @@ function cellColors() {
     if (v > 0.03 && h < 13.5 && slope < 2.5) {
       const tone = HASH[i] > 0.5 ? 1 : 0.9, t = Math.min(1, v * 1.4);
       r = mix(r, mix(150, 66, v) * tone, t); gg = mix(gg, mix(188, 132, v) * tone, t); b = mix(b, mix(84, 52, v) * tone, t);
-      if (v > 0.6 && HASH[i] > 0.972) { if (HASH[i] > 0.986) { r = 246; gg = 222; b = 92; } else { r = 240; gg = 236; b = 236; } }
+      if (v > 0.6 && HASH[i] > 0.972 && win < 0.3) { if (HASH[i] > 0.986) { r = 246; gg = 222; b = 92; } else { r = 240; gg = 236; b = 236; } }
+      if (aut > 0) { const k = aut * 0.55 * t; r = mix(r, 196, k); gg = mix(gg, 158, k); b = mix(b, 70, k); }   // 秋は黄色く
+      if (win > 0) { const k = win * 0.5 * t; r = mix(r, 164, k); gg = mix(gg, 150, k); b = mix(b, 108, k); }   // 冬は枯れ草色
     }
     // 水
     const wd = w[i];
@@ -156,6 +161,11 @@ function cellColors() {
       r = mix(r, wr, k); gg = mix(gg, wg, k); b = mix(b, wb, k);
       SR[i] = wr * 0.7; SG[i] = wg * 0.75; SB[i] = wb * 0.85;
     }
+    // 氷・雪・霜
+    if (W.ice[i]) { r = mix(r, 206, 0.8); gg = mix(gg, 228, 0.8); b = mix(b, 242, 0.8); SR[i] = 170; SG[i] = 196; SB[i] = 214; }
+    const snw = W.snow[i];
+    if (snw > 0.01) { const k = Math.min(1, snw * 5); r = mix(r, 242, k); gg = mix(gg, 246, k); b = mix(b, 252, k); }
+    else if (W.T[i] < 0 && wd <= 0.06) { r = mix(r, 220, 0.25); gg = mix(gg, 226, 0.25); b = mix(b, 236, 0.25); }
     // くぼみの影（まわりが高いほど暗い）
     let ao = 0;
     for (const o of NB4) { const j = i + o; if (inside[j] && Zq[j] > Zq[i]) ao++; }
@@ -236,7 +246,7 @@ function renderRoot(px, u, ybot, quant, rootColor) {
     if (Math.abs(u) >= r) break;
     const vk = Math.sqrt(r * r - u * u);
     const yk = Math.min(BH, Math.round(cyb + vk * sb * tl + (THICK + d) * hb));
-    for (let row = Math.max(prev, 0); row < yk; row++) d32[row * BW + px] = rootColor(t, row, sec, d);
+    for (let row = Math.max(prev, 0); row < yk; row++) d32[row * BW + px] = rootColor(t, row, sec, d, u);
     if (yk > prev) prev = yk;
   }
 }
@@ -335,7 +345,7 @@ function fallList() {
 }
 
 const bodyHit = { sun: null, moon: null };
-const bodyPos = b => proj(C + RS * Math.cos(b.a), C + RS * Math.sin(b.a), HS);
+const bodyPos = b => proj(C + bodyR(b) * Math.cos(b.a), C + bodyR(b) * Math.sin(b.a), HS);
 const moonPhase = () => { const ph = ((W.moon.a - W.sun.a) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2); return { ph, lit: (1 - Math.cos(ph)) / 2 }; };
 const cloudR = cl => 2 + Math.sqrt(cl.water) * 0.55;
 const cloudZ = cl => 19 + (cl.seed % 3);

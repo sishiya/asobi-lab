@@ -6,11 +6,11 @@
 //   遺伝子（v005）: 種類ごとに3つ（0〜1）。子は親と近くの相手の平均に、少しの変わり（突然変異）。
 //     どれも「得」と「損」があり、世界のきびしさ（オオカミ・流れ・干上がり・飢え）で、生き残りやすいものが増える。
 
-const KINDS = {   // 時間は秒（1日＝60 秒）。eMax・cost・speed は遺伝子で上下する（traits）
-  deer: { name: 'シカ', eMax: 10, cost: 0.08, speed: 2.0, adult: 75, repE: 0.8, cd: 80, life: 600, cap: 220, childE: 0.35 },
-  wolf: { name: 'オオカミ', eMax: 16, cost: 0.05, speed: 2.4, adult: 110, repE: 0.8, cd: 150, life: 900, cap: 40, childE: 0.37 },
-  bird: { name: 'サギ', eMax: 12, cost: 0.05, speed: 0.6, adult: 150, repE: 0.8, cd: 200, life: 1200, cap: 30, childE: 0.35 },
-  fish: { name: 'サカナ', eMax: 6, cost: 0.05, speed: 1.4, adult: 50, repE: 0.77, cd: 40, life: 500, cap: 360, childE: 0.33 },
+const KINDS = {   // 時間は秒（1日＝60 秒、1年＝16 日＝960 秒。寿命は1年より長く）。eMax・cost・speed は遺伝子で上下する（traits）
+  deer: { name: 'シカ', eMax: 10, cost: 0.08, speed: 2.0, adult: 75, repE: 0.8, cd: 80, life: 1500, cap: 220, childE: 0.35 },
+  wolf: { name: 'オオカミ', eMax: 16, cost: 0.05, speed: 2.4, adult: 110, repE: 0.8, cd: 150, life: 2000, cap: 40, childE: 0.37 },
+  bird: { name: 'サギ', eMax: 12, cost: 0.05, speed: 0.6, adult: 150, repE: 0.8, cd: 200, life: 2000, cap: 30, childE: 0.35 },
+  fish: { name: 'サカナ', eMax: 6, cost: 0.05, speed: 1.4, adult: 50, repE: 0.77, cd: 40, life: 1000, cap: 360, childE: 0.33 },
 };
 const GENES = {
   deer: [['speed', 'あしの速さ'], ['size', '体の大きさ'], ['swim', '泳ぐ力']],
@@ -84,6 +84,14 @@ function spawn(kind, x, y, e, g) {
 }
 
 const cellOf = (x, y) => Math.round(y) * N + Math.round(x);
+// 寒さ・暑さで腹がへる割合（v008）。体が大きいほど寒さに強く、暑さに弱い（ベルクマンの規則）。サカナは水の中なので 3 度より下がらない
+function climateMul(a, t) {
+  const s = a.g.size;
+  if (a.kind === 'fish') return (t < 8 ? 0.6 : 1) + Math.max(0, t - 30) * 0.04 * (0.5 + s);   // サカナは冷たい水ではゆっくり暮らす（変温動物）
+  const rest = t < 5 ? 0.5 : t < 10 ? 0.75 : 1;   // 冬はじっとして、使う力をへらす（本当のシカも冬は代謝を下げる）
+  return rest * (1 + Math.max(0, 5 - t) * 0.035 * (1.4 - 0.9 * s)) + Math.max(0, t - 30) * 0.04 * (0.5 + s);
+}
+const deepAt = j => W.ice[j] ? 0 : W.w[j];   // 凍った水の上は歩ける
 const onDisk = (x, y) => (x - C) ** 2 + (y - C) ** 2 < (RD - 0.6) ** 2;
 
 // 近くの生き物を探すための粗い格子
@@ -136,8 +144,8 @@ function stepAnimal(a, dt) {
   if (a.kind === 'bird') { stepBird(a, dt); return; }
   const K = KINDS[a.kind], T = a.tr, i = cellOf(a.x, a.y);
   if (!inside[i]) { die(a, 'fall'); return; }
-  const w = W.w[i];
-  a.age += dt; a.cd -= dt; a.e -= T.cost * dt; a.phase += dt;
+  const w = a.kind === 'fish' ? W.w[i] : deepAt(i);
+  a.age += dt; a.cd -= dt; a.e -= T.cost * climateMul(a, W.T[i]) * dt; a.phase += dt;
   let sp = T.walk, vx = 0, vy = 0;
 
   if (a.kind === 'fish') {
@@ -177,7 +185,7 @@ function stepAnimal(a, dt) {
       if (a.wet > (a.kind === 'deer' ? T.wetMax : 25)) { die(a, 'drown'); return; }
     } else {
       a.wet = 0;
-      const avoid = j => (W.w[j] > 0.4 ? -fear : 0);
+      const avoid = j => (deepAt(j) > 0.4 ? -fear : 0);
       if (a.kind === 'deer') {
         const wolf = nearest(a, 'wolf', 6);
         if (wolf) {                                    // 逃げる: まっすぐ遠くへ。ふさがっていたら、オオカミからいちばん遠くなる向きへ
@@ -188,7 +196,7 @@ function stepAnimal(a, dt) {
         else if (a.th > 30) a.dir = pickDir(a, j => W.moist[j] + avoid(j), 7, 3);
         else if (a.e < T.eMax * 0.8) { a.dir = pickDir(a, j => W.veg[j] + avoid(j), 6, 2.5 + (swimmer ? 2 : 0)); sp *= W.veg[i] > 0.4 ? 0.3 : 1; }
         else { a.wander -= dt; if (a.wander < 0) { a.dir = pickDir(a, j => avoid(j) + Math.random() * 0.5, 4, 2); a.wander = 1.5 + Math.random() * 3; } sp *= 0.5; }
-        const take = Math.max(0, Math.min(W.veg[i] - 0.2, 0.4 * W.veg[i] * dt));   // 短い草は残す（そこからまた伸びる）
+        const take = Math.max(0, Math.min(W.veg[i] - 0.05, 0.7 * W.veg[i] * W.veg[i] * dt));   // 短い草からは少ししか食べられない（食べつくしにくい）
         if (a.e < T.eMax) { W.veg[i] -= take; a.e = Math.min(T.eMax, a.e + take * 5); }
       } else {
         a.rest -= dt;
@@ -230,6 +238,7 @@ function stepAnimal(a, dt) {
 
 function reproduce(a) {
   const K = KINDS[a.kind], T = a.tr;
+  if (W.T[cellOf(a.x, a.y)] < (a.kind === 'fish' ? 6 : 10)) return;   // 子が生まれるのは暖かいときだけ（春〜夏）
   if (a.e > K.repE * T.eMax && a.age > K.adult && a.cd <= 0) {
     const mate = nearest(a, a.kind, a.kind === 'bird' ? 12 : 8, b => b.age > K.adult);      // 近くの大人と遺伝子を合わせる（いなければ自分だけ）
     const ce = K.childE * T.eMax;
@@ -244,21 +253,21 @@ function reproduce(a) {
 
 // サギ: とんで水辺へ行き、浅い水に立ってサカナをねらう。くちばしが長いほど深い所まで届く。
 //   大きなサカナは飲みこみにくい（サギが大きいほどとれる）。おなかがいっぱいなら岸で休む。滝からは落ちない。
-const reachable = (a, f) => W.w[cellOf(f.x, f.y)] <= a.tr.reach;
+const reachable = (a, f) => { const j = cellOf(f.x, f.y); return !W.ice[j] && W.w[j] <= a.tr.reach; };   // 氷の下のサカナはとれない
 function flyTo(a, x, y) {
   if (!onDisk(x, y)) return;
   a.fly = true; a.tx = x; a.ty = y; a.wait = 0;
 }
 function stepBird(a, dt) {
   const K = KINDS.bird, T = a.tr;
-  a.age += dt; a.cd -= dt; a.e -= T.cost * (a.fly ? 1.4 : 1) * dt; a.phase += dt; a.rest -= dt; a.chase -= dt; a.wait += dt;
+  a.age += dt; a.cd -= dt; a.e -= T.cost * (a.fly ? 1.4 : 1) * climateMul(a, W.T[cellOf(a.x, a.y)] || 10) * dt; a.phase += dt; a.rest -= dt; a.chase -= dt; a.wait += dt;
   a.alt += Math.max(-6 * dt, Math.min(6 * dt, (a.fly ? 5 : 0) - a.alt));
   if (a.fly) {
     const dx = a.tx - a.x, dy = a.ty - a.y, d = Math.hypot(dx, dy);
     if (d < 0.6) { a.fly = false; a.wait = 0; }
     else { a.dir = Math.atan2(dy, dx); const st = Math.min(d, T.fly * dt); a.x += dx / d * st; a.y += dy / d * st; }
   } else {
-    const i = cellOf(a.x, a.y), depth = W.w[i];
+    const i = cellOf(a.x, a.y), depth = deepAt(i);
     if (depth > T.reach) { const f = nearest(a, 'fish', 30, b => reachable(a, b)); flyTo(a, f ? f.x : C + (Math.random() - 0.5) * 40, f ? f.y : C + (Math.random() - 0.5) * 40); }
     else if (a.e < T.eMax * 0.75 && a.rest <= 0) {
       // ねらう: すぐそばの、くちばしが届くサカナを突く

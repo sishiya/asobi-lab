@@ -48,7 +48,9 @@ function updateQuestBox(s) {
 
 const HIST = [];
 function updateSide(s) {
-  $('day').textContent = '第 ' + W.day + ' 日';
+  const yr = Math.floor((W.t / DAY + 0.1 * YEAR) / YEAR) + 1;
+  $('day').textContent = `${yr} 年目の${SEASONS[seasonOf()]}・第 ${W.day} 日`;
+  $('hud').innerHTML = `<b>${SEASONS[seasonOf()]}</b>　${Math.round(W.Tavg ?? 15)}℃` + (W.Tavg < 2 ? '　雪' : '');
   $('nGrass').textContent = Math.round(s.grass * 100);
   $('nDeer').textContent = L.counts.deer; $('nWolf').textContent = L.counts.wolf; $('nFish').textContent = L.counts.fish; $('nBird').textContent = L.counts.bird;
   $('fallRate').textContent = s.out.toFixed(1);
@@ -67,7 +69,7 @@ function updateSide(s) {
 
 // 半日ごとに記録して、移り変わりのグラフ
 function recordHist(s) {
-  HIST.push({ g: s.grass, d: L.counts.deer, w: L.counts.wolf, f: L.counts.fish, b: L.counts.bird, gs: { deer: geneStats('deer'), wolf: geneStats('wolf'), fish: geneStats('fish'), bird: geneStats('bird') } });
+  HIST.push({ g: s.grass, d: L.counts.deer, w: L.counts.wolf, f: L.counts.fish, b: L.counts.bird, s: seasonOf(), gs: { deer: geneStats('deer'), wolf: geneStats('wolf'), fish: geneStats('fish'), bird: geneStats('bird') } });
   if (HIST.length > 240) HIST.shift();
   drawChart(); drawGeneChart();
 }
@@ -78,6 +80,9 @@ function drawChart() {
   if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
   const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
   if (HIST.length < 2) return;
+  // 季節の帯（うすく）
+  const SCOL = ['rgba(240,170,200,0.10)', 'rgba(120,200,110,0.10)', 'rgba(230,150,60,0.12)', 'rgba(170,190,230,0.14)'];
+  HIST.forEach((p, k) => { if (p.s === undefined) return; ctx.fillStyle = SCOL[p.s]; const x = k / (HIST.length - 1) * w; ctx.fillRect(x, 0, w / (HIST.length - 1) + 1, h); });
   const maxA = Math.max(20, ...HIST.map(p => Math.max(p.d, p.f, p.w * 4)));
   const line = (col, f, dash) => {
     ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.setLineDash(dash || []);
