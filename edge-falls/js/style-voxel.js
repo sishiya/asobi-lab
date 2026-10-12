@@ -317,12 +317,12 @@ const VOX = (() => {
 
   // 遠景（v008。ユーザー「遠景がハリボテっぽい」）: 星の天球と、はるか下に広がる雲海。
   //   見る向き（yaw）と傾き（tilt）で、地平線の高さも星も雲も動く（書き割りに見えないように）。
-  //   雲海は平らな雲の層を遠近で描く（遠いほど細かく、地平線でかすむ）。太陽の向きの地平線は少し暖かい色。遠くに小さな浮島。
+  //   雲海は平らな雲の層を遠近で描く（遠いほど細かく、地平線でかすむ）。太陽の向きの地平線は少し暖かい色。
+  //   ほかの浮島は置かない（ユーザー「チープだし、自分の浮島しかない孤独感が薄れる」）。
   //   板の画素 2 つを 1 つにした粗さで、毎コマ描く。
   const SKYF = 2;
   let sky = null, ctex = null;
   const STARS3 = Array.from({ length: 260 }, (_, k) => ({ az: hash2(k, 1) * Math.PI * 2, alt: Math.asin(hash2(k, 2)) * 0.9 + 0.02, m: hash2(k, 3) }));
-  const ISLES = [[0.8, 0.06, 1.0], [2.5, 0.025, 0.55], [4.2, 0.09, 0.8], [5.4, 0.04, 0.45]];   // 向き・地平線からの下がり・大きさ
   const wrapA = a => { a = (a + Math.PI) % (2 * Math.PI); if (a < 0) a += 2 * Math.PI; return a - Math.PI; };
   function makeCloudTex() {
     const S = 128, base = new Float32Array(S * S);
@@ -389,19 +389,6 @@ const VOX = (() => {
       const tw = Math.sin(t * 1.5 + st.az * 40) > 0.7 ? 0.6 : 1;
       const v = (150 + st.m * 105) * tw;
       d[y * W2 + x] = rgba(v, v, Math.min(255, v + 20));
-    }
-    // 遠くの浮島
-    for (const [az, dep, sz] of ISLES) {
-      const x0 = Math.round(cx + wrapA(az - look) * ppr), y0 = Math.round(yh + dep * ppr);
-      const w = Math.max(3, Math.round(sz * ppr * 0.12));
-      if (x0 + w < 0 || x0 - w >= W2 || y0 < 0 || y0 >= H2) continue;
-      for (let k = -w; k <= w; k++) {
-        const X = x0 + k; if (X < 0 || X >= W2) continue;
-        const hgt = Math.round((1 - (k / w) ** 2) * w * 0.9 * (0.7 + 0.3 * hash2(k, az * 10)));
-        for (let yy = 0; yy <= hgt; yy++) { const Y = y0 + yy; if (Y < H2) d[Y * W2 + X] = rgba(34 + yy * 2, 32 + yy, 50); }
-        if (y0 - 1 >= 0) d[(y0 - 1) * W2 + X] = rgba(70, 104, 76);
-      }
-      for (let yy = 0; yy < w; yy++) { const Y = y0 + yy, X = x0 + Math.round(w * 0.4); if (Y < H2 && X >= 0 && X < W2) d[Y * W2 + X] = rgba(170, 196, 226); }
     }
     sky.x.putImageData(sky.im, 0, 0);
     ctx.imageSmoothingEnabled = false;
