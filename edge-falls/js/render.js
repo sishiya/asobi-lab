@@ -47,7 +47,8 @@ function layout(cw, ch) {
   const fitW = cw * (ch > cw * 1.3 ? 1.0 : 0.9) / (2 * RD), fitH = ch * 0.84 / (2 * RD * V.tilt + (16 + THICK + 12) * V.hf);   // スマホの縦長は少し大きく
   V.s = Math.min(fitW, fitH) * V.zoom;
   // 平行移動（panX・panY は画面の画素。大きくずれすぎないように）
-  V.panX = Math.max(-cw * 0.9, Math.min(cw * 0.9, V.panX || 0)); V.panY = Math.max(-ch * 0.9, Math.min(ch * 0.9, V.panY || 0));
+  const pm = 0.9 * Math.max(1, V.zoom);   // 寄っているときは、大地のはしまで動かせるように
+  V.panX = Math.max(-cw * pm, Math.min(cw * pm, V.panX || 0)); V.panY = Math.max(-ch * pm, Math.min(ch * pm, V.panY || 0));
   V.cx = cw / 2 + V.panX; V.cy = ch * 0.5 - (THICK + 4) * V.s * V.hf * 0.6 + (16 * V.s * V.hf) * 0.25 + Math.min(36, ch * 0.04) + V.panY;   // 上のお題の文字にかからないよう少し下げる
   V.bs = style().bs(cw);
   const BW = Math.max(1, Math.ceil(cw / V.bs)), BH = Math.max(1, Math.ceil(ch / V.bs));

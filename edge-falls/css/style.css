@@ -8,6 +8,7 @@ html,body{margin:0;height:100%;overflow:hidden}
 body{background:#0d1222;color:var(--ink);font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif;line-height:1.6}
 p{margin:0}
 button{font:inherit;color:inherit}
+body.font-dot,body.font-dot dialog,body.font-dot select,body.font-dot .panel{font-family:"DotGothic16","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",sans-serif}
 [hidden]{display:none!important}
 
 .stage{position:fixed;inset:0;overflow:hidden;background:#0d1222;touch-action:none}
@@ -19,9 +20,24 @@ button{font:inherit;color:inherit}
 .menubtn canvas{width:28px;height:28px;image-rendering:pixelated;display:block}
 .menubtn:hover,.menubtn:focus-visible{opacity:1}
 body.titling .menubtn{opacity:0;pointer-events:none}
-.panel.menu{min-width:260px;text-align:center}
-.panel.menu .btns{flex-direction:column;align-items:stretch}
-.panel.menu .tbtn{font-size:15px;padding:8px 18px}
+/* 世界になじむ札（メニュー・セーブ・ロード）: 羊皮紙の箱ではなく、深淵の色のぼかしの上に羊皮紙色の文字。2026-10-13 ユーザー */
+.panel.world{background:radial-gradient(ellipse at 50% 45%,rgba(14,18,34,.94),rgba(10,13,24,.86) 70%,rgba(10,13,24,.7));color:var(--paper);border:1px solid rgba(239,227,196,.22);outline:0;border-radius:16px;
+  box-shadow:0 0 0 1px rgba(0,0,0,.4),0 10px 50px rgba(0,0,0,.7);text-shadow:0 1px 2px #000;max-width:520px}
+.panel.world h2{font-weight:400;letter-spacing:.3em}
+.panel.world p,.panel.world .small,.panel.world .slot p{color:rgba(239,227,196,.78)}
+.panel.world .slot{border-top-color:rgba(239,227,196,.16)}
+.panel.world .tbtn{color:var(--paper);border-color:rgba(239,227,196,.3);background:rgba(239,227,196,.04);text-shadow:none}
+.panel.world .tbtn:hover,.panel.world .tbtn:focus-visible{border-color:rgba(var(--glowc),.8);background:rgba(239,227,196,.1);outline:0}
+.panel.world .tbtn.main{background:rgba(239,227,196,.9);color:#141b30;border-color:transparent}
+.panel.menu{min-width:280px;text-align:center;padding:22px 26px 18px}
+.panel.menu .mtitle{font-size:18px;letter-spacing:.2em;margin:0 0 2px;color:var(--paper)}
+.panel.menu .msub{font-size:12px;letter-spacing:.4em;margin:0 0 8px;opacity:.7}
+.panel.menu .btns{flex-direction:column;align-items:stretch;gap:2px}
+.panel.menu .tbtn{font-size:16px;padding:9px 18px;border:0;background:transparent;letter-spacing:.2em;position:relative;border-radius:8px}
+.panel.menu .tbtn:hover,.panel.menu .tbtn:focus-visible{background:rgba(239,227,196,.08)}
+.panel.menu .tbtn:focus-visible::after,.panel.menu .tbtn:hover::after{content:"";position:absolute;bottom:4px;left:40%;right:40%;height:2px;border-radius:1px;background:rgba(var(--glowc),.9);box-shadow:0 0 8px rgba(var(--glowc),.8)}
+.panel.menu .tbtn.main{background:transparent;color:var(--paper)}
+.panel.menu .tbtn.main::before{content:"▸ ";opacity:.7}
 .panel .center{text-align:center}
 
 /* 上のまんなか: いまのお題（1行。ふだんはうすく） */

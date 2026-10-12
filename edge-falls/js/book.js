@@ -139,21 +139,44 @@ function openMenu() {
   if (menuSpeed === null) { menuSpeed = G.speed; setSpeed(0); }
   const resume = () => { if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } };
   G.menuOpen = true;
-  showPanel(`<h2>メニュー</h2><p class="small center">${isFree() ? '自由な箱庭' : YEARNAME[Math.floor(G.ch)] + 'の年'}・第 ${W.day} 日。時は止まっている。</p>`, [
+  showPanel(`<p class="mtitle">${isFree() ? '自由な箱庭' : YEARNAME[Math.floor(G.ch)] + 'の年'}　第 ${W.day} 日</p>`, [
     { label: 'つづける', main: true, fn: () => { G.menuOpen = false; resume(); } },
-    { label: 'セーブ・ロード', fn: () => { G.menuOpen = false; openSavePanel(() => openMenu()); } },
+    { label: 'セーブ', fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'save'); } },
+    { label: 'ロード', fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'load'); } },
     { label: '観察帳', fn: () => { G.menuOpen = false; resume(); openBook(); } },
     { label: '最初から', fn: () => { G.menuOpen = false; resume(); $('btnReset').onclick(); } },
+    { label: '文字: ' + (fontName === 'dot' ? 'ドット' : '明朝'), fn: () => { setFont(fontName === 'dot' ? 'serif' : 'dot'); openMenu(); } },
     { label: 'ゲームを終える', fn: () => { G.menuOpen = false; quitGame(); } },
   ]);
-  $('panel').classList.add('menu');
+  $('panel').classList.add('menu', 'world');
 }
 function quitGame() {
-  showPanel('<h2>ゲームを終える</h2><p>いまの世界は自動セーブに残してから、あそびラボの保管庫へもどる。つぎに開くと「つづきから」遊べる。</p>', [
+  showPanel('<h2>ゲームを終える</h2><p class="center">いまの世界は自動セーブに残してから、<br>あそびラボの保管庫へもどる。<br>つぎに開くと「つづきから」遊べる。</p>', [
     { label: 'セーブして終える', main: true, fn: async () => { await saveSlot('auto'); location.href = '../archive.html'; } },
     { label: 'もどる', fn: () => openMenu() },
   ]);
+  $('panel').classList.add('world');
 }
+// 文字（2026-10-13 ユーザー「ピクセル風のフォント」「いまのフォントも雰囲気に合うので切りかえられると」）。
+//   ドット＝DotGothic16（Google Fonts、SIL Open Font License。商用も無料）、明朝＝これまでの文字。localStorage に覚える
+const FONT_KEY = 'asobi-lab/edge-falls/font';
+let fontName = 'dot';
+try { fontName = localStorage.getItem(FONT_KEY) || 'dot'; } catch (e) { /* なし */ }
+function setFont(n) {
+  fontName = n === 'serif' ? 'serif' : 'dot';
+  document.body.classList.toggle('font-dot', fontName === 'dot');
+  try { localStorage.setItem(FONT_KEY, fontName); } catch (e) { /* なし */ }
+  const sel = $('fontSel'); if (sel) sel.value = fontName;
+}
+setFont(fontName);
+$('fontSel').addEventListener('change', () => { setFont($('fontSel').value); $('fontSel').blur(); });
+// メニューの中は上下の矢印でえらぶ
+addEventListener('keydown', e => {
+  if ($('overlay').hidden || !(e.key === 'ArrowDown' || e.key === 'ArrowUp')) return;
+  const bs = [...$('panel').querySelectorAll('button')]; if (!bs.length) return;
+  const i = bs.indexOf(document.activeElement);
+  bs[(i + (e.key === 'ArrowDown' ? 1 : -1) + bs.length) % bs.length].focus(); e.preventDefault(); e.stopImmediatePropagation();
+}, true);
 $('btnMenu').onclick = () => { Sound.unlock(); Sound.play('click'); openMenu(); };
 
 // ---- 天の輪（季節と時の速さ） ----

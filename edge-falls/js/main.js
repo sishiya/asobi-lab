@@ -224,7 +224,7 @@ addEventListener('blur', () => held.clear());
 function moveByKeys(dt) {
   if (!held.size) return;
   const has = k => held.has(k);
-  const pan = 480 * dt, rot = 1.6 * dt, tl = 0.5 * dt;
+  const pan = 480 * dt * Math.max(0.6, V.zoom), rot = 1.6 * dt, tl = 0.5 * dt;   // 寄っているほど速く（2026-10-13 ユーザー）
   if (has('a') || has('d') || has('w') || has('s')) { V.panX = (V.panX || 0) + (has('a') ? pan : 0) - (has('d') ? pan : 0); V.panY = (V.panY || 0) + (has('w') ? pan : 0) - (has('s') ? pan : 0); }
   if (has('ArrowLeft')) V.yaw += rot;
   if (has('ArrowRight')) V.yaw -= rot;
@@ -287,7 +287,8 @@ function syncSoundBtns() {
 document.querySelectorAll('.btnBgm').forEach(b => b.addEventListener('click', () => { Sound.unlock(); Sound.set('bgm', !Sound.get('bgm')); syncSoundBtns(); }));
 $('btnSfx').onclick = () => { Sound.unlock(); Sound.set('sfx', !Sound.get('sfx')); syncSoundBtns(); Sound.play('click'); };
 $('btnAbout').onclick = () => $('about').showModal();
-$('btnSave').onclick = () => { Sound.unlock(); closeBook(); openSavePanel(); };
+$('btnSave').onclick = () => { Sound.unlock(); closeBook(); openSavePanel(null, 'save'); };
+$('btnLoad').onclick = () => { Sound.unlock(); closeBook(); openSavePanel(null, 'load'); };
 $('btnReset').onclick = () => { closeBook(); showPanel('<h2>最初から</h2><p>新しい大地で、第一の年からやり直す。いまの世界は、セーブのスロットに残していなければ消える（自動セーブも次の日に上書きされる）。</p>',
   [{ label: '第一の年から', main: true, fn: () => { newGame(); G.started = true; enterChapter(0); } }, { label: '自由な箱庭で', fn: () => { newGame(undefined, false); G.started = true; } }, { label: 'やめる' }]); };
 
