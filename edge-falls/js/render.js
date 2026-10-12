@@ -512,6 +512,7 @@ const cloudR = cl => 2 + Math.sqrt(cl.water) * 0.55;
 const cloudZ = cl => 19 + (cl.seed % 3);
 
 function drawWorld(ctx, t, hover) {
+  if (typeof COL !== 'undefined' && COL) { drawCollapse(ctx, t); V.dirty = false; return; }   // 世界をくずしているあいだ
   cellColors();
   updateFallVis();
   const own = style().draw(ctx, t, hover);   // 画風が足もとの印を描いたら true

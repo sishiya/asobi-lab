@@ -8,7 +8,7 @@
 <title>果ての滝の箱庭</title>
 <meta name="description" content="深淵に浮かぶ平らな大地。川は世界の果てから滝になって落ちる。泉と雨で水をめぐらせ、草・シカ・オオカミ・サカナの生態系をつくる箱庭ゲーム（試作）。">
 <meta name="theme-color" content="#141b30">
-<link rel="stylesheet" href="css/style.css?v=9">
+<link rel="stylesheet" href="css/style.css?v=10">
 </head>
 <body>
 <header class="top">
@@ -47,6 +47,7 @@
         <option value="dark">暗い宇宙</option><option value="space">宇宙</option><option value="clouds">雲の上</option><option value="room">部屋の中</option><option value="hand">手のひら</option><option value="fantasy">幻想</option><option value="neon">電脳</option><option value="auto">ルックにおまかせ</option>
       </select></label>
     </div>
+    <button type="button" class="restore" id="btnRestore">もとにもどす</button>
     <div class="overlay" id="overlay" hidden><div class="panel" id="panel"></div></div>
   </section>
 
@@ -112,6 +113,7 @@
       <button type="button" class="tbtn" id="btnSfx" aria-pressed="true">効果音</button>
       <button type="button" class="tbtn" id="btnSave">セーブ</button>
       <button type="button" class="tbtn" id="btnReset">最初から</button>
+      <button type="button" class="tbtn" id="btnBreak" title="世界をくずす（見せるだけ。もとにもどせる）">くずす</button>
     </div>
   </aside>
 </main>
@@ -128,6 +130,7 @@
     <li>シカ・オオカミ・サカナ・サギは「命のつぼ」から放す（数字が残り。1日に1つずつふえる）。サカナは水の中へ。</li>
     <li>太陽と月はつかんで動かせる。タップで止める。ホイール・＋－で寄る（寄ると滝の音が聞こえる）。</li>
     <li>平行移動: 右ボタンでドラッグ、Shift を押しながらドラッグ、スマホは2本指（ピンチで寄る）。空をダブルクリックで真ん中へもどる。</li>
+    <li>くずす: 世界が崩れ落ちるところ、殻がはがれて中から何かが出てくるところを見られる。見せるだけなので、「もとにもどす」でいまの世界にもどる。</li>
     <li>セーブ: 1日ごとと、ページを閉じるときに自動セーブ。「セーブ」でスロット3つと、ファイルへの書き出し・読みこみ。</li>
     <li>キーボード: ←→↑↓ で見る向き、WASD で平行移動、スペースで止める、1〜8 で道具。</li>
   </ul>
@@ -155,19 +158,20 @@
   <form method="dialog"><button class="tbtn">とじる</button></form>
 </dialog>
 
-<script src="js/world.js?v=9"></script>
-<script src="js/life.js?v=9"></script>
-<script src="js/render.js?v=9"></script>
-<script src="js/backdrop.js?v=9"></script>
-<script src="js/style-voxel.js?v=9"></script>
-<script src="js/style-paint.js?v=9"></script>
-<script src="js/style-etch.js?v=9"></script>
-<script src="js/style-real.js?v=9"></script>
-<script src="js/style-cyber.js?v=9"></script>
-<script src="js/sound.js?v=9"></script>
-<script src="js/quests.js?v=9"></script>
-<script src="js/ui.js?v=9"></script>
-<script src="js/save.js?v=9"></script>
-<script src="js/main.js?v=9"></script>
+<script src="js/world.js?v=10"></script>
+<script src="js/life.js?v=10"></script>
+<script src="js/render.js?v=10"></script>
+<script src="js/backdrop.js?v=10"></script>
+<script src="js/style-voxel.js?v=10"></script>
+<script src="js/style-paint.js?v=10"></script>
+<script src="js/style-etch.js?v=10"></script>
+<script src="js/style-real.js?v=10"></script>
+<script src="js/style-cyber.js?v=10"></script>
+<script src="js/sound.js?v=10"></script>
+<script src="js/quests.js?v=10"></script>
+<script src="js/ui.js?v=10"></script>
+<script src="js/save.js?v=10"></script>
+<script src="js/collapse.js?v=10"></script>
+<script src="js/main.js?v=10"></script>
 </body>
 </html>

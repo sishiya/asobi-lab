@@ -143,6 +143,9 @@ const Sound = (() => {
     no: () => tone('sine', 220, 196, 0.2, 0.06),
     splash: () => noise(0.5, 700, 1, 0.05),
     extinct: () => { tone('sine', 294, 196, 1.2, 0.08); },
+    rumble: () => { noise(2.6, 70, 0.8, 0.16, 0, 'lowpass'); noise(1.8, 140, 1, 0.08, 0.6, 'lowpass'); },
+    crack: () => { noise(0.25, 1800 + Math.random() * 1500, 2, 0.05); noise(0.6, 120, 1, 0.07, 0.05, 'lowpass'); },
+    reveal: () => [0, 4, 7, 12, 16, 19, 24].forEach((n, i) => bell(n + 7, 0.07, i * 0.35)),
     win: () => [0, 4, 7, 12, 16, 19].forEach((n, i) => bell(n + 12, 0.1, i * 0.22)),
   };
   function play(name) { if (ac && ac.state === 'running' && SFX[name]) SFX[name](); }

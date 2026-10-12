@@ -146,12 +146,12 @@ cv.addEventListener('pointerdown', e => {
     }
     if (touches.size > 2) return;
   }
-  const b = hitBody(p);
+  const b = COL ? null : hitBody(p);
   ptr = { id: e.pointerId, x0: p.x, y0: p.y, x: p.x, y: p.y, moved: 0, t: 0 };
   // 右ボタン・まん中のボタン・Shift を押しながら: 平行移動
   if (e.button === 1 || e.button === 2 || e.shiftKey) { ptr.mode = 'pan'; cv.classList.add('grabbing'); return; }
   if (b) { ptr.mode = 'body'; ptr.body = b; W[b].drag = true; Sound.play('grab'); return; }
-  const w = G.tool === 'look' ? null : pick(p.x, p.y);
+  const w = G.tool === 'look' || COL ? null : pick(p.x, p.y);
   if (w) { ptr.mode = 'tool'; ptr.w = w; useTool(w, true); }
   else { ptr.mode = 'view'; cv.classList.add('grabbing'); }
 });
@@ -178,7 +178,7 @@ cv.addEventListener('pointermove', e => {
     else if (ptr.mode === 'body') { W[ptr.body].a = bodyAngle(p); updateLight(); }
     else if (ptr.mode === 'tool') { const w = pick(p.x, p.y); if (w) ptr.w = w; }
   }
-  if (G.tool !== 'look' && (!ptr || ptr.mode === 'tool')) {
+  if (G.tool !== 'look' && !COL && (!ptr || ptr.mode === 'tool')) {
     const w = pick(p.x, p.y);
     hover = w ? { x: w.x, y: w.y, z: w.z, r: RAD[G.tool], color: TOOLCOL[G.tool] } : null;
   } else hover = null;
@@ -192,7 +192,7 @@ function endPtr(e) {
     if (ptr.moved < 6) { b.stop = !b.stop; Sound.play('pin'); toast((ptr.body === 'sun' ? '太陽' : '月') + (b.stop ? 'を止めた' : 'がまた動き出した')); }
     else Sound.play('release');
   }
-  else if (ptr.mode === 'view' && ptr.moved < 6) {          // 「見る」で押した: 近くの生き物の札を出す
+  else if (ptr.mode === 'view' && ptr.moved < 6 && !COL) {          // 「見る」で押した: 近くの生き物の札を出す
     const w = pick(ptr.x, ptr.y);
     let best = null, bd = 2.2 * 2.2;
     if (w) for (const a of L.list) { const d = (a.x - w.x) ** 2 + (a.y - w.y) ** 2; if (d < bd) { bd = d; best = a; } }
@@ -241,6 +241,11 @@ function setSpeed(v) {
 }
 document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => { setSpeed(+b.dataset.speed); Sound.play('click'); }));
 
+// 世界をくずす（v010。見せるだけで、もとにもどせる）
+$('btnBreak').onclick = () => { if (COL) return; showPanel('<h2>世界をくずす</h2><p>この大地をくずしてみる。見せるだけなので、いつでも「もとにもどす」で、いまの世界にもどれる。</p>',
+  [{ label: '崩れ落ちる', main: true, fn: () => startCollapse('fall') }, { label: '殻がはがれる', main: true, fn: () => startCollapse('shell') }, { label: 'やめる' }]); };
+$('btnRestore').onclick = () => { if (COL) { $('overlay').hidden = true; endCollapse(); } };
+
 // ルックと背景（実験。2026-10-13 ユーザー）
 const lookSel = document.getElementById('lookSel'), backSel = document.getElementById('backSel');
 lookSel.value = STYLES[styleName] ? styleName : 'voxel'; backSel.value = backName === 'auto' || BACKS[backName] ? backName : 'dark';
@@ -264,7 +269,7 @@ function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   const t = now / 1000;
   moveByKeys(dt);
-  if (G.started && G.speed > 0) simulate(dt * G.speed);
+  if (G.started && G.speed > 0 && !COL) simulate(dt * G.speed);
   if (ptr && ptr.mode === 'tool' && G.tool !== 'spring') {
     ptr.t += dt;
     const every = KINDS[G.tool] ? 0.3 : 0.05;
@@ -278,7 +283,7 @@ function frame(now) {
   accSide += dt;
   if (accSide > 0.25) { accSide = 0; updateSide(s); }
   drawWorld(ctx, t, hover);
-  Sound.update(s.out, !G.started || G.speed === 0, Math.max(0, Math.min(1, (V.zoom - 1.2) / 1.0)));   // 滝の音は寄ったときだけ
+  Sound.update(COL ? 0 : s.out, !G.started || G.speed === 0 || !!COL, Math.max(0, Math.min(1, (V.zoom - 1.2) / 1.0)));   // 滝の音は寄ったときだけ
   requestAnimationFrame(frame);
 }
 
