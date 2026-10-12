@@ -133,12 +133,16 @@ function showResult(S, info) {
     const cls = Math.abs(d) < 0.01 ? '' : d > 0 ? 'up' : 'down';
     return `<tr><th style="color:${t.color}">${t.name}</th><td>${a.txt}</td><td class="${cls}">${arrow}</td><td class="${cls}"><b>${b.txt}</b></td></tr>`;
   }).join('');
-  const killed = rec.swat + rec.spray + rec.bait;
+  const killed = rec.swat + rec.spray + rec.bait, arrive = info.arrive || 0;
+  if (!kids.length) $('resTitle').textContent = `第${gen}夜で全滅！…でも`;
+  const next = kids.length + arrive;
+  const lead = !kids.length ? `台所の虫はいなくなりました。でも次の夜、<b>となりの家から ${arrive} 匹</b>入ってきます。` :
+    `生き残った ${survivors.length} 匹が子を残し、次の夜は <b>${next} 匹</b>${arrive ? `（子 ${kids.length} 匹＋となりから ${arrive} 匹）` : ''}。`;
   $('resBody').innerHTML = `
-    <div class="tally"><span>退治<b>${killed}</b></span><span>生き残り<b>${survivors.length}</b></span><span class="kids">次の夜<b>${kids.length}</b></span></div>
-    <p>生き残った ${survivors.length} 匹が子を残し、次の夜は <b>${kids.length} 匹</b>。${rec.hungry ? `食べものが足りず、<b>${rec.hungry} 匹</b>がおなかをすかせたまま。` : ''}</p>
-    <table class="restab"><thead><tr><th></th><th>この夜</th><th></th><th>次の夜</th></tr></thead><tbody>${rows}</tbody></table>
-    <p class="small">警戒心・察知は平均（0〜1）、殺虫剤・糖ぎらいは遺伝子を持っている虫の割合。${insight(before, survivors, rec)}</p>`;
+    <div class="tally"><span>退治<b>${killed}</b></span><span>生き残り<b>${survivors.length}</b></span><span class="kids">次の夜<b>${next}</b></span></div>
+    <p>${lead}${rec.hungry ? `食べものが足りず、<b>${rec.hungry} 匹</b>がおなかをすかせたまま。` : ''}</p>
+    ${kids.length ? `<table class="restab"><thead><tr><th></th><th>この夜</th><th></th><th>子の世代</th></tr></thead><tbody>${rows}</tbody></table>
+    <p class="small">警戒心・察知は平均（0〜1）、殺虫剤・糖ぎらいは遺伝子を持っている虫の割合。${insight(before, survivors, rec)}</p>` : ''}`;
   $('resultOv').hidden = false;
 }
 

@@ -205,6 +205,8 @@ details a{color:var(--accent)}
 #banBody b{color:var(--ink)}
 #banBody p{margin:4px 0 0}
 #banBody .warn{color:#ffb28a}
+#banBody .new{color:#9fe0a8;font-weight:700}
+.seg.tools button:disabled{opacity:.35;cursor:default;filter:none}
 #banBody .warn b{color:#ffd2b8}
 .ovh.big{font-size:24px;color:var(--accent);text-align:center}
 .ovh3{margin:4px 0 0;font-size:12px;font-weight:700;color:var(--dim);letter-spacing:.12em}

@@ -19,7 +19,7 @@ function savePrefs() { try { localStorage.setItem('resistance.style', S.style); 
 function reset() {
   resetStage(); kitchenCache = null;
   S.gen = 1; S.pop = firstPopulation(); S.first = S.pop.slice();
-  S.hist = [histRow(1, S.pop, null)]; S.taken = {}; S.used = {swat: 0, spray: 0, bait: 0};
+  S.hist = [histRow(1, S.pop, null)]; S.taken = {}; S.used = {swat: 0, spray: 0, bait: 0}; S.arrived = 0; S.tool = 'swat';
   S.world = newWorld(S.pop); S.phase = 'start'; S.pending = null; S.bannerT = 0;
   $('resultOv').hidden = true; $('endOv').hidden = true; $('banner').hidden = true;
   const b = loadBest();
@@ -34,11 +34,15 @@ function startNight() {
   S.phase = 'night';
   $('startOv').hidden = true; $('resultOv').hidden = true;
   // 夜の始まりの札: 敵のようすの警告
-  const warn = S.gen > 1 ? warnings(S.pop, S.first) : [];
+  const warn = S.gen > 1 ? warnings(S.pop) : [];
+  const fresh = Object.keys(UNLOCK).filter(k => UNLOCK[k] === S.gen && S.gen > 1);
+  if (fresh.length) S.tool = fresh[0];
   $('banTitle').textContent = S.gen === NIGHTS ? `第${S.gen}夜（さいご）` : `第${S.gen}夜`;
-  $('banBody').innerHTML = S.gen === 1 ? `台所に <b>${S.pop.length} 匹</b>。` :
-    `虫は <b>${S.pop.length} 匹</b>。` + (warn.length ? warn.map(w => `<p class="warn">${w}</p>`).join('') : '<p>目立った変化はまだない。</p>');
-  $('banner').hidden = false; S.bannerT = warn.length ? 2.8 : 1.6;
+  $('banBody').innerHTML = (S.gen === 1 ? `台所に <b>${S.pop.length} 匹</b>。まずはスリッパで叩こう。` :
+    `虫は <b>${S.pop.length} 匹</b>${S.arrived ? `（となりの家から <b>${S.arrived} 匹</b>入ってきた）` : ''}。`) +
+    fresh.map(k => `<p class="new">${TOOL_NAME[k]}が使えるようになった！</p>`).join('') +
+    (S.gen > 1 ? (warn.length ? warn.map(w => `<p class="warn">${w}</p>`).join('') : '<p>目立った変化はまだない。</p>') : '');
+  $('banner').hidden = false; S.bannerT = warn.length || fresh.length ? 2.8 : 1.6;
   syncButtons();
 }
 
@@ -49,13 +53,14 @@ function finishNight() {
   for (const k of ['swat', 'spray', 'bait']) S.used[k] += rec[k];
   const kids = breed(survivors, S.gen + 1);
   S.hist[S.hist.length - 1].rec = {...rec};
-  S.pending = {gen: S.gen, before, survivors, kids, rec};
+  const arrive = ARRIVE[S.gen + 1] || 0;
+  S.pending = {gen: S.gen, before, survivors, kids, rec, arrive};
   $('banner').hidden = true;
-  if (!kids.length) return endGame(true);
+  if (!kids.length && S.gen >= lastArrival) return endGame(true);
   if (S.gen >= NIGHTS) { S.hist.push(histRow(S.gen + 1, kids, null)); return endGame(false); }
   S.phase = 'result';
   showResult(S, S.pending);
-  S.dealt = dealCards(S.taken); S.chosen = null;
+  S.dealt = dealCards(S.taken, S.gen + 1); S.chosen = null;
   $('cards').innerHTML = cardsHTML(S.dealt);
   syncButtons();
   refreshPanel();
@@ -66,7 +71,7 @@ function nextGeneration() {
   if (!p || !S.chosen) return;
   S.chosen.apply(); S.taken[S.chosen.id] = (S.taken[S.chosen.id] || 0) + 1;
   syncOwned();
-  S.gen++; S.pop = p.kids; S.hist.push(histRow(S.gen, S.pop, null));
+  S.gen++; S.arrived = p.arrive; S.pop = p.kids.concat(newcomers(p.arrive, S.gen)); S.hist.push(histRow(S.gen, S.pop, null));
   S.pending = null;
   startNight();
   refreshPanel();
@@ -105,7 +110,7 @@ function syncOwned() {
 function refreshPanel() {
   updateGenCard(S);
   const w = S.world || {pop: S.pop, killed: []};
-  updateEnemy(S.phase === 'night' ? w.pop.filter(b => b.alive) : S.pending && S.pending.kids.length ? S.pending.kids : S.pop, S.first);
+  updateEnemy(S.phase === 'night' ? w.pop.filter(b => b.alive) : S.pending && S.pending.kids.length ? S.pending.kids : S.pop);
   updateHists(w, S.first);
   drawChart(S.hist);
   syncButtons();
@@ -116,7 +121,11 @@ function syncButtons() {
   $('btnNext').disabled = !S.chosen;
   $('btnNext').textContent = S.chosen ? `「${S.chosen.name}」で第${S.gen + 1}夜へ` : '強化をえらんでください';
   for (const b of $('cards').children) b.setAttribute('aria-pressed', !!S.chosen && b.dataset.id === S.chosen.id);
-  for (const b of $('segTool').children) b.setAttribute('aria-pressed', b.dataset.v === S.tool);
+  for (const b of $('segTool').children) {
+    const open = toolOpen(b.dataset.v, S.gen);
+    b.setAttribute('aria-pressed', b.dataset.v === S.tool); b.disabled = !open;
+    b.title = open ? '' : `第${UNLOCK[b.dataset.v]}夜から使える`;
+  }
   for (const b of $('segColor').children) b.setAttribute('aria-pressed', b.dataset.v === S.colorBy);
   for (const b of $('segStyle').children) b.setAttribute('aria-pressed', b.dataset.v === S.style);
   for (const b of $('styleChoice').children) b.setAttribute('aria-pressed', b.dataset.v === S.style);
@@ -197,13 +206,13 @@ function wirePointer() {
   window.addEventListener('keydown', e => {
     if (e.target.closest && e.target.closest('input,textarea')) return;
     const k = {'1': 'swat', '2': 'spray', '3': 'bait'}[e.key];
-    if (k) { S.tool = k; syncButtons(); }
+    if (k && toolOpen(k, S.gen)) { S.tool = k; syncButtons(); }
   });
 }
 
 function wireUI() {
   const seg = (id, fn) => $(id).addEventListener('click', e => { const b = e.target.closest('button'); if (b) { fn(b.dataset.v); syncButtons(); } });
-  seg('segTool', v => { S.tool = v; });
+  seg('segTool', v => { if (toolOpen(v, S.gen)) S.tool = v; });
   seg('segColor', v => { S.colorBy = v; });
   seg('segStyle', v => { S.style = v; savePrefs(); });
   seg('styleChoice', v => { S.style = v; savePrefs(); });

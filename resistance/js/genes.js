@@ -25,7 +25,7 @@ const GENE = {
   gavCost: [1, 0.92, 0.82],       // 育ちが遅い・交尾がうまくいかない（研究にある損を数にした仮定）
   growth: 1.3,         // 子の数 = Σ 子の残しやすさ × growth（v1 は 2.6。ゲーム版は、上手に混ぜれば勝てるよう半分に）
   K: 80,               // 台所に住める数の上限（画面の数）
-  N0: 50,
+  N0: 12,             // 第1夜の数（v1 は 50。ゲーム版は少なく始めて、となりから入ってくる: game.js の ARRIVE）
 };
 
 let uid = 1;
@@ -105,6 +105,13 @@ function breed(survivors, gen, rand = rnd) {
   return kids;
 }
 
+// となりの家から入ってくる虫（ふつうの虫の遺伝子。必ずいるようにはしない）
+function newcomers(n, gen, rand = rnd) {
+  const bugs = [];
+  for (let i = 0; i < n; i++) bugs.push(makeBug(newGenome(rand), gen));
+  return bugs;
+}
+
 // 集団のまとめ: 量的なものは平均、1つの遺伝子のものは「持っている遺伝子の割合」
 function popStats(bugs) {
   const n = bugs.length, s = {n};
@@ -128,9 +135,9 @@ function histogram(bugs, id) {
 }
 
 // 最初の集団: 殺虫剤に強い・糖ぎらいの遺伝子を持つものが、まれに必ずいる（もともとの多様さ）
-function firstPopulation(rand = rnd) {
+function firstPopulation(rand = rnd, n = GENE.N0) {
   const bugs = [];
-  for (let i = 0; i < GENE.N0; i++) bugs.push(makeBug(newGenome(rand), 1));
+  for (let i = 0; i < n; i++) bugs.push(makeBug(newGenome(rand), 1));
   for (const id of ['kdr', 'gav']) {
     if (!bugs.some(b => b.p[id] > 0)) {
       const b = bugs[Math.floor(rand() * bugs.length)];
