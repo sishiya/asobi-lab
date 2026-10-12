@@ -151,8 +151,9 @@ cv.addEventListener('pointerdown', e => {
   }
   const b = COL ? null : hitBody(p);
   ptr = { id: e.pointerId, x0: p.x, y0: p.y, x: p.x, y: p.y, moved: 0, t: 0 };
-  // 右ボタン・まん中のボタン・Shift を押しながら: 平行移動
-  if (e.button === 1 || e.button === 2 || e.shiftKey) { ptr.mode = 'pan'; cv.classList.add('grabbing'); return; }
+  // まん中のボタン・Shift を押しながら: 平行移動。右ボタン: 回す（土や命を持ったままでも。2026-10-13 ユーザー）
+  if (e.button === 1 || e.shiftKey) { ptr.mode = 'pan'; cv.classList.add('grabbing'); return; }
+  if (e.button === 2) { ptr.mode = 'view'; ptr.right = true; cv.classList.add('grabbing'); return; }
   if (b) { ptr.mode = 'body'; ptr.body = b; W[b].drag = true; Sound.play('grab'); G.did[b] = 1; return; }
   const w = G.tool === 'look' || COL ? null : pick(p.x, p.y);
   if (w) { ptr.mode = 'tool'; ptr.w = w; useTool(w, true); }
@@ -199,7 +200,7 @@ function endPtr(e) {
     if (ptr.moved < 6) { b.stop = !b.stop; Sound.play('pin'); toast((ptr.body === 'sun' ? '太陽' : '月') + (b.stop ? 'を止めた' : 'がまた動き出した')); }
     else Sound.play('release');
   }
-  else if (ptr.mode === 'view' && ptr.moved < 6 && !COL) {          // 手があいているとき押した: 近くの生き物の札を出す
+  else if (ptr.mode === 'view' && ptr.moved < 6 && !COL && !ptr.right) {          // 手があいているとき押した: 近くの生き物の札を出す
     const w = pick(ptr.x, ptr.y);
     let best = null, bd = 2.2 * 2.2;
     if (w) for (const a of L.list) { const d = (a.x - w.x) ** 2 + (a.y - w.y) ** 2; if (d < bd) { bd = d; best = a; } }
@@ -234,24 +235,32 @@ function moveByKeys(dt) {
 }
 addEventListener('keydown', e => {
   if (e.target.closest && (e.target.closest('dialog') || e.target.closest('select'))) return;
+  if (!$('overlay').hidden && e.key !== 'Escape') return;     // 札が出ているあいだは、Esc のほかは世界を動かさない
   const mk = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   if (MOVE_KEYS.includes(mk)) { held.add(mk); e.preventDefault(); return; }
-  if (e.key === ' ') { if (G.started && !COL) { setSpeed(G.speed ? 0 : G.lastSpeed); Sound.play('pin'); G.did.speed = 1; } }
-  else if (e.key === 'Escape') { if (!$('book').hidden) closeBook(); else setHand(null); }
+  if (e.key === ' ') {           // 連打・押しっぱなしでは切りかわらない（0.35 秒あける）
+    const now = performance.now();
+    if (!e.repeat && G.started && !COL && !G.menuOpen && $('overlay').hidden && now - (G.spaceT || 0) > 350) { G.spaceT = now; setSpeed(G.speed ? 0 : G.lastSpeed); Sound.play('pin'); G.did.speed = 1; }
+  }
+  else if (e.key === 'Escape') {
+    if (!$('book').hidden) closeBook();
+    else if (G.menuOpen) { $('overlay').hidden = true; G.menuOpen = false; if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } }
+    else if ($('overlay').hidden) openMenu();
+  }
   else if (e.key === '1' || e.key === '2' || e.key === '3') {
     const h = ['soil', 'water', 'life'][+e.key - 1], ok = { soil: G.unlock.soil, water: G.unlock.water, life: G.unlock.seed }[h];
     if (ok) setHand(G.hand === h ? null : h);
   }
   else if (e.key === '+' || e.key === '=') zoomBy(1.2);
   else if (e.key === '-') zoomBy(1 / 1.2);
-  else if (mk === 'b') $('book').hidden ? openBook() : closeBook();
+  else if (mk === 'b' && G.started) $('book').hidden ? openBook() : closeBook();
   else return;
   e.preventDefault();
 });
 
 // ボタンを押したあとに残る「選ばれた状態」でスペースがボタンを押さないように（スペースはいつも時を止める・動かす）
 addEventListener('keyup', e => { if (e.key === ' ' && !(e.target.closest && e.target.closest('dialog, select, input'))) e.preventDefault(); });
-document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('.hand, .speeds button, .dialbtn, .fan button, .bookbtn'); if (b) b.blur(); });
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('.hand, .speeds button, .dialbtn, .fan button, .bookbtn, .menubtn'); if (b) b.blur(); });
 function setSpeed(v) {
   G.speed = v; if (v) G.lastSpeed = v;
   document.body.classList.toggle('paused', v === 0 && G.started);
@@ -284,8 +293,8 @@ $('btnReset').onclick = () => { closeBook(); showPanel('<h2>最初から</h2><p>
 
 // ---- ループ ----
 let last = performance.now(), animT = 0;
-// 絵の時計（雨・滝・さざ波・生き物の足などの動き）。時を止めると止まる。速くすると少しだけ速く（×16 でも 2 倍まで。2026-10-13 ユーザー）
-const ANIM_RATE = { 0: 0, 1: 1, 4: 1.5, 16: 2 };
+// 絵の時計（雨・滝・さざ波・生き物の足などの動き）。時を止めると止まる。速くすると少しだけ速く（×4 で 1.25 倍、×16 で 1.75 倍。2026-10-13 ユーザー）
+const ANIM_RATE = { 0: 0, 1: 1, 4: 1.25, 16: 1.75 };   // 時そのものは倍率どおり（simulate に dt×速さ）
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   if (!(G.started && G.speed === 0 && !COL)) animT += dt * (COL || !G.started ? 1 : ANIM_RATE[G.speed] ?? 1);

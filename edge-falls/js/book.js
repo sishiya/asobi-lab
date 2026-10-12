@@ -128,45 +128,81 @@ function glowHand(key) {
   if (el) { el.classList.remove('glow'); void el.offsetWidth; el.classList.add('glow'); }
 }
 (() => { const c = $('btnBook').querySelector('canvas').getContext('2d'); drawBook(c); })();
+// メニューの印（画素の巻物の三本線）
+(() => { const c = $('btnMenu').querySelector('canvas').getContext('2d'); for (let k = 0; k < 3; k++) { px(c, 3, 4 + k * 4, 10, 2, '#e6dcc4'); px(c, 3, 5 + k * 4, 10, 1, '#a08260'); } })();
+
+// ---- メニュー（Esc。2026-10-13 ユーザー「Esc で中央にメニュー。セーブ・ロード・ゲームの終了」）。開いているあいだは時を止める ----
+let menuSpeed = null;
+function openMenu() {
+  if (!G.started || COL) return;
+  closeBook();
+  if (menuSpeed === null) { menuSpeed = G.speed; setSpeed(0); }
+  const resume = () => { if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } };
+  G.menuOpen = true;
+  showPanel(`<h2>メニュー</h2><p class="small center">${isFree() ? '自由な箱庭' : YEARNAME[Math.floor(G.ch)] + 'の年'}・第 ${W.day} 日。時は止まっている。</p>`, [
+    { label: 'つづける', main: true, fn: () => { G.menuOpen = false; resume(); } },
+    { label: 'セーブ・ロード', fn: () => { G.menuOpen = false; openSavePanel(() => openMenu()); } },
+    { label: '観察帳', fn: () => { G.menuOpen = false; resume(); openBook(); } },
+    { label: '最初から', fn: () => { G.menuOpen = false; resume(); $('btnReset').onclick(); } },
+    { label: 'ゲームを終える', fn: () => { G.menuOpen = false; quitGame(); } },
+  ]);
+  $('panel').classList.add('menu');
+}
+function quitGame() {
+  showPanel('<h2>ゲームを終える</h2><p>いまの世界は自動セーブに残してから、あそびラボの保管庫へもどる。つぎに開くと「つづきから」遊べる。</p>', [
+    { label: 'セーブして終える', main: true, fn: async () => { await saveSlot('auto'); location.href = '../archive.html'; } },
+    { label: 'もどる', fn: () => openMenu() },
+  ]);
+}
+$('btnMenu').onclick = () => { Sound.unlock(); Sound.play('click'); openMenu(); };
 
 // ---- 天の輪（季節と時の速さ） ----
 // 画素の天の輪（v011 のあと。2026-10-13 ユーザー「下のアイコンは感じがいいので、右上も色味とルックに統一感を」「小さくて最初よく見えなかった」）
 //   30×30 の画素。外の輪＝1年（春・夏・秋・冬の土の色に近い落ち着いた色。いまの季節だけ明るい）、まわりは真鍮のふち、
 //   中は深淵の夜空に、平らな大地と太陽・月の点。針＝今日。止めているときは真ん中に ❚❚。
-const SEASON_PX = [['#e0a2b0', '#a07884'], ['#8cc064', '#5e8044'], ['#e0983e', '#a06a32'], ['#c0d2ea', '#7c8aa0']];
+// 2026-10-13 ユーザー「色味をおさえて（土水命とおなじような淡さ）」「最初の版との中間くらいの粗さに」→ 48×48 の画素（1 画素＝2px）、
+//   季節は土の色に寄せた淡い色、いまの季節だけ少し明るい。夜空はのっぺりさせず、ふちは影で丸みを出す
+const DIAL_N = 48;
+const SEASON_PX = [['#c9a7a4', '#8e7a76'], ['#a3b48a', '#76835f'], ['#c8a272', '#8f7655'], ['#aeb8c2', '#7f8892']];
 function drawDial() {
-  const c = $('dialCv').getContext('2d'); c.clearRect(0, 0, 60, 60);
-  const p = seasonPhase(), se = seasonOf(), cx = 14.5, cy = 14.5;
-  for (let y = 0; y < 30; y++) for (let x = 0; x < 30; x++) {
+  const cvd = $('dialCv'), c = cvd.getContext('2d'), Np = DIAL_N, cx = Np / 2 - 0.5, cy = Np / 2 - 0.5, R = Np / 2 - 0.5;
+  c.clearRect(0, 0, cvd.width, cvd.height);
+  const p = seasonPhase(), se = seasonOf();
+  const r1 = R, r2 = R - 1.4, r3 = R * 0.72, r4 = r3 - 1.4;      // 外のふち・季節の輪・内のふち・夜空
+  for (let y = 0; y < Np; y++) for (let x = 0; x < Np; x++) {
     const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy);
-    if (d > 14.6) continue;
+    if (d > r1) continue;
+    const lit = 0.88 + 0.12 * (-(dx + dy) / (R * 1.4));            // 左上から光
     let col;
-    if (d > 13.6) col = '#4a3018';                                    // 外のふち（こげ茶）
-    else if (d > 10.6) {                                              // 季節の輪
+    if (d > r2) col = '#5a4030';
+    else if (d > r3) {
       const a = ((Math.atan2(dy, dx) + Math.PI / 2) / (Math.PI * 2) + 1) % 1, k = Math.floor(a * 4) % 4;
       col = SEASON_PX[k][k === se ? 0 : 1];
-      if (Math.abs(a * 4 - Math.round(a * 4)) < 0.035) col = '#3a2414';   // 季節のさかい
-      if (d > 12.8 && k === se) col = '#efe3c4';                         // いまの季節のふちを明るく
-    } else if (d > 9.8) col = '#b48756';                              // 真鍮の内ふち
-    else col = (hash2(x, y) > 0.94 ? '#5a6488' : '#141b30');          // 深淵の夜空と星
-    px(c, x, y, 1, 1, col);
+      if (Math.abs(a * 4 - Math.round(a * 4)) < 0.022) col = '#5a4030';
+      if (k === se && d > r2 - 1) col = '#e6dcc4';
+    } else if (d > r4) col = '#a08260';
+    else col = hash2(x * 3, y * 7) > 0.965 ? '#56607a' : (d < r4 * 0.55 ? '#1a2238' : '#151c30');
+    c.fillStyle = col; c.globalAlpha = 1; c.fillRect(x * 2, y * 2, 2, 2);
+    if (lit !== 1) { c.fillStyle = lit > 1 ? `rgba(255,248,230,${(lit - 1) * 0.9})` : `rgba(0,0,0,${(1 - lit) * 0.9})`; c.fillRect(x * 2, y * 2, 2, 2); }
   }
-  px(c, 12, 14, 6, 2, '#7a9a58'); px(c, 13, 13, 4, 1, '#9cbc70'); px(c, 12, 16, 6, 1, '#6e4c2a');   // まん中の平らな大地
+  const P = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x) * 2, Math.round(y) * 2, w * 2, h * 2); };
+  // まん中の平らな大地（小さな円盤と滝のしずく）
+  P(cx - 4, cy - 1, 9, 2, '#8ea070'); P(cx - 3, cy - 2, 7, 1, '#a4b484'); P(cx - 3, cy + 1, 7, 1, '#7a6048'); P(cx - 1, cy + 2, 3, 1, '#5e4836'); P(cx + 3, cy + 2, 1, 2, '#9cb8cc');
   // 太陽と月（見ている向きに合わせて回る）
-  const at = (a, r) => [Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r)];
-  const [mx, my] = at(W.moon.a - V.yaw - Math.PI / 2, 6.5); px(c, mx - 1, my - 1, 2, 2, '#dfe6ee');
-  const [sx, sy] = at(W.sun.a - V.yaw - Math.PI / 2, 6.5 * (W.rs / RS)); px(c, sx - 1, sy - 1, 3, 3, '#ffd866'); px(c, sx, sy, 1, 1, '#fff6c0');
-  // 針（今日）: 輪の上に明るい印
+  const at = (a, r) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+  const [mx, my] = at(W.moon.a - V.yaw - Math.PI / 2, r4 * 0.68); P(mx - 1, my - 1, 2, 2, '#d8dce0');
+  const [sx, sy] = at(W.sun.a - V.yaw - Math.PI / 2, r4 * 0.68 * (W.rs / RS)); P(sx - 1, sy - 1, 3, 3, '#e8c870'); P(sx, sy, 1, 1, '#f6e6b0');
+  // 針（今日）
   const na = -Math.PI / 2 + p * Math.PI * 2;
-  for (let r = 10; r <= 14; r++) { const [x, y] = at(na, r); px(c, x, y, 1, 1, r === 14 ? '#4a3018' : '#fff2c8'); }
-  if (G.speed === 0) { px(c, 11, 10, 3, 10, 'rgba(239,227,196,.92)'); px(c, 16, 10, 3, 10, 'rgba(239,227,196,.92)'); }
+  for (let r = r3 - 1; r <= r2; r += 0.7) { const [x, y] = at(na, r); P(x, y, 1, 1, '#f0e6cc'); }
+  if (G.speed === 0) { P(cx - 4, cy - 6, 3, 12, 'rgba(236,226,200,.9)'); P(cx + 2, cy - 6, 3, 12, 'rgba(236,226,200,.9)'); }
 }
 // 速さの印（真鍮の小さな札。手に持つものと同じ画素の絵）
 function drawSpeedIcon(ctx, v) {
   ctx.clearRect(0, 0, 32, 32);
-  px(ctx, 3, 3, 10, 10, '#4a3018'); px(ctx, 2, 4, 12, 8, '#4a3018'); px(ctx, 4, 2, 8, 12, '#4a3018');
-  px(ctx, 3, 4, 10, 8, '#b48756'); px(ctx, 4, 3, 8, 10, '#b48756'); px(ctx, 4, 4, 8, 1, '#d8b070');
-  const ink = '#2a1a0c';
+  px(ctx, 3, 3, 10, 10, '#5a4030'); px(ctx, 2, 4, 12, 8, '#5a4030'); px(ctx, 4, 2, 8, 12, '#5a4030');   // 天の輪と同じ淡い真鍮
+  px(ctx, 3, 4, 10, 8, '#a08a6c'); px(ctx, 4, 3, 8, 10, '#a08a6c'); px(ctx, 4, 4, 8, 1, '#c8b494');
+  const ink = '#3a2a1c';
   if (v === 0) { px(ctx, 5, 5, 2, 6, ink); px(ctx, 9, 5, 2, 6, ink); return; }
   const n = v === 1 ? 1 : v === 4 ? 2 : 3, w = 3, x0 = 8 - Math.round(n * w / 2);
   for (let k = 0; k < n; k++) { const x = x0 + k * w; px(ctx, x, 5, 1, 6, ink); px(ctx, x + 1, 6, 1, 4, ink); px(ctx, x + 2, 7, 1, 2, ink); }

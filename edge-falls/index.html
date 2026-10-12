@@ -8,12 +8,12 @@
 <title>果ての滝の箱庭</title>
 <meta name="description" content="深淵に浮かぶ平らな大地。川は世界の果てから滝になって落ちる。岩と土だけの大地に泉をわかせ、土を動かし、草と生き物を放して、水と命がめぐる世界をつくる箱庭ゲーム（試作）。">
 <meta name="theme-color" content="#141b30">
-<link rel="stylesheet" href="css/style.css?v=12">
+<link rel="stylesheet" href="css/style.css?v=13">
 </head>
 <body class="titling">
 <main class="stage" id="field">
   <canvas id="view" aria-label="深淵に浮かぶ平らな大地。ふちから滝が落ちる。上を太陽と月がめぐる"></canvas>
-  <a class="back" href="../archive.html" aria-label="あそびラボの保管庫へ戻る">←</a>
+  <button type="button" class="menubtn" id="btnMenu" aria-label="メニュー（Esc）" title="メニュー（Esc）"><canvas width="32" height="32"></canvas></button>
 
   <div class="quest" id="quest" hidden>
     <p class="qtitle" id="qTitle"></p>
@@ -22,7 +22,7 @@
   </div>
 
   <div class="dial" id="dial">
-    <button type="button" class="dialbtn" id="dialBtn" aria-label="天の輪（押すと時が止まる・動く）" title="天の輪　外の輪が1年の季節、針が今日、中の点が太陽と月。押すと時が止まる・動く"><canvas id="dialCv" width="60" height="60"></canvas></button>
+    <button type="button" class="dialbtn" id="dialBtn" aria-label="天の輪（押すと時が止まる・動く）" title="天の輪　外の輪が1年の季節、針が今日、中の点が太陽と月。押すと時が止まる・動く"><canvas id="dialCv" width="96" height="96"></canvas></button>
     <div class="speeds" role="group" aria-label="時の速さ">
       <button type="button" data-speed="0" aria-pressed="false" title="時を止める"><canvas width="32" height="32"></canvas><span>止める</span></button>
       <button type="button" data-speed="1" aria-pressed="true" title="ふつうの速さ"><canvas width="32" height="32"></canvas><span>ふつう</span></button>
@@ -114,10 +114,11 @@
         <ul class="howto">
           <li>下の<b>土・水・命</b>を押すと、手に持つ。もう一度押すと、手をあける。</li>
           <li>手に持ったものは、もう一度押すか、大地の外（何もない空）を押すと手放す。</li>
-    <li>大地の外をドラッグで回す・傾ける。スマホは2本指で回す（ひねる）・寄る（ひらく）・動かす。ホイール・2本指で寄る。右ドラッグ・Shift で平行移動。</li>
+    <li>大地の外をドラッグ、または右ボタンでドラッグして回す・傾ける（土や命を持ったままでも右ボタンで回せる）。中ボタン・Shift＋ドラッグで平行移動。スマホは2本指で回す（ひねる）・寄る（ひらく）・動かす。ホイール・2本指で寄る。右ドラッグ・Shift で平行移動。</li>
           <li>太陽と月は、つかんで動かせる。押すと止まる。</li>
           <li>右上の<b>天の輪</b>は、外の輪が1年の季節、針が今日、中の点が太陽と月。押すと時が止まる。下の小さな印で速さ。</li>
-          <li>キー: 1 土・2 水・3 命・Esc 手をあける・スペース 止める・←→↑↓ 見る向き・WASD 動かす・＋－ 寄る。</li>
+          <li>マウス: 左ドラッグ（大地の外）・右ドラッグで回す・傾ける。中ボタンのドラッグ・Shift＋ドラッグで平行移動。</li>
+          <li>キー: Esc メニュー（セーブ・ロード・終わる）・1 土・2 水・3 命・B 観察帳・スペース 止める・←→↑↓ 見る向き・WASD 動かす・＋－ 寄る。</li>
         </ul>
         <div class="row">
           <button type="button" class="tbtn btnBgm" aria-pressed="true">♪ 音楽</button>
@@ -155,11 +156,12 @@
     <li>命のつぼ: たねをまく・生き物を放す（サカナは水の中へ）。つぼの命は、去った命が戻ってくるのと、春ごとにふえる。</li>
     <li>手をあけて生き物を押すと、その1匹の札が出る（遺伝子・おなか）。</li>
     <li>太陽と月はつかんで動かせる。押すと止まる。右上の<b>天の輪</b>（外の輪が1年の季節、針が今日、中の点が太陽と月）を押すと時が止まる。下の印で速さ（止める・ふつう・×4・×16）。</li>
-    <li>大地の外をドラッグで回す・傾ける。ホイール・2本指で寄る（寄ると滝の音が聞こえる）。右ボタン・Shift＋ドラッグ・2本指で平行移動。空をダブルクリックで真ん中へ。</li>
+    <li>大地の外をドラッグで回す・傾ける。ホイール・2本指で寄る（寄ると滝の音が聞こえる）。空をダブルクリックで真ん中へ。</li>
     <li>右下の<b>観察帳</b>: いきものと遺伝子の移り変わり、水と土、見つけたこと、この世界の年、てびき（音・セーブ・世界の版画・ルック・くずす）。</li>
     <li>お題が進まないときは、何日かたつと世界がそっと助けてくれる。時間の制限はない。</li>
     <li>十の年のあとは、自由な箱庭として続けられる。はじめの画面の「自由な箱庭」からも遊べる。</li>
-    <li>キーボード: 1 土・2 水・3 命・Esc 手をあける・B 観察帳・スペース 止める・←→↑↓ 見る向き・WASD 平行移動・＋－ 寄る。</li>
+    <li>Esc（スマホは左上の印）でメニュー: つづける・セーブとロード・観察帳・最初から・ゲームを終える。</li>
+    <li>キーボード: Esc メニュー・1 土・2 水・3 命・B 観察帳・スペース 止める・←→↑↓ 見る向き・WASD 平行移動・＋－ 寄る。</li>
   </ul>
   <h3>この世界のきまり</h3>
   <ul>
@@ -181,25 +183,25 @@
   <p>季節は、地球の自転の軸が 23.4 度かたむいたまま太陽のまわりを回るので、太陽の高さと昼の長さが変わって起きます。平らな大地の図には「夏は太陽が内がわ、冬は外がわを回る」と描くものがありますが、本当の地球ではそうなりません。寒い所のなかまほど体が大きい傾向（ベルクマンの規則）は本当に見られます（例外もたくさんあります）。</p>
   <p>生き残りやすい性質が子に伝わって積み重なり、生き物が変わっていく考え（自然選択）は、ダーウィンとウォレスが 1858 年に発表しました。本当の進化はふつう何百〜何万世代もかかります。この箱庭では、数十世代で目に見えるように、ずっと速くしています。</p>
   <p>大地を平らな円盤と考えた人は、昔たくさんいました。古代ギリシャのホメロスの詩では、平らな大地のまわりを大きな川オケアノスが取り巻き、タレスは大地が水に浮かぶと考えました。古代メソポタミアでは、大地の下に真水の海（アプスー）があり、泉や川の水はそこから来ると考えられていました。でも、<b>世界の果てから水が落ちる滝</b>は、近ごろの絵や物語でよく描かれる姿で、昔の人がそう書き残した例はあまり知られていません。「中世の人はみな大地が平らだと信じていた」もよくある誤解で、学のある人は大地が丸いと知っていました（天動説のプトレマイオスも、大地は丸いと考えていました）。</p>
-  <p class="small">版: 試作 v012（2026-10-13）・あそびラボ ・ 姉妹の箱庭: <a href="../heaven-spheres/">天をまわす箱庭</a></p>
+  <p class="small">版: 試作 v013（2026-10-13）・あそびラボ ・ 姉妹の箱庭: <a href="../heaven-spheres/">天をまわす箱庭</a></p>
   <form method="dialog"><button class="tbtn">とじる</button></form>
 </dialog>
 
-<script src="js/world.js?v=12"></script>
-<script src="js/life.js?v=12"></script>
-<script src="js/render.js?v=12"></script>
-<script src="js/backdrop.js?v=12"></script>
-<script src="js/style-voxel.js?v=12"></script>
-<script src="js/style-paint.js?v=12"></script>
-<script src="js/style-etch.js?v=12"></script>
-<script src="js/style-real.js?v=12"></script>
-<script src="js/style-cyber.js?v=12"></script>
-<script src="js/sound.js?v=12"></script>
-<script src="js/chapters.js?v=12"></script>
-<script src="js/ui.js?v=12"></script>
-<script src="js/save.js?v=12"></script>
-<script src="js/book.js?v=12"></script>
-<script src="js/collapse.js?v=12"></script>
-<script src="js/main.js?v=12"></script>
+<script src="js/world.js?v=13"></script>
+<script src="js/life.js?v=13"></script>
+<script src="js/render.js?v=13"></script>
+<script src="js/backdrop.js?v=13"></script>
+<script src="js/style-voxel.js?v=13"></script>
+<script src="js/style-paint.js?v=13"></script>
+<script src="js/style-etch.js?v=13"></script>
+<script src="js/style-real.js?v=13"></script>
+<script src="js/style-cyber.js?v=13"></script>
+<script src="js/sound.js?v=13"></script>
+<script src="js/chapters.js?v=13"></script>
+<script src="js/ui.js?v=13"></script>
+<script src="js/save.js?v=13"></script>
+<script src="js/book.js?v=13"></script>
+<script src="js/collapse.js?v=13"></script>
+<script src="js/main.js?v=13"></script>
 </body>
 </html>

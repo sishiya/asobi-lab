@@ -385,22 +385,11 @@ function renderRoot(px, u, ybot, quant, rootColor) {
   const c = Math.cos(V.yaw), s = Math.sin(V.yaw), vf = Math.sqrt(Math.max(0, (RD - 0.6) ** 2 - u * u));
   const ang = Math.atan2(-u * s + vf * c, u * c + vf * s);
   const sec = Math.floor((ang / (Math.PI * 2) + 1) * (quant ? 90 : 60)) % (quant ? 90 : 60);
-  // 2026-10-13 ユーザー「三角コーンが規則的でチープ」→ 形をくずす: 向きによって大きくふくらむ・えぐれる（いくつかの細かさの波を
-  //   深さとともにずらす）、先は真ん中からずれて曲がる、出っぱりの段は向きごとにちがう深さ、ところどころ垂れ下がる岩
-  const g6 = Math.floor(sec / (quant ? 9 : 6)), lp = 7 + (hash2(g6, 31) * 9 | 0), lo = hash2(g6, 37) * lp;
-  const drip = hash2(sec >> 1, 41) > 0.82 ? 0.6 + hash2(sec >> 1, 43) * 0.5 : 0;   // 垂れ下がる岩（向きの 2 割ほど）
-  let dripEnd = 0;
+  // 形は v008 のまま（2026-10-13 ユーザー「不自然に膨らんだりえぐれたりはしないで」）。規則的に見えないようにするのは色の模様（各画風の rootColor）
   for (let d = step; d <= ROOT_D; d += step) {
     const t = d / ROOT_D;
-    const lump = 0.13 * Math.sin(3 * ang + 1.3 + 2.2 * t) + 0.09 * Math.sin(5 * ang + 0.4 - 3.1 * t) + 0.06 * Math.sin(9 * ang + 2.1 + 5.3 * t) + 0.04 * Math.sin(17 * ang + 0.7 + 8 * t);
-    const bend = (RD * 0.22) * t * t * Math.sin(1.7 * t + 0.8) * Math.cos(ang - 0.9);   // 先が曲がる（向きによって見えるずれ）
-    let r = (RD - 0.6) * Math.pow(1 - t, 0.74 + 0.3 * (lump + 0.15)) * (1 + lump) + bend * 0.15 + (hash2(sec, d) - 0.5) * (quant ? 3 : 2.5);
-    if ((d + lo) % lp < 2.5) r += 1.6 * (1 - t);                 // 出っぱりの段（向きごとに深さがちがう）
-    if (Math.abs(u) >= r) {
-      if (!drip) break;                                        // 垂れ下がる岩: ふつうの終わりから、まだ少し下へのびる
-      if (!dripEnd) dripEnd = d + ROOT_D * 0.16 * drip * ((sec & 1) ? 0.55 : 1) * (1 - t);
-      if (d > dripEnd) break;
-    }
+    const r = (RD - 0.6) * Math.pow(1 - t, 0.75) + (hash2(sec, d) - 0.5) * (quant ? 3 : 2.5) + (hash2(Math.floor(sec / 6), 7) - 0.5) * 6 * t;
+    if (Math.abs(u) >= r) break;
     const vk = Math.sqrt(r * r - u * u);
     const yk = Math.min(BH, Math.round(cyb + vk * sb * tl + (THICK + d) * hb));
     for (let row = Math.max(prev, 0); row < yk; row++) d32[row * BW + px] = rootColor(t, row, sec, d, u);

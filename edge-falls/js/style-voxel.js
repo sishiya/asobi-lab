@@ -26,7 +26,10 @@ const VOX = (() => {
   //   8 ずつの段で、出っぱりの上は明るく、その下は影。ふちのすぐ下は大地のかげで暗い。
   function rootColor(t, row, sec, d, u) {
     const side = 0.78 + 0.22 * Math.max(-1, Math.min(1, -(u || 0) / (RD * 0.7)));
-    const j = 0.84 + hash2(sec, d) * 0.28;
+    // 岩のかたまり: 碁盤の目に並ばないよう、うねる横の筋と、筋ごとにずれる長さのちがう区切り（2026-10-13 ユーザー「規則正しいばんの目状に見えないように」）
+    const rw = Math.floor((d + 2.5 * Math.sin(sec * 0.23 + 1.1) + 1.5 * Math.sin(sec * 0.61)) / (4 + (hash2(sec >> 3, 2) * 3 | 0)));
+    const cw = 2 + (hash2(rw, 3) * 4 | 0), col = Math.floor((sec + rw * 2.7 + 1.5 * Math.sin(d * 0.17 + rw)) / cw);
+    const j = 0.86 + hash2(col, rw) * 0.22 + (hash2(sec, d) - 0.5) * 0.06;
     let k = (1 - 0.82 * Math.pow(t, 0.8)) * side * j;
     // 段は向きの組ごとに間と傾きがちがう（規則的に並ばないように。2026-10-13 ユーザー）
     const g9 = sec / 9 | 0, P = 6 + (hash2(g9, 5) * 8 | 0), tilt = (hash2(g9, 6) - 0.5) * 0.9;
@@ -38,7 +41,7 @@ const VOX = (() => {
     const tone = hash2(sec >> 2, (d >> 4) + 9);                                     // 岩のちがい（赤み・青み）をまだらに
     r *= 0.92 + 0.16 * tone; b *= 1.06 - 0.12 * tone;
     if (t < 0.14 && hash2(sec * 7, 3) > 0.8 && d < 4 + hash2(sec, 8) * 12) return rgba(58 * k + 10, 44 * k + 8, 30 * k + 6);   // 垂れた根
-    if (t < 0.3 && hash2(sec * 5, d) > 0.975) return rgba(r * k * 0.8, g * k * 1.15, b * k * 0.7);                              // 苔
+    if (t < 0.3 && hash2(sec * 5, d) > 0.975) return rgba(r * k * 0.95, g * k * 1.04, b * k * 0.92);                            // 苔（ごく淡く）
     if (hash2(sec * 3, d) > 0.97) return rgba(r * k * 1.5, g * k * 1.45, b * k * 1.3);   // ところどころ明るい岩
     return rgba(r * k, g * k, b * k);
   }

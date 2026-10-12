@@ -151,7 +151,7 @@ function metaText(rec) {
   return `${ch}第 ${m.day} 日・${['deer', 'wolf', 'fish', 'bird'].map(k => KNAME[k] + ' ' + (c[k] || 0)).join('・')}<br><small>${m.at || ''}</small>`;
 }
 
-function openSavePanel() {
+function openSavePanel(back) {
   const rows = [['auto', '自動セーブ'], ...SLOTS.map((s, n) => [s, 'スロット ' + (n + 1)])].map(([k, label]) => {
     const rec = readSlot(k);
     return `<div class="slot"><div><b>${label}</b><p>${metaText(rec)}</p></div><div class="sbtn">` +
@@ -160,16 +160,16 @@ function openSavePanel() {
   }).join('');
   showPanel(`<h2>セーブ</h2><p class="small">地形・水・草・生き物（遺伝子も）・お題まで、世界をまるごと残す。1日ごとと、ページを閉じるときに自動セーブ。</p>${rows}
     <div class="slot"><div><b>ファイル</b><p>ほかのブラウザへ持っていく・とっておく</p></div><div class="sbtn"><button type="button" class="tbtn" id="btnExport">書き出す</button><button type="button" class="tbtn" id="btnImport">読みこむ</button></div></div>
-    <input type="file" id="fileImport" accept=".json,application/json" hidden>`, [{ label: 'とじる', main: true }]);
+    <input type="file" id="fileImport" accept=".json,application/json" hidden>`, [{ label: back ? 'メニューへ' : 'とじる', main: true, fn: back }]);
   const panel = $('panel');
   panel.querySelectorAll('[data-save]').forEach(b => b.onclick = async () => {
     const ok = await saveSlot(b.dataset.save);
-    toast(ok ? 'セーブした' : 'セーブできなかった（ブラウザの保存の場所がいっぱいかもしれない）'); Sound.play(ok ? 'put' : 'no'); openSavePanel();
+    toast(ok ? 'セーブした' : 'セーブできなかった（ブラウザの保存の場所がいっぱいかもしれない）'); Sound.play(ok ? 'put' : 'no'); openSavePanel(back);
   });
   panel.querySelectorAll('[data-load]').forEach(b => b.onclick = async () => {
     const rec = readSlot(b.dataset.load);
     if (b.dataset.load !== 'auto') await saveSlot('auto');          // いまの世界は自動セーブに残してから
-    try { await loadRecord(rec); $('overlay').hidden = true; G.started = true; toast('読みこんだ: 第 ' + W.day + ' 日'); Sound.play('spring'); }
+    try { await loadRecord(rec); $('overlay').hidden = true; G.started = true; if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } toast('読みこんだ: 第 ' + W.day + ' 日'); Sound.play('spring'); }
     catch (e) { toast('読みこめなかった: ' + e.message); Sound.play('no'); }
   });
   $('btnExport').onclick = async () => {

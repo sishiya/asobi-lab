@@ -8,6 +8,7 @@ function toast(msg, sec = 3) {
 }
 
 function showPanel(html, btns) {
+  $('panel').className = 'panel';
   $('panel').innerHTML = html;
   const box = document.createElement('div'); box.className = 'btns';
   for (const b of btns) {
