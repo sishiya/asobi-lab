@@ -133,7 +133,8 @@ cv.addEventListener('pointermove', e => {
   if (ptr && e.pointerId === ptr.id) {
     const dx = p.x - ptr.x, dy = p.y - ptr.y;
     ptr.moved += Math.abs(dx) + Math.abs(dy); ptr.x = p.x; ptr.y = p.y;
-    if (ptr.mode === 'view') { V.yaw += dx * 0.008; V.tilt = Math.max(0.32, Math.min(0.92, V.tilt - dy * 0.002)); layout(V.cw, V.ch); }
+    if (ptr.mode === 'view') { V.yaw -= dx * 0.008;   // 手前の地面が手の動きについてくる向き（2026-10-12 ユーザー「逆かも」）
+      V.tilt = Math.max(0.32, Math.min(0.92, V.tilt - dy * 0.002)); layout(V.cw, V.ch); }
     else if (ptr.mode === 'body') { W[ptr.body].a = bodyAngle(p); updateLight(); }
     else if (ptr.mode === 'tool') { const w = pick(p.x, p.y); if (w) ptr.w = w; }
   }
@@ -162,8 +163,8 @@ $('zoomOut').onclick = () => zoomBy(1 / 1.2);
 
 addEventListener('keydown', e => {
   if (e.target.closest && e.target.closest('dialog')) return;
-  if (e.key === 'ArrowLeft') V.yaw -= 0.08;
-  else if (e.key === 'ArrowRight') V.yaw += 0.08;
+  if (e.key === 'ArrowLeft') V.yaw += 0.08;
+  else if (e.key === 'ArrowRight') V.yaw -= 0.08;
   else if (e.key === 'ArrowUp') V.tilt = Math.min(0.92, V.tilt + 0.03);
   else if (e.key === 'ArrowDown') V.tilt = Math.max(0.32, V.tilt - 0.03);
   else if (e.key === ' ') { setSpeed(G.speed ? 0 : 1); }
