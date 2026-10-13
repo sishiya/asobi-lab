@@ -130,7 +130,7 @@ function cellColors() {
   //   くり返して速い形に作り直したあとに取りちがえているのでは、と見て、ループの中は入れ子の関数を使わず、名前も一つずつにした。
   //   計算の中身は v019 と同じ（PC の Chrome で v019 と同じ色になることを数で確かめた）。v019・v010 の版でも iPhone でくずれていた（v010 は一瞬だけ）。
   //   v011 から、はじめの大地が岩と土だけ（草なし）になり、土の式ばかり通るようになって目立ったのでは、と見ている。ここを直すときは、入れ子の mix・同じ名前の const を足さない
-  let r = 0, gg = 0, b = 0, slope = 0, ao = 0, kRock = 0, kSoil = 0, kWet = 0, kVeg = 0, kAut = 0, kWin = 0, kWd = 0, kAlg = 0, kFoam = 0, kMix = 0, kSnow = 0, flow = 0;
+  let r = 0, gg = 0, b = 0, slope = 0, ao = 0, kRock = 0, kSoil = 0, kWet = 0, kVeg = 0, kAut = 0, kWin = 0, kWd = 0, kAlg = 0, kFoam = 0, kMix = 0, kSnow = 0, kSprout = 0, flow = 0;
   let r0 = 0, g0 = 0, b0 = 0, r1 = 0, g1 = 0, b1 = 0, wr = 0, wg = 0, wb = 0, tone = 1, shore = false, sh = 1;
   for (let n = 0; n < INS.length; n++) {
     const i = INS[n], h = g[i], jit = 0.95 + HASH[i] * 0.1;
@@ -151,8 +151,12 @@ function cellColors() {
     // 草・花
     const v = veg[i];
     if (v > 0.03 && h < 13.5 && slope < 2.5) {
-      tone = HASH[i] > 0.5 ? 1 : 0.9; kVeg = Math.min(1, v * 1.4);
-      r0 = (150 - 84 * v) * tone; g0 = (188 - 56 * v) * tone; b0 = (84 - 32 * v) * tone;
+      // 芽ばえ（まいた所は 0.25 から。0.2〜0.45）は少し黄みに、少し濃く（2026-10-13 ユーザー「茂った状態と比べて差別化」。v024）。
+      //   0.2 より下のまばらな草はもとのまま
+      kSprout = v >= 0.2 ? Math.max(0, 1 - v / 0.45) : 0;
+      tone = HASH[i] > 0.5 ? 1 : 0.9; kVeg = Math.min(1, (v >= 0.2 ? 0.12 : 0) + v * 1.4);
+      r1 = 150 + 18 * kSprout; g1 = 188 + 6 * kSprout; b1 = 84 - 22 * kSprout;   // 草のうすい側の色（芽ばえほど黄み）
+      r0 = (r1 + (66 - r1) * v) * tone; g0 = (g1 + (132 - g1) * v) * tone; b0 = (b1 + (52 - b1) * v) * tone;
       r += (r0 - r) * kVeg; gg += (g0 - gg) * kVeg; b += (b0 - b) * kVeg;
       if (v > 0.6 && HASH[i] > 0.972 && win < 0.3) { if (HASH[i] > 0.986) { r = 246; gg = 222; b = 92; } else { r = 240; gg = 236; b = 236; } }
       if (aut > 0) { kAut = aut * 0.55 * kVeg; r += (196 - r) * kAut; gg += (158 - gg) * kAut; b += (70 - b) * kAut; }   // 秋は黄色く
