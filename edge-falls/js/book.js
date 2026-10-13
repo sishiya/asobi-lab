@@ -217,8 +217,8 @@ function openSettings(back, focus) {
 function quitGame() {
   // セーブしないで終えることもできる（2026-10-13 ユーザー）。ページを離れるときの自動セーブもしないよう、先に G.started を落とす
   showPanel(TX('<h2>ゲームを終える</h2><p class="center">あそびラボへもどる。<br>セーブすると、つぎに開いたとき「つづきから」ここで遊べる。<br>セーブしないと、前に残った所までになる。</p>', '<h2>Quit</h2><p class="center">Go back to Asobi Lab.<br>If you save, you can pick up here with “Continue” next time.<br>If you don’t save, you go back to the last saved point.</p>'), [
-    { label: TX('セーブして終える', 'Save and quit'), main: true, fn: async () => { await saveSlot('auto'); G.started = false; location.href = TX('../', '../?lang=en'); } },   // 入口へ（v019 で保管庫から入口へ移した）
-    { label: TX('セーブしないで終える', 'Quit without saving'), fn: () => { G.started = false; location.href = TX('../', '../?lang=en'); } },
+    { label: TX('セーブして終える', 'Save and quit'), main: true, fn: async () => { await saveSlot('auto'); G.started = false; location.href = '../archive.html'; } },   // 保管庫へ（v019 で入口へ移し、v028 で調整のため保管庫へもどした）
+    { label: TX('セーブしないで終える', 'Quit without saving'), fn: () => { G.started = false; location.href = '../archive.html'; } },
     { label: TX('もどる', 'Back'), fn: () => openMenu() },
   ]);
   $('panel').classList.add('world'); G.panelBack = openMenu;
