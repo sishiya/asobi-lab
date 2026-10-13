@@ -93,7 +93,7 @@ body.titling .menubtn{opacity:0;pointer-events:none}
 .speeds button[aria-pressed=true] canvas{opacity:1;transform:translateY(-3px)}
 .speeds button[aria-pressed=true] span{opacity:1}
 .speeds button[aria-pressed=true]::after{content:"";position:absolute;bottom:0;left:30%;right:30%;height:2px;border-radius:1px;background:rgba(var(--glowc),.9);box-shadow:0 0 8px rgba(var(--glowc),.8)}
-.dialtxt{font-size:13px;color:var(--paper);opacity:.85;text-shadow:0 1px 2px #000;white-space:nowrap;letter-spacing:.06em}
+.dialtxt{margin:8px 0 0;font-size:13px;color:var(--paper);opacity:.85;text-shadow:0 1px 2px #000;white-space:nowrap;letter-spacing:.06em}
 
 /* 章のことば（世界の上に、にじむように） */
 .line{isolation:isolate;position:absolute;left:50%;top:24%;transform:translate(-50%,-50%);text-align:center;color:var(--paper);pointer-events:none;opacity:0;transition:opacity 1.6s;width:min(640px,92%);
