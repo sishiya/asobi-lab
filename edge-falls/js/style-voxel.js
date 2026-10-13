@@ -178,7 +178,7 @@ const VOX = (() => {
         let r = 150, g = 190, b = 228;
         if (band < 3) { r = 246; g = 250; b = 255; } else if (band < 7) { r = 194; g = 222; b = 246; }
         if (edge && f < 0.4) { r *= 0.8; g *= 0.86; b *= 0.92; }
-        r *= shade; g *= shade; b = Math.min(255, b * (0.9 + 0.12 * cyl));
+        r = Math.min(255, r * shade); g = Math.min(255, g * shade); b = Math.min(255, b * (0.9 + 0.12 * cyl));   // 255 をこえると blend で色があふれてピンクの粒になる（v047 で直した）
         if (yy <= 1) { r = 240; g = 248; b = 255; }                                                 // 落ち口のふくらみ
         else if (yy === 2) { r = Math.min(255, r * 1.12); g = Math.min(255, g * 1.08); }            // 落ち口のふちの照り
         const dx = f > 0.15 ? Math.round((hash2(X, Math.floor(flow / 3)) - 0.5) * f * (4 + q * 6)) : 0;
