@@ -178,7 +178,7 @@ cv.addEventListener('pointermove', e => {
       panBy(n.x - pinch.x, n.y - pinch.y);
       V.zoom = Math.max(0.6, Math.min(3, V.zoom * n.d / pinch.d));
       let da = n.a - pinch.a; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
-      V.yaw -= da;                                   // 2本指でひねると回る（スマホ。手に持っていても回せる）
+      V.yaw += da;                                   // 2本指でひねると回る（スマホ。手に持っていても回せる）。v031 で向きを逆に（2026-10-13 ユーザー。マウス・キー・見る用のボタンはそのまま）
       layout(V.cw, V.ch); G.did.rotate = 1; lastInput = performance.now();
       noteGesture('zoom', Math.abs(Math.log(n.d / pinch.d))); noteGesture('twist', Math.abs(da));   // 見かたの練習（view.js）
       pinch = n; return;
