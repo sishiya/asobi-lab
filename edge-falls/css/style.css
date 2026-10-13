@@ -24,6 +24,20 @@ body.font-dot,body.font-dot .panel{font-family:"DotGothic16","Hiragino Mincho Pr
 .menubtn{position:absolute;left:8px;top:8px;border:0;background:radial-gradient(closest-side,var(--deep),transparent);border-radius:12px;padding:6px;cursor:pointer;opacity:.6;transition:opacity .2s}
 .menubtn canvas{width:28px;height:28px;image-rendering:pixelated;display:block}
 .menubtn:hover,.menubtn:focus-visible{opacity:1}
+/* 知らせの記録（v033）: メニューの下の吹き出し。押すと、これまでの知らせ */
+.msgbtn{position:absolute;left:8px;top:54px;border:0;background:radial-gradient(closest-side,var(--deep),transparent);border-radius:12px;padding:6px;cursor:pointer;opacity:.6;transition:opacity .2s}
+.msgbtn canvas{width:28px;height:28px;image-rendering:pixelated;display:block}
+.msgbtn:hover,.msgbtn:focus-visible,.msgbtn[aria-expanded=true]{opacity:1}
+.msgbtn.new{opacity:.95}
+.msgbtn.new::after{content:"";position:absolute;right:5px;top:5px;width:7px;height:7px;border-radius:50%;background:rgb(var(--glowc));box-shadow:0 0 8px rgba(var(--glowc),.9)}
+.msglog{position:absolute;left:8px;top:100px;width:min(380px,calc(100% - 16px));max-height:min(58vh,440px);overflow:auto;z-index:4;padding:10px 14px 12px;border-radius:12px;
+  background:var(--deep2);color:var(--paper);box-shadow:0 6px 24px rgba(0,0,0,.6);font-size:14px;line-height:1.6}
+.msglog h4{margin:0 0 6px;font-size:13px;font-weight:400;letter-spacing:.12em;opacity:.75}
+.msglog ol{list-style:none;margin:0;padding:0}
+.msglog li{padding:6px 0;border-top:1px solid rgba(239,227,196,.14)}
+.msglog li:first-child{border-top:0}
+.msglog li span{display:block;font-size:11px;opacity:.6;letter-spacing:.06em}
+.msglog p{margin:4px 0;opacity:.7}
 body.titling .menubtn{opacity:0;pointer-events:none}
 /* 世界になじむ札（メニュー・セーブ・ロード）: 羊皮紙の箱ではなく、深淵の色のぼかしの上に羊皮紙色の文字。2026-10-13 ユーザー */
 .panel.world{background:radial-gradient(ellipse at 50% 45%,rgba(14,18,34,.94),rgba(10,13,24,.86) 70%,rgba(10,13,24,.7));color:var(--paper);border:1px solid rgba(239,227,196,.22);outline:0;border-radius:16px;
@@ -121,9 +135,9 @@ body.fan-open .toast{bottom:140px}
 .fan button.empty em{color:#e8a08a}
 
 /* 右下: 観察帳 */
-/* 見る用のボタン（v030。指で遊ぶときだけ。左のまんなかに縦に） */
-.viewpad{position:absolute;left:6px;top:50%;transform:translateY(-50%);display:none;flex-direction:column;gap:2px;padding:6px 2px;border-radius:24px;background:radial-gradient(closest-side,rgba(12,16,30,.45),transparent);transition:opacity 1.2s}
-body.touchy .viewpad{display:flex}
+/* 見る用のボタン（v030。左のまんなかに縦に。v033 で PC でも出す） */
+.viewpad{position:absolute;left:6px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:2px;padding:6px 2px;border-radius:24px;background:radial-gradient(closest-side,rgba(12,16,30,.45),transparent);transition:opacity 1.2s}
+.viewpad:hover canvas{opacity:.8}
 .viewpad button{border:0;background:transparent;padding:4px;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
 .viewpad canvas{width:30px;height:30px;display:block;image-rendering:pixelated;opacity:.55;transition:transform .15s,opacity .15s;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6))}
 .viewpad button.on canvas,.viewpad button:active canvas{opacity:1;transform:scale(1.12)}
@@ -159,11 +173,20 @@ body.touchy .viewpad{display:flex}
 .card .gbar s{border-color:#3a2a1c}
 .card p{margin:2px 0;color:#6d5a44;font-size:12px}
 
-/* 観察帳: 右がわに開く羊皮紙の本（スマホは下から） */
-.book{position:absolute;right:0;top:0;bottom:0;width:min(400px,100%);padding:12px;display:flex;pointer-events:none}
-.pages{pointer-events:auto;position:relative;flex:1;background:#f4ead0;color:#3a2a1c;border:2px solid #3a2a1c;outline:1px solid #3a2a1c;outline-offset:3px;border-radius:4px;
-  box-shadow:0 6px 30px rgba(0,0,0,.55);overflow:auto;padding:12px 16px 16px;
-  background-image:radial-gradient(ellipse at 30% 0%,rgba(255,255,255,.35),transparent 60%),radial-gradient(ellipse at 100% 100%,rgba(140,100,50,.12),transparent 60%)}
+/* 観察の巻物: 右がわにひらく羊皮紙の巻物（スマホは下から）。上と下に木の軸（v033。前は本） */
+.book{position:absolute;right:0;top:0;bottom:0;width:min(400px,100%);padding:22px 20px;display:flex;pointer-events:none}
+.book::before,.book::after{content:"";position:absolute;left:10px;right:10px;height:14px;border-radius:7px;z-index:1;pointer-events:none;
+  background:radial-gradient(circle at 7px 50%,#2e1c10 0 4px,#5a3a20 5px,transparent 6px),radial-gradient(circle at calc(100% - 7px) 50%,#2e1c10 0 4px,#5a3a20 5px,transparent 6px),
+    linear-gradient(#3e2614,#8a5a2e 30%,#c08a52 48%,#8a5a2e 70%,#3a2410);box-shadow:0 3px 8px rgba(0,0,0,.55)}
+.book::before{top:14px}
+.book::after{top:calc(100% - 28px);animation:scrollDown .45s ease-out}
+.pages{pointer-events:auto;position:relative;flex:1;background:#f4ead0;color:#3a2a1c;border:0;border-radius:0;
+  box-shadow:inset 10px 0 14px -10px rgba(110,76,42,.45),inset -10px 0 14px -10px rgba(110,76,42,.45),0 6px 30px rgba(0,0,0,.55);overflow:auto;padding:14px 18px 16px;
+  background-image:radial-gradient(ellipse at 30% 0%,rgba(255,255,255,.35),transparent 60%),radial-gradient(ellipse at 100% 100%,rgba(140,100,50,.14),transparent 60%),
+    repeating-linear-gradient(0deg,rgba(140,100,50,.035) 0 2px,transparent 2px 5px);animation:unroll .45s ease-out}
+@keyframes unroll{from{clip-path:inset(0 0 100% 0)}to{clip-path:inset(0 0 0 0)}}
+@keyframes scrollDown{from{top:14px}to{top:calc(100% - 28px)}}
+@media (prefers-reduced-motion:reduce){.pages,.book::after{animation:none}}
 .tabs{display:flex;flex-wrap:wrap;gap:2px 10px;border-bottom:1px solid #cdb98f;padding:0 28px 6px 0;margin-bottom:10px}
 .tabs button{border:0;background:transparent;cursor:pointer;font-size:13px;color:#6d5a44;padding:4px 0;border-bottom:2px solid transparent}
 .tabs button[aria-selected=true]{color:#3a2a1c;border-bottom-color:#8c3c14}
@@ -252,7 +275,8 @@ body.titling .overlay{background:radial-gradient(ellipse at 50% 40%,rgba(5,8,16,
 .panel.titlecard .tbtn:hover,.panel.titlecard .tbtn:focus-visible{border-color:rgba(var(--glowc),.85);background:rgba(30,36,58,.7);outline:0}
 .panel.titlecard .tbtn.main{background:rgba(239,227,196,.92);color:#141b30;border-color:transparent}
 .panel.titlecard .tbtn.main:hover,.panel.titlecard .tbtn.main:focus-visible{background:#fff4d8}
-body.titling .hands,body.titling .bookbtn,body.titling .quest,body.titling .dial,body.titling .viewpad{opacity:0;pointer-events:none}
+body.titling .hands,body.titling .bookbtn,body.titling .quest,body.titling .dial,body.titling .viewpad,body.titling .msgbtn{opacity:0;pointer-events:none}
+body.ending .msgbtn,body.collapsing .msgbtn,body.thumb .msgbtn,body.collapsing .msglog,body.thumb .msglog{display:none!important}
 body.ending .hands,body.ending .bookbtn,body.ending .quest,body.ending .dial,body.ending .menubtn,body.ending .fan,body.ending .viewpad{opacity:0;pointer-events:none}
 body.collapsing .viewpad,body.thumb .viewpad,body.thumb .gesture{display:none!important}
 .hands,.bookbtn,.dial,.menubtn{transition:opacity 1.2s}
@@ -298,7 +322,8 @@ body.collapsing .viewpad,body.thumb .viewpad,body.thumb .gesture{display:none!im
   .fan{bottom:88px;left:8px!important;right:8px;transform:none;flex-wrap:wrap;justify-content:center}
   body.fan-open .toast{bottom:190px}
   .fan button{min-height:40px;font-size:12px}
-  .book{top:auto;height:72%;width:100%;padding:8px}
+  .book{top:auto;height:72%;width:100%;padding:20px 12px}
+  .book::before,.book::after{left:4px;right:4px}
   .line{top:30%}
   /* スマホのはじめの画面: 題とことばは上、ボタンは下に縦にならべて、まん中の大地を見せる（2026-10-13 ユーザー） */
   body.titling .overlay{align-items:stretch;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));
@@ -352,10 +377,10 @@ body:has(#overlay:not([hidden]) .panel.settings) .stage::after{opacity:0}
 .slot.just{animation:justSaved 1.6s ease-out}
 @keyframes justSaved{0%{background:rgba(var(--glowc),.38)}100%{background:transparent}}
 .savedmark{display:inline-block;margin-left:8px;font-style:normal;font-size:12px;color:rgb(var(--glowc));letter-spacing:.08em;animation:lbIn .3s ease-out}
-/* しまう（スマホの Esc のかわり）。指で遊ぶとき・せまい画面だけ、手に持つものの中身の並びのいちばん右に（v032） */
-.fan .putaway{display:none;border-left:1px solid rgba(239,227,196,.18);border-radius:0 8px 8px 0;padding-left:10px;margin-left:2px}
+/* しまう（Esc と同じ）。手に持つものの中身の並びのいちばん右に（v032。v033 で PC でも出す） */
+.fan .putaway{display:flex;border-left:1px solid rgba(239,227,196,.18);border-radius:0 8px 8px 0;padding-left:10px;margin-left:2px}
 .fan .putaway b{font-size:18px;font-weight:400;line-height:1;opacity:.85}
-@media (pointer:coarse),(max-width:640px){.fan .putaway{display:flex}}
+.fan .putaway:hover{opacity:1}
 /* 言語（タイトルの右上だけ） */
 .langsw{position:absolute;right:max(12px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));z-index:4;display:none;gap:2px;padding:3px;border-radius:10px;background:rgba(12,16,30,.55);border:1px solid rgba(239,227,196,.25)}
 body.titling .langsw{display:flex}

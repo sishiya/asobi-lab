@@ -12,7 +12,7 @@ function newGame(seed = (Math.random() * 1e9) | 0, story = true) {
   newWorld(seed, story); resetLife(); HIST.length = 0;
   V.yaw = Math.PI / 2 - W.bigFall + 0.35;   // いちばん大きな滝（はじめの章は湖のくぼみ）が手前に
   V.panX = V.panY = 0;
-  G.sel = null; G.done = []; G.found = {}; G.did = {}; G.tipped = {};
+  G.sel = null; G.done = []; G.found = {}; G.did = {}; G.tipped = {}; MSGLOG.length = 0;
   prevCounts = { deer: 0, wolf: 0, fish: 0, bird: 0 };
   if (story) { for (const k in W.stock) W.stock[k] = 0; enterChapter(0, true); }
   else { G.ch = CHAPTERS.length; G.unlock = unlockedAt(G.ch); W.knob = { winter: 1, tide: 1 }; for (const k in W.stock) W.stock[k] = STOCK_MAX[k]; }
@@ -145,7 +145,7 @@ cv.addEventListener('dblclick', e => { const p = local(e); if (!pick(p.x, p.y) &
 cv.addEventListener('pointerdown', e => {
   if (!G.started || ENDING) return;
   Sound.unlock();
-  // 観察帳の外を押した: 閉じるだけ。札（メニュー）を外を押して閉じた直後も、手に持ったものを使わない（2026-10-13 ユーザー「うっかり選択中のツールを実行してしまわないように」）
+  // 観察の巻物の外を押した: 閉じるだけ。札（メニュー）を外を押して閉じた直後も、手に持ったものを使わない（2026-10-13 ユーザー「うっかり選択中のツールを実行してしまわないように」）
   if (!$('book').hidden) { closeBook(); Sound.play('click'); return; }
   if (performance.now() - (G.closedT || 0) < 400) return;
   try { cv.setPointerCapture(e.pointerId); } catch (err) { /* 捕まえられなくても動かす */ }
@@ -256,7 +256,7 @@ addEventListener('keydown', e => {
     if (!e.repeat && G.started && !COL && !G.menuOpen && $('overlay').hidden && now - (G.spaceT || 0) > 350) { G.spaceT = now; bookSpeed = null; setSpeed(G.speed ? 0 : G.lastSpeed); Sound.play('pin'); G.did.speed = 1; }
   }
   else if (e.key === 'Escape') {
-    if (goBack()) Sound.play('click');          // 大きな絵・観察帳・メニューの下の札は、ひとつ前へ
+    if (goBack()) Sound.play('click');          // 大きな絵・観察の巻物・メニューの下の札は、ひとつ前へ
     else if ($('overlay').hidden && G.hand) dropHand();   // 手に持っていたら、まず手放す（もう一度 Esc でメニュー。2026-10-13 ユーザー）
     else if ($('overlay').hidden) openMenu();
   }

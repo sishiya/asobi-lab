@@ -1,5 +1,5 @@
 'use strict';
-// 知らせ・札・観察帳のグラフ（v011 で横の箱は観察帳へ）
+// 知らせ・札・観察の巻物のグラフ（v011 で横の箱は観察の巻物へ）
 const $ = id => document.getElementById(id);
 // 英語のとき: HTML に書いた title・aria-label を data-en-title・data-en-aria-label の英語に入れかえる。ページの題も（v025。2026-10-13 ユーザー）
 if (LANG === 'en') {
@@ -11,7 +11,45 @@ let toastT = 0;
 function toast(msg, sec = 3) {
   const el = $('toast'); el.textContent = msg; el.classList.add('on');
   clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), sec * 1000);
+  if (sec >= 4) logMsg(msg);          // 4 秒より長い知らせ（ヒント・てびき・季節・見つけたこと）は、あとで読み返せる
 }
+
+// ---- 知らせの記録（v033。2026-10-13 ユーザー「直近のヒントは吹き出しっぽいアイコンから読み返せるように」） ----
+//   左上のメニューの下の吹き出しを押すと、新しい順に 20 まで。新しい知らせが来たら吹き出しに小さな光
+const MSGLOG = [];
+function logMsg(text) {
+  if (!text || (MSGLOG[0] && MSGLOG[0].text === text)) return;
+  MSGLOG.unshift({ text, day: typeof W !== 'undefined' && W.day ? W.day : 0 });
+  if (MSGLOG.length > 20) MSGLOG.pop();
+  if (!$('msglog')) return;
+  if ($('msglog').hidden) $('btnMsg').classList.add('new'); else renderMsgLog();
+}
+function drawBubble(ctx) {
+  ctx.clearRect(0, 0, 32, 32);
+  px(ctx, 3, 3, 10, 7, '#e6dcc4'); px(ctx, 2, 4, 12, 5, '#e6dcc4'); px(ctx, 4, 10, 3, 1, '#e6dcc4'); px(ctx, 4, 11, 1, 2, '#e6dcc4'); px(ctx, 5, 11, 1, 1, '#e6dcc4');   // 吹き出し
+  px(ctx, 3, 9, 10, 1, '#b8a888'); px(ctx, 13, 4, 1, 5, '#b8a888');                                                                                      // 影
+  for (let k = 0; k < 3; k++) px(ctx, 5 + k * 2, 6, 1, 1, '#5a4636');                                                                                   // …
+}
+addEventListener('DOMContentLoaded', () => {   // px（book.js）が読みこまれてから
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'msgbtn'; b.id = 'btnMsg';
+  b.title = TX('これまでの知らせ', 'Recent messages'); b.setAttribute('aria-label', b.title);
+  b.innerHTML = '<canvas width="32" height="32"></canvas>'; drawBubble(b.firstChild.getContext('2d'));
+  const box = document.createElement('div');
+  box.className = 'msglog'; box.id = 'msglog'; box.hidden = true; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', b.title);
+  $('btnMenu').after(b, box);
+  b.onclick = () => { Sound.unlock(); Sound.play('click'); if (box.hidden) openMsgLog(); else closeMsgLog(); };
+  // 外を押す・Esc で閉じる（世界の操作には渡さない）
+  addEventListener('pointerdown', e => { if (!box.hidden && !box.contains(e.target) && !b.contains(e.target)) { closeMsgLog(); e.stopPropagation(); e.preventDefault(); } }, true);
+  addEventListener('keydown', e => { if (e.key === 'Escape' && !box.hidden) { closeMsgLog(); e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+});
+function renderMsgLog() {
+  $('msglog').innerHTML = `<h4>${TX('これまでの知らせ', 'Recent messages')}</h4>` + (MSGLOG.length
+    ? '<ol>' + MSGLOG.map(m => `<li>${m.day ? `<span>${TX(`第 ${m.day} 日`, `Day ${m.day}`)}</span>` : ''}${m.text.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</li>`).join('') + '</ol>'
+    : `<p>${TX('まだ知らせはない', 'No messages yet')}</p>`);
+}
+function openMsgLog() { renderMsgLog(); $('msglog').hidden = false; $('btnMsg').classList.remove('new'); $('btnMsg').setAttribute('aria-expanded', 'true'); }
+function closeMsgLog() { $('msglog').hidden = true; $('btnMsg').setAttribute('aria-expanded', 'false'); }
 
 function showPanel(html, btns) {
   $('panel').className = 'panel'; G.panelBack = null;   // Esc・札の外でもどる先（入れる札だけが入れる。book.js の goBack）

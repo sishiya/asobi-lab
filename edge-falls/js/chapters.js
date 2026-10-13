@@ -89,9 +89,9 @@ const CHAPTERS = [
   },
   {
     key: 'genes', name: TX('進化', 'Evolution'), title: TX('体が変わる', 'Bodies change'), text: TX('生き物の遺伝子のどれか1つの平均を、いまより 0.08 動かす', 'Move the average of any one animal gene by 0.08 from where it is now'), goal: 8, unit: '', show: v => (v / 100).toFixed(2),
-    gives: { genes: 1 }, arrive: TX('観察帳に「遺伝子」の頁がひらいた。生き物は、親から子へ体のつくりを伝える', 'The “Genes” page opened in the Field Notes. Living things pass the shape of their bodies from parents to young'), knob: { winter: 1, tide: 1 },
+    gives: { genes: 1 }, arrive: TX('観察の巻物に「遺伝子」の頁がひらいた。生き物は、親から子へ体のつくりを伝える', 'The “Genes” page opened in the Field Scroll. Living things pass the shape of their bodies from parents to young'), knob: { winter: 1, tide: 1 },
     prog: () => Math.round(geneMove() * 100),
-    hint: TX('きびしさに合ったものが生き残る。オオカミに追われるとシカの足が、水へ逃げられるとシカの泳ぐ力が、流れのある川ではサカナの泳ぐ力が伸びる。いらなくなった力は、むだなので下がっていく。観察帳の「遺伝子」の頁で見られる。', 'The ones that fit how hard the world is survive. When wolves chase them, deer get faster legs; when they can escape into water, deer get better at swimming; in rivers with currents, fish get better at swimming. Abilities they no longer need are wasteful and go down. You can see it on the “Genes” page of the Field Notes.'),
+    hint: TX('きびしさに合ったものが生き残る。オオカミに追われるとシカの足が、水へ逃げられるとシカの泳ぐ力が、流れのある川ではサカナの泳ぐ力が伸びる。いらなくなった力は、むだなので下がっていく。観察の巻物の「遺伝子」の頁で見られる。', 'The ones that fit how hard the world is survive. When wolves chase them, deer get faster legs; when they can escape into water, deer get better at swimming; in rivers with currents, fish get better at swimming. Abilities they no longer need are wasteful and go down. You can see it on the “Genes” page of the Field Scroll.'),
     gift() { W.stock.wolf = Math.min(STOCK_MAX.wolf, W.stock.wolf + 1); return TX('つぼに、オオカミが戻ってきた', 'A wolf came back to the jar'); },
     truth: TX('生き残りやすい性質が子に伝わって積み重なり、生き物が変わっていく（自然選択。ダーウィンとウォレスが 1858 年に発表）。本当の進化はふつう何百〜何万世代もかかる。この箱庭ではずっと速くしている。', 'Traits that help survival are passed to young and add up, so living things change (natural selection, published by Darwin and Wallace in 1858). Real evolution usually takes hundreds to tens of thousands of generations. This garden makes it much faster.'),
   },
@@ -189,7 +189,7 @@ function finishChapter() {
   Sound.play('win');
   addPage('ch' + n);
   if (n + 1 < CHAPTERS.length) {
-    toast(TX(`「${c.title}」ができた。観察帳に、本当のことが一つ書きこまれた`, `“${c.title}” is done. A true fact was written in the Field Notes`), 6);
+    toast(TX(`「${c.title}」ができた。観察の巻物に、本当のことが一つ書きこまれた`, `“${c.title}” is done. A true fact was written in the Field Scroll`), 6);
     later(4.5, () => { if (G.ch === n + 0.5) enterChapter(n + 1); });
     G.ch = n + 0.5; G.spots = null;   // 次の章を待つあいだ（お題を数えない）
   } else {
