@@ -24,31 +24,30 @@ body.font-dot,body.font-dot .panel{font-family:"DotGothic16","Hiragino Mincho Pr
 .menubtn{position:absolute;left:8px;top:8px;border:0;background:radial-gradient(closest-side,var(--deep),transparent);border-radius:12px;padding:6px;cursor:pointer;opacity:.6;transition:opacity .2s}
 .menubtn canvas{width:28px;height:28px;image-rendering:pixelated;display:block}
 .menubtn:hover,.menubtn:focus-visible{opacity:1}
-/* 知らせの吹き出しのボタン（v033。v034〜v040 はメグリ、v041 でもどした）: メニューの下。押すと出しっぱなし（.pinned はあかるく） */
+/* 知らせの吹き出しのボタン（v033。v034〜v048 はメグリ・出しっぱなしの吹き出しをためした。v049 で、押すと時が止まって、これまでの知らせを見返す形に）: メニューの下 */
 .msgbtn{position:absolute;left:8px;top:54px;border:0;background:radial-gradient(closest-side,var(--deep),transparent);border-radius:12px;padding:6px;cursor:pointer;opacity:.6;transition:opacity .2s}
 .msgbtn canvas{width:28px;height:28px;image-rendering:pixelated;display:block}
-.msgbtn:hover,.msgbtn:focus-visible,.msgbtn.pinned{opacity:1}
-.msgbtn:focus:not(:focus-visible){outline:0}   /* 出しっぱなしのときの光る枠はやめた（v046。2026-10-14 ユーザー「吹き出しにつく枠も消して」）。あかるさだけで分かる */
-/* 吹き出し: 羊皮紙。これまでの話が上、新しいものが下。高さは JS（はじめのカメラで大地にかからないところまで） */
-.say{position:absolute;left:8px;top:96px;width:min(400px,calc(100% - 16px));z-index:4;display:flex;flex-direction:column;border-radius:3px 12px 12px 12px;
-  background:#f4ead0;color:#3a2a1c;box-shadow:0 0 0 1px rgba(58,42,28,.5),0 6px 24px rgba(0,0,0,.55);font-size:14px;line-height:1.65;opacity:0;transform:translateY(-4px);transition:opacity .25s,transform .25s}
-.say.on{opacity:1;transform:none}
-/* しっぽ（上向きの三角）はやめた（v048。2026-10-14 ユーザー「吹き出しに逆向きの吹き出しがつくのはおかしい」）。ボタンの下に札として、左上の角だけ四角くして寄せる */
-.say ol{list-style:none;margin:0;padding:8px 14px 10px;overflow-y:auto;overscroll-behavior:contain;position:relative;scrollbar-width:thin;scrollbar-color:#a88a62 rgba(160,130,90,.15)}
-/* スクロールバー: 羊皮紙に墨の細い帯（v045。2026-10-14 ユーザー「スクロールバーが世界観に合ってない」） */
-.say ol::-webkit-scrollbar{width:7px}
-.say ol::-webkit-scrollbar-track{background:rgba(160,130,90,.15);border-radius:4px;margin:8px 0}
-.say ol::-webkit-scrollbar-thumb{background:#a88a62;border-radius:4px;border:1px solid #f4ead0}
-.say ol::-webkit-scrollbar-thumb:hover{background:#8a6c44}
-.say li{padding:6px 0;border-top:1px dashed #d8c7a0;opacity:.62}
-.say li:first-child{border-top:0}
-.say li:last-child{opacity:1}
-.say li.fresh{animation:sayIn .35s ease-out}
-.say li span{display:block;font-size:11px;color:#8a785c;letter-spacing:.06em}
-.say li.none{opacity:.6}
-body.sayover .line{top:var(--lineTop);transform:translate(-50%,0)}   /* 吹き出しと重なるときは、章のことばを下へ */
-@keyframes sayIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.say li.fresh{animation:none}.say{transition:none}}
+.msgbtn:hover,.msgbtn:focus-visible,.msgbtn[aria-expanded=true]{opacity:1}
+.msgbtn:focus:not(:focus-visible){outline:0}   
+/* これまでの知らせ（v049）: 吹き出しのボタンを押すと、時が止まって、半透明の大きな札に新しい順。圧迫感がないよう、世界が透けて見える */
+.msglog{position:fixed;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:56px 16px;background:rgba(6,8,16,.3);opacity:0;transition:opacity .2s}
+.msglog.on{opacity:1}
+.msglogbox{position:relative;width:min(640px,100%);max-height:100%;display:flex;flex-direction:column;padding:16px 8px 10px 22px;border-radius:14px;color:var(--paper);
+  background:rgba(12,16,30,.6);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);border:1px solid rgba(239,227,196,.16);box-shadow:0 10px 40px rgba(0,0,0,.45)}
+.msglogbox h3{margin:0 40px 8px 0;font-size:15px;font-weight:400;letter-spacing:.14em;text-shadow:0 1px 2px #000}
+.msglogbox h3 small{margin-left:12px;font-size:12px;letter-spacing:.06em;opacity:.6}
+.msglogclose{position:absolute;right:8px;top:6px;width:36px;height:36px;border:0;background:transparent;color:var(--paper);font-size:22px;cursor:pointer;opacity:.75}
+.msglogclose:hover,.msglogclose:focus-visible{opacity:1;outline:0}
+.msglogbox ol{list-style:none;margin:0;padding:0 14px 0 0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(239,227,196,.35) transparent}
+.msglogbox ol::-webkit-scrollbar{width:6px}
+.msglogbox ol::-webkit-scrollbar-thumb{background:rgba(239,227,196,.35);border-radius:3px}
+.msglogbox li{padding:10px 0;border-top:1px solid rgba(239,227,196,.12)}
+.msglogbox li:first-child{border-top:0}
+.msglogbox li span{display:block;font-size:11px;letter-spacing:.06em;opacity:.55}
+.msglogbox li p{margin:2px 0 0;font-size:15px;line-height:1.7;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.msglogbox li.none p{opacity:.6}
+.msgbtn.new::after{content:"";position:absolute;right:5px;top:5px;width:6px;height:6px;border-radius:50%;background:rgb(var(--glowc));box-shadow:0 0 6px rgba(var(--glowc),.8)}
+@media (prefers-reduced-motion:reduce){.msglog{transition:none}}
 body.titling .menubtn{opacity:0;pointer-events:none}
 /* 世界になじむ札（メニュー・セーブ・ロード）: 羊皮紙の箱ではなく、深淵の色のぼかしの上に羊皮紙色の文字。2026-10-13 ユーザー */
 .panel.world{background:radial-gradient(ellipse at 50% 45%,rgba(14,18,34,.94),rgba(10,13,24,.86) 70%,rgba(10,13,24,.7));color:var(--paper);border:1px solid rgba(239,227,196,.22);outline:0;border-radius:16px;
@@ -274,8 +273,8 @@ body.titling .overlay{background:radial-gradient(ellipse at 50% 40%,rgba(5,8,16,
 .panel.titlecard .tbtn:hover,.panel.titlecard .tbtn:focus-visible{border-color:rgba(var(--glowc),.85);background:rgba(30,36,58,.7);outline:0}
 .panel.titlecard .tbtn.main{background:rgba(239,227,196,.92);color:#141b30;border-color:transparent}
 .panel.titlecard .tbtn.main:hover,.panel.titlecard .tbtn.main:focus-visible{background:#fff4d8}
-body.titling .hands,body.titling .bookbtn,body.titling .quest,body.titling .dial,body.titling .viewpad,body.titling .msgbtn,body.titling .say{opacity:0;pointer-events:none}
-body.ending .msgbtn,body.collapsing .msgbtn,body.thumb .msgbtn,body.ending .say,body.collapsing .say,body.thumb .say{display:none!important}
+body.titling .hands,body.titling .bookbtn,body.titling .quest,body.titling .dial,body.titling .viewpad,body.titling .msgbtn{opacity:0;pointer-events:none}
+body.ending .msgbtn,body.collapsing .msgbtn,body.thumb .msgbtn,body.thumb .msglog{display:none!important}
 body.ending .hands,body.ending .bookbtn,body.ending .quest,body.ending .dial,body.ending .menubtn,body.ending .fan,body.ending .viewpad{opacity:0;pointer-events:none}
 body.collapsing .viewpad,body.thumb .viewpad,body.thumb .gesture{display:none!important}
 .hands,.bookbtn,.dial,.menubtn{transition:opacity 1.2s}

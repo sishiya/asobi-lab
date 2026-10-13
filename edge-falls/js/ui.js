@@ -9,23 +9,22 @@ if (LANG === 'en') {
 }
 let toastT = 0;
 function toast(msg, sec = 3) {
-  if (sec >= 4) {                     // 4 秒より長い知らせ（ヒント・てびき・季節・見つけたこと）は、吹き出しに出す（v034）。あとで読み返せる
-    logMsg(msg);
-    if (G.started && !document.body.classList.contains('ending')) { say(msg); return; }
-  }
   const el = $('toast'); el.textContent = msg; el.classList.add('on');
   clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), sec * 1000);
+  if (sec >= 4) logMsg(msg);          // 4 秒より長い知らせ（ヒント・てびき・季節・見つけたこと）は、あとで読み返せる
 }
 
-// ---- 知らせの吹き出し（v033。v034〜v040 はメグリ（ウロボロス）が話す形、v041 でシンプルな吹き出しにもどした。2026-10-14 ユーザー） ----
-//   左上のメニューの下の吹き出しのボタン。押すと出しっぱなし（もう一度押すとしまう）。これまでの知らせは 40 まで、上へスクロールして読み返せる
+// ---- これまでの知らせ（v049。2026-10-14 ユーザー「吹き出し機能を付ける前の表示にもどしつつ、吹き出し機能自体を刷新。押したときに時間をとめ、
+//      画面大きめに。ふわっと出て見逃しがちなメッセージを見返せる。半透明系が圧迫感なくていいかも」） ----
+//   知らせはもとの、ふわっと出て消える形（toast）。左上のメニューの下の吹き出しのボタンを押すと、時が止まり、半透明の大きな札に
+//   これまでの知らせ（新しい順に 40 まで）が出る。×・Esc・札の外・もう一度ボタン でとじると、時がもとの速さにもどる。
+//   v033〜v048 のためし（メグリ・出しっぱなしの吹き出し）はやめた
 const MSGLOG = [];
 function logMsg(text) {
   if (!text || (MSGLOG[0] && MSGLOG[0].text === text)) return;
   MSGLOG.unshift({ text, day: typeof W !== 'undefined' && W.day ? W.day : 0 });
   if (MSGLOG.length > 40) MSGLOG.pop();
-  SAY.fresh = (SAY.fresh || 0) + 1;
-  if (SAY.open) renderSay();
+  if ($('msgbtn')) $('msgbtn').classList.add('new');
 }
 function drawBubble(ctx) {
   ctx.clearRect(0, 0, 32, 32);
@@ -33,93 +32,43 @@ function drawBubble(ctx) {
   px(ctx, 3, 9, 10, 1, '#b8a888'); px(ctx, 13, 4, 1, 5, '#b8a888');                                                                                      // 影
   for (let k = 0; k < 3; k++) px(ctx, 5 + k * 2, 6, 1, 1, '#5a4636');                                                                                   // …
 }
-// 話す（吹き出し）。これまでの話と一つになっていて、新しいものが下、上へスクロールでさかのぼれる（2026-10-13 ユーザー「トグルで出し続けることも」「スクロールで遡れるように」）。
-//   吹き出しのボタンを押すと出しっぱなし（もう一度押すとしまう。次に遊ぶときも覚えている）。しまっているあいだに話したときは、文の長さに合わせて 7〜20 秒だけ出る（PLAYTEST #11）。
-//   高さは、はじめのカメラで大地にかからないところまで（sayMaxH）
-const SAY = { pinned: false, open: false, seen: 0 };
-try { SAY.pinned = localStorage.getItem('edge-falls-say-pin') === '1'; } catch (e) { /* 覚えられなくても動く */ }
-let sayT = 0;
-const sayOpen = () => SAY.open;
-function say() {
-  if (!$('say')) return;
-  openSay(false);
-  if (!SAY.pinned) armSay(Math.min(20, Math.max(7, (MSGLOG[0] ? MSGLOG[0].text.length : 0) * 0.13 + 4)));
-}
-function armSay(sec) { clearTimeout(sayT); sayT = setTimeout(() => { if (!SAY.pinned) closeSay(); }, sec * 1000); }
-// はじめのカメラ（寄りなし・まんなか・傾き 0.56）で、吹き出しの横の幅にかかる大地のいちばん上（画面の y）。かからなければ画面の 6 割
-function sayMaxH(left, width, top) {
-  const cw = V.cw, ch = V.ch; if (!cw) return 220;
-  const tilt = 0.56, hf = Math.cos(Math.asin(tilt)) * 0.5;
-  const s = Math.min(cw * (ch > cw * 1.3 ? 1.0 : 0.9) / (2 * RD), ch * 0.84 / (2 * RD * tilt + (16 + THICK + 12) * hf));
-  const cx = cw / 2, cy = ch * 0.5 - (THICK + 4) * s * hf * 0.6 + (16 * s * hf) * 0.25 + Math.min(36, ch * 0.04);
-  const rx = RD * s, near = Math.max(left - cx, Math.min(0, left + width - cx));   // 吹き出しの横の幅で、大地のまんなかにいちばん近い x
-  if (Math.abs(near) >= rx) return Math.round(ch * 0.6);
-  const yTop = cy - Math.sqrt(1 - (near / rx) ** 2) * rx * tilt - 6 * s * hf;      // 奥のふち（少し高い地形のぶん上に）
-  return Math.round(yTop - top - 10);
-}
-//   幅は 400px から 240px まで、高さが 170px とれる広さをさがす（広い画面では大地の左に細く長く）。左の見る用のボタンにもかからない
-function fitSay() {
-  if (!V.cw) return;
-  const el = $('say'), fr = field.getBoundingClientRect(), top = el.getBoundingClientRect().top - fr.top, left = 8;
-  const pad = document.querySelector('.viewpad'), pr = pad ? pad.getBoundingClientRect() : null;
-  const padLim = pr && pr.height ? pr.top - fr.top - top - 8 : 1e9;
-  const maxW = Math.max(160, Math.min(400, V.cw - (V.cw <= 640 ? 128 : 16)));
-  let best = null;
-  for (let w = maxW; w >= Math.min(240, maxW); w -= 20) {
-    const h = Math.min(sayMaxH(left, w, top), padLim, V.ch * 0.6);
-    if (!best || w * h > best.w * best.h) best = { w, h };
-    if (h >= 170) { best = { w, h }; break; }
-  }
-  el.style.width = best.w + 'px'; el.style.maxHeight = Math.max(96, Math.round(best.h)) + 'px';
-  // 章のことば（まんなかの上）と横に重なるときは、ことばを吹き出しの下へずらす
-  const lineL = V.cw / 2 - Math.min(640, V.cw * 0.92) / 2;
-  SAY.over = left + best.w > lineL;
-  document.body.style.setProperty('--lineTop', Math.round(top + Math.max(96, best.h) + 24) + 'px');
-  document.body.classList.toggle('sayover', SAY.open && SAY.over);
-}
-function renderSay(stick) {
-  const list = $('sayList'); if (!list) return;
-  const atEnd = list.scrollHeight - list.scrollTop - list.clientHeight < 24;
+let logSpeed = null;
+const logOpen = () => $('msglog') && !$('msglog').hidden;
+function openLog() {
   const esc = t => t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-  const items = MSGLOG.slice().reverse();
-  list.innerHTML = items.length
-    ? items.map((m, i) => `<li${SAY.fresh && i === items.length - 1 ? ' class="fresh"' : ''}>${m.day ? `<span>${TX(`第 ${m.day} 日`, `Day ${m.day}`)}</span>` : ''}${esc(m.text)}</li>`).join('')
-    : `<li class="none">${TX('まだ知らせはない', 'No messages yet')}</li>`;
-  if (stick || atEnd) list.scrollTop = list.scrollHeight;                // さかのぼって読んでいるときは、動かさない
+  $('msglogList').innerHTML = MSGLOG.length
+    ? MSGLOG.map(m => `<li>${m.day ? `<span>${TX(`第 ${m.day} 日`, `Day ${m.day}`)}</span>` : ''}<p>${esc(m.text)}</p></li>`).join('')
+    : `<li class="none"><p>${TX('まだ知らせはない', 'No messages yet')}</p></li>`;
+  $('msglog').hidden = false; $('msglogList').scrollTop = 0; $('toast').classList.remove('on');   // いま出ている知らせは札の中にあるので消す
+  $('msgbtn').classList.remove('new'); $('msgbtn').setAttribute('aria-expanded', 'true');
+  if (G.started && G.speed) { logSpeed = G.speed; setSpeed(0); }   // 読んでいるあいだは時を止める
+  requestAnimationFrame(() => $('msglog').classList.add('on'));
+  $('msglogClose').focus();
 }
-function openSay(pin) {
-  if (pin) { SAY.pinned = true; try { localStorage.setItem('edge-falls-say-pin', '1'); } catch (e) { /* */ } clearTimeout(sayT); }
-  const el = $('say'), was = SAY.open;
-  SAY.open = true; el.hidden = false; $('msgbtn').classList.toggle('pinned', SAY.pinned); $('msgbtn').setAttribute('aria-expanded', 'true');
-  fitSay(); renderSay(!was);
-  requestAnimationFrame(() => el.classList.add('on'));
+function closeLog() {
+  if (!logOpen()) return;
+  $('msglog').classList.remove('on'); $('msgbtn').setAttribute('aria-expanded', 'false');
+  setTimeout(() => { if (!$('msglog').classList.contains('on')) $('msglog').hidden = true; }, 200);
+  if (logSpeed !== null && G.speed === 0) setSpeed(logSpeed);
+  logSpeed = null;
 }
-function closeSay(unpin) {
-  if (unpin) { SAY.pinned = false; try { localStorage.setItem('edge-falls-say-pin', '0'); } catch (e) { /* */ } }
-  clearTimeout(sayT); SAY.open = false; SAY.fresh = 0; document.body.classList.remove('sayover');
-  const el = $('say'); if (!el) return;
-  el.classList.remove('on'); $('msgbtn').classList.remove('pinned'); $('msgbtn').setAttribute('aria-expanded', 'false');
-  setTimeout(() => { if (!SAY.open) el.hidden = true; }, 250);
-}
-function clearSay() { closeSay(); renderSay(true); }
+function clearSay() { closeLog(); }   // 新しいゲームのとき（main.js）
 addEventListener('DOMContentLoaded', () => {
   const b = document.createElement('button');
   b.type = 'button'; b.className = 'msgbtn'; b.id = 'msgbtn';
-  b.title = TX('これまでの知らせ（押すと出しっぱなし・もう一度でしまう）', 'Recent messages (press to keep open, again to close)'); b.setAttribute('aria-label', b.title);
+  b.title = TX('これまでの知らせ（時が止まる）', 'Recent messages (time stops)'); b.setAttribute('aria-label', b.title);
   b.innerHTML = '<canvas width="32" height="32"></canvas>'; drawBubble(b.firstChild.getContext('2d'));
-  const sb = document.createElement('div');
-  sb.className = 'say'; sb.id = 'say'; sb.hidden = true; sb.setAttribute('role', 'log'); sb.setAttribute('aria-live', 'polite'); sb.setAttribute('aria-label', TX('これまでの知らせ', 'Recent messages'));
-  sb.innerHTML = '<ol id="sayList"></ol>';
-  $('btnMenu').after(b, sb);
-  b.onclick = () => { Sound.unlock(); Sound.play('click'); if (SAY.open && SAY.pinned) closeSay(true); else openSay(true); };
-  sb.addEventListener('pointerdown', e => e.stopPropagation());          // 吹き出しの上の操作は世界に渡さない（スクロールで読み返す）
-  sb.addEventListener('click', () => { if (!SAY.pinned) closeSay(); });  // 出しっぱなしでないときは、押すとしまう
-  sb.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') clearTimeout(sayT); });
-  sb.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && SAY.open && !SAY.pinned) armSay(3); });
-  sb.addEventListener('wheel', e => e.stopPropagation(), { passive: true });
-  addEventListener('resize', () => { if (SAY.open) fitSay(); });
-  addEventListener('keydown', e => { if (e.key === 'Escape' && SAY.open && !SAY.pinned) { closeSay(); e.stopImmediatePropagation(); e.preventDefault(); } }, true);
-  setInterval(() => { if (G.started && SAY.pinned && !SAY.open && !document.body.classList.contains('ending')) openSay(false); }, 1000);   // 出しっぱなしなら、遊びはじめたら出す
+  const box = document.createElement('div');
+  box.className = 'msglog'; box.id = 'msglog'; box.hidden = true; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', TX('これまでの知らせ', 'Recent messages'));
+  box.innerHTML = `<div class="msglogbox"><h3>${TX('これまでの知らせ', 'Recent messages')}<small>${TX('時は止まっている', 'Time is stopped')}</small></h3>` +
+    `<button type="button" class="msglogclose" id="msglogClose" aria-label="${TX('とじる', 'Close')}">×</button><ol id="msglogList"></ol></div>`;
+  $('btnMenu').after(b);
+  document.body.appendChild(box);
+  b.onclick = () => { Sound.unlock(); Sound.play('click'); if (logOpen()) closeLog(); else openLog(); };
+  $('msglogClose').onclick = () => { Sound.play('click'); closeLog(); };
+  box.addEventListener('pointerdown', e => { e.stopPropagation(); if (e.target === box) { closeLog(); e.preventDefault(); } });   // 札の外（うすい所）を押すと閉じる
+  box.addEventListener('wheel', e => e.stopPropagation(), { passive: true });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && logOpen()) { closeLog(); e.stopImmediatePropagation(); e.preventDefault(); } }, true);
 });
 
 function showPanel(html, btns) {

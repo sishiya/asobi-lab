@@ -339,8 +339,9 @@ function frame(now) {
 
 // はじめの画面: 世界の上に題と、ことばだけ（四角い箱を出さない）
 function start() {
-  // つづきから: 自動セーブかスロットのどれかがあれば出す。押すとロードの札（どれから遊ぶか選ぶ。もどるでタイトルへ）。タイトルの「つづき: …」の行はやめた（v041。2026-10-14 ユーザー）
-  const cont = ['auto', ...SLOTS].some(k => readSlot(k));
+  // つづきから: 自動セーブがあれば出し、押すとそのまま読みこむ（v049 でもどした。2026-10-14 ユーザー「ロード画面をはさまず以前の仕様に」。v041〜v048 はロードの札をはさんでいた）。
+  //   タイトルの「つづき: …」の行は v041 でやめたまま
+  const cont = readSlot('auto');
   document.body.classList.add('titling');
   const go = fn => () => { document.body.classList.remove('titling'); fn(); };
   showPanel(TX(`<h2 class="title">果ての滝の箱庭</h2>
@@ -348,7 +349,11 @@ function start() {
     <p class="sub">何も生まれず、何も消えない。ただ、めぐるだけ。</p>`, `<h2 class="title">Edge Falls Garden</h2>
     <p class="sub">A flat land floating over the Abyss.<br>Rivers fall from the edge of the world as waterfalls.</p>
     <p class="sub">Nothing is made, nothing is lost. It only turns.</p>`),
-    (cont ? [{ label: TX('つづきから', 'Continue'), main: true, fn: () => openSavePanel(start, 'load') }, { label: TX('はじめから', 'New game'), fn: go(() => { if (W.t > 0 || L.list.length) newGame(); G.started = true; enterChapter(0); }) }]
+    (cont ? [{ label: TX('つづきから', 'Continue'), main: true, fn: go(async () => {
+      try { await loadRecord(cont); G.started = true; toast(TX('第 ' + W.day + ' 日から', 'From day ' + W.day)); }
+      catch (e) { toast(TX('つづきを読みこめなかった: ', 'Couldn’t load the saved game: ') + e.message); G.started = true; enterChapter(0); }
+      syncHands();
+    }) }, { label: TX('はじめから', 'New game'), fn: go(() => { if (W.t > 0 || L.list.length) newGame(); G.started = true; enterChapter(0); }) }]
       : [{ label: TX('はじめる', 'Start'), main: true, fn: go(() => { if (W.t > 0 || L.list.length) newGame(); G.started = true; enterChapter(0); }) }]).concat([{ label: TX('自由な箱庭', 'Free Garden'), fn: go(() => { newGame(undefined, false); G.started = true; syncHands(); }) }]));
   $('panel').classList.add('titlecard'); document.body.classList.add('atitle');
 }
