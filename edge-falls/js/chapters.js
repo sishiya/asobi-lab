@@ -225,7 +225,7 @@ function endingPanel() {
     <p class="truth"><b>本当は</b>　大地は丸い球（地球）。重さはどこでも球の中心へ向かってはたらくので、海の水は果てから落ちていかない。水は海から雲へ、雲から雨へ、川から海へとめぐっている。落ちていくものは、どこかで、めぐっている。</p>
     <p class="small">きみの世界の年表</p><ul class="chron">${rows}</ul>
     <p class="small">見つけたこと ${found} ／ ${FINDS.length}。いちばん新しい世代 ${Math.max(...['deer', 'wolf', 'fish', 'bird'].map(k => geneStats(k).gen))}。</p>`,
-  [{ label: '世界の版画をのこす', fn: () => { makePrint(); setTimeout(endingPanel, 400); } }, { label: '自由な箱庭へ', main: true, fn: endEnding }]);
+  [{ label: '世界の版画をのこす', fn: () => openPrints(endingPanel) }, { label: '自由な箱庭へ', main: true, fn: endEnding }]);
   $('panel').classList.add('world', 'ending');
 }
 function endEnding() {
