@@ -24,11 +24,11 @@ body.font-dot,body.font-dot .panel{font-family:"DotGothic16","Hiragino Mincho Pr
 .menubtn{position:absolute;left:8px;top:8px;border:0;background:radial-gradient(closest-side,var(--deep),transparent);border-radius:12px;padding:6px;cursor:pointer;opacity:.6;transition:opacity .2s}
 .menubtn canvas{width:28px;height:28px;image-rendering:pixelated;display:block}
 .menubtn:hover,.menubtn:focus-visible{opacity:1}
-/* 知らせの吹き出しのボタン（v033。v034〜v040 はメグリ、v041 でもどした）: メニューの下。押すと出しっぱなし（.pinned で光る） */
+/* 知らせの吹き出しのボタン（v033。v034〜v040 はメグリ、v041 でもどした）: メニューの下。押すと出しっぱなし（.pinned はあかるく） */
 .msgbtn{position:absolute;left:8px;top:54px;border:0;background:radial-gradient(closest-side,var(--deep),transparent);border-radius:12px;padding:6px;cursor:pointer;opacity:.6;transition:opacity .2s}
 .msgbtn canvas{width:28px;height:28px;image-rendering:pixelated;display:block}
 .msgbtn:hover,.msgbtn:focus-visible,.msgbtn.pinned{opacity:1}
-.msgbtn.pinned::after{content:"";position:absolute;inset:3px;border-radius:10px;box-shadow:0 0 0 1px rgba(var(--glowc),.55),0 0 10px rgba(var(--glowc),.3);pointer-events:none}
+.msgbtn:focus:not(:focus-visible){outline:0}   /* 出しっぱなしのときの光る枠はやめた（v046。2026-10-14 ユーザー「吹き出しにつく枠も消して」）。あかるさだけで分かる */
 /* 吹き出し: 羊皮紙。これまでの話が上、新しいものが下。高さは JS（はじめのカメラで大地にかからないところまで） */
 .say{position:absolute;left:8px;top:100px;width:min(400px,calc(100% - 16px));z-index:4;display:flex;flex-direction:column;border-radius:12px;
   background:#f4ead0;color:#3a2a1c;box-shadow:0 0 0 1px rgba(58,42,28,.5),0 6px 24px rgba(0,0,0,.55);font-size:14px;line-height:1.65;opacity:0;transform:translateY(-4px);transition:opacity .25s,transform .25s}
