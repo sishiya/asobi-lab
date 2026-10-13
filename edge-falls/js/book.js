@@ -65,7 +65,7 @@ function setHand(h) {
   setCursor();
   syncHands();
 }
-// 手放す（Esc・スマホの「やめる」）
+// しまう（Esc・スマホの「しまう」。v027 で「手放す」から。ユーザー「ツールを手放す（つかえなくなる）のかとおもっちゃう」）
 function dropHand() { setHand(null); hover = null; Sound.play('release'); }
 // マウスの横の絵: 土ぶくろ・水がめは、いまの中身の量で（2026-10-13 ユーザー「泉がからでも溜まっているようにみえる」）。6 段に丸める
 let cursorKey = '';
