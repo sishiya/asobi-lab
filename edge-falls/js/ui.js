@@ -24,8 +24,8 @@ function showPanel(html, btns) {
 const HIST = [];
 function updateSide(s) {
   const yr = Math.floor((W.t / DAY + 0.1 * YEAR) / YEAR) + 1;
-  $('day').textContent = `${yr} 年目の${SEASONS[seasonOf()]}・第 ${W.day} 日`;
-  $('hud').textContent = `${SEASONS[seasonOf()]}・${Math.round(W.Tavg ?? 15)}℃` + (W.Tavg < 2 ? '・雪' : '');
+  $('day').textContent = TX(`${yr} 年目の${SEASONS[seasonOf()]}・第 ${W.day} 日`, `Year ${yr}, ${SEASONS[seasonOf()]} · Day ${W.day}`);
+  $('hud').textContent = TX(`${SEASONS[seasonOf()]}・${Math.round(W.Tavg ?? 15)}℃`, `${SEASONS[seasonOf()][0].toUpperCase() + SEASONS[seasonOf()].slice(1)} · ${Math.round(W.Tavg ?? 15)}°C`) + (W.Tavg < 2 ? TX('・雪', ' · snow') : '');
   $('nGrass').textContent = Math.round(s.grass * 100);
   $('nDeer').textContent = L.counts.deer; $('nWolf').textContent = L.counts.wolf; $('nFish').textContent = L.counts.fish; $('nBird').textContent = L.counts.bird;
   $('fallRate').textContent = s.out.toFixed(1);
@@ -81,7 +81,7 @@ document.querySelectorAll('[data-gk]').forEach(b => b.addEventListener('click', 
 const gbar = (v, col) => `<span class="gbar"><b style="width:${(v * 100).toFixed(0)}%${col ? ';background:' + col : ''}"></b><s></s></span>`;
 function updateGenes() {
   const g = geneStats(gKind);
-  $('genGen').textContent = g.n ? `いちばん新しい世代 ${g.gen}` : 'いない';
+  $('genGen').textContent = g.n ? TX(`いちばん新しい世代 ${g.gen}`, `Newest generation: ${g.gen}`) : TX('いない', 'none');
   $('grows').innerHTML = GENES[gKind].map(([k, name], n) =>
     `<span><i style="background:${GCOL[n]}"></i>${name}</span>${gbar(g.n ? g[k] : 0, GCOL[n])}<em>${g.n ? g[k].toFixed(2) : '―'}</em>`).join('');
 }
@@ -106,13 +106,14 @@ function updateCard() {
   const a = G.sel, el = $('card');
   if (!a) { el.hidden = true; return; }
   if (a.dead) {
-    el.innerHTML = `<h4><span>${KINDS[a.kind].name}（第 ${a.gen} 世代）</span><button type="button" aria-label="とじる" onclick="G.sel=null;updateCard()">×</button></h4><p>${DIE_WORD[a.how] || 'いなくなった'}</p>`;
+    el.innerHTML = `<h4><span>${TX(`${KINDS[a.kind].name}（第 ${a.gen} 世代）`, `${KINDS[a.kind].name} (generation ${a.gen})`)}</span><button type="button" aria-label="${TX('とじる', 'Close')}" onclick="G.sel=null;updateCard()">×</button></h4><p>${DIE_WORD[a.how] || TX('いなくなった', 'Gone')}</p>`;
     el.hidden = false; return;
   }
   const days = (a.age / DAY).toFixed(1);
-  el.innerHTML = `<h4><span>${KINDS[a.kind].name}（第 ${a.gen} 世代）</span><button type="button" aria-label="とじる" onclick="G.sel=null;updateCard()">×</button></h4>` +
+  el.innerHTML = `<h4><span>${TX(`${KINDS[a.kind].name}（第 ${a.gen} 世代）`, `${KINDS[a.kind].name} (generation ${a.gen})`)}</span><button type="button" aria-label="${TX('とじる', 'Close')}" onclick="G.sel=null;updateCard()">×</button></h4>` +
     GENES[a.kind].map(([k, name]) => `<div class="row"><span>${name}</span>${gbar(a.g[k])}</div>`).join('') +
-    `<div class="row"><span>おなか</span>${gbar(Math.max(0, a.e / a.tr.eMax))}</div><p>生まれて ${days} 日</p>`;
+    `<div class="row"><span>${TX('おなか', 'Hunger')}</span>${gbar(Math.max(0, a.e / a.tr.eMax))}</div><p>${TX(`生まれて ${days} 日`, `${days} days old`)}</p>`;
   el.hidden = false;
 }
-const DIE_WORD = { caught: 'サギに食べられた', eaten: 'オオカミに食べられた', hunger: '飢えて死んだ', thirst: 'のどがかわいて死んだ', drown: '深い水でおぼれた', fall: '滝から落ちた', dry: '水がなくなって死んだ', old: '年をとって死んだ' };
+const DIE_WORD = TX({ caught: 'サギに食べられた', eaten: 'オオカミに食べられた', hunger: '飢えて死んだ', thirst: 'のどがかわいて死んだ', drown: '深い水でおぼれた', fall: '滝から落ちた', dry: '水がなくなって死んだ', old: '年をとって死んだ' },
+  { caught: 'Eaten by a heron', eaten: 'Eaten by a wolf', hunger: 'Died of hunger', thirst: 'Died of thirst', drown: 'Drowned in deep water', fall: 'Fell off the falls', dry: 'Died when the water dried up', old: 'Died of old age' });

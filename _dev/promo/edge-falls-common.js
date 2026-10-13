@@ -14,6 +14,7 @@ const EF_PRE = `
 (() => {
   try { for (let k = localStorage.length - 1; k >= 0; k--) { const n = localStorage.key(k); if (n && n.startsWith('asobi-lab/edge-falls/')) localStorage.removeItem(n); } } catch (e) {}
   try { localStorage.setItem('asobi-lab/edge-falls/sound', JSON.stringify({ bgm: false, sfx: false })); } catch (e) {}
+  try { localStorage.setItem('manabi-lang', 'ja'); } catch (e) {}   // 動画は日本語で録る（英語は字幕。v019 でゲームが英語に切りかわるようになった。録る Chrome の言語は英語のことがある）
   let vt = 1000, seq = 0; const timers = new Map(); let raf = [];
   performance.now = () => vt;
   window.requestAnimationFrame = cb => { raf.push(cb); return raf.length; };

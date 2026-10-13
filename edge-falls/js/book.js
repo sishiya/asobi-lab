@@ -52,7 +52,7 @@ function drawCreature(ctx, kind) {
 const iconURL = (() => { const cache = {}; return (key, fn) => { if (!cache[key]) { const c = document.createElement('canvas'); c.width = c.height = 32; fn(c.getContext('2d')); cache[key] = c.toDataURL(); } return cache[key]; }; })();
 
 // ---- 手に持つもの ----
-const LIFE_SUBS = [['seed', 'たね'], ['deer', 'シカ'], ['wolf', 'オオカミ'], ['fish', 'サカナ'], ['bird', 'サギ']];
+const LIFE_SUBS = [['seed', TX('たね', 'Seeds')], ['deer', TX('シカ', 'Deer')], ['wolf', TX('オオカミ', 'Wolf')], ['fish', TX('サカナ', 'Fish')], ['bird', TX('サギ', 'Heron')]];
 function toolOf() {
   if (G.hand === 'soil') return G.sub.soil;
   if (G.hand === 'water') return 'spring';
@@ -80,7 +80,7 @@ function syncHands() {
   // 手に持っているものの中身（扇のように上に並ぶ）
   const fan = $('fan');
   if (G.hand === 'soil' || G.hand === 'life') {
-    const items = G.hand === 'soil' ? [['dig', '土をけずる'], ['raise', '土を盛る']] : LIFE_SUBS.filter(([k]) => k === 'seed' || u[k]);
+    const items = G.hand === 'soil' ? [['dig', TX('土をけずる', 'Dig')], ['raise', TX('土を盛る', 'Pile up')]] : LIFE_SUBS.filter(([k]) => k === 'seed' || u[k]);
     fan.innerHTML = items.map(([k, label]) => {
       const n = KINDS[k] ? `<em>${W.stock[k]}</em>` : k === 'raise' ? `<em id="soilN">${Math.floor(W.soil)}</em>` : '';
       const ic = k === 'dig' ? iconURL('bagd', c => drawBag(c, 0.5, false)) : k === 'raise' ? iconURL('bagr', c => drawBag(c, 0.8, true)) : k === 'seed' ? iconURL('seed', drawSeed) : iconURL('c' + k, c => drawCreature(c, k));
@@ -139,14 +139,14 @@ function openMenu() {
   if (menuSpeed === null) { menuSpeed = G.speed; setSpeed(0); }
   const resume = () => { if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } };
   G.menuOpen = true;
-  showPanel(`<p class="mtitle">${isFree() ? '自由な箱庭' : YEARNAME[Math.floor(G.ch)] + 'の年'}　第 ${W.day} 日</p>`, [
-    { label: 'つづける', main: true, fn: closeMenu },
-    { label: 'セーブ', fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'save'); } },
-    { label: 'ロード', fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'load'); } },
-    { label: '観察帳', fn: () => { G.menuOpen = false; resume(); openBook(null, true); } },
-    { label: '設定', fn: () => { G.menuOpen = false; openSettings(() => openMenu()); } },
-    { label: 'タイトルへ', fn: () => { G.menuOpen = false; toTitle(); } },
-    { label: 'ゲームを終える', fn: () => { G.menuOpen = false; quitGame(); } },
+  showPanel(`<p class="mtitle">${isFree() ? TX('自由な箱庭', 'Free Garden') : yearOf(Math.floor(G.ch))}${TX(`　第 ${W.day} 日`, ` · Day ${W.day}`)}</p>`, [
+    { label: TX('つづける', 'Resume'), main: true, fn: closeMenu },
+    { label: TX('セーブ', 'Save'), fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'save'); } },
+    { label: TX('ロード', 'Load'), fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'load'); } },
+    { label: TX('観察帳', 'Field Notes'), fn: () => { G.menuOpen = false; resume(); openBook(null, true); } },
+    { label: TX('設定', 'Settings'), fn: () => { G.menuOpen = false; openSettings(() => openMenu()); } },
+    { label: TX('タイトルへ', 'Title screen'), fn: () => { G.menuOpen = false; toTitle(); } },
+    { label: TX('ゲームを終える', 'Quit'), fn: () => { G.menuOpen = false; quitGame(); } },
   ]);
   $('panel').classList.add('menu', 'world');
 }
@@ -177,24 +177,25 @@ function toTitle() {
     newGame(); layout(V.cw, V.ch);    // タイトルのうしろは、ひらいたときと同じ新しい大地に（2026-10-13 ユーザー「箱庭が切り替わってない」）
     document.body.classList.remove('paused'); chapterLine('', ''); start();
   };
-  showPanel('<h2>タイトルへ</h2><p class="center">セーブすると、いまの世界を自動セーブに残す。<br>タイトルの「つづきから」で、ここにもどれる。<br>セーブしないと、前に残った所までになる。</p>', [
-    { label: 'セーブしてタイトルへ', main: true, fn: () => go(true) },
-    { label: 'セーブしないでタイトルへ', fn: () => go(false) },
-    { label: 'もどる', fn: () => openMenu() },
+  showPanel(TX('<h2>タイトルへ</h2><p class="center">セーブすると、いまの世界を自動セーブに残す。<br>タイトルの「つづきから」で、ここにもどれる。<br>セーブしないと、前に残った所までになる。</p>', '<h2>Title screen</h2><p class="center">If you save, the current world is kept in the autosave.<br>You can come back here with “Continue” on the title screen.<br>If you don’t save, you go back to the last saved point.</p>'), [
+    { label: TX('セーブしてタイトルへ', 'Save and go to title'), main: true, fn: () => go(true) },
+    { label: TX('セーブしないでタイトルへ', 'Go to title without saving'), fn: () => go(false) },
+    { label: TX('もどる', 'Back'), fn: () => openMenu() },
   ]);
   $('panel').classList.add('world'); G.panelBack = openMenu;
 }
 // 設定（v016。2026-10-13 ユーザー「設定メニューを追加して」「メニューには文字フォント切り替えは必要ない。設定画面に移して」）
 //   音楽・効果音・文字・背景（v017 で観察帳のてびきから移した）。押すとその場で切りかわる。back があれば「もどる」でそこへ（メニュー）
 function openSettings(back, focus) {
-  const on = v => v ? 'オン' : 'オフ', again = k => () => openSettings(back, k);
+  const on = v => v ? TX('オン', 'On') : TX('オフ', 'Off'), again = k => () => openSettings(back, k);
   const bi = BACK_CHOICES.findIndex(([k]) => k === backName);
-  showPanel('<p class="mtitle">設定</p>', [
-    { label: '音楽　' + on(Sound.get('bgm')), fn: () => { Sound.set('bgm', !Sound.get('bgm')); again(0)(); } },
-    { label: '効果音　' + on(Sound.get('sfx')), fn: () => { Sound.set('sfx', !Sound.get('sfx')); again(1)(); } },
-    { label: '文字　' + (fontName === 'dot' ? 'ドット' : '明朝'), fn: () => { setFont(fontName === 'dot' ? 'serif' : 'dot'); again(2)(); } },
-    { label: '背景　' + (bi >= 0 ? BACK_CHOICES[bi][1] : 'ほか'), fn: () => { setBack(BACK_CHOICES[(bi + 1) % BACK_CHOICES.length][0]); again(3)(); } },
-    { label: back ? 'もどる' : 'とじる', main: true, fn: () => { if (back) back(); } },
+  showPanel(`<p class="mtitle">${TX('設定', 'Settings')}</p>`, [
+    { label: TX('音楽　', 'Music: ') + on(Sound.get('bgm')), fn: () => { Sound.set('bgm', !Sound.get('bgm')); again(0)(); } },
+    { label: TX('効果音　', 'Sound effects: ') + on(Sound.get('sfx')), fn: () => { Sound.set('sfx', !Sound.get('sfx')); again(1)(); } },
+    { label: TX('文字　', 'Font: ') + (fontName === 'dot' ? TX('ドット', 'Pixel') : TX('明朝', 'Serif')), fn: () => { setFont(fontName === 'dot' ? 'serif' : 'dot'); again(2)(); } },
+    { label: TX('背景　', 'Background: ') + (bi >= 0 ? BACK_CHOICES[bi][1] : TX('ほか', 'Other')), fn: () => { setBack(BACK_CHOICES[(bi + 1) % BACK_CHOICES.length][0]); again(3)(); } },
+    { label: TX('言語　日本語', 'Language: English'), fn: () => setLang(LANG === 'en' ? 'ja' : 'en') },   // 読み直す（遊んでいる世界はページを離れるときの自動セーブで「つづきから」に。v019）
+    { label: back ? TX('もどる', 'Back') : TX('とじる', 'Close'), main: true, fn: () => { if (back) back(); } },
   ]);
   $('panel').classList.add('menu', 'world');
   G.panelBack = back || (() => { $('overlay').hidden = true; });
@@ -202,10 +203,10 @@ function openSettings(back, focus) {
 }
 function quitGame() {
   // セーブしないで終えることもできる（2026-10-13 ユーザー）。ページを離れるときの自動セーブもしないよう、先に G.started を落とす
-  showPanel('<h2>ゲームを終える</h2><p class="center">あそびラボの保管庫へもどる。<br>セーブすると、つぎに開いたとき「つづきから」ここで遊べる。<br>セーブしないと、前に残った所までになる。</p>', [
-    { label: 'セーブして終える', main: true, fn: async () => { await saveSlot('auto'); G.started = false; location.href = '../archive.html'; } },
-    { label: 'セーブしないで終える', fn: () => { G.started = false; location.href = '../archive.html'; } },
-    { label: 'もどる', fn: () => openMenu() },
+  showPanel(TX('<h2>ゲームを終える</h2><p class="center">あそびラボへもどる。<br>セーブすると、つぎに開いたとき「つづきから」ここで遊べる。<br>セーブしないと、前に残った所までになる。</p>', '<h2>Quit</h2><p class="center">Go back to Asobi Lab.<br>If you save, you can pick up here with “Continue” next time.<br>If you don’t save, you go back to the last saved point.</p>'), [
+    { label: TX('セーブして終える', 'Save and quit'), main: true, fn: async () => { await saveSlot('auto'); G.started = false; location.href = TX('../', '../?lang=en'); } },   // 入口へ（v019 で保管庫から入口へ移した）
+    { label: TX('セーブしないで終える', 'Quit without saving'), fn: () => { G.started = false; location.href = TX('../', '../?lang=en'); } },
+    { label: TX('もどる', 'Back'), fn: () => openMenu() },
   ]);
   $('panel').classList.add('world'); G.panelBack = openMenu;
 }
@@ -323,35 +324,35 @@ function renderBook() {
   if (page === 'finds') renderFinds();
   if (page === 'years') renderYears();
   document.querySelectorAll('.legend [data-k]').forEach(el => { el.hidden = !u[el.dataset.k]; });
-  $('stockTxt').textContent = ['deer', 'wolf', 'fish', 'bird'].filter(k => u[k]).map(k => KINDS[k].name + ' ' + W.stock[k]).join('・') || 'まだからっぽ';
+  $('stockTxt').textContent = ['deer', 'wolf', 'fish', 'bird'].filter(k => u[k]).map(k => KINDS[k].name + ' ' + W.stock[k]).join(TX('・', ' · ')) || TX('まだからっぽ', 'Still empty');
 }
 function renderYears() {
   const rows = CHAPTERS.map((c, n) => {
     const d = G.done && G.done[n];
-    if (d) return `<li class="done"><b>${YEARNAME[n]}の年　${c.title}</b><span>第 ${d.day} 日にできた</span>${d.what ? `<p>${d.what}</p>` : ''}<p>${c.truth}</p></li>`;
-    if (n === Math.floor(G.ch)) return `<li class="now"><b>${YEARNAME[n]}の年　${c.title}</b><span>いまの年</span><p>${c.text}</p>${G.helped ? `<p class="hint">${c.hint}</p>` : ''}</li>`;
-    return `<li class="later"><b>${YEARNAME[n]}の年</b><span>……</span></li>`;
+    if (d) return `<li class="done"><b>${yearOf(n)}${TX('　', ': ')}${c.title}</b><span>${TX(`第 ${d.day} 日にできた`, `Done on day ${d.day}`)}</span>${d.what ? `<p>${d.what}</p>` : ''}<p>${c.truth}</p></li>`;
+    if (n === Math.floor(G.ch)) return `<li class="now"><b>${yearOf(n)}${TX('　', ': ')}${c.title}</b><span>${TX('いまの年', 'This year')}</span><p>${c.text}</p>${G.helped ? `<p class="hint">${c.hint}</p>` : ''}</li>`;
+    return `<li class="later"><b>${yearOf(n)}</b><span>……</span></li>`;
   }).join('');
-  $('years').innerHTML = rows + (isFree() ? '<li class="done"><b>そして</b><span>十の年がめぐった</span><p>ここからは自由な箱庭。</p></li>' : '');
+  $('years').innerHTML = rows + (isFree() ? TX('<li class="done"><b>そして</b><span>十の年がめぐった</span><p>ここからは自由な箱庭。</p></li>', '<li class="done"><b>And then</b><span>The Ten Years have turned</span><p>From here on, it’s a Free Garden.</p></li>') : '');
 }
 
 // ---- 見つけたこと（観察の記録） ----
 const FINDS = [
-  ['fall', '果ての滝', '水が、世界の果てから落ちていった。', s => s.out > 0.3],
-  ['mist', '霧の雲', '滝のしぶきが、のぼって雲になった。', () => W.flags.mist],
-  ['mrain', '山の雨', '山にぶつかった雲が、雨をふらせた。', () => W.flags.mrain],
-  ['abyss', '深淵の底', '深淵の水が、底をつきかけた。泉が細くなる。', () => W.abyss < 60 && W.springs.length > 0],
-  ['green', '緑の原', '草が、大地の一割をおおった。', s => s.grass > 0.1],
-  ['tree', 'はじめての木', '草の茂った乾いた所に、木が育った。', () => G.maxTree > 0.7],
-  ['born', 'はじめての子', '大地で、はじめて子が生まれた。', () => L.born > 0],
-  ['snow', '初雪', '寒い山に、雪がつもった。', () => G.snowy],
-  ['ice', '氷', '水が凍った。凍った水は流れない。', () => G.icy],
-  ['swim', '泳ぐシカ', 'シカが、深い水を泳ぎわたった。', () => W.flags.swim],
-  ['giveup', '逃げきった', 'オオカミが、シカを追いきれなかった。', () => W.flags.giveup],
-  ['fallen', '果てへ', '流された生き物が、滝から落ちていった。', () => L.fell > 0],
-  ['catch', 'サギの漁', 'サギが、浅瀬でサカナをとった。', () => L.why['fish:caught'] > 0],
-  ['return', '帰ってきた命', '去った命が、深淵からつぼへ戻ってきた。', () => W.flags.ret],
-  ['gen10', '十代目', '第 10 世代の子が生まれた。', () => W.flags.gen10],
+  ['fall', TX('果ての滝', 'The Edge Falls'), TX('水が、世界の果てから落ちていった。', 'Water fell from the edge of the world.'), s => s.out > 0.3],
+  ['mist', TX('霧の雲', 'Mist clouds'), TX('滝のしぶきが、のぼって雲になった。', 'Spray from the falls rose and became clouds.'), () => W.flags.mist],
+  ['mrain', TX('山の雨', 'Mountain rain'), TX('山にぶつかった雲が、雨をふらせた。', 'Clouds hit a mountain and it rained.'), () => W.flags.mrain],
+  ['abyss', TX('深淵の底', 'The bottom of the Abyss'), TX('深淵の水が、底をつきかけた。泉が細くなる。', 'The Abyss almost ran out of water. The springs grow weak.'), () => W.abyss < 60 && W.springs.length > 0],
+  ['green', TX('緑の原', 'Green plain'), TX('草が、大地の一割をおおった。', 'Grass covered a tenth of the land.'), s => s.grass > 0.1],
+  ['tree', TX('はじめての木', 'The first tree'), TX('草の茂った乾いた所に、木が育った。', 'A tree grew in a dry, grassy place.'), () => G.maxTree > 0.7],
+  ['born', TX('はじめての子', 'The first young'), TX('大地で、はじめて子が生まれた。', 'The first young was born on the land.'), () => L.born > 0],
+  ['snow', TX('初雪', 'First snow'), TX('寒い山に、雪がつもった。', 'Snow piled up on a cold mountain.'), () => G.snowy],
+  ['ice', TX('氷', 'Ice'), TX('水が凍った。凍った水は流れない。', 'Water froze. Frozen water doesn’t flow.'), () => G.icy],
+  ['swim', TX('泳ぐシカ', 'Swimming deer'), TX('シカが、深い水を泳ぎわたった。', 'A deer swam across deep water.'), () => W.flags.swim],
+  ['giveup', TX('逃げきった', 'Got away'), TX('オオカミが、シカを追いきれなかった。', 'A wolf couldn’t catch the deer it chased.'), () => W.flags.giveup],
+  ['fallen', TX('果てへ', 'Over the edge'), TX('流された生き物が、滝から落ちていった。', 'An animal was carried away and fell off the falls.'), () => L.fell > 0],
+  ['catch', TX('サギの漁', 'The heron’s catch'), TX('サギが、浅瀬でサカナをとった。', 'A heron caught a fish in the shallows.'), () => L.why['fish:caught'] > 0],
+  ['return', TX('帰ってきた命', 'Lives come back'), TX('去った命が、深淵からつぼへ戻ってきた。', 'Lives that passed away came back from the Abyss to the jar.'), () => W.flags.ret],
+  ['gen10', TX('十代目', 'Tenth generation'), TX('第 10 世代の子が生まれた。', 'A young of the 10th generation was born.'), () => W.flags.gen10],
 ];
 const SKETCH_KEY = 'asobi-lab/edge-falls/sketch';
 let sketches = {}; try { sketches = JSON.parse(localStorage.getItem(SKETCH_KEY) || '{}'); } catch (e) { sketches = {}; }
@@ -365,7 +366,7 @@ function stepFinds(s, dt) {
   for (const [id, title, text, test] of FINDS) {
     if (G.found[id] || !test(s)) continue;
     G.found[id] = { day: W.day };
-    toast(`見つけた　${title}　— ${text}`, 5); Sound.play('put');
+    toast(TX(`見つけた　${title}　— ${text}`, `Discovery: ${title} — ${text}`), 5); Sound.play('put');
     wantSketch = id;
     $('btnBook').classList.remove('glow'); void $('btnBook').offsetWidth; $('btnBook').classList.add('glow');
     break;                              // 一度に一つずつ
@@ -393,10 +394,10 @@ function takeSketch(t) {
 function addPage() { /* 年の頁は G.done から作るので、ここでは観察帳の印だけ */ $('btnBook').classList.remove('glow'); void $('btnBook').offsetWidth; $('btnBook').classList.add('glow'); }
 function renderFinds() {
   const f = G.found || {};
-  $('findN').textContent = `${Object.keys(f).length} ／ ${FINDS.length}`;
+  $('findN').textContent = TX(`${Object.keys(f).length} ／ ${FINDS.length}`, `${Object.keys(f).length} / ${FINDS.length}`);
   $('finds').innerHTML = FINDS.map(([id, title, text]) => f[id]
-    ? `<figure>${sketches[id] ? `<button type="button" class="shot" data-find="${id}" aria-label="${title}の絵を大きく見る"><img src="${sketches[id]}" alt=""></button>` : '<div class="blank"></div>'}<figcaption><b>${title}</b><span>第 ${f[id].day} 日</span><p>${text}</p></figcaption></figure>`
-    : '<figure class="unfound"><div class="blank">？</div><figcaption><b>まだ見ていない</b></figcaption></figure>').join('');
+    ? `<figure>${sketches[id] ? `<button type="button" class="shot" data-find="${id}" aria-label="${TX(`${title}の絵を大きく見る`, `See the picture of ${title} larger`)}"><img src="${sketches[id]}" alt=""></button>` : '<div class="blank"></div>'}<figcaption><b>${title}</b><span>${TX(`第 ${f[id].day} 日`, `Day ${f[id].day}`)}</span><p>${text}</p></figcaption></figure>`
+    : `<figure class="unfound"><div class="blank">${TX('？', '?')}</div><figcaption><b>${TX('まだ見ていない', 'Not seen yet')}</b></figcaption></figure>`).join('');
 }
 // 見つけたことの絵を大きく（2026-10-13 ユーザー「クリックしたら世界観にマッチする枠をつけて大きく表示」）。
 //   観察帳と同じ羊皮紙の台紙に二重の墨の線。押す・Esc で閉じる。←→ でとなりの絵へ
@@ -406,7 +407,7 @@ function openLightbox(id) {
   const f = FINDS.find(x => x[0] === id), d = (G.found || {})[id];
   if (!f || !d || !sketches[id]) return;
   lbId = id;
-  $('lbImg').src = sketches[id]; $('lbTitle').textContent = f[1]; $('lbDay').textContent = `第 ${d.day} 日`; $('lbText').textContent = f[2];
+  $('lbImg').src = sketches[id]; $('lbTitle').textContent = f[1]; $('lbDay').textContent = TX(`第 ${d.day} 日`, `Day ${d.day}`); $('lbText').textContent = f[2];
   $('lightbox').hidden = false;
 }
 function closeLightbox() { $('lightbox').hidden = true; $('lightbox').classList.remove('print'); lbId = null; }
@@ -423,11 +424,11 @@ addEventListener('keydown', e => {
 
 // ---- ちょっとしたてびき（その操作をまだしていない人にだけ、一度ずつ） ----
 const TIPS = [
-  ['rotate', () => G.chT > DAY * 0.4, '大地の外をドラッグすると、回して見られる。ホイールで寄る'],
-  ['speed', () => G.ch >= 1 && G.chT > DAY * 0.3, '右上の天の輪を押すと、時が止まる。下の ›› で速くなる'],
-  ['sun', () => G.ch >= 2 && G.chT > DAY * 1.5, '太陽は、つかんで動かせる。止めた所はよく育つが、乾いて暑い。反対がわは夜のまま'],
-  ['book', () => G.ch >= 3 && G.chT > DAY, '右下の観察帳に、いきものの移り変わりが書いてある'],
-  ['moon', () => G.ch >= 7 && G.chT > DAY, '月を寄せると、潮で水がそちらへ寄る。浅瀬が動き、ふちから水があふれる'],
+  ['rotate', () => G.chT > DAY * 0.4, TX('大地の外をドラッグすると、回して見られる。ホイールで寄る', 'Drag outside the land to turn it. Scroll to zoom in')],
+  ['speed', () => G.ch >= 1 && G.chT > DAY * 0.3, TX('右上の天の輪を押すと、時が止まる。下の ›› で速くなる', 'Press the Sky Dial at the top right to stop time. The ›› marks below make it faster')],
+  ['sun', () => G.ch >= 2 && G.chT > DAY * 1.5, TX('太陽は、つかんで動かせる。止めた所はよく育つが、乾いて暑い。反対がわは夜のまま', 'You can grab the Sun and move it. Where you stop it, plants grow well but it gets dry and hot. The other side stays in night')],
+  ['book', () => G.ch >= 3 && G.chT > DAY, TX('右下の観察帳に、いきものの移り変わりが書いてある', 'The Field Notes at the bottom right show how life is changing')],
+  ['moon', () => G.ch >= 7 && G.chT > DAY, TX('月を寄せると、潮で水がそちらへ寄る。浅瀬が動き、ふちから水があふれる', 'Bring the Moon closer and the tide pulls water toward it. The shallows move, and water spills over the edge')],
 ];
 let accTip = 0;
 function stepTips(dt) {
@@ -453,17 +454,19 @@ function drawSpots(ctx, t) {
 //   もとは画面の canvas（いま見えている絵そのもの。手に持つものなどの画面の部品はふくまない）。画素の絵なので、ぼかさずに整数倍で大きくする。
 //   型: 見たまま（額なし）・羊皮紙の台紙・深淵の額・古い写真・銅版画（これまでの）。札で見くらべて、押すと大きく、「のこす」で PNG。
 const PRINTS = [
-  ['seen', '見たまま', '画面の絵そのまま。下に小さく題'],
-  ['mat', '羊皮紙の台紙', '観察帳と同じ紙に、墨の二重線'],
-  ['abyss', '深淵の額', '夜空の色の台紙に、金の二重線'],
-  ['photo', '古い写真', 'セピアに焼いて、羊皮紙の台紙に'],
-  ['stone', '石板', '欠けたふちの石に、絵をはめこんで題を彫る'],
-  ['etch', '銅版画', 'これまでの版画（銅版画の画風で描き直す）'],
+  ['seen', TX('見たまま', 'As seen'), TX('画面の絵そのまま。下に小さく題', 'The picture on the screen, with a small title at the bottom')],
+  ['mat', TX('羊皮紙の台紙', 'Parchment mount'), TX('観察帳と同じ紙に、墨の二重線', 'The same paper as the Field Notes, with double ink lines')],
+  ['abyss', TX('深淵の額', 'Abyss frame'), TX('夜空の色の台紙に、金の二重線', 'A night-sky mount with double gold lines')],
+  ['photo', TX('古い写真', 'Old photo'), TX('セピアに焼いて、羊皮紙の台紙に', 'Printed in sepia on a parchment mount')],
+  ['stone', TX('石板', 'Stone tablet'), TX('欠けたふちの石に、絵をはめこんで題を彫る', 'Set into a chipped stone, with the title carved in')],
+  ['etch', TX('銅版画', 'Etching'), TX('これまでの版画（銅版画の画風で描き直す）', 'The original print (redrawn in an etching style)')],
 ];
 const printFont = px => `${px}px ${fontName === 'dot' ? '"DotGothic16",' : ''}"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif`;
 function printWords() {
   const yr = Math.floor((W.t / DAY + 0.1 * YEAR) / YEAR) + 1;
-  return { title: '果ての滝の箱庭', sub: `${isFree() ? '自由な箱庭・' : ''}${yr} 年目の${SEASONS[seasonOf()]}・第 ${W.day} 日　見つけたこと ${Object.keys(G.found || {}).length} ／ ${FINDS.length}　あそびラボ` };
+  const nf = Object.keys(G.found || {}).length;
+  return TX({ title: '果ての滝の箱庭', sub: `${isFree() ? '自由な箱庭・' : ''}${yr} 年目の${SEASONS[seasonOf()]}・第 ${W.day} 日　見つけたこと ${nf} ／ ${FINDS.length}　あそびラボ` },
+    { title: 'Edge Falls Garden', sub: `${isFree() ? 'Free Garden · ' : ''}Year ${yr}, ${SEASONS[seasonOf()]} · Day ${W.day}   Discoveries ${nf} / ${FINDS.length}   Asobi Lab` });
 }
 // 見たままの絵（整数倍で 1600 画素ほどの幅に）
 function seenCanvas() {
@@ -640,11 +643,11 @@ function stoneCanvas(src, w) {
 }
 function savePrint(c, kind) {
   c.toBlob(b => {
-    if (!b) { toast('版画をつくれなかった'); return; }
+    if (!b) { toast(TX('版画をつくれなかった', 'Couldn’t make the print')); return; }
     const url = URL.createObjectURL(b), a = document.createElement('a');
     a.href = url; a.download = `edge-falls-print-${kind}-day${W.day}.png`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
-    toast('世界の版画をのこした'); Sound.play('put');
+    toast(TX('世界の版画をのこした', 'Saved a World Print')); Sound.play('put');
   }, 'image/png');
 }
 function makePrint(kind = 'seen') { savePrint(printCanvas(kind), kind); }
@@ -652,9 +655,9 @@ function makePrint(kind = 'seen') { savePrint(printCanvas(kind), kind); }
 function openPrints(back) {
   const made = PRINTS.map(([k]) => { try { return printCanvas(k); } catch (e) { return null; } });
   const thumb = c => { const t = document.createElement('canvas'), w = 300; t.width = w; t.height = Math.round(c.height * w / c.width); const x = t.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(c, 0, 0, t.width, t.height); return t.toDataURL('image/jpeg', 0.85); };
-  const cells = PRINTS.map(([k, name, note], n) => made[n] ? `<figure class="pcard"><button type="button" class="pshot" data-pv="${n}" aria-label="${name}を大きく見る"><img src="${thumb(made[n])}" alt=""></button><figcaption><b>${name}</b><span>${note}</span><button type="button" class="tbtn" data-ps="${n}">のこす</button></figcaption></figure>` : '').join('');
-  showPanel(`<h2>世界の版画</h2><p class="small center">いま見えている世界を、一枚の絵にのこす（ためしに型をいくつか）。押すと大きく見られる。</p><div class="prints">${cells}</div>`,
-    [{ label: back ? 'もどる' : 'とじる', main: true, fn: back }]);
+  const cells = PRINTS.map(([k, name, note], n) => made[n] ? `<figure class="pcard"><button type="button" class="pshot" data-pv="${n}" aria-label="${TX(`${name}を大きく見る`, `See ${name} larger`)}"><img src="${thumb(made[n])}" alt=""></button><figcaption><b>${name}</b><span>${note}</span><button type="button" class="tbtn" data-ps="${n}">${TX('のこす', 'Save')}</button></figcaption></figure>` : '').join('');
+  showPanel(TX(`<h2>世界の版画</h2><p class="small center">いま見えている世界を、一枚の絵にのこす（ためしに型をいくつか）。押すと大きく見られる。</p>`, `<h2>World Prints</h2><p class="small center">Save the world you see now as a single picture (in a few styles). Press one to see it larger.</p>`) + `<div class="prints">${cells}</div>`,
+    [{ label: back ? TX('もどる', 'Back') : TX('とじる', 'Close'), main: true, fn: back }]);
   $('panel').classList.add('world', 'printpanel'); G.panelBack = back || (() => { $('overlay').hidden = true; });
   const panel = $('panel');
   panel.querySelectorAll('[data-ps]').forEach(b => b.onclick = () => savePrint(made[+b.dataset.ps], PRINTS[+b.dataset.ps][0]));

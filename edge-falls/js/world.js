@@ -14,7 +14,8 @@ const RS = 0.6 * RD, HS = 30;   // 太陽・月の道の半径（地の上に落
 const BINS = 96;                // 滝の向きの区分
 const SPRING_MAX = 12;           // 泉の上限は深淵の水（v011）。これは重さとセーブのためだけ
 const YEAR = 16;                // 1年の日数（春夏秋冬 4日ずつ）
-const SEASONS = ['春', '夏', '秋', '冬'];
+const SEASONS = TX(['春', '夏', '秋', '冬'], ['spring', 'summer', 'autumn', 'winter']);
+const KPL = { deer: TX('シカ', 'deer'), wolf: TX('オオカミ', 'wolves'), fish: TX('サカナ', 'fish'), bird: TX('サギ', 'herons') };   // 英語の文の中の名前（複数）
 const STOCK_MAX = { deer: 10, wolf: 4, fish: 12, bird: 3 };
 const STOCK_START = { deer: 6, wolf: 3, fish: 8, bird: 2 };   // つぼに命が来たときの数（v011）
 

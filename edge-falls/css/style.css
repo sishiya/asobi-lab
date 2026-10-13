@@ -4,6 +4,8 @@
   --paper:#efe3c4;--deep:rgba(12,16,30,.62);--deep2:rgba(12,16,30,.82);--glowc:255,226,150;color-scheme:light dark}
 @media (prefers-color-scheme:dark){:root{--bg:#1b1712;--ink:#efe3c4;--muted:#b3a283;--line:#3f3527;--card:#252019;--accent:#e08a50;--water:#8fb0cf}}
 *{box-sizing:border-box}
+/* 英語（v019）: 選んでいないほうの言語を隠す（まなびラボの I18N.md と同じ） */
+:root[lang=en] [lang=ja],:root:not([lang=en]) [lang=en]{display:none!important}
 html,body{margin:0;height:100%;overflow:hidden}
 body{background:#0d1222;color:var(--ink);font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif;line-height:1.6}
 p{margin:0}
@@ -217,6 +219,8 @@ body.titling .overlay{background:radial-gradient(ellipse at 50% 40%,rgba(5,8,16,
   background:radial-gradient(closest-side,rgba(6,8,16,.5),rgba(6,8,16,.36) 55%,rgba(6,8,16,.12) 82%,transparent)}
 .panel.titlecard h2.title{font-size:clamp(30px,6vw,46px);font-weight:400;letter-spacing:.32em;margin:0 0 18px;padding-left:.32em}
 .panel.titlecard .sub{font-size:clamp(13px,3.6vw,15px);letter-spacing:.06em;margin-bottom:8px;opacity:.92}
+:root[lang=en] .panel.titlecard h2.title{letter-spacing:.12em;padding-left:.12em}   /* 英語の題は字間をせまく（1行に） */
+:root[lang=en] .panel.titlecard .sub{letter-spacing:.02em}
 .panel.titlecard .small{color:var(--paper);opacity:.75;margin:12px 0 0}
 .panel.titlecard .btns{margin-top:30px;gap:14px}
 .panel.titlecard .tbtn{color:var(--paper);border:1px solid rgba(239,227,196,.45);text-shadow:none;background:rgba(12,16,30,.55);

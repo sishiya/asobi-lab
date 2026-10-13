@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23141b30'/><ellipse cx='32' cy='28' rx='24' ry='10' fill='%2378a85a' stroke='%23efe3c4' stroke-width='2'/><path d='M8 28v6c0 6 11 10 24 10s24-4 24-10v-6' fill='%23a8845a' stroke='%23efe3c4' stroke-width='2'/><path d='M24 40v18M32 42v20M40 40v16' stroke='%23cfe6ff' stroke-width='3' stroke-linecap='round'/><circle cx='50' cy='12' r='5' fill='%23ffd866'/></svg>">
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
+<script>/* 言語 ja／en（まなびラボの I18N.md と同じ決め方。localStorage の manabi-lang はまなびラボ・あそびラボで共通）: ?lang= → 前に選んだもの → ブラウザの言語。この中の文は TX(日本語, 英語)（L は生き物の入れ物なので使わない） */var LANG=(function(){var q=new URLSearchParams(location.search).get('lang'),s=null;try{s=localStorage.getItem('manabi-lang');}catch(e){}var l=q==='en'||q==='ja'?q:s==='en'||s==='ja'?s:/^ja\b/i.test(navigator.language||'ja')?'ja':'en';document.documentElement.lang=l;return l;})();function TX(ja,en){return LANG==='en'?en:ja;}function setLang(l){try{localStorage.setItem('manabi-lang',l);}catch(e){}var u=new URL(location.href);u.searchParams.set('lang',l);location.href=u.href;}</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>果ての滝の箱庭</title>
 <meta name="description" content="深淵に浮かぶ平らな大地。川は世界の果てから滝になって落ちる。岩と土だけの大地に泉をわかせ、土を動かし、草と生き物を放して、水と命がめぐる世界をつくる箱庭ゲーム（試作）。">
@@ -11,12 +12,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
-<link rel="stylesheet" href="css/style.css?v=18">
+<link rel="stylesheet" href="css/style.css?v=19">
 </head>
 <body class="titling">
 <main class="stage" id="field">
-  <canvas id="view" aria-label="深淵に浮かぶ平らな大地。ふちから滝が落ちる。上を太陽と月がめぐる"></canvas>
-  <button type="button" class="menubtn" id="btnMenu" aria-label="メニュー（Esc）" title="メニュー（Esc）"><canvas width="32" height="32"></canvas></button>
+  <canvas id="view" aria-label="深淵に浮かぶ平らな大地。ふちから滝が落ちる。上を太陽と月がめぐる" data-en-aria-label="A flat land floating over the Abyss. Waterfalls pour off its edge, and the Sun and Moon circle above."></canvas>
+  <button type="button" class="menubtn" id="btnMenu" aria-label="メニュー（Esc）" title="メニュー（Esc）" data-en-aria-label="Menu (Esc)" data-en-title="Menu (Esc)"><canvas width="32" height="32"></canvas></button>
 
   <div class="quest" id="quest" hidden>
     <p class="qtitle" id="qTitle"></p>
@@ -25,12 +26,12 @@
   </div>
 
   <div class="dial" id="dial">
-    <button type="button" class="dialbtn" id="dialBtn" aria-label="天の輪（押すと時が止まる・動く）" title="天の輪　外の輪が1年の季節、針が今日、中の点が太陽と月。押すと時が止まる・動く"><canvas id="dialCv" width="96" height="96"></canvas></button>
-    <div class="speeds" role="group" aria-label="時の速さ">
-      <button type="button" data-speed="0" aria-pressed="false" title="時を止める"><canvas width="32" height="32"></canvas><span>止める</span></button>
-      <button type="button" data-speed="1" aria-pressed="true" title="ふつうの速さ"><canvas width="32" height="32"></canvas><span>ふつう</span></button>
-      <button type="button" data-speed="4" aria-pressed="false" title="4倍の速さ"><canvas width="32" height="32"></canvas><span>×4</span></button>
-      <button type="button" data-speed="16" aria-pressed="false" title="16倍の速さ"><canvas width="32" height="32"></canvas><span>×16</span></button>
+    <button type="button" class="dialbtn" id="dialBtn" aria-label="天の輪（押すと時が止まる・動く）" title="天の輪　外の輪が1年の季節、針が今日、中の点が太陽と月。押すと時が止まる・動く" data-en-aria-label="Sky Dial (press to stop or start time)" data-en-title="Sky Dial: the outer ring is the seasons of the year, the hand is today, and the inner dots are the Sun and Moon. Press to stop or start time."><canvas id="dialCv" width="96" height="96"></canvas></button>
+    <div class="speeds" role="group" aria-label="時の速さ" data-en-aria-label="Speed of time">
+      <button type="button" data-speed="0" aria-pressed="false" title="時を止める" data-en-title="Stop time"><canvas width="32" height="32"></canvas><span lang="ja">止める</span><span lang="en">Stop</span></button>
+      <button type="button" data-speed="1" aria-pressed="true" title="ふつうの速さ" data-en-title="Normal speed"><canvas width="32" height="32"></canvas><span lang="ja">ふつう</span><span lang="en">Normal</span></button>
+      <button type="button" data-speed="4" aria-pressed="false" title="4倍の速さ" data-en-title="4 times as fast"><canvas width="32" height="32"></canvas><span>×4</span></button>
+      <button type="button" data-speed="16" aria-pressed="false" title="16倍の速さ" data-en-title="16 times as fast"><canvas width="32" height="32"></canvas><span>×16</span></button>
     </div>
     <p class="dialtxt" id="hud"></p>
   </div>
@@ -40,82 +41,86 @@
   <div class="card" id="card" hidden></div>
 
   <div class="fan" id="fan" hidden></div>
-  <div class="hands" id="hands" role="group" aria-label="神の手に持つもの">
-    <button type="button" class="hand" data-hand="soil" aria-pressed="false" title="土ぶくろ（削る・盛る）"><canvas width="32" height="32"></canvas><span>土</span><b class="meter" aria-hidden="true"><i id="soilMeter"></i></b></button>
-    <button type="button" class="hand" data-hand="water" aria-pressed="false" title="水がめ（泉をわかせる・止める）。中の水は深淵の水"><canvas width="32" height="32"></canvas><span>水</span><b class="meter water" aria-hidden="true"><i id="waterMeter"></i></b></button>
-    <button type="button" class="hand" data-hand="life" aria-pressed="false" title="命のつぼ（たね・生き物を放す）"><canvas width="32" height="32"></canvas><span>命</span></button>
+  <div class="hands" id="hands" role="group" aria-label="神の手に持つもの" data-en-aria-label="What the god's hand holds">
+    <button type="button" class="hand" data-hand="soil" aria-pressed="false" title="土ぶくろ（削る・盛る）" data-en-title="Soil Bag (dig and pile up)"><canvas width="32" height="32"></canvas><span lang="ja">土</span><span lang="en">Soil</span><b class="meter" aria-hidden="true"><i id="soilMeter"></i></b></button>
+    <button type="button" class="hand" data-hand="water" aria-pressed="false" title="水がめ（泉をわかせる・止める）。中の水は深淵の水" data-en-title="Water Jar (start and stop springs). The water inside is the Abyss's water"><canvas width="32" height="32"></canvas><span lang="ja">水</span><span lang="en">Water</span><b class="meter water" aria-hidden="true"><i id="waterMeter"></i></b></button>
+    <button type="button" class="hand" data-hand="life" aria-pressed="false" title="命のつぼ（たね・生き物を放す）" data-en-title="Life Jar (sow seeds and release animals)"><canvas width="32" height="32"></canvas><span lang="ja">命</span><span lang="en">Life</span></button>
   </div>
-  <button type="button" class="bookbtn" id="btnBook" aria-label="観察帳をひらく" title="観察帳"><canvas width="32" height="32"></canvas><span>観察帳</span></button>
+  <button type="button" class="bookbtn" id="btnBook" aria-label="観察帳をひらく" title="観察帳" data-en-aria-label="Open the Field Notes" data-en-title="Field Notes"><canvas width="32" height="32"></canvas><span lang="ja">観察帳</span><span lang="en">Notes</span></button>
   <button type="button" class="restore" id="btnRestore">もとにもどす</button>
-  <div class="lightbox" id="lightbox" hidden><figure class="frame"><img id="lbImg" alt=""><figcaption><b id="lbTitle"></b><span id="lbDay"></span><p id="lbText"></p></figcaption></figure><button type="button" class="lbclose" id="lbClose" aria-label="とじる">×</button></div>
+  <div class="lightbox" id="lightbox" hidden><figure class="frame"><img id="lbImg" alt=""><figcaption><b id="lbTitle"></b><span id="lbDay"></span><p id="lbText"></p></figcaption></figure><button type="button" class="lbclose" id="lbClose" aria-label="とじる" data-en-aria-label="Close">×</button></div>
 
   <div class="book" id="book" hidden>
     <div class="pages">
-      <nav class="tabs" role="tablist" aria-label="観察帳の頁">
-        <button type="button" role="tab" data-page="life" aria-selected="true">いのち</button>
-        <button type="button" role="tab" data-page="genes" aria-selected="false">遺伝子</button>
-        <button type="button" role="tab" data-page="water" aria-selected="false">水と土</button>
-        <button type="button" role="tab" data-page="finds" aria-selected="false">見つけたこと</button>
-        <button type="button" role="tab" data-page="years" aria-selected="false">年</button>
-        <button type="button" role="tab" data-page="setup" aria-selected="false">てびき</button>
+      <nav class="tabs" role="tablist" aria-label="観察帳の頁" data-en-aria-label="Field Notes pages">
+        <button type="button" role="tab" data-page="life" aria-selected="true"><span lang="ja">いのち</span><span lang="en">Life</span></button>
+        <button type="button" role="tab" data-page="genes" aria-selected="false"><span lang="ja">遺伝子</span><span lang="en">Genes</span></button>
+        <button type="button" role="tab" data-page="water" aria-selected="false"><span lang="ja">水と土</span><span lang="en">Water &amp; soil</span></button>
+        <button type="button" role="tab" data-page="finds" aria-selected="false"><span lang="ja">見つけたこと</span><span lang="en">Discoveries</span></button>
+        <button type="button" role="tab" data-page="years" aria-selected="false"><span lang="ja">年</span><span lang="en">Years</span></button>
+        <button type="button" role="tab" data-page="setup" aria-selected="false"><span lang="ja">てびき</span><span lang="en">Guide</span></button>
       </nav>
-      <button type="button" class="close" id="bookClose" aria-label="観察帳をとじる">×</button>
+      <button type="button" class="close" id="bookClose" aria-label="観察帳をとじる" data-en-aria-label="Close the Field Notes">×</button>
 
       <section class="page" data-page="life">
-        <h3>いきものの移り変わり <small id="day">第 1 日</small></h3>
-        <canvas id="chart" aria-label="草・シカ・オオカミ・サカナ・サギの数の移り変わり"></canvas>
+        <h3><span lang="ja">いきものの移り変わり</span><span lang="en">How life changes</span> <small id="day"></small></h3>
+        <canvas id="chart" aria-label="草・シカ・オオカミ・サカナ・サギの数の移り変わり" data-en-aria-label="How the numbers of grass, deer, wolves, fish and herons change"></canvas>
         <div class="legend">
-          <span><i style="background:#6aa84f"></i>草 <b id="nGrass">0</b>%</span>
-          <span data-k="deer"><i style="background:#c08040"></i>シカ <b id="nDeer">0</b></span>
-          <span data-k="wolf"><i style="background:#7d8597"></i>オオカミ <b id="nWolf">0</b></span>
-          <span data-k="fish"><i style="background:#ef9a4a"></i>サカナ <b id="nFish">0</b></span>
-          <span data-k="bird"><i style="background:#9ab4cc"></i>サギ <b id="nBird">0</b></span>
+          <span><i style="background:#6aa84f"></i><span lang="ja">草</span><span lang="en">Grass</span> <b id="nGrass">0</b>%</span>
+          <span data-k="deer"><i style="background:#c08040"></i><span lang="ja">シカ</span><span lang="en">Deer</span> <b id="nDeer">0</b></span>
+          <span data-k="wolf"><i style="background:#7d8597"></i><span lang="ja">オオカミ</span><span lang="en">Wolves</span> <b id="nWolf">0</b></span>
+          <span data-k="fish"><i style="background:#ef9a4a"></i><span lang="ja">サカナ</span><span lang="en">Fish</span> <b id="nFish">0</b></span>
+          <span data-k="bird"><i style="background:#9ab4cc"></i><span lang="ja">サギ</span><span lang="en">Herons</span> <b id="nBird">0</b></span>
         </div>
-        <p class="note">大地の生き物を押すと、その1匹の札が出る。</p>
+        <p class="note" lang="ja">大地の生き物を押すと、その1匹の札が出る。</p>
+        <p class="note" lang="en">Press an animal on the land to see its card.</p>
       </section>
 
       <section class="page" data-page="genes" hidden>
-        <h3>遺伝子のうつりかわり <small id="genGen">第 1 世代</small></h3>
-        <p class="locked" id="genesLocked">まだ白い頁。生き物が親から子へ伝えるものが、いつか書きこまれる。</p>
+        <h3><span lang="ja">遺伝子のうつりかわり</span><span lang="en">How genes change</span> <small id="genGen"></small></h3>
+        <p class="locked" id="genesLocked"><span lang="ja">まだ白い頁。生き物が親から子へ伝えるものが、いつか書きこまれる。</span><span lang="en">Still a blank page. Someday, what living things pass from parents to young will be written here.</span></p>
         <div id="genesBody">
-          <div class="seg gtabs" role="group" aria-label="生き物の種類">
-            <button type="button" data-gk="deer" aria-pressed="true">シカ</button>
-            <button type="button" data-gk="wolf" aria-pressed="false">オオカミ</button>
-            <button type="button" data-gk="fish" aria-pressed="false">サカナ</button>
-            <button type="button" data-gk="bird" aria-pressed="false">サギ</button>
+          <div class="seg gtabs" role="group" aria-label="生き物の種類" data-en-aria-label="Kind of animal">
+            <button type="button" data-gk="deer" aria-pressed="true"><span lang="ja">シカ</span><span lang="en">Deer</span></button>
+            <button type="button" data-gk="wolf" aria-pressed="false"><span lang="ja">オオカミ</span><span lang="en">Wolves</span></button>
+            <button type="button" data-gk="fish" aria-pressed="false"><span lang="ja">サカナ</span><span lang="en">Fish</span></button>
+            <button type="button" data-gk="bird" aria-pressed="false"><span lang="ja">サギ</span><span lang="en">Herons</span></button>
           </div>
-          <canvas id="gchart" aria-label="遺伝子の平均の移り変わり"></canvas>
+          <canvas id="gchart" aria-label="遺伝子の平均の移り変わり" data-en-aria-label="How the average genes change"></canvas>
           <div class="grows" id="grows"></div>
-          <p class="note">平均の値。たての線ははじめ（0.5）。どの遺伝子にも得と損がある（速い足は、たくさん食べないといけない）。</p>
+          <p class="note" lang="ja">平均の値。たての線ははじめ（0.5）。どの遺伝子にも得と損がある（速い足は、たくさん食べないといけない）。</p>
+          <p class="note" lang="en">Average values. The vertical line is the starting value (0.5). Every gene has a good side and a cost (fast legs need a lot of food).</p>
         </div>
       </section>
 
       <section class="page" data-page="water" hidden>
-        <h3>水のめぐり <small>滝 <b id="fallRate">0</b>/秒</small></h3>
-        <div class="wbar" aria-label="水のありか"><i class="land" id="wLand"></i><i class="cloud" id="wCloud"></i><i class="abyss" id="wAbyss"></i></div>
-        <p class="wleg"><span><i class="land"></i>大地の上</span><span><i class="cloud"></i>雲</span><span><i class="abyss"></i>深淵</span></p>
-        <p class="note">水は消えも生まれもしない。泉は深淵の水をくみ上げ、滝は深淵へ返す。深淵が底をつくと、泉は止まる。泉 <b id="nSpring">0</b> か所。</p>
-        <h3>土ぶくろ</h3>
+        <h3><span lang="ja">水のめぐり</span><span lang="en">The water cycle</span> <small><span lang="ja">滝</span><span lang="en">Falls</span> <b id="fallRate">0</b><span lang="ja">/秒</span><span lang="en">/s</span></small></h3>
+        <div class="wbar" aria-label="水のありか" data-en-aria-label="Where the water is"><i class="land" id="wLand"></i><i class="cloud" id="wCloud"></i><i class="abyss" id="wAbyss"></i></div>
+        <p class="wleg"><span><i class="land"></i><span lang="ja">大地の上</span><span lang="en">On the land</span></span><span><i class="cloud"></i><span lang="ja">雲</span><span lang="en">Clouds</span></span><span><i class="abyss"></i><span lang="ja">深淵</span><span lang="en">Abyss</span></span></p>
+        <p class="note"><span lang="ja">水は消えも生まれもしない。泉は深淵の水をくみ上げ、滝は深淵へ返す。深淵が底をつくと、泉は止まる。泉 </span><span lang="en">Water is never lost or made. Springs draw up water from the Abyss, and the falls return it. When the Abyss runs dry, the springs stop. Springs: </span><b id="nSpring">0</b><span lang="ja"> か所。</span><span lang="en">.</span></p>
+        <h3><span lang="ja">土ぶくろ</span><span lang="en">Soil Bag</span></h3>
         <div class="bar soil"><i id="soilBar"></i></div>
-        <p class="note">土も消えも生まれもしない。削った分だけ、盛れる。</p>
-        <h3>命のつぼ</h3>
+        <p class="note" lang="ja">土も消えも生まれもしない。削った分だけ、盛れる。</p>
+        <p class="note" lang="en">Soil is never lost or made either. You can pile up only as much as you dig.</p>
+        <h3><span lang="ja">命のつぼ</span><span lang="en">Life Jar</span></h3>
         <p class="note" id="stockTxt"></p>
-        <p class="note">去った命は深淵へ落ち、少しずつつぼへ戻ってくる。春にも一つずつ。</p>
+        <p class="note" lang="ja">去った命は深淵へ落ち、少しずつつぼへ戻ってくる。春にも一つずつ。</p>
+        <p class="note" lang="en">Lives that pass away fall into the Abyss and slowly come back to the jar. One more of each also comes every spring.</p>
       </section>
 
       <section class="page" data-page="finds" hidden>
-        <h3>見つけたこと <small id="findN"></small></h3>
+        <h3><span lang="ja">見つけたこと</span><span lang="en">Discoveries</span> <small id="findN"></small></h3>
         <div class="finds" id="finds"></div>
       </section>
 
       <section class="page" data-page="years" hidden>
-        <h3>この世界の年</h3>
+        <h3><span lang="ja">この世界の年</span><span lang="en">The years of this world</span></h3>
         <ol class="years" id="years"></ol>
       </section>
 
       <section class="page" data-page="setup" hidden>
-        <h3>てびき</h3>
-        <ul class="howto">
+        <h3><span lang="ja">てびき</span><span lang="en">Guide</span></h3>
+        <ul class="howto" lang="ja">
           <li>下の<b>土ぶくろ・水がめ・命のつぼ</b>を押すと、手に持つ。もう一度押すか、大地の外（何もない空）を押すと手放す。土ぶくろと命のつぼは、上に出る中身から選ぶ（けずる・盛る／たね・生き物）。</li>
           <li>土ぶくろ: 削った土はふくろへ入り、盛るとへる（からっぽになると盛れない）。ふちを盛ると、水がせき止められて湖になる。泉の上を盛ると、泉がふさがる。</li>
           <li>水がめ: 大地を押すと泉がわく。泉を押すと止める／またわかせる。深淵の水が底をつくと、泉はわかない（水がめの中の水が深淵の水）。</li>
@@ -128,13 +133,28 @@
           <li>キー: Esc メニュー（ひとつ前へもどる）・1 土・2 水・3 命・B 観察帳・スペース 止める・←→↑↓ 見る向き・WASD 動かす・＋－ 寄る。</li>
           <li>観察帳をひらいているあいだは、時が止まる。</li>
           <li>お題が進まないときは、何日かたつと世界がそっと助けてくれる。時間の制限はない。十の年のあとは、自由な箱庭として続けられる（タイトルの「自由な箱庭」からも）。</li>
-          <li>Esc のメニュー: セーブ・ロード・設定（音楽・効果音・文字・背景）・タイトルへ・ゲームを終える。</li>
+          <li>Esc のメニュー: セーブ・ロード・設定（音楽・効果音・文字・背景・言語）・タイトルへ・ゲームを終える。</li>
+        </ul>
+        <ul class="howto" lang="en">
+          <li>Press the <b>Soil Bag, Water Jar or Life Jar</b> at the bottom to hold it. Press it again, or press the empty sky outside the land, to let go. For the Soil Bag and Life Jar, choose what to use from the options that appear above it (dig or pile up; seeds or animals).</li>
+          <li>Soil Bag: soil you dig goes into the bag, and piling it up uses it (when the bag is empty, you can’t pile up). Pile up the edge to hold back water and make a lake. Pile soil on a spring to block it.</li>
+          <li>Water Jar: press the land to make a spring. Press a spring to stop it or start it again. When the water in the Abyss runs out, no springs will flow (the water in the jar is the Abyss’s water).</li>
+          <li>Life Jar: sow seeds or release animals (fish go into the water). The jar fills up again as lives that passed away come back, and a little more every spring.</li>
+          <li>With empty hands, press an animal to see its card (genes, hunger).</li>
+          <li>You can grab the Sun and Moon and move them. Press one to stop it.</li>
+          <li>The <b>Sky Dial</b> at the top right: the outer ring is the seasons of the year, the hand is today, and the inner dots are the Sun and Moon. Press it to stop time. The marks below set the speed (stop, normal, ×4, ×16).</li>
+          <li>Mouse: drag outside the land with the left or right button to turn and tilt (the right button works even while holding soil or life). Middle button or Shift + drag to move. Scroll to zoom in (zoom in to hear the falls). Double-click the sky to go back to the center.</li>
+          <li>Phone: use two fingers to turn (twist), zoom (spread) and move. The menu is the mark at the top left.</li>
+          <li>Keys: Esc menu (go back one step) · 1 soil · 2 water · 3 life · B Field Notes · Space stop · ←→↑↓ view · WASD move · + − zoom.</li>
+          <li>Time stops while the Field Notes are open.</li>
+          <li>If a goal isn’t moving forward, the world quietly helps you after a few days. There is no time limit. After the Ten Years, you can keep playing as a Free Garden (you can also start one with “Free Garden” on the title screen).</li>
+          <li>Esc menu: Save · Load · Settings (music, sound effects, font, background, language) · Title screen · Quit.</li>
         </ul>
         <div class="row">
-          <button type="button" class="tbtn" id="btnPrint">世界の版画をのこす</button>
+          <button type="button" class="tbtn" id="btnPrint"><span lang="ja">世界の版画をのこす</span><span lang="en">Make a World Print</span></button>
         </div>
-        <h3>この世界のきまり</h3>
-        <ul class="howto">
+        <h3><span lang="ja">この世界のきまり</span><span lang="en">How this world works</span></h3>
+        <ul class="howto" lang="ja">
           <li>大地は平らな円盤。水は低い方へ流れ、ふちを越えると滝になって深淵へ落ちる。落ちた水の多くは深淵にたまり、泉からまたわき出る。のこりはしぶきの霧になって空へのぼる。</li>
           <li>何も生まれず、何も消えない。土は削った分だけ盛れ、泉は深淵の水をくみ上げ、滝は深淵へ返す。去った命も深淵を通って、少しずつつぼへ戻ってくる。</li>
           <li>太陽は大地の下へは沈まず、上をぐるりと回る。太陽から遠い所が夜。日の当たる水は雲になり、雲は天といっしょにめぐって、山にぶつかると雨になる。</li>
@@ -142,20 +162,39 @@
           <li>夏は太陽の道が内がわを回って強く照らし、冬は外がわを回って弱い。山の上や夜の側は寒い。0 度より下では雨が雪になり、水は凍る（凍った水は流れず、上を歩ける）。春に雪がとける。</li>
           <li>草はうるおいと光で育つ。シカは草を、オオカミはシカを、サカナは水草を、サギは浅瀬のサカナを食べる。腹がいっぱいの大人は、暖かいとき（春〜夏）に子を残す。深い水に入ると流され、ふちまで流されると滝から落ちる。</li>
         </ul>
-        <h3>遺伝子と進化</h3>
-        <ul class="howto">
+        <ul class="howto" lang="en">
+          <li>The land is a flat disk. Water flows downhill, and past the edge it becomes a waterfall and drops into the Abyss. Most of the fallen water collects in the Abyss and comes up again from the springs. The rest rises into the sky as mist from the spray.</li>
+          <li>Nothing is made and nothing is lost. You can pile up only as much soil as you dig, springs draw up water from the Abyss, and the falls give it back. Lives that pass away also travel through the Abyss and slowly come back to the jar.</li>
+          <li>The Sun never sets below the land. It circles above it. Places far from the Sun have night. Sunlit water turns into clouds, the clouds circle with the sky, and when they hit a mountain, it rains.</li>
+          <li>When the Moon passes overhead, water gathers toward it (the tide). More water spills over the edge under the Moon.</li>
+          <li>In summer the Sun’s path runs on the inside and shines strongly. In winter it runs on the outside and is weak. Mountaintops and the night side are cold. Below 0 °C, rain turns to snow and water freezes (frozen water doesn’t flow, and animals can walk on it). Snow melts in spring.</li>
+          <li>Grass grows with water and light. Deer eat grass, wolves eat deer, fish eat water plants, and herons eat fish in shallow water. Well-fed adults have young when it is warm (spring to summer). Animals that go into deep water get carried away, and if they are carried to the edge, they fall off the falls.</li>
+        </ul>
+        <h3><span lang="ja">遺伝子と進化</span><span lang="en">Genes and evolution</span></h3>
+        <ul class="howto" lang="ja">
           <li>生き物はそれぞれ3つの遺伝子を持つ。シカは「あしの速さ・体の大きさ・泳ぐ力」、オオカミは「あしの速さ・体の大きさ・ねばり強さ」、サカナは「泳ぐ力・体の大きさ・浅瀬への強さ」、サギは「つばさ・体の大きさ・くちばしの長さ」。</li>
           <li>子は親と近くの相手の遺伝子を半分ずつもらい、少しだけ変わる（突然変異）。どの遺伝子にも得と損があり、世界のきびしさに合ったものが生き残って、平均が動いていく。</li>
         </ul>
-        <h3>本当は（でどころ）</h3>
-        <div class="truths">
+        <ul class="howto" lang="en">
+          <li>Each animal has 3 genes. Deer: “leg speed, body size, swimming”. Wolves: “leg speed, body size, stamina”. Fish: “swimming, body size, toughness in shallow water”. Herons: “wings, body size, beak length”.</li>
+          <li>Young get half their genes from their parent and half from a nearby mate, with small changes (mutations). Every gene has a good side and a cost. The ones that fit how hard the world is survive, and the averages shift.</li>
+        </ul>
+        <h3><span lang="ja">本当は（でどころ）</span><span lang="en">What is really true (sources)</span></h3>
+        <div class="truths" lang="ja">
           <p>地球は丸く、果てはありません。水は重力で地球の中心へ引かれるので、どこまで行っても落ちません。川の水は海へ行き、海や陸から蒸発して雲になり、雨になってまた川へ（水の循環）。泉の水は、雨がしみこんだ地下水です。昼と夜は地球が回るから、潮は月と太陽の引く力の差で、地球の両がわがふくらみます。</p>
           <p>季節は、地球の自転の軸が 23.4 度かたむいたまま太陽のまわりを回るので、太陽の高さと昼の長さが変わって起きます。平らな大地の図には「夏は太陽が内がわ、冬は外がわを回る」と描くものがありますが、本当の地球ではそうなりません。寒い所のなかまほど体が大きい傾向（ベルクマンの規則）は本当に見られます（例外もたくさんあります）。</p>
           <p>生き残りやすい性質が子に伝わって積み重なり、生き物が変わっていく考え（自然選択）は、ダーウィンとウォレスが 1858 年に発表しました。本当の進化はふつう何百〜何万世代もかかります。この箱庭では、数十世代で目に見えるように、ずっと速くしています。</p>
           <p>大地を平らな円盤と考えた人は、昔たくさんいました。古代ギリシャのホメロスの詩では、平らな大地のまわりを大きな川オケアノスが取り巻き、タレスは大地が水に浮かぶと考えました。古代メソポタミアでは、大地の下に真水の海（アプスー）があり、泉や川の水はそこから来ると考えられていました。でも、<b>世界の果てから水が落ちる滝</b>は、近ごろの絵や物語でよく描かれる姿で、昔の人がそう書き残した例はあまり知られていません。「中世の人はみな大地が平らだと信じていた」もよくある誤解で、学のある人は大地が丸いと知っていました（天動説のプトレマイオスも、大地は丸いと考えていました）。</p>
           <p>年の頁には、年ごとの「本当は」が書きこまれていく。</p>
         </div>
-        <p class="note">版: 試作 v017（2026-10-13）・あそびラボ ・ 姉妹の箱庭: <a href="../heaven-spheres/">天をまわす箱庭</a></p>
+        <div class="truths" lang="en">
+          <p>The Earth is round and has no edge. Gravity pulls water toward the center of the Earth, so it never falls off, however far it goes. River water flows to the sea, evaporates from the sea and land into clouds, and falls as rain back into rivers (the water cycle). Spring water is groundwater from rain that soaked into the ground. Day and night happen because the Earth spins. Tides happen because the pull of the Moon and Sun is a little different on each side of the Earth, so both sides bulge.</p>
+          <p>Seasons happen because the Earth’s spin axis stays tilted 23.4 degrees as it goes around the Sun, which changes how high the Sun climbs and how long the days are. Some flat-earth maps show the Sun circling on the inside in summer and on the outside in winter, but that is not how the real Earth works. Animals of the same group really do tend to be bigger in colder places (Bergmann’s rule), though there are many exceptions.</p>
+          <p>The idea that traits that help survival are passed to young and add up, so that living things change (natural selection), was published by Darwin and Wallace in 1858. Real evolution usually takes hundreds to tens of thousands of generations. In this garden it is made much faster, so you can see it in a few dozen generations.</p>
+          <p>Long ago, many people thought the land was a flat disk. In the ancient Greek poems of Homer, a great river called Oceanus flows around the flat land, and Thales thought the land floated on water. In ancient Mesopotamia, people believed there was a sea of fresh water (the Abzu) under the land, and that the water of springs and rivers came from it. But <b>waterfalls pouring off the edge of the world</b> are mostly a picture from modern art and stories; few, if any, people long ago wrote about them. “Everyone in the Middle Ages believed the Earth was flat” is also a common myth. Educated people knew the Earth was round (even Ptolemy, who put the Earth at the center of the universe, thought it was round).</p>
+          <p>A “what is really true” note for each year is written on the Years page.</p>
+        </div>
+        <p class="note"><span lang="ja">版: 試作 v019（2026-10-13）・あそびラボ ・ 姉妹の箱庭: <a href="../heaven-spheres/">天をまわす箱庭</a></span><span lang="en">Version: prototype v019 (Oct 13, 2026) · Asobi Lab · Sister garden: <a href="../heaven-spheres/" hreflang="ja">Turning the Heavens</a> (Japanese only)</span></p>
       </section>
     </div>
   </div>
@@ -163,21 +202,21 @@
   <div class="overlay" id="overlay" hidden><div class="panel" id="panel"></div></div>
 </main>
 
-<script src="js/world.js?v=18"></script>
-<script src="js/life.js?v=18"></script>
-<script src="js/render.js?v=18"></script>
-<script src="js/backdrop.js?v=18"></script>
-<script src="js/style-voxel.js?v=18"></script>
-<script src="js/style-paint.js?v=18"></script>
-<script src="js/style-etch.js?v=18"></script>
-<script src="js/style-real.js?v=18"></script>
-<script src="js/style-cyber.js?v=18"></script>
-<script src="js/sound.js?v=18"></script>
-<script src="js/chapters.js?v=18"></script>
-<script src="js/ui.js?v=18"></script>
-<script src="js/save.js?v=18"></script>
-<script src="js/book.js?v=18"></script>
-<script src="js/collapse.js?v=18"></script>
-<script src="js/main.js?v=18"></script>
+<script src="js/world.js?v=19"></script>
+<script src="js/life.js?v=19"></script>
+<script src="js/render.js?v=19"></script>
+<script src="js/backdrop.js?v=19"></script>
+<script src="js/style-voxel.js?v=19"></script>
+<script src="js/style-paint.js?v=19"></script>
+<script src="js/style-etch.js?v=19"></script>
+<script src="js/style-real.js?v=19"></script>
+<script src="js/style-cyber.js?v=19"></script>
+<script src="js/sound.js?v=19"></script>
+<script src="js/chapters.js?v=19"></script>
+<script src="js/ui.js?v=19"></script>
+<script src="js/save.js?v=19"></script>
+<script src="js/book.js?v=19"></script>
+<script src="js/collapse.js?v=19"></script>
+<script src="js/main.js?v=19"></script>
 </body>
 </html>

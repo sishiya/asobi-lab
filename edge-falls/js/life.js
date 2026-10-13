@@ -7,16 +7,16 @@
 //     どれも「得」と「損」があり、世界のきびしさ（オオカミ・流れ・干上がり・飢え）で、生き残りやすいものが増える。
 
 const KINDS = {   // 時間は秒（1日＝60 秒、1年＝16 日＝960 秒。寿命は1年より長く）。eMax・cost・speed は遺伝子で上下する（traits）
-  deer: { name: 'シカ', eMax: 10, cost: 0.08, speed: 2.0, adult: 75, repE: 0.8, cd: 80, life: 1500, cap: 220, childE: 0.35 },
-  wolf: { name: 'オオカミ', eMax: 16, cost: 0.05, speed: 2.4, adult: 110, repE: 0.8, cd: 150, life: 2000, cap: 40, childE: 0.37 },
-  bird: { name: 'サギ', eMax: 12, cost: 0.05, speed: 0.6, adult: 150, repE: 0.8, cd: 200, life: 2000, cap: 30, childE: 0.35 },
-  fish: { name: 'サカナ', eMax: 6, cost: 0.05, speed: 1.4, adult: 50, repE: 0.77, cd: 40, life: 1000, cap: 360, childE: 0.33 },
+  deer: { name: TX('シカ', 'Deer'), eMax: 10, cost: 0.08, speed: 2.0, adult: 75, repE: 0.8, cd: 80, life: 1500, cap: 220, childE: 0.35 },
+  wolf: { name: TX('オオカミ', 'Wolf'), eMax: 16, cost: 0.05, speed: 2.4, adult: 110, repE: 0.8, cd: 150, life: 2000, cap: 40, childE: 0.37 },
+  bird: { name: TX('サギ', 'Heron'), eMax: 12, cost: 0.05, speed: 0.6, adult: 150, repE: 0.8, cd: 200, life: 2000, cap: 30, childE: 0.35 },
+  fish: { name: TX('サカナ', 'Fish'), eMax: 6, cost: 0.05, speed: 1.4, adult: 50, repE: 0.77, cd: 40, life: 1000, cap: 360, childE: 0.33 },
 };
 const GENES = {
-  deer: [['speed', 'あしの速さ'], ['size', '体の大きさ'], ['swim', '泳ぐ力']],
-  wolf: [['speed', 'あしの速さ'], ['size', '体の大きさ'], ['stamina', 'ねばり強さ']],
-  fish: [['strength', '泳ぐ力'], ['size', '体の大きさ'], ['hardy', '浅瀬への強さ']],
-  bird: [['wing', 'つばさ'], ['size', '体の大きさ'], ['beak', 'くちばしの長さ']],
+  deer: [['speed', TX('あしの速さ', 'Leg speed')], ['size', TX('体の大きさ', 'Body size')], ['swim', TX('泳ぐ力', 'Swimming')]],
+  wolf: [['speed', TX('あしの速さ', 'Leg speed')], ['size', TX('体の大きさ', 'Body size')], ['stamina', TX('ねばり強さ', 'Stamina')]],
+  fish: [['strength', TX('泳ぐ力', 'Swimming')], ['size', TX('体の大きさ', 'Body size')], ['hardy', TX('浅瀬への強さ', 'Shallow-water toughness')]],
+  bird: [['wing', TX('つばさ', 'Wings')], ['size', TX('体の大きさ', 'Body size')], ['beak', TX('くちばしの長さ', 'Beak length')]],
 };
 const MUT = 0.08;   // 突然変異の大きさ（ふつうはこのくらいずれる）
 const L = { list: [], fx: [], born: 0, eaten: 0, fell: 0, why: {}, counts: { deer: 0, wolf: 0, fish: 0, bird: 0 } };

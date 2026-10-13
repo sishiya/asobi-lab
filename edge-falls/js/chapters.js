@@ -12,7 +12,7 @@ function geneMove() {
   for (const k of ['deer', 'wolf', 'fish', 'bird']) {
     if (L.counts[k] < 10) continue;
     const g = geneStats(k), b = (G.gbase || {})[k];
-    for (const [n, name] of GENES[k]) { const d = Math.abs(g[n] - (b && b[n] !== undefined ? b[n] : 0.5)); if (d > best) { best = d; what = KINDS[k].name + 'の' + name + (g[n] > (b ? b[n] : 0.5) ? 'が上がった' : 'が下がった'); } }
+    for (const [n, name] of GENES[k]) { const d = Math.abs(g[n] - (b && b[n] !== undefined ? b[n] : 0.5)); if (d > best) { best = d; what = TX(KINDS[k].name + 'の' + name + (g[n] > (b ? b[n] : 0.5) ? 'が上がった' : 'が下がった'), KINDS[k].name + ' ' + name.toLowerCase() + (g[n] > (b ? b[n] : 0.5) ? ' went up' : ' went down')); } }
   }
   G.gwhat = what;
   return best;
@@ -24,88 +24,90 @@ const springDays = () => {   // 冬の章: 次の春まで何日
 
 const CHAPTERS = [
   {
-    key: 'water', name: '水', title: '湖をひとつ', text: '泉をわかせて、くぼみに湖をつくる', goal: 3, unit: '%', show: v => v.toFixed(1),
-    gives: { water: 1 }, arrive: '深淵の水を汲む「水がめ」を手にした。大地のどこかを押すと、泉がわく',
+    key: 'water', name: TX('水', 'Water'), title: TX('湖をひとつ', 'One lake'), text: TX('泉をわかせて、くぼみに湖をつくる', 'Make a spring and fill a hollow to make a lake'), goal: 3, unit: '%', show: v => v.toFixed(1),
+    gives: { water: 1 }, arrive: TX('深淵の水を汲む「水がめ」を手にした。大地のどこかを押すと、泉がわく', 'You got the “Water Jar”, which draws water from the Abyss. Press anywhere on the land to make a spring'),
     prog: () => lakePct(), knob: { winter: 0, tide: 0.35 },
-    hint: '水は低い方へ流れて、ふちから落ちていく。くぼみの上の高い所に泉をわかせると、水がたまって湖になる。',
-    gift() { const p = W.lake; W.springs.push({ i: Math.round(C + p.y * RD * 0.6) * N + Math.round(C + p.x * RD * 0.6), on: true }); return '深淵が、ひとりでに湧きだした'; },
-    truth: '本当の泉の水は、深淵からではなく、雨が地面にしみこんだ地下水。湖は、水が流れ出るより早く流れこむくぼみにできる。',
+    hint: TX('水は低い方へ流れて、ふちから落ちていく。くぼみの上の高い所に泉をわかせると、水がたまって湖になる。', 'Water flows downhill and falls off the edge. Make a spring on high ground above a hollow, and the water will collect into a lake.'),
+    gift() { const p = W.lake; W.springs.push({ i: Math.round(C + p.y * RD * 0.6) * N + Math.round(C + p.x * RD * 0.6), on: true }); return TX('深淵が、ひとりでに湧きだした', 'The Abyss welled up on its own'); },
+    truth: TX('本当の泉の水は、深淵からではなく、雨が地面にしみこんだ地下水。湖は、水が流れ出るより早く流れこむくぼみにできる。', 'Real spring water doesn’t come from an abyss. It is groundwater from rain that soaked into the ground. A lake forms in a hollow where water flows in faster than it flows out.'),
   },
   {
-    key: 'soil', name: '土', title: '湖を大きく', text: 'ふちを盛って水をせき止め、湖を広げる', goal: 8, rel: 4, unit: '%', show: v => v.toFixed(1),
-    gives: { soil: 1 }, arrive: '「土ぶくろ」を手にした。削った土は、ふくろに入る。その土で、盛る',
+    key: 'soil', name: TX('土', 'Soil'), title: TX('湖を大きく', 'A bigger lake'), text: TX('ふちを盛って水をせき止め、湖を広げる', 'Pile up the edge to hold back the water and make the lake bigger'), goal: 8, rel: 4, unit: '%', show: v => v.toFixed(1),
+    gives: { soil: 1 }, arrive: TX('「土ぶくろ」を手にした。削った土は、ふくろに入る。その土で、盛る', 'You got the “Soil Bag”. Soil you dig goes into the bag. Use that soil to pile up'),
     prog: () => lakePct(), knob: { winter: 0, tide: 0.35 },
-    hint: '滝になって落ちていく川の出口を「盛る」と、水がせき止められる。土は、どこかを「削る」とたまる。削った所は低くなって、水が集まる。',
-    gift() { W.soil += 100; return '土ぶくろに、土が少しふえた'; },
-    truth: '本当の世界でも、川をせき止めると湖ができる（地すべりや溶岩でできた湖、人のつくったダム湖）。せきの下の川は水が少なくなる。',
+    hint: TX('滝になって落ちていく川の出口を「盛る」と、水がせき止められる。土は、どこかを「削る」とたまる。削った所は低くなって、水が集まる。', '“Pile up” where a river leaves the land as a waterfall, and the water will be held back. You get soil by “digging” somewhere. The places you dig get lower, and water collects there.'),
+    gift() { W.soil += 100; return TX('土ぶくろに、土が少しふえた', 'A little more soil came into the Soil Bag'); },
+    truth: TX('本当の世界でも、川をせき止めると湖ができる（地すべりや溶岩でできた湖、人のつくったダム湖）。せきの下の川は水が少なくなる。', 'In the real world too, damming a river makes a lake (lakes made by landslides or lava, and reservoirs made by people). The river below the dam gets less water.'),
   },
   {
-    key: 'grass', name: '草', title: '草の原', text: '草が大地の 25% をおおうようにする', goal: 25, unit: '%',
-    gives: { seed: 1 }, arrive: '「命のつぼ」に、草のたねが来た',
+    key: 'grass', name: TX('草', 'Grass'), title: TX('草の原', 'A grassy plain'), text: TX('草が大地の 25% をおおうようにする', 'Cover 25% of the land with grass'), goal: 25, unit: '%',
+    gives: { seed: 1 }, arrive: TX('「命のつぼ」に、草のたねが来た', 'Grass seeds came to the “Life Jar”'),
     prog: s => Math.round(s.grass * 100), knob: { winter: 0, tide: 0.35 },
-    hint: '草は水のそばでよく育ち、となりへ広がる。水につかりすぎると枯れる。日の当たる所ほど早い。太陽はつかんで動かせる。',
-    gift() { let n = 0; for (const i of INS) if (W.moist[i] > 0.6 && W.w[i] < 0.2 && W.veg[i] < 0.25 && n < 400 && Math.random() < 0.3) { W.veg[i] = 0.3; n++; } return '風が、たねを水辺へ運んできた'; },
-    truth: '本当の地球でも、植物は水辺から陸へ広がった。陸に植物がふえてから、虫や、のちに四本足の動物が陸に上がった。',
+    hint: TX('草は水のそばでよく育ち、となりへ広がる。水につかりすぎると枯れる。日の当たる所ほど早い。太陽はつかんで動かせる。', 'Grass grows well near water and spreads to its neighbors. Too much water kills it. It grows faster in sunny places. You can grab the Sun and move it.'),
+    gift() { let n = 0; for (const i of INS) if (W.moist[i] > 0.6 && W.w[i] < 0.2 && W.veg[i] < 0.25 && n < 400 && Math.random() < 0.3) { W.veg[i] = 0.3; n++; } return TX('風が、たねを水辺へ運んできた', 'The wind carried seeds to the water’s edge'); },
+    truth: TX('本当の地球でも、植物は水辺から陸へ広がった。陸に植物がふえてから、虫や、のちに四本足の動物が陸に上がった。', 'On the real Earth too, plants spread from the water’s edge onto land. After plants spread on land, insects, and later four-legged animals, came up onto land.'),
   },
   {
-    key: 'deer', name: 'シカ', title: 'シカのむれ', text: 'シカを 30 頭にふやす', goal: 30, unit: '頭',
-    gives: { deer: 1 }, arrive: '命のつぼに、シカが来た',
+    key: 'deer', name: TX('シカ', 'Deer'), title: TX('シカのむれ', 'A herd of deer'), text: TX('シカを 30 頭にふやす', 'Grow the deer to 30'), goal: 30, unit: TX('頭', ''),
+    gives: { deer: 1 }, arrive: TX('命のつぼに、シカが来た', 'Deer came to the Life Jar'),
     prog: () => L.counts.deer, knob: { winter: 0, tide: 0.35 },
-    hint: 'シカは草の多い所に放す。のどがかわくと水辺へ行く。おなかがいっぱいの大人は子を残す。',
-    gift() { W.stock.deer = Math.min(STOCK_MAX.deer, W.stock.deer + 3); return 'つぼに、シカが3頭戻ってきた'; },
-    truth: '食べる者がいないと、シカはふえすぎて草や若い木を食べつくすことがある。日本の各地でも、シカがふえて森の下草がなくなる問題が起きている。',
+    hint: TX('シカは草の多い所に放す。のどがかわくと水辺へ行く。おなかがいっぱいの大人は子を残す。', 'Release deer where there is lots of grass. When they get thirsty, they go to the water. Well-fed adults have young.'),
+    gift() { W.stock.deer = Math.min(STOCK_MAX.deer, W.stock.deer + 3); return TX('つぼに、シカが3頭戻ってきた', '3 deer came back to the jar'); },
+    truth: TX('食べる者がいないと、シカはふえすぎて草や若い木を食べつくすことがある。日本の各地でも、シカがふえて森の下草がなくなる問題が起きている。', 'With nothing to eat them, deer can grow too many and eat all the grass and young trees. In many parts of Japan, deer have increased so much that forests are losing their undergrowth.'),
   },
   {
-    key: 'winter', name: '冬', title: '冬をこす', text: 'シカ 10 頭以上で、冬をこして春をむかえる', goal: 1, unit: '',
-    gives: {}, arrive: '季節がはっきりしてきた。この冬は、きびしくなる',
-    prog: () => G.winterOk ? 1 : 0, show: () => L.counts.deer >= 10 ? `春まで ${springDays()} 日` : 'シカが 10 頭より少ない', knob: { winter: 1, tide: 0.35 },
-    hint: '冬は草が育たない。秋にシカがふえすぎると、冬に食べものが足りなくなる。草の多い、低くて暖かい所を残しておく（山の上や夜の側は寒い）。',
-    gift() { W.knob.winter = 0.6; return 'この冬は、少しやわらいだ'; },
-    truth: '本当のシカも、冬は動きをへらし、体の熱をむだにしないで過ごす。寒い所のなかまほど体が大きい傾向（ベルクマンの規則）も見られる。',
+    key: 'winter', name: TX('冬', 'Winter'), title: TX('冬をこす', 'Through the winter'), text: TX('シカ 10 頭以上で、冬をこして春をむかえる', 'Get through the winter to spring with 10 or more deer'), goal: 1, unit: '',
+    gives: {}, arrive: TX('季節がはっきりしてきた。この冬は、きびしくなる', 'The seasons are getting clearer. This winter will be harsh'),
+    prog: () => G.winterOk ? 1 : 0, show: () => L.counts.deer >= 10 ? TX(`春まで ${springDays()} 日`, `${springDays()} days until spring`) : TX('シカが 10 頭より少ない', 'Fewer than 10 deer'), knob: { winter: 1, tide: 0.35 },
+    hint: TX('冬は草が育たない。秋にシカがふえすぎると、冬に食べものが足りなくなる。草の多い、低くて暖かい所を残しておく（山の上や夜の側は寒い）。', 'Grass doesn’t grow in winter. If the deer grow too many in autumn, there won’t be enough food in winter. Keep some grassy, low, warm places (mountaintops and the night side are cold).'),
+    gift() { W.knob.winter = 0.6; return TX('この冬は、少しやわらいだ', 'This winter got a little milder'); },
+    truth: TX('本当のシカも、冬は動きをへらし、体の熱をむだにしないで過ごす。寒い所のなかまほど体が大きい傾向（ベルクマンの規則）も見られる。', 'Real deer also move less in winter to save their body heat. Animals of the same group also tend to be bigger in colder places (Bergmann’s rule).'),
   },
   {
-    key: 'wolf', name: 'オオカミ', title: '食べる・食べられる', text: 'オオカミ 3 頭以上とシカ 10 頭以上が、いっしょに 5 日つづく', goal: 5, unit: '日',
-    gives: { wolf: 1 }, arrive: '命のつぼに、オオカミが来た', streak: () => L.counts.wolf >= 3 && L.counts.deer >= 10,
+    key: 'wolf', name: TX('オオカミ', 'Wolves'), title: TX('食べる・食べられる', 'Eat and be eaten'), text: TX('オオカミ 3 頭以上とシカ 10 頭以上が、いっしょに 5 日つづく', '3 or more wolves and 10 or more deer live together for 5 days'), goal: 5, unit: TX('日', ' days'),
+    gives: { wolf: 1 }, arrive: TX('命のつぼに、オオカミが来た', 'Wolves came to the Life Jar'), streak: () => L.counts.wolf >= 3 && L.counts.deer >= 10,
     prog: () => Math.floor(G.streak), knob: { winter: 1, tide: 0.6 },
-    hint: 'オオカミが多すぎるとシカを食べつくし、自分たちも飢える。シカの多い所に、少しずつ放す。',
-    gift() { W.stock.deer = Math.min(STOCK_MAX.deer, W.stock.deer + 3); W.stock.wolf = Math.min(STOCK_MAX.wolf, W.stock.wolf + 1); return 'つぼに、シカとオオカミが戻ってきた'; },
-    truth: 'カナダのオオヤマネコとカンジキウサギの数は、およそ 10 年ごとに増えたり減ったりをくりかえした（毛皮の取り引きの記録から分かった）。食べる者の数は、食べられる者の数を少しおくれて追いかける。',
+    hint: TX('オオカミが多すぎるとシカを食べつくし、自分たちも飢える。シカの多い所に、少しずつ放す。', 'Too many wolves eat all the deer and then starve. Release them a few at a time where there are many deer.'),
+    gift() { W.stock.deer = Math.min(STOCK_MAX.deer, W.stock.deer + 3); W.stock.wolf = Math.min(STOCK_MAX.wolf, W.stock.wolf + 1); return TX('つぼに、シカとオオカミが戻ってきた', 'Deer and wolves came back to the jar'); },
+    truth: TX('カナダのオオヤマネコとカンジキウサギの数は、およそ 10 年ごとに増えたり減ったりをくりかえした（毛皮の取り引きの記録から分かった）。食べる者の数は、食べられる者の数を少しおくれて追いかける。', 'In Canada, the numbers of lynx and snowshoe hares rose and fell about every 10 years (we know from fur trade records). The number of hunters follows the number of the hunted, a little behind.'),
   },
   {
-    key: 'fish', name: 'サカナ', title: '湖のサカナ', text: 'サカナを 40 匹にふやす', goal: 40, unit: '匹',
-    gives: { fish: 1 }, arrive: '命のつぼに、サカナが来た', knob: { winter: 1, tide: 0.8 },
+    key: 'fish', name: TX('サカナ', 'Fish'), title: TX('湖のサカナ', 'Fish in the lake'), text: TX('サカナを 40 匹にふやす', 'Grow the fish to 40'), goal: 40, unit: TX('匹', ''),
+    gives: { fish: 1 }, arrive: TX('命のつぼに、サカナが来た', 'Fish came to the Life Jar'), knob: { winter: 1, tide: 0.8 },
     prog: () => L.counts.fish,
-    hint: 'サカナは水草を食べる。流れの速い川にいると、滝から落ちてしまう。せき止めた湖に放す。',
-    gift() { W.stock.fish = Math.min(STOCK_MAX.fish, W.stock.fish + 6); return 'つぼに、サカナが戻ってきた'; },
-    truth: '本当の滝でも、魚は上流へのぼれないことが多い。滝の上と下で、別々の魚がくらしていることもある。',
+    hint: TX('サカナは水草を食べる。流れの速い川にいると、滝から落ちてしまう。せき止めた湖に放す。', 'Fish eat water plants. In a fast river, they fall off the falls. Release them in a dammed lake.'),
+    gift() { W.stock.fish = Math.min(STOCK_MAX.fish, W.stock.fish + 6); return TX('つぼに、サカナが戻ってきた', 'Fish came back to the jar'); },
+    truth: TX('本当の滝でも、魚は上流へのぼれないことが多い。滝の上と下で、別々の魚がくらしていることもある。', 'At real waterfalls too, fish often can’t swim upstream. Sometimes different fish live above and below a waterfall.'),
   },
   {
-    key: 'bird', name: 'サギ', title: '水辺の狩り', text: 'サギ 3 羽以上とサカナ 15 匹以上が、いっしょに 5 日つづく', goal: 5, unit: '日',
-    gives: { bird: 1 }, arrive: '命のつぼに、サギが来た。浅い水に立って、サカナをとる鳥', streak: () => L.counts.bird >= 3 && L.counts.fish >= 15,
+    key: 'bird', name: TX('サギ', 'Herons'), title: TX('水辺の狩り', 'Hunting at the water’s edge'), text: TX('サギ 3 羽以上とサカナ 15 匹以上が、いっしょに 5 日つづく', '3 or more herons and 15 or more fish live together for 5 days'), goal: 5, unit: TX('日', ' days'),
+    gives: { bird: 1 }, arrive: TX('命のつぼに、サギが来た。浅い水に立って、サカナをとる鳥', 'Herons came to the Life Jar. They are birds that stand in shallow water and catch fish'), streak: () => L.counts.bird >= 3 && L.counts.fish >= 15,
     prog: () => Math.floor(G.streak), knob: { winter: 1, tide: 1 },
-    hint: 'サギは浅い所のサカナしかとれない。深い湖はサカナのかくれ場所、浅瀬はサギの狩り場。月を寄せると潮で浅瀬が動く。',
-    gift() { W.stock.fish = Math.min(STOCK_MAX.fish, W.stock.fish + 6); W.stock.bird = Math.min(STOCK_MAX.bird, W.stock.bird + 1); return 'つぼに、サカナとサギが戻ってきた'; },
-    truth: 'アオサギは、浅い水に何十分もじっと立って魚を待ち、くちばしで一気にとらえる。深い所の魚には届かない。',
+    hint: TX('サギは浅い所のサカナしかとれない。深い湖はサカナのかくれ場所、浅瀬はサギの狩り場。月を寄せると潮で浅瀬が動く。', 'Herons can only catch fish in shallow places. A deep lake is where fish hide; the shallows are where herons hunt. Bring the Moon closer and the tide moves the shallows.'),
+    gift() { W.stock.fish = Math.min(STOCK_MAX.fish, W.stock.fish + 6); W.stock.bird = Math.min(STOCK_MAX.bird, W.stock.bird + 1); return TX('つぼに、サカナとサギが戻ってきた', 'Fish and herons came back to the jar'); },
+    truth: TX('アオサギは、浅い水に何十分もじっと立って魚を待ち、くちばしで一気にとらえる。深い所の魚には届かない。', 'A grey heron can stand still in shallow water for many minutes waiting for a fish, then catch it with one quick strike of its beak. It can’t reach fish in deep water.'),
   },
   {
-    key: 'genes', name: '進化', title: '体が変わる', text: '生き物の遺伝子のどれか1つの平均を、いまより 0.08 動かす', goal: 8, unit: '', show: v => (v / 100).toFixed(2),
-    gives: { genes: 1 }, arrive: '観察帳に「遺伝子」の頁がひらいた。生き物は、親から子へ体のつくりを伝える', knob: { winter: 1, tide: 1 },
+    key: 'genes', name: TX('進化', 'Evolution'), title: TX('体が変わる', 'Bodies change'), text: TX('生き物の遺伝子のどれか1つの平均を、いまより 0.08 動かす', 'Move the average of any one animal gene by 0.08 from where it is now'), goal: 8, unit: '', show: v => (v / 100).toFixed(2),
+    gives: { genes: 1 }, arrive: TX('観察帳に「遺伝子」の頁がひらいた。生き物は、親から子へ体のつくりを伝える', 'The “Genes” page opened in the Field Notes. Living things pass the shape of their bodies from parents to young'), knob: { winter: 1, tide: 1 },
     prog: () => Math.round(geneMove() * 100),
-    hint: 'きびしさに合ったものが生き残る。オオカミに追われるとシカの足が、水へ逃げられるとシカの泳ぐ力が、流れのある川ではサカナの泳ぐ力が伸びる。いらなくなった力は、むだなので下がっていく。観察帳の「遺伝子」の頁で見られる。',
-    gift() { W.stock.wolf = Math.min(STOCK_MAX.wolf, W.stock.wolf + 1); return 'つぼに、オオカミが戻ってきた'; },
-    truth: '生き残りやすい性質が子に伝わって積み重なり、生き物が変わっていく（自然選択。ダーウィンとウォレスが 1858 年に発表）。本当の進化はふつう何百〜何万世代もかかる。この箱庭ではずっと速くしている。',
+    hint: TX('きびしさに合ったものが生き残る。オオカミに追われるとシカの足が、水へ逃げられるとシカの泳ぐ力が、流れのある川ではサカナの泳ぐ力が伸びる。いらなくなった力は、むだなので下がっていく。観察帳の「遺伝子」の頁で見られる。', 'The ones that fit how hard the world is survive. When wolves chase them, deer get faster legs; when they can escape into water, deer get better at swimming; in rivers with currents, fish get better at swimming. Abilities they no longer need are wasteful and go down. You can see it on the “Genes” page of the Field Notes.'),
+    gift() { W.stock.wolf = Math.min(STOCK_MAX.wolf, W.stock.wolf + 1); return TX('つぼに、オオカミが戻ってきた', 'A wolf came back to the jar'); },
+    truth: TX('生き残りやすい性質が子に伝わって積み重なり、生き物が変わっていく（自然選択。ダーウィンとウォレスが 1858 年に発表）。本当の進化はふつう何百〜何万世代もかかる。この箱庭ではずっと速くしている。', 'Traits that help survival are passed to young and add up, so living things change (natural selection, published by Darwin and Wallace in 1858). Real evolution usually takes hundreds to tens of thousands of generations. This garden makes it much faster.'),
   },
   {
-    key: 'cycle', name: 'めぐる世界', title: 'めぐる世界', text: '草・シカ・オオカミ・サカナ・サギが、そろって1年（16 日）つづく', goal: 16, unit: '日',
-    gives: {}, arrive: 'もう、新しいものは来ない。あとは、きみの手かげんだけ', knob: { winter: 1, tide: 1 },
+    key: 'cycle', name: TX('めぐる世界', 'The Turning World'), title: TX('めぐる世界', 'The Turning World'), text: TX('草・シカ・オオカミ・サカナ・サギが、そろって1年（16 日）つづく', 'Grass, deer, wolves, fish and herons all last together for one year (16 days)'), goal: 16, unit: TX('日', ' days'),
+    gives: {}, arrive: TX('もう、新しいものは来ない。あとは、きみの手かげんだけ', 'Nothing new will come now. All that’s left is your gentle touch'), knob: { winter: 1, tide: 1 },
     streak: s => s.grass >= 0.15 && L.counts.deer > 0 && L.counts.wolf > 0 && L.counts.fish > 0 && L.counts.bird > 0,
     prog: () => Math.floor(G.streak),
-    hint: '何かが減ったら、それを食べるものも、それに食べられるものも変わる。全部を止めようとせず、少し落としてやる。',
-    gift() { for (const k in W.stock) W.stock[k] = Math.min(STOCK_MAX[k], W.stock[k] + 2); return 'つぼに、命が少しずつ戻ってきた'; },
-    truth: 'アメリカのイエローストーン国立公園では、1995 年にオオカミを戻してから、エルク（大きなシカ）の数や動き方が変わり、川辺の木が育った所があると言われる。どこまでがオオカミのおかげかは、研究者のあいだで今も話し合われている。',
+    hint: TX('何かが減ったら、それを食べるものも、それに食べられるものも変わる。全部を止めようとせず、少し落としてやる。', 'When something decreases, what eats it and what it eats change too. Don’t try to stop everything; let a little go.'),
+    gift() { for (const k in W.stock) W.stock[k] = Math.min(STOCK_MAX[k], W.stock[k] + 2); return TX('つぼに、命が少しずつ戻ってきた', 'A few of each life came back to the jar'); },
+    truth: TX('アメリカのイエローストーン国立公園では、1995 年にオオカミを戻してから、エルク（大きなシカ）の数や動き方が変わり、川辺の木が育った所があると言われる。どこまでがオオカミのおかげかは、研究者のあいだで今も話し合われている。', 'In Yellowstone National Park in the USA, after wolves were brought back in 1995, the number and movements of elk (large deer) changed, and trees by the rivers are said to have grown back in some places. Researchers are still discussing how much of that was really thanks to the wolves.'),
   },
 ];
 const YEARNAME = ['第一', '第二', '第三', '第四', '第五', '第六', '第七', '第八', '第九', '第十'];
+const YEAR_EN = ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
+const yearOf = n => TX(YEARNAME[n] + 'の年', 'Year ' + YEAR_EN[n]);   // 「第一の年」／Year One
 
 // 章 n で、手に持てるもの・つぼの中身
 function unlockedAt(n) {
@@ -134,7 +136,7 @@ function enterChapter(n, quiet) {
   else W.knob = { winter: 1, tide: 1 };
   for (const k of ['deer', 'wolf', 'fish', 'bird']) if (G.unlock[k] && !prevU[k] && !quiet) W.stock[k] = STOCK_START[k];
   if (!quiet && c) {
-    chapterLine(`${YEARNAME[n]}の年　${c.name}`, c.arrive);
+    chapterLine(TX(`${yearOf(n)}　${c.name}`, `${yearOf(n)}: ${c.name}`), c.arrive);
     Sound.play('spring');
     const newKey = Object.keys(c.gives)[0];
     if (newKey) glowHand(newKey);
@@ -187,7 +189,7 @@ function finishChapter() {
   Sound.play('win');
   addPage('ch' + n);
   if (n + 1 < CHAPTERS.length) {
-    toast(`「${c.title}」ができた。観察帳に、本当のことが一つ書きこまれた`, 6);
+    toast(TX(`「${c.title}」ができた。観察帳に、本当のことが一つ書きこまれた`, `“${c.title}” is done. A true fact was written in the Field Notes`), 6);
     later(4.5, () => { if (G.ch === n + 0.5) enterChapter(n + 1); });
     G.ch = n + 0.5; G.spots = null;   // 次の章を待つあいだ（お題を数えない）
   } else {
@@ -204,7 +206,7 @@ function startEnding() {
   setHand(null); closeBook(); G.sel = null; updateCard();
   ENDING = { t: 0, panel: false };
   document.body.classList.add('ending');
-  chapterLine('めぐる世界', '十の年が、めぐった。水も土も命も、何ひとつ消えずに。', 9);
+  chapterLine(TX('めぐる世界', 'The Turning World'), TX('十の年が、めぐった。水も土も命も、何ひとつ消えずに。', 'The Ten Years have turned. Water, soil and life, with nothing lost.'), 9);
   Sound.play('reveal');
 }
 // 毎フレーム（main.js の frame）: 大地がゆっくり回り、少し引いて全体を見せる
@@ -217,20 +219,26 @@ function stepEnding(dt) {
   if (!ENDING.panel && ENDING.t > 10) { ENDING.panel = true; endingPanel(); }
 }
 function endingPanel() {
-  const rows = (G.done || []).map((d, n) => d && CHAPTERS[n] ? `<li>第 ${d.day} 日　${CHAPTERS[n].title}</li>` : '').join('');
+  const rows = (G.done || []).map((d, n) => d && CHAPTERS[n] ? TX(`<li>第 ${d.day} 日　${CHAPTERS[n].title}</li>`, `<li>Day ${d.day}: ${CHAPTERS[n].title}</li>`) : '').join('');
   const found = Object.keys(G.found || {}).length;
   chapterLine('', '');
-  showPanel(`<h2>めぐる世界</h2>
+  const newest = Math.max(...['deer', 'wolf', 'fish', 'bird'].map(k => geneStats(k).gen));
+  showPanel(TX(`<h2>めぐる世界</h2>
     <p>果ての滝は落ちつづけ、深淵の水は泉からまたわき出る。草はシカに、シカはオオカミに、去った命はつぼへ。この平らな大地では、何も生まれず、何も消えない。ただ、めぐっていた。</p>
     <p class="truth"><b>本当は</b>　大地は丸い球（地球）。重さはどこでも球の中心へ向かってはたらくので、海の水は果てから落ちていかない。水は海から雲へ、雲から雨へ、川から海へとめぐっている。落ちていくものは、どこかで、めぐっている。</p>
     <p class="small">きみの世界の年表</p><ul class="chron">${rows}</ul>
-    <p class="small">見つけたこと ${found} ／ ${FINDS.length}。いちばん新しい世代 ${Math.max(...['deer', 'wolf', 'fish', 'bird'].map(k => geneStats(k).gen))}。</p>`,
-  [{ label: '世界の版画をのこす', fn: () => openPrints(endingPanel) }, { label: '自由な箱庭へ', main: true, fn: endEnding }]);
+    <p class="small">見つけたこと ${found} ／ ${FINDS.length}。いちばん新しい世代 ${newest}。</p>`,
+    `<h2>The Turning World</h2>
+    <p>The falls keep falling, and the water of the Abyss wells up again from the springs. Grass goes to the deer, deer go to the wolves, and lives that pass away go back to the jar. On this flat land, nothing is made and nothing is lost. It just keeps turning.</p>
+    <p class="truth"><b>What is really true:</b> the land is a round ball (the Earth). Weight always pulls toward the center of the ball, so the sea never falls off an edge. Water goes from the sea to the clouds, from the clouds to the rain, and from the rivers back to the sea. What falls away is, somewhere, turning around again.</p>
+    <p class="small">Timeline of your world</p><ul class="chron">${rows}</ul>
+    <p class="small">Discoveries: ${found} / ${FINDS.length}. Newest generation: ${newest}.</p>`),
+  [{ label: TX('世界の版画をのこす', 'Make a World Print'), fn: () => openPrints(endingPanel) }, { label: TX('自由な箱庭へ', 'On to the Free Garden'), main: true, fn: endEnding }]);
   $('panel').classList.add('world', 'ending');
 }
 function endEnding() {
   ENDING = null; document.body.classList.remove('ending');
-  toast('ここからは自由な箱庭。つぼの中身はぜんぶ、つまみは世界のまま', 6);
+  toast(TX('ここからは自由な箱庭。つぼの中身はぜんぶ、つまみは世界のまま', 'From here on, it’s a Free Garden. Everything is in the jar, and the world stays as it is'), 6);
 }
 
 // 章とお題の1行（上のまんなか）
@@ -238,13 +246,13 @@ function questLine(s) {
   const el = $('quest');
   if (!G.started || COL) { el.hidden = true; return; }
   el.hidden = false;
-  if (isFree()) { $('qTitle').textContent = '自由な箱庭'; $('qText').textContent = ''; $('qBar').style.width = '0'; el.classList.add('free'); return; }
+  if (isFree()) { $('qTitle').textContent = TX('自由な箱庭', 'Free Garden'); $('qText').textContent = ''; $('qBar').style.width = '0'; el.classList.add('free'); return; }
   el.classList.remove('free');
   const c = CHAPTERS[Math.floor(G.ch)];
   if (c && c.key === 'genes' && G.gwhat && !(G.ch % 1)) $('quest').title = G.gwhat;
-  if (G.ch % 1) { $('qTitle').textContent = `${YEARNAME[Math.floor(G.ch)]}の年`; $('qText').textContent = c.title + ' — できた'; $('qBar').style.width = '100%'; return; }
+  if (G.ch % 1) { $('qTitle').textContent = yearOf(Math.floor(G.ch)); $('qText').textContent = c.title + TX(' — できた', ' — done'); $('qBar').style.width = '100%'; return; }
   const v = c.prog(s), fmt = c.show || (x => x);
-  $('qTitle').textContent = `${YEARNAME[G.ch]}の年　${c.title}`;
-  $('qText').textContent = c.key === 'winter' ? `${c.text}（${fmt(v)}）` : `${c.text}（${fmt(v)}${c.unit} ／ ${fmt(G.goal)}${c.unit}）`;
+  $('qTitle').textContent = TX(`${yearOf(G.ch)}　${c.title}`, `${yearOf(G.ch)}: ${c.title}`);
+  $('qText').textContent = c.key === 'winter' ? TX(`${c.text}（${fmt(v)}）`, `${c.text} (${fmt(v)})`) : TX(`${c.text}（${fmt(v)}${c.unit} ／ ${fmt(G.goal)}${c.unit}）`, `${c.text} (${fmt(v)}${c.unit} / ${fmt(G.goal)}${c.unit})`);
   $('qBar').style.width = Math.min(100, c.key === 'winter' ? (G.winterSeen ? 60 : L.counts.deer >= 10 ? 25 : 0) : v / G.goal * 100) + '%';
 }

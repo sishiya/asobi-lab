@@ -67,17 +67,17 @@ async function encodeWorld() {
 }
 
 async function decodeWorld(rec) {
-  if (!rec || rec.app !== 'edge-falls' || typeof rec.data !== 'string') throw new Error('果ての滝の箱庭のセーブではない');
-  if (rec.v > SAVE_V) throw new Error('新しい版のセーブなので読めない');
+  if (!rec || rec.app !== 'edge-falls' || typeof rec.data !== 'string') throw new Error(TX('果ての滝の箱庭のセーブではない', 'This is not an Edge Falls Garden save'));
+  if (rec.v > SAVE_V) throw new Error(TX('新しい版のセーブなので読めない', 'This save is from a newer version and can’t be read'));
   let s;
   try { s = JSON.parse(rec.z === 'gzip' ? await gunzip(unb64(rec.data)) : rec.data); }
-  catch (e) { throw new Error('セーブがこわれている'); }
+  catch (e) { throw new Error(TX('セーブがこわれている', 'The save is broken')); }
   // 世界をさわる前に、形を確かめる（とちゅうで失敗して世界が半分こわれないように）
   const ok = s && s.cells && ['g', 'w', 'veg', 'alg', 'moist', 'tree'].every(k => typeof s.cells[k] === 'string') &&
     s.sun && s.moon && s.quest && Array.isArray(s.animals);
-  if (!ok) throw new Error('セーブの中身が足りない');
+  if (!ok) throw new Error(TX('セーブの中身が足りない', 'The save is missing data'));
   try { for (const k of ['g', 'w']) if (unb64(s.cells[k]).length < INS.length * 2) throw 0; for (const k of ['veg', 'alg', 'moist', 'tree']) if (unb64(s.cells[k]).length < INS.length) throw 0; }
-  catch (e) { throw new Error('セーブの中身が足りない'); }
+  catch (e) { throw new Error(TX('セーブの中身が足りない', 'The save is missing data')); }
   return s;
 }
 
@@ -143,57 +143,57 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) autoS
 addEventListener('pagehide', autoSave);
 
 // ---- 画面 ----
-const KNAME = { deer: 'シカ', wolf: 'オオカミ', fish: 'サカナ', bird: 'サギ' };
+const KNAME = TX({ deer: 'シカ', wolf: 'オオカミ', fish: 'サカナ', bird: 'サギ' }, { deer: 'Deer', wolf: 'Wolves', fish: 'Fish', bird: 'Herons' });
 function metaText(rec) {
-  if (!rec || !rec.meta) return 'からっぽ';
+  if (!rec || !rec.meta) return TX('からっぽ', 'Empty');
   const m = rec.meta, c = m.counts || {};
-  const ch = typeof m.ch === 'number' ? (m.ch >= CHAPTERS.length ? '自由な箱庭・' : YEARNAME[Math.floor(m.ch)] + 'の年・') : '';
-  return `${ch}第 ${m.day} 日・${['deer', 'wolf', 'fish', 'bird'].map(k => KNAME[k] + ' ' + (c[k] || 0)).join('・')}<br><small>${m.at || ''}</small>`;
+  const ch = typeof m.ch === 'number' ? (m.ch >= CHAPTERS.length ? TX('自由な箱庭・', 'Free Garden · ') : yearOf(Math.floor(m.ch)) + TX('・', ' · ')) : '';
+  return `${ch}${TX(`第 ${m.day} 日・`, `Day ${m.day} · `)}${['deer', 'wolf', 'fish', 'bird'].map(k => KNAME[k] + ' ' + (c[k] || 0)).join(TX('・', ' · '))}<br><small>${m.at || ''}</small>`;
 }
 
 // mode: 'save'（スロットに残す・ファイルに書き出す）／'load'（自動セーブ・スロット・ファイルから読む）。2026-10-13 ユーザー「セーブとロードは分けて」
 function openSavePanel(back, mode = 'save') {
-  const keys = mode === 'save' ? SLOTS.map((s, n) => [s, 'スロット ' + (n + 1)]) : [['auto', '自動セーブ'], ...SLOTS.map((s, n) => [s, 'スロット ' + (n + 1)])];
+  const keys = mode === 'save' ? SLOTS.map((s, n) => [s, TX('スロット ', 'Slot ') + (n + 1)]) : [['auto', TX('自動セーブ', 'Autosave')], ...SLOTS.map((s, n) => [s, TX('スロット ', 'Slot ') + (n + 1)])];
   const rows = keys.map(([k, label]) => {
     const rec = readSlot(k);
     return `<div class="slot"><div><b>${label}</b><p>${metaText(rec)}</p></div><div class="sbtn">` +
-      (mode === 'save' ? `<button type="button" class="tbtn" data-save="${k}">${rec ? '上書きする' : 'ここに残す'}</button>` : rec ? `<button type="button" class="tbtn" data-load="${k}">読みこむ</button>` : '') + '</div></div>';
+      (mode === 'save' ? `<button type="button" class="tbtn" data-save="${k}">${rec ? TX('上書きする', 'Overwrite') : TX('ここに残す', 'Save here')}</button>` : rec ? `<button type="button" class="tbtn" data-load="${k}">${TX('読みこむ', 'Load')}</button>` : '') + '</div></div>';
   }).join('');
   const file = mode === 'save'
-    ? `<div class="slot"><div><b>ファイル</b><p>ほかのブラウザへ持っていく・とっておく</p></div><div class="sbtn"><button type="button" class="tbtn" id="btnExport">書き出す</button></div></div>`
-    : `<div class="slot"><div><b>ファイル</b><p>書き出したファイルから</p></div><div class="sbtn"><button type="button" class="tbtn" id="btnImport">ファイルを選ぶ</button></div></div><input type="file" id="fileImport" accept=".json,application/json" hidden>`;
+    ? TX(`<div class="slot"><div><b>ファイル</b><p>ほかのブラウザへ持っていく・とっておく</p></div><div class="sbtn"><button type="button" class="tbtn" id="btnExport">書き出す</button></div></div>`, `<div class="slot"><div><b>File</b><p>Take it to another browser or keep a copy</p></div><div class="sbtn"><button type="button" class="tbtn" id="btnExport">Export</button></div></div>`)
+    : `<div class="slot"><div><b>${TX('ファイル', 'File')}</b><p>${TX('書き出したファイルから', 'From an exported file')}</p></div><div class="sbtn"><button type="button" class="tbtn" id="btnImport">${TX('ファイルを選ぶ', 'Choose a file')}</button></div></div><input type="file" id="fileImport" accept=".json,application/json" hidden>`;
   showPanel(mode === 'save'
-    ? `<h2>セーブ</h2><p class="small center">地形・水・草・生き物（遺伝子も）・年まで、世界をまるごと残す。<br>1日ごとと、ページを閉じるときにも自動で残る。</p>${rows}${file}`
-    : `<h2>ロード</h2><p class="small center">読みこむと、いまの世界は自動セーブに残してから入れかわる。</p>${rows}${file}`,
-  [{ label: back ? 'もどる' : 'とじる', main: true, fn: back }]);
+    ? TX(`<h2>セーブ</h2><p class="small center">地形・水・草・生き物（遺伝子も）・年まで、世界をまるごと残す。<br>1日ごとと、ページを閉じるときにも自動で残る。</p>`, `<h2>Save</h2><p class="small center">Saves the whole world: land, water, grass, animals (with their genes) and the year.<br>It also saves automatically every day and when you close the page.</p>`) + `${rows}${file}`
+    : TX(`<h2>ロード</h2><p class="small center">読みこむと、いまの世界は自動セーブに残してから入れかわる。</p>`, `<h2>Load</h2><p class="small center">When you load, the current world is kept in the autosave before it is replaced.</p>`) + `${rows}${file}`,
+  [{ label: back ? TX('もどる', 'Back') : TX('とじる', 'Close'), main: true, fn: back }]);
   $('panel').classList.add('world'); G.panelBack = back || (() => { $('overlay').hidden = true; });
   const panel = $('panel');
   panel.querySelectorAll('[data-save]').forEach(b => b.onclick = async () => {
     const ok = await saveSlot(b.dataset.save);
-    toast(ok ? 'セーブした' : 'セーブできなかった（ブラウザの保存の場所がいっぱいかもしれない）'); Sound.play(ok ? 'put' : 'no'); openSavePanel(back, 'save');
+    toast(ok ? TX('セーブした', 'Saved') : TX('セーブできなかった（ブラウザの保存の場所がいっぱいかもしれない）', 'Couldn’t save (the browser’s storage may be full)')); Sound.play(ok ? 'put' : 'no'); openSavePanel(back, 'save');
   });
   panel.querySelectorAll('[data-load]').forEach(b => b.onclick = async () => {
     const rec = readSlot(b.dataset.load);
     if (b.dataset.load !== 'auto') await saveSlot('auto');          // いまの世界は自動セーブに残してから
-    try { await loadRecord(rec); $('overlay').hidden = true; G.started = true; G.menuOpen = false; if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } toast('読みこんだ: 第 ' + W.day + ' 日'); Sound.play('spring'); }
-    catch (e) { toast('読みこめなかった: ' + e.message); Sound.play('no'); }
+    try { await loadRecord(rec); $('overlay').hidden = true; G.started = true; G.menuOpen = false; if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } toast(TX('読みこんだ: 第 ' + W.day + ' 日', 'Loaded: day ' + W.day)); Sound.play('spring'); }
+    catch (e) { toast(TX('読みこめなかった: ', 'Couldn’t load: ') + e.message); Sound.play('no'); }
   });
   if ($('btnExport')) $('btnExport').onclick = async () => {
     const rec = await encodeWorld();
     const url = URL.createObjectURL(new Blob([JSON.stringify(rec)], { type: 'application/json' }));
     const a = document.createElement('a'); a.href = url; a.download = `edge-falls-day${W.day}.json`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast('書き出した');
+    toast(TX('書き出した', 'Exported'));
   };
   if (!$('btnImport')) return;
   $('btnImport').onclick = () => $('fileImport').click();
   $('fileImport').onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
-    if (f.size > 5e6) { toast('大きすぎるファイル'); return; }
+    if (f.size > 5e6) { toast(TX('大きすぎるファイル', 'The file is too big')); return; }
     try {
       const rec = JSON.parse(await f.text());
       await saveSlot('auto'); await loadRecord(rec);
-      $('overlay').hidden = true; G.started = true; G.menuOpen = false; if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } toast('読みこんだ: 第 ' + W.day + ' 日'); Sound.play('spring');
-    } catch (err) { toast('読みこめなかった: ' + err.message); Sound.play('no'); }
+      $('overlay').hidden = true; G.started = true; G.menuOpen = false; if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } toast(TX('読みこんだ: 第 ' + W.day + ' 日', 'Loaded: day ' + W.day)); Sound.play('spring');
+    } catch (err) { toast(TX('読みこめなかった: ', 'Couldn’t load: ') + err.message); Sound.play('no'); }
   };
 }
