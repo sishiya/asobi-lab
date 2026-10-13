@@ -1,6 +1,12 @@
 'use strict';
 // 知らせ・札・観察帳のグラフ（v011 で横の箱は観察帳へ）
 const $ = id => document.getElementById(id);
+// 英語のとき: HTML に書いた title・aria-label を data-en-title・data-en-aria-label の英語に入れかえる。ページの題も（v025。2026-10-13 ユーザー）
+if (LANG === 'en') {
+  for (const el of document.querySelectorAll('[data-en-title]')) el.title = el.dataset.enTitle;
+  for (const el of document.querySelectorAll('[data-en-aria-label]')) el.setAttribute('aria-label', el.dataset.enAriaLabel);
+  document.title = 'Edge Falls Garden';
+}
 let toastT = 0;
 function toast(msg, sec = 3) {
   const el = $('toast'); el.textContent = msg; el.classList.add('on');
