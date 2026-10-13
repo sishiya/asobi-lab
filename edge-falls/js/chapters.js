@@ -89,9 +89,9 @@ const CHAPTERS = [
   },
   {
     key: 'genes', name: TX('進化', 'Evolution'), title: TX('体が変わる', 'Bodies change'), text: TX('生き物の遺伝子のどれか1つの平均を、いまより 0.08 動かす', 'Move the average of any one animal gene by 0.08 from where it is now'), goal: 8, unit: '', show: v => (v / 100).toFixed(2),
-    gives: { genes: 1 }, arrive: TX('箱庭の博物誌に「遺伝子」の頁がひらいた。生き物は、親から子へ体のつくりを伝える', 'The “Genes” page opened in the Book of Nature. Living things pass the shape of their bodies from parents to young'), knob: { winter: 1, tide: 1 },
+    gives: { genes: 1 }, arrive: TX('天命の書板に「遺伝子」の面が刻まれた。生き物は、親から子へ体のつくりを伝える', 'The “Genes” face was carved into the Tablet of Destinies. Living things pass the shape of their bodies from parents to young'), knob: { winter: 1, tide: 1 },
     prog: () => Math.round(geneMove() * 100),
-    hint: TX('きびしさに合ったものが、生き残って子を残すの。追われるシカは足が速く、流れの中のサカナは泳ぎが強くなっていく。博物誌の「遺伝子」の頁で見られるよ。', 'Those that fit the hard times survive and have young. Chased deer get faster; fish in currents swim stronger. You can watch it on the “Genes” page of the Book of Nature.'),
+    hint: TX('きびしさに合ったものが、生き残って子を残すの。追われるシカは足が速く、流れの中のサカナは泳ぎが強くなっていく。書板の「遺伝子」の面で見られるよ。', 'Those that fit the hard times survive and have young. Chased deer get faster; fish in currents swim stronger. You can watch it on the “Genes” face of the Tablet of Destinies.'),
     gift() { W.stock.wolf = Math.min(STOCK_MAX.wolf, W.stock.wolf + 1); return TX('命のつぼに、オオカミが帰ってきたよ', 'A wolf came back to the Life Jar'); },
     truth: TX('生き残りやすい性質が子に伝わって積み重なり、生き物が変わっていく（自然選択。ダーウィンとウォレスが 1858 年に発表）。本当の進化はふつう何百〜何万世代もかかる。この箱庭ではずっと速くしている。', 'Traits that help survival are passed to young and add up, so living things change (natural selection, published by Darwin and Wallace in 1858). Real evolution usually takes hundreds to tens of thousands of generations. This garden makes it much faster.'),
   },
@@ -191,7 +191,7 @@ function finishChapter() {
   Sound.play('win');
   addPage('ch' + n);
   if (n + 1 < CHAPTERS.length) {
-    toast(TX(`「${c.title}」、できたね。博物誌に、本当のことが一つ書きこまれたよ`, `“${c.title}” — you did it. A true fact was written in the Book of Nature`), 6);
+    toast(TX(`「${c.title}」、できたね。書板に、本当のことが一つ刻まれたよ`, `“${c.title}” — you did it. A true fact was carved into the Tablet of Destinies`), 6);
     later(4.5, () => { if (G.ch === n + 0.5) enterChapter(n + 1); });
     G.ch = n + 0.5; G.spots = null;   // 次の章を待つあいだ（お題を数えない）
   } else {

@@ -1,5 +1,5 @@
 'use strict';
-// 知らせ・札・箱庭の博物誌のグラフ（v011 で横の箱は箱庭の博物誌へ）
+// 知らせ・札・天命の書板のグラフ（v011 で横の箱は天命の書板へ）
 const $ = id => document.getElementById(id);
 // 英語のとき: HTML に書いた title・aria-label を data-en-title・data-en-aria-label の英語に入れかえる。ページの題も（v025。2026-10-13 ユーザー）
 if (LANG === 'en') {
