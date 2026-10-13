@@ -125,56 +125,63 @@ function cellColors() {
   // 季節の色の強さ（秋・冬）
   const sp = seasonPhase(), cdist = (a, b) => { const d = Math.abs(a - b) % 1; return Math.min(d, 1 - d); };
   const aut = Math.max(0, 1 - cdist(sp, 0.66) / 0.14), win = Math.max(0, 1 - cdist(sp, 0.9) / 0.16);
-  for (const i of INS) {
-    const h = g[i], jit = 0.95 + HASH[i] * 0.1;
-    let slope = 0;
-    for (const o of NB4) { const j = i + o; if (inside[j]) slope = Math.max(slope, Math.abs(Zs[j] - Zs[i])); }
+  // v023: iPhone の Safari で、開いて少したつと地面の色が紫・緑・黄色・黒にくずれた（土の式のところだけ。岩・砂・岩の根は正しい）。
+  //   入れ子の mix（mix の中に mix）と、同じ名前の const（t・k・sp）がブロックごとに並ぶ所を、Safari の JavaScript が
+  //   くり返して速い形に作り直したあとに取りちがえているのでは、と見て、ループの中は入れ子の関数を使わず、名前も一つずつにした。
+  //   計算の中身は v019 と同じ（PC の Chrome で v019 と同じ色になることを数で確かめた）。v019・v010 の版でも iPhone でくずれていた（v010 は一瞬だけ）。
+  //   v011 から、はじめの大地が岩と土だけ（草なし）になり、土の式ばかり通るようになって目立ったのでは、と見ている。ここを直すときは、入れ子の mix・同じ名前の const を足さない
+  let r = 0, gg = 0, b = 0, slope = 0, ao = 0, kRock = 0, kSoil = 0, kWet = 0, kVeg = 0, kAut = 0, kWin = 0, kWd = 0, kAlg = 0, kFoam = 0, kMix = 0, kSnow = 0, flow = 0;
+  let r0 = 0, g0 = 0, b0 = 0, r1 = 0, g1 = 0, b1 = 0, wr = 0, wg = 0, wb = 0, tone = 1, shore = false, sh = 1;
+  for (let n = 0; n < INS.length; n++) {
+    const i = INS[n], h = g[i], jit = 0.95 + HASH[i] * 0.1;
+    slope = 0;
+    for (let q = 0; q < 4; q++) { const j = i + NB4[q]; if (inside[j]) { const dz = Math.abs(Zs[j] - Zs[i]); if (dz > slope) slope = dz; } }
     // 土・岩・雪（横の面にも使う）
-    let r, gg, b;
     if (h >= 13.5) { r = 236; gg = 238; b = 244; }
-    else if (slope > 1.6 || h > 10.5) { const t = Math.min(1, Math.max(0, (h - 8) / 5)); r = mix(132, 150, t); gg = mix(118, 142, t); b = mix(104, 138, t); }
+    else if (slope > 1.6 || h > 10.5) { kRock = Math.min(1, Math.max(0, (h - 8) / 5)); r = 132 + 18 * kRock; gg = 118 + 24 * kRock; b = 104 + 34 * kRock; }
     else if (h < 3.2 || (m[i] > 0.95 && h < 5)) { r = 218; gg = 198; b = 146; }
     else {                                    // 土: 乾いた所は黄土色、しめった所はこげ茶
-      const t = Math.min(1, (h - 3) / 8), wet = Math.min(1, m[i] * 1.4);
-      r = mix(mix(206, 178, t), mix(150, 124, t), wet); gg = mix(mix(178, 152, t), mix(110, 94, t), wet); b = mix(mix(118, 110, t), mix(72, 70, t), wet);
+      kSoil = Math.min(1, Math.max(0, (h - 3) / 8)); kWet = Math.min(1, Math.max(0, m[i] * 1.4));
+      r0 = 206 - 28 * kSoil; g0 = 178 - 26 * kSoil; b0 = 118 - 8 * kSoil;   // 乾いた土
+      r1 = 150 - 26 * kSoil; g1 = 110 - 16 * kSoil; b1 = 72 - 2 * kSoil;    // しめった土
+      r = r0 + (r1 - r0) * kWet; gg = g0 + (g1 - g0) * kWet; b = b0 + (b1 - b0) * kWet;
     }
     r *= jit; gg *= jit; b *= jit;
     SR[i] = r * 0.82; SG[i] = gg * 0.8; SB[i] = b * 0.78;
     // 草・花
     const v = veg[i];
     if (v > 0.03 && h < 13.5 && slope < 2.5) {
-      // v020・v021 で芽ばえを黄みにする式を足したら、iPhone の Safari で少したつと地面の色が紫・緑・黄色・黒にくずれた
-      //   （はじめの一瞬は正しい。くり返して速い形に作り直されたあと計算が狂うのでは、と見ている）。v019 の式にもどした（v022）
-      const tone = HASH[i] > 0.5 ? 1 : 0.9, t = Math.min(1, v * 1.4);
-      r = mix(r, mix(150, 66, v) * tone, t); gg = mix(gg, mix(188, 132, v) * tone, t); b = mix(b, mix(84, 52, v) * tone, t);
+      tone = HASH[i] > 0.5 ? 1 : 0.9; kVeg = Math.min(1, v * 1.4);
+      r0 = (150 - 84 * v) * tone; g0 = (188 - 56 * v) * tone; b0 = (84 - 32 * v) * tone;
+      r += (r0 - r) * kVeg; gg += (g0 - gg) * kVeg; b += (b0 - b) * kVeg;
       if (v > 0.6 && HASH[i] > 0.972 && win < 0.3) { if (HASH[i] > 0.986) { r = 246; gg = 222; b = 92; } else { r = 240; gg = 236; b = 236; } }
-      if (aut > 0) { const k = aut * 0.55 * t; r = mix(r, 196, k); gg = mix(gg, 158, k); b = mix(b, 70, k); }   // 秋は黄色く
-      if (win > 0) { const k = win * 0.5 * t; r = mix(r, 164, k); gg = mix(gg, 150, k); b = mix(b, 108, k); }   // 冬は枯れ草色
+      if (aut > 0) { kAut = aut * 0.55 * kVeg; r += (196 - r) * kAut; gg += (158 - gg) * kAut; b += (70 - b) * kAut; }   // 秋は黄色く
+      if (win > 0) { kWin = win * 0.5 * kVeg; r += (164 - r) * kWin; gg += (150 - gg) * kWin; b += (108 - b) * kWin; }   // 冬は枯れ草色
     }
     // 水
     const wd = w[i];
     if (wd > 0.06) {
-      const t = Math.min(1, wd / 3);
-      let wr = mix(92, 22, t), wg = mix(186, 78, t), wb = mix(204, 138, t);
-      const a = alg[i] * 0.5; wr = mix(wr, 64, a); wg = mix(wg, 140, a); wb = mix(wb, 96, a);
-      const sp = (W.fL[i] + W.fR[i] + W.fU[i] + W.fD[i]) / (wd + 0.15);
-      let shore = false;
-      for (const o of NB4) { const j = i + o; if (inside[j] && w[j] <= 0.06) shore = true; }
-      const foam = Math.min(0.6, Math.max(0, sp - 2.2) * 0.13) + (shore ? 0.22 : 0);
-      wr = mix(wr, 236, foam); wg = mix(wg, 246, foam); wb = mix(wb, 250, foam);
-      const k = Math.min(1, (wd - 0.06) / 0.2);
-      r = mix(r, wr, k); gg = mix(gg, wg, k); b = mix(b, wb, k);
+      kWd = Math.min(1, wd / 3);
+      wr = 92 - 70 * kWd; wg = 186 - 108 * kWd; wb = 204 - 66 * kWd;
+      kAlg = alg[i] * 0.5; wr += (64 - wr) * kAlg; wg += (140 - wg) * kAlg; wb += (96 - wb) * kAlg;
+      flow = (W.fL[i] + W.fR[i] + W.fU[i] + W.fD[i]) / (wd + 0.15);
+      shore = false;
+      for (let q = 0; q < 4; q++) { const j = i + NB4[q]; if (inside[j] && w[j] <= 0.06) shore = true; }
+      kFoam = Math.min(0.6, Math.max(0, flow - 2.2) * 0.13) + (shore ? 0.22 : 0);
+      wr += (236 - wr) * kFoam; wg += (246 - wg) * kFoam; wb += (250 - wb) * kFoam;
+      kMix = Math.min(1, (wd - 0.06) / 0.2);
+      r += (wr - r) * kMix; gg += (wg - gg) * kMix; b += (wb - b) * kMix;
       SR[i] = wr * 0.7; SG[i] = wg * 0.75; SB[i] = wb * 0.85;
     }
     // 氷・雪・霜
-    if (W.ice[i]) { r = mix(r, 206, 0.8); gg = mix(gg, 228, 0.8); b = mix(b, 242, 0.8); SR[i] = 170; SG[i] = 196; SB[i] = 214; }
+    if (W.ice[i]) { r += (206 - r) * 0.8; gg += (228 - gg) * 0.8; b += (242 - b) * 0.8; SR[i] = 170; SG[i] = 196; SB[i] = 214; }
     const snw = W.snow[i];
-    if (snw > 0.01) { const k = Math.min(1, snw * 5); r = mix(r, 242, k); gg = mix(gg, 246, k); b = mix(b, 252, k); }
-    else if (W.T[i] < 0 && wd <= 0.06) { r = mix(r, 220, 0.25); gg = mix(gg, 226, 0.25); b = mix(b, 236, 0.25); }
+    if (snw > 0.01) { kSnow = Math.min(1, snw * 5); r += (242 - r) * kSnow; gg += (246 - gg) * kSnow; b += (252 - b) * kSnow; }
+    else if (W.T[i] < 0 && wd <= 0.06) { r += (220 - r) * 0.25; gg += (226 - gg) * 0.25; b += (236 - b) * 0.25; }
     // くぼみの影（まわりが高いほど暗い）
-    let ao = 0;
-    for (const o of NB4) { const j = i + o; if (inside[j] && Zq[j] > Zq[i]) ao++; }
-    const sh = 1 - 0.06 * ao;
+    ao = 0;
+    for (let q = 0; q < 4; q++) { const j = i + NB4[q]; if (inside[j] && Zq[j] > Zq[i]) ao++; }
+    sh = 1 - 0.06 * ao;
     TR[i] = r * sh; TG[i] = gg * sh; TB[i] = b * sh;
     LUM[i] = (0.3 + 0.7 * Lt[i]) * shadeCloud[i];
   }
