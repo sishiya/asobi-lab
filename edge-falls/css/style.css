@@ -181,20 +181,20 @@ body.fan-open .toast{bottom:140px}
 .card .gbar s{border-color:#3a2a1c}
 .card p{margin:2px 0;color:#6d5a44;font-size:12px}
 
-/* 観察の巻物: 右がわにひらく羊皮紙の巻物（スマホは下から）。上と下に木の軸（v033。前は本） */
-.book{position:absolute;right:0;top:0;bottom:0;width:min(400px,100%);padding:22px 20px;display:flex;pointer-events:none}
-.book::before,.book::after{content:"";position:absolute;left:10px;right:10px;height:14px;border-radius:7px;z-index:1;pointer-events:none;
-  background:radial-gradient(circle at 7px 50%,#2e1c10 0 4px,#5a3a20 5px,transparent 6px),radial-gradient(circle at calc(100% - 7px) 50%,#2e1c10 0 4px,#5a3a20 5px,transparent 6px),
-    linear-gradient(#3e2614,#8a5a2e 30%,#c08a52 48%,#8a5a2e 70%,#3a2410);box-shadow:0 3px 8px rgba(0,0,0,.55)}
-.book::before{top:14px}
-.book::after{top:calc(100% - 28px);animation:scrollDown .45s ease-out}
-.pages{pointer-events:auto;position:relative;flex:1;background:#f4ead0;color:#3a2a1c;border:0;border-radius:0;
-  box-shadow:inset 10px 0 14px -10px rgba(110,76,42,.45),inset -10px 0 14px -10px rgba(110,76,42,.45),0 6px 30px rgba(0,0,0,.55);overflow:auto;padding:14px 18px 16px;
-  background-image:radial-gradient(ellipse at 30% 0%,rgba(255,255,255,.35),transparent 60%),radial-gradient(ellipse at 100% 100%,rgba(140,100,50,.14),transparent 60%),
-    repeating-linear-gradient(0deg,rgba(140,100,50,.035) 0 2px,transparent 2px 5px);animation:unroll .45s ease-out}
-@keyframes unroll{from{clip-path:inset(0 0 100% 0)}to{clip-path:inset(0 0 0 0)}}
-@keyframes scrollDown{from{top:14px}to{top:calc(100% - 28px)}}
-@media (prefers-reduced-motion:reduce){.pages,.book::after{animation:none}}
+/* 箱庭の博物誌: 右がわにひらく革装の写本（スマホは下から）。革の表紙が羊皮紙の頁をふちどり、金の押し線と真鍮の角金具。左が綴じ目（v036。前は巻物・観察帳） */
+.book{position:absolute;right:0;top:0;bottom:0;width:min(400px,100%);padding:24px 22px 24px 26px;display:flex;pointer-events:none;perspective:1400px}
+.book::before{content:"";position:absolute;inset:8px;border-radius:8px 6px 6px 8px;pointer-events:none;
+  background:radial-gradient(ellipse at 30% 10%,rgba(255,220,170,.16),transparent 55%),repeating-linear-gradient(35deg,rgba(0,0,0,.05) 0 2px,transparent 2px 5px),linear-gradient(90deg,#3a1c10,#6a3820 9%,#5e321c 60%,#4a2614);
+  box-shadow:inset 0 0 0 3px #4a2414,inset 0 0 0 4px #a8803c,inset 0 0 0 6px #4a2414,0 8px 30px rgba(0,0,0,.6)}
+.book::after{content:"";position:absolute;inset:8px;pointer-events:none;z-index:2;
+  background:radial-gradient(circle at 9px 9px,#e0b860 0 3px,#8a6a30 4px,transparent 5px),radial-gradient(circle at calc(100% - 9px) 9px,#e0b860 0 3px,#8a6a30 4px,transparent 5px),
+    radial-gradient(circle at 9px calc(100% - 9px),#e0b860 0 3px,#8a6a30 4px,transparent 5px),radial-gradient(circle at calc(100% - 9px) calc(100% - 9px),#e0b860 0 3px,#8a6a30 4px,transparent 5px)}
+.pages{pointer-events:auto;position:relative;z-index:1;flex:1;background:#f4ead0;color:#3a2a1c;border:0;border-radius:2px 4px 4px 2px;
+  box-shadow:inset 18px 0 18px -14px rgba(80,50,20,.5),2px 0 0 #e8dbb8,4px 0 0 #d6c59c,5px 1px 0 #c8b68c,0 2px 8px rgba(0,0,0,.35);overflow:auto;padding:14px 18px 16px 22px;
+  background-image:radial-gradient(ellipse at 30% 0%,rgba(255,255,255,.35),transparent 60%),radial-gradient(ellipse at 100% 100%,rgba(140,100,50,.14),transparent 60%);
+  transform-origin:left center;animation:bookOpen .4s ease-out}
+@keyframes bookOpen{from{transform:rotateY(-70deg);opacity:.2}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.pages{animation:none}}
 .tabs{display:flex;flex-wrap:wrap;gap:2px 10px;border-bottom:1px solid #cdb98f;padding:0 28px 6px 0;margin-bottom:10px}
 .tabs button{border:0;background:transparent;cursor:pointer;font-size:13px;color:#6d5a44;padding:4px 0;border-bottom:2px solid transparent}
 .tabs button[aria-selected=true]{color:#3a2a1c;border-bottom-color:#8c3c14}
@@ -330,8 +330,8 @@ body.collapsing .viewpad,body.thumb .viewpad,body.thumb .gesture{display:none!im
   .fan{bottom:88px;left:8px!important;right:8px;transform:none;flex-wrap:wrap;justify-content:center}
   body.fan-open .toast{bottom:190px}
   .fan button{min-height:40px;font-size:12px}
-  .book{top:auto;height:72%;width:100%;padding:20px 12px}
-  .book::before,.book::after{left:4px;right:4px}
+  .book{top:auto;height:72%;width:100%;padding:16px 14px 16px 16px}
+  .book::before,.book::after{inset:4px}
   .line{top:30%}
   /* スマホのはじめの画面: 題とことばは上、ボタンは下に縦にならべて、まん中の大地を見せる（2026-10-13 ユーザー） */
   body.titling .overlay{align-items:stretch;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));

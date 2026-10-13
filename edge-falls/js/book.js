@@ -1,6 +1,6 @@
 'use strict';
 // 画面（v011。DESIGN.md 4章）: 画面のほとんどは世界。手に持つもの3つ（土ぶくろ・水がめ・命のつぼ）、天の輪（季節と時の速さ）、
-//   観察の巻物（グラフ・遺伝子・水と土・見つけたこと・年・てびき）。数字はなるべく観察の巻物の中に。
+//   箱庭の博物誌（グラフ・遺伝子・水と土・見つけたこと・年・てびき）。数字はなるべく箱庭の博物誌の中に。
 //   見つけたこと（観察の記録）: いまのしくみがすでに起こしている出来事に名前をつける。見つけた瞬間の絵を小さく残す。
 //   世界の版画: いま見えている絵を1枚にして保存する（型を見くらべる試作。v018）。
 
@@ -34,14 +34,18 @@ function drawPot(ctx, n, glow) {
   const dots = Math.min(6, n);
   for (let k = 0; k < dots; k++) px(ctx, 4 + (k % 3) * 3, 7 + ((k / 3) | 0) * 3, 2, 2, glow ? '#fff2b0' : '#e8d890');
 }
-// 観察の巻物（v033 で本から巻物に。2026-10-13 ユーザー）: 上に木の軸、ひらいた紙、下は巻いたまま、赤いひも
+// 箱庭の博物誌（v036。2026-10-13 ユーザー。v033〜v035 は巻物、その前は観察帳）: 革の表紙、真鍮の角金具と留め金、金の輪（メグリ）、小口の紙、赤いしおり
 function drawBook(ctx) {
   ctx.clearRect(0, 0, 32, 32);
-  px(ctx, 3, 4, 10, 8, '#f4ead0'); px(ctx, 3, 4, 1, 8, '#e2d2a8'); px(ctx, 12, 4, 1, 8, '#e2d2a8'); px(ctx, 4, 4, 8, 1, '#dccb9e');   // 紙
-  for (let k = 0; k < 3; k++) px(ctx, 5, 6 + k * 2, k === 2 ? 4 : 6, 1, '#a08a64');                                                  // 墨の行
-  px(ctx, 2, 2, 12, 2, '#8a5a2e'); px(ctx, 2, 2, 12, 1, '#b07a44'); px(ctx, 1, 2, 1, 2, '#4a3020'); px(ctx, 14, 2, 1, 2, '#4a3020');   // 上の軸
-  px(ctx, 2, 12, 12, 2, '#e9dcb8'); px(ctx, 2, 13, 12, 1, '#cdb98f'); px(ctx, 1, 12, 1, 2, '#6e4c2a'); px(ctx, 14, 12, 1, 2, '#6e4c2a');   // 下の巻いた紙
-  px(ctx, 10, 13, 1, 2, '#b04a2a'); px(ctx, 11, 14, 1, 1, '#b04a2a');                                                                // ひも
+  px(ctx, 4, 3, 10, 12, '#efe3c4'); px(ctx, 4, 14, 10, 1, '#cdb98f');                                         // 小口（紙の重なり）
+  px(ctx, 2, 2, 11, 12, '#6a3820'); px(ctx, 3, 2, 10, 1, '#8a4e2c'); px(ctx, 2, 3, 1, 10, '#4a2414');          // 革の表紙（上が明るく、背は暗く）
+  px(ctx, 3, 3, 1, 11, '#3a1c10');                                                                             // 背のくぼみ
+  px(ctx, 5, 4, 7, 1, '#a07838'); px(ctx, 5, 11, 7, 1, '#a07838'); px(ctx, 5, 4, 1, 8, '#a07838'); px(ctx, 11, 4, 1, 8, '#a07838');   // 金の押し線
+  px(ctx, 7, 6, 3, 1, '#e0b860'); px(ctx, 7, 9, 3, 1, '#e0b860'); px(ctx, 6, 7, 1, 2, '#e0b860'); px(ctx, 10, 7, 1, 2, '#e0b860');   // 金の輪
+  px(ctx, 9, 6, 1, 1, '#f4d890');
+  px(ctx, 12, 2, 1, 1, '#d8b060'); px(ctx, 12, 13, 1, 1, '#d8b060');                                           // 角金具
+  px(ctx, 12, 7, 3, 2, '#c89a48'); px(ctx, 14, 7, 1, 2, '#8a6a30');                                            // 留め金
+  px(ctx, 9, 14, 1, 2, '#b04a2a');                                                                             // しおり
 }
 function drawSeed(ctx) { ctx.clearRect(0, 0, 32, 32); px(ctx, 7, 4, 2, 6, '#6aa84f'); px(ctx, 4, 5, 3, 2, '#8fcf6a'); px(ctx, 9, 3, 3, 2, '#8fcf6a'); px(ctx, 5, 10, 6, 3, '#8a6238'); }
 function drawCreature(ctx, kind) {
@@ -159,7 +163,7 @@ function openMenu() {
     { label: TX('つづける', 'Resume'), main: true, fn: closeMenu },
     { label: TX('セーブ', 'Save'), fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'save'); } },
     { label: TX('ロード', 'Load'), fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'load'); } },
-    { label: TX('観察の巻物', 'Field Scroll'), fn: () => { G.menuOpen = false; resume(); openBook(null, true); } },
+    { label: TX('箱庭の博物誌', 'Book of Nature'), fn: () => { G.menuOpen = false; resume(); openBook(null, true); } },
     { label: TX('設定', 'Settings'), fn: () => { G.menuOpen = false; openSettings(() => openMenu()); } },
     { label: TX('タイトルへ', 'Title screen'), fn: () => { G.menuOpen = false; toTitle(); } },
     { label: TX('ゲームを終える', 'Quit'), fn: () => { G.menuOpen = false; quitGame(); } },
@@ -171,7 +175,7 @@ function closeMenu() {
   if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; }
 }
 // ひとつ前へもどる（Esc・札の外を押したとき）。2026-10-13 ユーザー「メニューのサブメニューも ESC キーで一段戻れるように」
-//   大きな絵 → 観察の巻物（メニューから開いたならメニューへ）→ メニューの下の札（G.panelBack）→ メニューを閉じる。
+//   大きな絵 → 箱庭の博物誌（メニューから開いたならメニューへ）→ メニューの下の札（G.panelBack）→ メニューを閉じる。
 //   タイトルやエンディングの札には、もどる先がない（false）
 function goBack() {
   if (!$('lightbox').hidden) { closeLightbox(); return true; }
@@ -202,7 +206,7 @@ function toTitle() {
   $('panel').classList.add('world'); G.panelBack = openMenu;
 }
 // 設定（v016。2026-10-13 ユーザー「設定メニューを追加して」「メニューには文字フォント切り替えは必要ない。設定画面に移して」）
-//   音楽・効果音・文字・背景（v017 で観察の巻物のてびきから移した）。言語は v020 でタイトルの右上だけに（遊んでいるとちゅうで読み直すと、
+//   音楽・効果音・文字・背景（v017 で箱庭の博物誌のてびきから移した）。言語は v020 でタイトルの右上だけに（遊んでいるとちゅうで読み直すと、
 //   セーブのつもりがないのにページを離れるときの自動セーブが走るので）。押すとその場で切りかわる。back があれば「もどる」でそこへ（メニュー）
 function openSettings(back, focus) {
   const on = v => v ? TX('オン', 'On') : TX('オフ', 'Off'), again = k => () => openSettings(back, k);
@@ -312,7 +316,7 @@ function chapterLine(a, b, sec = 7) {
   clearTimeout(lineT); if (a || b) lineT = setTimeout(() => el.classList.remove('on'), sec * 1000);
 }
 
-// ---- 観察の巻物 ----
+// ---- 箱庭の博物誌 ----
 // ひらいているあいだは時を止める（2026-10-13 ユーザー）。閉じると、もとの速さへ（ひらいたまま速さを変えたら、そのまま）
 let page = 'life', bookSpeed = null, bookFromMenu = false;
 function openBook(p, fromMenu) {
@@ -414,7 +418,7 @@ function takeSketch(t) {
   } catch (e) { /* 残せなくても遊べる */ }
   finally { G.sel = keep.sel; V.zoom = keep.zoom; V.panX = keep.panX; V.panY = keep.panY; layout(keep.cw, keep.ch); }
 }
-function addPage() { /* 年の頁は G.done から作るので、ここでは観察の巻物の印だけ */ $('btnBook').classList.remove('glow'); void $('btnBook').offsetWidth; $('btnBook').classList.add('glow'); }
+function addPage() { /* 年の頁は G.done から作るので、ここでは箱庭の博物誌の印だけ */ $('btnBook').classList.remove('glow'); void $('btnBook').offsetWidth; $('btnBook').classList.add('glow'); }
 function renderFinds() {
   const f = G.found || {};
   $('findN').textContent = TX(`${Object.keys(f).length} ／ ${FINDS.length}`, `${Object.keys(f).length} / ${FINDS.length}`);
@@ -423,7 +427,7 @@ function renderFinds() {
     : `<figure class="unfound"><div class="blank">${TX('？', '?')}</div><figcaption><b>${TX('まだ見ていない', 'Not seen yet')}</b></figcaption></figure>`).join('');
 }
 // 見つけたことの絵を大きく（2026-10-13 ユーザー「クリックしたら世界観にマッチする枠をつけて大きく表示」）。
-//   観察の巻物と同じ羊皮紙の台紙に二重の墨の線。押す・Esc で閉じる。←→ でとなりの絵へ
+//   箱庭の博物誌と同じ羊皮紙の台紙に二重の墨の線。押す・Esc で閉じる。←→ でとなりの絵へ
 let lbId = null;
 $('finds').addEventListener('click', e => { const b = e.target.closest('[data-find]'); if (b) { Sound.play('click'); openLightbox(b.dataset.find); } });
 function openLightbox(id) {
@@ -450,7 +454,7 @@ const TIPS = [
   ['rotate', () => !touchy() && G.chT > DAY * 0.4, TX('大地の外をドラッグすると、まわして見られるよ。ホイールで寄れる。左のボタンでもね', 'Drag outside the land to turn it, and scroll to zoom. The buttons on the left work too')],
   ['speed', () => G.ch >= 1 && G.chT > DAY * 0.3, TX('右上の天の輪を押すと、時が止まるよ。下の ›› で速くなる', 'Press the Sky Dial at the top right to stop time. The ›› marks below make it go faster')],
   ['sun', () => G.ch >= 2 && G.chT > DAY * 1.5, TX('太陽は、つかんで動かせるの。止めたところはよく育つけど、乾いて暑くなる。反対がわは夜のまま', 'You can grab the Sun and move it. Where you stop it, plants grow well, but it gets dry and hot. The other side stays in night')],
-  ['book', () => G.ch >= 3 && G.chT > DAY, TX('右下の巻物に、いきものの移り変わりが書いてあるよ', 'The scroll at the bottom right shows how life is changing')],
+  ['book', () => G.ch >= 3 && G.chT > DAY, TX('右下の博物誌に、いきものの移り変わりが書いてあるよ', 'The Book of Nature at the bottom right shows how life is changing')],
   ['moon', () => G.ch >= 7 && G.chT > DAY, TX('月を寄せると、潮で水がそっちへ寄るの。浅瀬が動いて、ふちから水があふれるよ', 'Bring the Moon closer and the tide pulls the water toward it. The shallows move, and water spills over the edge')],
 ];
 let accTip = 0;
@@ -478,7 +482,7 @@ function drawSpots(ctx, t) {
 //   型: 見たまま（額なし）・羊皮紙の台紙・深淵の額・古い写真・銅版画（これまでの）。札で見くらべて、押すと大きく、「のこす」で PNG。
 const PRINTS = [
   ['seen', TX('見たまま', 'As seen'), TX('画面の絵そのまま。下に小さく題', 'The picture on the screen, with a small title at the bottom')],
-  ['mat', TX('羊皮紙の台紙', 'Parchment mount'), TX('観察の巻物と同じ紙に、墨の二重線', 'The same paper as the Field Scroll, with double ink lines')],
+  ['mat', TX('羊皮紙の台紙', 'Parchment mount'), TX('箱庭の博物誌と同じ紙に、墨の二重線', 'The same paper as the Book of Nature, with double ink lines')],
   ['abyss', TX('深淵の額', 'Abyss frame'), TX('夜空の色の台紙に、金の二重線', 'A night-sky mount with double gold lines')],
   ['photo', TX('古い写真', 'Old photo'), TX('セピアに焼いて、羊皮紙の台紙に', 'Printed in sepia on a parchment mount')],
   ['stone', TX('石板', 'Stone tablet'), TX('欠けたふちの石に、絵をはめこんで題を彫る', 'Set into a chipped stone, with the title carved in')],
