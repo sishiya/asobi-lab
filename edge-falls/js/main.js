@@ -350,7 +350,7 @@ function start() {
     <p class="sub">Nothing is made, nothing is lost. It only turns.</p>`),
     (cont ? [{ label: TX('つづきから', 'Continue'), main: true, fn: () => openSavePanel(start, 'load') }, { label: TX('はじめから', 'New game'), fn: go(() => { if (W.t > 0 || L.list.length) newGame(); G.started = true; enterChapter(0); }) }]
       : [{ label: TX('はじめる', 'Start'), main: true, fn: go(() => { if (W.t > 0 || L.list.length) newGame(); G.started = true; enterChapter(0); }) }]).concat([{ label: TX('自由な箱庭', 'Free Garden'), fn: go(() => { newGame(undefined, false); G.started = true; syncHands(); }) }]));
-  $('panel').classList.add('titlecard');
+  $('panel').classList.add('titlecard'); document.body.classList.add('atitle');
 }
 
 // 言語はタイトルの右上だけで切りかえる（v020。2026-10-13 ユーザー）。タイトルでは G.started が false なので、読み直しても自動セーブは走らない

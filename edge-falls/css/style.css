@@ -375,7 +375,7 @@ body:has(#overlay:not([hidden]) .panel.settings) .stage::after{opacity:0}
 .fan .putaway:hover,.fan .putaway:focus-visible{opacity:1;background:rgba(239,227,196,.12)}
 /* 言語（タイトルの右上だけ） */
 .langsw{position:absolute;right:max(12px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));z-index:4;display:none;gap:2px;padding:3px;border-radius:10px;background:rgba(12,16,30,.55);border:1px solid rgba(239,227,196,.25)}
-body.titling .langsw{display:flex}
+body.titling.atitle .langsw{display:flex}   /* タイトルの札のときだけ（「つづきから」の札とは重ねない。v042） */
 .langsw button{border:0;background:transparent;color:var(--paper);font-size:13px;letter-spacing:.08em;padding:4px 10px;border-radius:7px;cursor:pointer;opacity:.65;min-height:32px}
 .langsw button[aria-pressed=true]{background:rgba(239,227,196,.9);color:#141b30;opacity:1}
 .langsw button:hover,.langsw button:focus-visible{opacity:1;outline:0}

@@ -123,7 +123,7 @@ addEventListener('DOMContentLoaded', () => {
 });
 
 function showPanel(html, btns) {
-  $('panel').className = 'panel'; G.panelBack = null;   // Esc・札の外でもどる先（入れる札だけが入れる。book.js の goBack）
+  $('panel').className = 'panel'; G.panelBack = null; document.body.classList.remove('atitle');   // JP／EN はタイトルの札のときだけ（start が付けなおす）   // Esc・札の外でもどる先（入れる札だけが入れる。book.js の goBack）
   $('panel').innerHTML = html;
   const box = document.createElement('div'); box.className = 'btns';
   for (const b of btns) {
