@@ -181,22 +181,11 @@ body.fan-open .toast{bottom:140px}
 .card .gbar s{border-color:#3a2a1c}
 .card p{margin:2px 0;color:#6d5a44;font-size:12px}
 
-/* 天命の書板: 右がわに立つ粘土の板（スマホは下から）。焼いた粘土のふち、少しゆがんだ角、右下の小さなひび。字を読む面はなめらかにならした粘土に、うすいくさび形の刻み（v037。前は博物誌・巻物・観察帳） */
-.book{position:absolute;right:0;top:0;bottom:0;width:min(400px,100%);padding:22px 20px 22px 20px;display:flex;pointer-events:none}
-.book::before{content:"";position:absolute;inset:8px;border-radius:22px 16px 26px 18px / 18px 24px 16px 22px;pointer-events:none;
-  background:radial-gradient(ellipse at 25% 15%,rgba(255,236,200,.35),transparent 55%),radial-gradient(circle at 80% 70%,rgba(90,60,30,.18),transparent 50%),
-    repeating-radial-gradient(circle at 30% 40%,rgba(0,0,0,.035) 0 1px,transparent 1px 3px),linear-gradient(160deg,#d4b282,#b88f5e 55%,#9c744a);
-  box-shadow:inset 3px 3px 0 rgba(255,236,200,.45),inset -4px -5px 0 rgba(90,60,30,.4),0 10px 30px rgba(0,0,0,.6)}
-.book::after{content:"";position:absolute;right:9px;bottom:70px;width:40px;height:46px;pointer-events:none;z-index:2;
-  background:linear-gradient(118deg,transparent 46%,rgba(80,52,28,.55) 47%,rgba(80,52,28,.55) 50%,transparent 51%),linear-gradient(64deg,transparent 60%,rgba(80,52,28,.4) 61%,transparent 63%)}
-.pages{pointer-events:auto;position:relative;z-index:1;flex:1;background:#e6d2aa;color:#3a2a1c;border:0;border-radius:14px 10px 16px 12px;
-  box-shadow:inset 2px 3px 6px rgba(90,60,30,.45),inset -1px -1px 0 rgba(255,240,210,.6);overflow:auto;padding:16px 18px 18px;
-  background-image:radial-gradient(ellipse at 30% 0%,rgba(255,248,230,.45),transparent 60%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='34'%3E%3Cg fill='%23785430' fill-opacity='.075'%3E%3Cpath d='M4 6l7 2-7 2z'/%3E%3Cpath d='M10 7.5h6v1h-6z'/%3E%3Cpath d='M22 5l3 7 3-7z'/%3E%3Cpath d='M24.5 11h1v5h-1z'/%3E%3Cpath d='M36 6l7 2-7 2z'/%3E%3Cpath d='M42 7.5h4v1h-4z'/%3E%3Cpath d='M12 22l3 7 3-7z'/%3E%3Cpath d='M30 23l7 2-7 2z'/%3E%3Cpath d='M46 22l3 6 3-6z'/%3E%3C/g%3E%3C/svg%3E"),
-    radial-gradient(rgba(120,84,48,.05) 1px,transparent 1.5px);background-size:auto,56px 34px,7px 7px;
-  animation:tabletRise .35s ease-out}
-@keyframes tabletRise{from{transform:translateY(18px);opacity:0}to{transform:none;opacity:1}}
-@media (prefers-reduced-motion:reduce){.pages{animation:none}}
+/* 観察帳: 右がわに開く羊皮紙の本（スマホは下から）。v038 で v032 までの形にもどした */
+.book{position:absolute;right:0;top:0;bottom:0;width:min(400px,100%);padding:12px;display:flex;pointer-events:none}
+.pages{pointer-events:auto;position:relative;flex:1;background:#f4ead0;color:#3a2a1c;border:2px solid #3a2a1c;outline:1px solid #3a2a1c;outline-offset:3px;border-radius:4px;
+  box-shadow:0 6px 30px rgba(0,0,0,.55);overflow:auto;padding:12px 16px 16px;
+  background-image:radial-gradient(ellipse at 30% 0%,rgba(255,255,255,.35),transparent 60%),radial-gradient(ellipse at 100% 100%,rgba(140,100,50,.12),transparent 60%)}
 .tabs{display:flex;flex-wrap:wrap;gap:2px 10px;border-bottom:1px solid #cdb98f;padding:0 28px 6px 0;margin-bottom:10px}
 .tabs button{border:0;background:transparent;cursor:pointer;font-size:13px;color:#6d5a44;padding:4px 0;border-bottom:2px solid transparent}
 .tabs button[aria-selected=true]{color:#3a2a1c;border-bottom-color:#8c3c14}
@@ -332,8 +321,7 @@ body.collapsing .viewpad,body.thumb .viewpad,body.thumb .gesture{display:none!im
   .fan{bottom:88px;left:8px!important;right:8px;transform:none;flex-wrap:wrap;justify-content:center}
   body.fan-open .toast{bottom:190px}
   .fan button{min-height:40px;font-size:12px}
-  .book{top:auto;height:72%;width:100%;padding:16px 14px}
-  .book::before{inset:4px}
+  .book{top:auto;height:72%;width:100%;padding:8px}
   .line{top:30%}
   /* スマホのはじめの画面: 題とことばは上、ボタンは下に縦にならべて、まん中の大地を見せる（2026-10-13 ユーザー） */
   body.titling .overlay{align-items:stretch;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));

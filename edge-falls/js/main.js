@@ -149,7 +149,7 @@ cv.addEventListener('dblclick', e => { const p = local(e); if (!pick(p.x, p.y) &
 cv.addEventListener('pointerdown', e => {
   if (!G.started || ENDING) return;
   Sound.unlock();
-  // 天命の書板の外を押した: 閉じるだけ。札（メニュー）を外を押して閉じた直後も、手に持ったものを使わない（2026-10-13 ユーザー「うっかり選択中のツールを実行してしまわないように」）
+  // 観察帳の外を押した: 閉じるだけ。札（メニュー）を外を押して閉じた直後も、手に持ったものを使わない（2026-10-13 ユーザー「うっかり選択中のツールを実行してしまわないように」）
   if (!$('book').hidden) { closeBook(); Sound.play('click'); return; }
   if (performance.now() - (G.closedT || 0) < 400) return;
   try { cv.setPointerCapture(e.pointerId); } catch (err) { /* 捕まえられなくても動かす */ }
@@ -260,7 +260,7 @@ addEventListener('keydown', e => {
     if (!e.repeat && G.started && !COL && !G.menuOpen && $('overlay').hidden && now - (G.spaceT || 0) > 350) { G.spaceT = now; bookSpeed = null; setSpeed(G.speed ? 0 : G.lastSpeed); Sound.play('pin'); G.did.speed = 1; }
   }
   else if (e.key === 'Escape') {
-    if (goBack()) Sound.play('click');          // 大きな絵・天命の書板・メニューの下の札は、ひとつ前へ
+    if (goBack()) Sound.play('click');          // 大きな絵・観察帳・メニューの下の札は、ひとつ前へ
     else if ($('overlay').hidden && G.hand) dropHand();   // 手に持っていたら、まず手放す（もう一度 Esc でメニュー。2026-10-13 ユーザー）
     else if ($('overlay').hidden) openMenu();
   }

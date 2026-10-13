@@ -1,6 +1,6 @@
 'use strict';
 // 画面（v011。DESIGN.md 4章）: 画面のほとんどは世界。手に持つもの3つ（土ぶくろ・水がめ・命のつぼ）、天の輪（季節と時の速さ）、
-//   天命の書板（グラフ・遺伝子・水と土・見つけたこと・年・てびき）。数字はなるべく天命の書板の中に。
+//   観察帳（グラフ・遺伝子・水と土・見つけたこと・年・てびき）。数字はなるべく観察帳の中に。
 //   見つけたこと（観察の記録）: いまのしくみがすでに起こしている出来事に名前をつける。見つけた瞬間の絵を小さく残す。
 //   世界の版画: いま見えている絵を1枚にして保存する（型を見くらべる試作。v018）。
 
@@ -34,20 +34,13 @@ function drawPot(ctx, n, glow) {
   const dots = Math.min(6, n);
   for (let k = 0; k < dots; k++) px(ctx, 4 + (k % 3) * 3, 7 + ((k / 3) | 0) * 3, 2, 2, glow ? '#fff2b0' : '#e8d890');
 }
-// 天命の書板（v037。2026-10-13 ユーザー。メソポタミアの神話で世界の定めが刻まれた粘土の板。v036 は博物誌、v033〜v035 は巻物、その前は観察帳）:
-//   粘土の板に、くさび形の刻み、ふちの欠け、下にメグリの輪の印（円筒印章のように押した跡）
+// 観察帳（v038 でもどした。2026-10-13 ユーザー「最初のバージョンの観察帳がよかったかも」。v033〜v037 は巻物・博物誌・天命の書板をためした）: ひらいた本と赤いしおり
 function drawBook(ctx) {
   ctx.clearRect(0, 0, 32, 32);
-  px(ctx, 3, 1, 10, 14, '#c9a674'); px(ctx, 2, 2, 12, 12, '#c9a674');                                           // 粘土の板（角はまるく）
-  px(ctx, 3, 1, 10, 1, '#e2c696'); px(ctx, 2, 2, 1, 12, '#e2c696');                                             // 光の当たるふち
-  px(ctx, 13, 2, 1, 12, '#8e6c44'); px(ctx, 3, 14, 10, 1, '#8e6c44'); px(ctx, 12, 14, 1, 1, '#6e5234');         // かげのふち
-  for (let r = 0; r < 3; r++) for (let k = 0; k < 4 - (r % 2); k++) {                                         // くさび形の刻み（行ごとに少しずらす）
-    const x = 4 + k * 2 + (r % 2), y = 3 + r * 2;
-    px(ctx, x, y, 1, 1, '#6e5234'); px(ctx, x + 1, y, 1, 1, '#9a7a52');
-  }
-  px(ctx, 12, 1, 1, 1, '#a88658'); px(ctx, 11, 2, 1, 1, '#8e6c44');                                             // 欠け
-  px(ctx, 6, 9, 4, 1, '#7a5a38'); px(ctx, 6, 13, 4, 1, '#7a5a38'); px(ctx, 5, 10, 1, 3, '#7a5a38'); px(ctx, 10, 10, 1, 3, '#7a5a38');   // 輪の印
-  px(ctx, 6, 10, 4, 3, '#b8946a'); px(ctx, 7, 11, 2, 1, '#c9a674'); px(ctx, 9, 9, 1, 1, '#5a4028');
+  px(ctx, 1, 4, 7, 10, '#e9dcb8'); px(ctx, 8, 4, 7, 10, '#f4ead0'); px(ctx, 7, 4, 2, 11, '#6e4c2a');
+  px(ctx, 1, 14, 14, 1, '#6e4c2a');
+  for (let k = 0; k < 4; k++) { px(ctx, 2, 6 + k * 2, 4, 1, '#a08a64'); px(ctx, 10, 6 + k * 2, 4, 1, '#a08a64'); }
+  px(ctx, 11, 2, 2, 5, '#b04a2a');
 }
 function drawSeed(ctx) { ctx.clearRect(0, 0, 32, 32); px(ctx, 7, 4, 2, 6, '#6aa84f'); px(ctx, 4, 5, 3, 2, '#8fcf6a'); px(ctx, 9, 3, 3, 2, '#8fcf6a'); px(ctx, 5, 10, 6, 3, '#8a6238'); }
 function drawCreature(ctx, kind) {
@@ -165,7 +158,7 @@ function openMenu() {
     { label: TX('つづける', 'Resume'), main: true, fn: closeMenu },
     { label: TX('セーブ', 'Save'), fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'save'); } },
     { label: TX('ロード', 'Load'), fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'load'); } },
-    { label: TX('天命の書板', 'Tablet of Destinies'), fn: () => { G.menuOpen = false; resume(); openBook(null, true); } },
+    { label: TX('観察帳', 'Field Notes'), fn: () => { G.menuOpen = false; resume(); openBook(null, true); } },
     { label: TX('設定', 'Settings'), fn: () => { G.menuOpen = false; openSettings(() => openMenu()); } },
     { label: TX('タイトルへ', 'Title screen'), fn: () => { G.menuOpen = false; toTitle(); } },
     { label: TX('ゲームを終える', 'Quit'), fn: () => { G.menuOpen = false; quitGame(); } },
@@ -177,7 +170,7 @@ function closeMenu() {
   if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; }
 }
 // ひとつ前へもどる（Esc・札の外を押したとき）。2026-10-13 ユーザー「メニューのサブメニューも ESC キーで一段戻れるように」
-//   大きな絵 → 天命の書板（メニューから開いたならメニューへ）→ メニューの下の札（G.panelBack）→ メニューを閉じる。
+//   大きな絵 → 観察帳（メニューから開いたならメニューへ）→ メニューの下の札（G.panelBack）→ メニューを閉じる。
 //   タイトルやエンディングの札には、もどる先がない（false）
 function goBack() {
   if (!$('lightbox').hidden) { closeLightbox(); return true; }
@@ -208,7 +201,7 @@ function toTitle() {
   $('panel').classList.add('world'); G.panelBack = openMenu;
 }
 // 設定（v016。2026-10-13 ユーザー「設定メニューを追加して」「メニューには文字フォント切り替えは必要ない。設定画面に移して」）
-//   音楽・効果音・文字・背景（v017 で天命の書板のてびきから移した）。言語は v020 でタイトルの右上だけに（遊んでいるとちゅうで読み直すと、
+//   音楽・効果音・文字・背景（v017 で観察帳のてびきから移した）。言語は v020 でタイトルの右上だけに（遊んでいるとちゅうで読み直すと、
 //   セーブのつもりがないのにページを離れるときの自動セーブが走るので）。押すとその場で切りかわる。back があれば「もどる」でそこへ（メニュー）
 function openSettings(back, focus) {
   const on = v => v ? TX('オン', 'On') : TX('オフ', 'Off'), again = k => () => openSettings(back, k);
@@ -318,7 +311,7 @@ function chapterLine(a, b, sec = 7) {
   clearTimeout(lineT); if (a || b) lineT = setTimeout(() => el.classList.remove('on'), sec * 1000);
 }
 
-// ---- 天命の書板 ----
+// ---- 観察帳 ----
 // ひらいているあいだは時を止める（2026-10-13 ユーザー）。閉じると、もとの速さへ（ひらいたまま速さを変えたら、そのまま）
 let page = 'life', bookSpeed = null, bookFromMenu = false;
 function openBook(p, fromMenu) {
@@ -420,7 +413,7 @@ function takeSketch(t) {
   } catch (e) { /* 残せなくても遊べる */ }
   finally { G.sel = keep.sel; V.zoom = keep.zoom; V.panX = keep.panX; V.panY = keep.panY; layout(keep.cw, keep.ch); }
 }
-function addPage() { /* 年の頁は G.done から作るので、ここでは天命の書板の印だけ */ $('btnBook').classList.remove('glow'); void $('btnBook').offsetWidth; $('btnBook').classList.add('glow'); }
+function addPage() { /* 年の頁は G.done から作るので、ここでは観察帳の印だけ */ $('btnBook').classList.remove('glow'); void $('btnBook').offsetWidth; $('btnBook').classList.add('glow'); }
 function renderFinds() {
   const f = G.found || {};
   $('findN').textContent = TX(`${Object.keys(f).length} ／ ${FINDS.length}`, `${Object.keys(f).length} / ${FINDS.length}`);
@@ -429,7 +422,7 @@ function renderFinds() {
     : `<figure class="unfound"><div class="blank">${TX('？', '?')}</div><figcaption><b>${TX('まだ見ていない', 'Not seen yet')}</b></figcaption></figure>`).join('');
 }
 // 見つけたことの絵を大きく（2026-10-13 ユーザー「クリックしたら世界観にマッチする枠をつけて大きく表示」）。
-//   羊皮紙の台紙に二重の墨の線。押す・Esc で閉じる。←→ でとなりの絵へ
+//   観察帳と同じ羊皮紙の台紙に二重の墨の線。押す・Esc で閉じる。←→ でとなりの絵へ
 let lbId = null;
 $('finds').addEventListener('click', e => { const b = e.target.closest('[data-find]'); if (b) { Sound.play('click'); openLightbox(b.dataset.find); } });
 function openLightbox(id) {
@@ -456,7 +449,7 @@ const TIPS = [
   ['rotate', () => !touchy() && G.chT > DAY * 0.4, TX('大地の外をドラッグすると、まわして見られるよ。ホイールで寄れる。左のボタンでもね', 'Drag outside the land to turn it, and scroll to zoom. The buttons on the left work too')],
   ['speed', () => G.ch >= 1 && G.chT > DAY * 0.3, TX('右上の天の輪を押すと、時が止まるよ。下の ›› で速くなる', 'Press the Sky Dial at the top right to stop time. The ›› marks below make it go faster')],
   ['sun', () => G.ch >= 2 && G.chT > DAY * 1.5, TX('太陽は、つかんで動かせるの。止めたところはよく育つけど、乾いて暑くなる。反対がわは夜のまま', 'You can grab the Sun and move it. Where you stop it, plants grow well, but it gets dry and hot. The other side stays in night')],
-  ['book', () => G.ch >= 3 && G.chT > DAY, TX('右下の書板に、いきものの移り変わりが刻まれているよ', 'The Tablet of Destinies at the bottom right shows how life is changing')],
+  ['book', () => G.ch >= 3 && G.chT > DAY, TX('右下の観察帳に、いきものの移り変わりが書いてあるよ', 'The Field Notes at the bottom right show how life is changing')],
   ['moon', () => G.ch >= 7 && G.chT > DAY, TX('月を寄せると、潮で水がそっちへ寄るの。浅瀬が動いて、ふちから水があふれるよ', 'Bring the Moon closer and the tide pulls the water toward it. The shallows move, and water spills over the edge')],
 ];
 let accTip = 0;
@@ -484,7 +477,7 @@ function drawSpots(ctx, t) {
 //   型: 見たまま（額なし）・羊皮紙の台紙・深淵の額・古い写真・銅版画（これまでの）。札で見くらべて、押すと大きく、「のこす」で PNG。
 const PRINTS = [
   ['seen', TX('見たまま', 'As seen'), TX('画面の絵そのまま。下に小さく題', 'The picture on the screen, with a small title at the bottom')],
-  ['mat', TX('羊皮紙の台紙', 'Parchment mount'), TX('羊皮紙に、墨の二重線', 'Parchment with double ink lines')],
+  ['mat', TX('羊皮紙の台紙', 'Parchment mount'), TX('観察帳と同じ紙に、墨の二重線', 'The same paper as the Field Notes, with double ink lines')],
   ['abyss', TX('深淵の額', 'Abyss frame'), TX('夜空の色の台紙に、金の二重線', 'A night-sky mount with double gold lines')],
   ['photo', TX('古い写真', 'Old photo'), TX('セピアに焼いて、羊皮紙の台紙に', 'Printed in sepia on a parchment mount')],
   ['stone', TX('石板', 'Stone tablet'), TX('欠けたふちの石に、絵をはめこんで題を彫る', 'Set into a chipped stone, with the title carved in')],

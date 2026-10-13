@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
-<link rel="stylesheet" href="css/style.css?v=37">
+<link rel="stylesheet" href="css/style.css?v=38">
 </head>
 <body class="titling">
 <main class="stage" id="field">
@@ -47,13 +47,13 @@
     <button type="button" class="hand" data-hand="water" aria-pressed="false" title="水がめ（泉をわかせる・止める）。中の水は深淵の水" data-en-title="Water Jar (start and stop springs). The water inside is the Abyss's water"><canvas width="32" height="32"></canvas><span lang="ja">水</span><span lang="en">Water</span><b class="meter water" aria-hidden="true"><i id="waterMeter"></i></b></button>
     <button type="button" class="hand" data-hand="life" aria-pressed="false" title="命のつぼ（たね・生き物を放す）" data-en-title="Life Jar (sow seeds and release animals)"><canvas width="32" height="32"></canvas><span lang="ja">命</span><span lang="en">Life</span></button>
   </div>
-  <button type="button" class="bookbtn" id="btnBook" aria-label="天命の書板をひらく" title="天命の書板" data-en-aria-label="Open the Tablet of Destinies" data-en-title="Tablet of Destinies"><canvas width="32" height="32"></canvas><span lang="ja">書板</span><span lang="en">Tablet</span></button>
+  <button type="button" class="bookbtn" id="btnBook" aria-label="観察帳をひらく" title="観察帳" data-en-aria-label="Open the Field Notes" data-en-title="Field Notes"><canvas width="32" height="32"></canvas><span lang="ja">観察帳</span><span lang="en">Notes</span></button>
   <button type="button" class="restore" id="btnRestore">もとにもどす</button>
   <div class="lightbox" id="lightbox" hidden><figure class="frame"><img id="lbImg" alt=""><figcaption><b id="lbTitle"></b><span id="lbDay"></span><p id="lbText"></p></figcaption></figure><button type="button" class="lbclose" id="lbClose" aria-label="とじる" data-en-aria-label="Close">×</button></div>
 
   <div class="book" id="book" hidden>
     <div class="pages">
-      <nav class="tabs" role="tablist" aria-label="天命の書板の面" data-en-aria-label="Tablet of Destinies faces">
+      <nav class="tabs" role="tablist" aria-label="観察帳の頁" data-en-aria-label="Field Notes pages">
         <button type="button" role="tab" data-page="life" aria-selected="true"><span lang="ja">いのち</span><span lang="en">Life</span></button>
         <button type="button" role="tab" data-page="genes" aria-selected="false"><span lang="ja">遺伝子</span><span lang="en">Genes</span></button>
         <button type="button" role="tab" data-page="water" aria-selected="false"><span lang="ja">水と土</span><span lang="en">Water &amp; soil</span></button>
@@ -61,7 +61,7 @@
         <button type="button" role="tab" data-page="years" aria-selected="false"><span lang="ja">年</span><span lang="en">Years</span></button>
         <button type="button" role="tab" data-page="setup" aria-selected="false"><span lang="ja">てびき</span><span lang="en">Guide</span></button>
       </nav>
-      <button type="button" class="close" id="bookClose" aria-label="天命の書板をとじる" data-en-aria-label="Close the Tablet of Destinies">×</button>
+      <button type="button" class="close" id="bookClose" aria-label="観察帳をとじる" data-en-aria-label="Close the Field Notes">×</button>
 
       <section class="page" data-page="life">
         <h3><span lang="ja">いきものの移り変わり</span><span lang="en">How life changes</span> <small id="day"></small></h3>
@@ -131,8 +131,8 @@
           <li>右上の<b>天の輪</b>は、外の輪が1年の季節、針が今日、中の点が太陽と月。押すと時が止まる。下の印で速さ（止める・ふつう・×4・×16）。</li>
           <li>マウス: 大地の外を左ドラッグ・右ドラッグで回す・傾ける（土や命を持ったままでも右ボタンで回せる）。中ボタン・Shift＋ドラッグで平行移動。ホイールで寄る（寄ると滝の音が聞こえる）。空をダブルクリックで真ん中へ。</li>
           <li>スマホ: 2本指で回す（ひねる）・寄る（ひらく）・動かす。手に持ったものは、横の「しまう」でもしまえる。メニューは左上の印。</li>
-          <li>キー: Esc しまう・メニュー（ひとつ前へもどる）・1 土・2 水・3 命・B 天命の書板・スペース 止める・←→↑↓ 見る向き・WASD 動かす・＋－ 寄る。</li>
-          <li>天命の書板をひらいているあいだは、時が止まる。</li>
+          <li>キー: Esc しまう・メニュー（ひとつ前へもどる）・1 土・2 水・3 命・B 観察帳・スペース 止める・←→↑↓ 見る向き・WASD 動かす・＋－ 寄る。</li>
+          <li>観察帳をひらいているあいだは、時が止まる。</li>
           <li>お題が進まないときは、何日かたつと世界がそっと助けてくれる。時間の制限はない。十の年のあとは、自由な箱庭として続けられる（タイトルの「自由な箱庭」からも）。</li>
           <li>Esc のメニュー: セーブ・ロード・設定（音楽・効果音・文字・背景）・タイトルへ・ゲームを終える。言語（日本語・English）はタイトルの右上で。</li>
         </ul>
@@ -146,8 +146,8 @@
           <li>The <b>Sky Dial</b> at the top right: the outer ring is the seasons of the year, the hand is today, and the inner dots are the Sun and Moon. Press it to stop time. The marks below set the speed (stop, normal, ×4, ×16).</li>
           <li>Mouse: drag outside the land with the left or right button to turn and tilt (the right button works even while holding soil or life). Middle button or Shift + drag to move. Scroll to zoom in (zoom in to hear the falls). Double-click the sky to go back to the center.</li>
           <li>Phone: use two fingers to turn (twist), zoom (spread) and move. You can also put away what you hold with the “Put away” button next to it. The menu is the mark at the top left.</li>
-          <li>Keys: Esc put away · menu (go back one step) · 1 soil · 2 water · 3 life · B Tablet of Destinies · Space stop · ←→↑↓ view · WASD move · + − zoom.</li>
-          <li>Time stops while the Tablet of Destinies is open.</li>
+          <li>Keys: Esc put away · menu (go back one step) · 1 soil · 2 water · 3 life · B Field Notes · Space stop · ←→↑↓ view · WASD move · + − zoom.</li>
+          <li>Time stops while the Field Notes are open.</li>
           <li>If a goal isn’t moving forward, the world quietly helps you after a few days. There is no time limit. After the Ten Years, you can keep playing as a Free Garden (you can also start one with “Free Garden” on the title screen).</li>
           <li>Esc menu: Save · Load · Settings (music, sound effects, font, background) · Title screen · Quit. Choose the language (日本語 / English) at the top right of the title screen.</li>
         </ul>
@@ -213,12 +213,12 @@
 <script src="js/style-real.js?v=20"></script>
 <script src="js/style-cyber.js?v=20"></script>
 <script src="js/sound.js?v=20"></script>
-<script src="js/chapters.js?v=37"></script>
+<script src="js/chapters.js?v=38"></script>
 <script src="js/ui.js?v=34"></script>
 <script src="js/save.js?v=34"></script>
-<script src="js/book.js?v=37"></script>
+<script src="js/book.js?v=38"></script>
 <script src="js/view.js?v=33"></script>
 <script src="js/collapse.js?v=20"></script>
-<script src="js/main.js?v=37"></script>
+<script src="js/main.js?v=38"></script>
 </body>
 </html>
