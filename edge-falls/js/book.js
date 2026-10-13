@@ -140,35 +140,60 @@ function openMenu() {
   const resume = () => { if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } };
   G.menuOpen = true;
   showPanel(`<p class="mtitle">${isFree() ? '自由な箱庭' : YEARNAME[Math.floor(G.ch)] + 'の年'}　第 ${W.day} 日</p>`, [
-    { label: 'つづける', main: true, fn: () => { G.menuOpen = false; resume(); } },
+    { label: 'つづける', main: true, fn: closeMenu },
     { label: 'セーブ', fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'save'); } },
     { label: 'ロード', fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'load'); } },
     { label: '観察帳', fn: () => { G.menuOpen = false; resume(); openBook(); } },
-    { label: '最初から', fn: () => { G.menuOpen = false; resume(); $('btnReset').onclick(); } },
+    { label: 'タイトルへ', fn: () => { G.menuOpen = false; toTitle(); } },
     { label: '文字: ' + (fontName === 'dot' ? 'ドット' : '明朝'), fn: () => { setFont(fontName === 'dot' ? 'serif' : 'dot'); openMenu(); } },
     { label: 'ゲームを終える', fn: () => { G.menuOpen = false; quitGame(); } },
   ]);
   $('panel').classList.add('menu', 'world');
+  $('panel').dataset.back = '';
+}
+function closeMenu() {
+  $('overlay').hidden = true; G.menuOpen = false;
+  if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; }
+}
+// 札の外（何もない所）を押すと閉じる（2026-10-13 ユーザー）。メニューは閉じて時が動き、メニューから開いたセーブ・ロードはメニューへもどる
+$('overlay').addEventListener('click', e => {
+  if (e.target !== $('overlay')) return;
+  const p = $('panel');
+  if (p.classList.contains('menu')) { closeMenu(); Sound.play('click'); }
+  else if (p.classList.contains('world')) { if (p.dataset.back) openMenu(); else $('overlay').hidden = true; Sound.play('click'); }
+});
+// タイトルへ（2026-10-13 ユーザー「メニューの最初からの代わりにタイトルに戻れるように」）。いまの世界は自動セーブに残す
+function toTitle() {
+  showPanel('<h2>タイトルへ</h2><p class="center">いまの世界は自動セーブに残してから、<br>タイトルへもどる。<br>タイトルの「つづきから」で、ここにもどれる。</p>', [
+    { label: 'セーブしてタイトルへ', main: true, fn: async () => {
+      await saveSlot('auto');
+      menuSpeed = null; setHand(null); closeBook(); G.sel = null; updateCard(); G.started = false; setSpeed(1);
+      document.body.classList.remove('paused'); chapterLine('', ''); start();
+    } },
+    { label: 'もどる', fn: () => openMenu() },
+  ]);
+  $('panel').classList.add('world'); $('panel').dataset.back = '1';
 }
 function quitGame() {
   showPanel('<h2>ゲームを終える</h2><p class="center">いまの世界は自動セーブに残してから、<br>あそびラボの保管庫へもどる。<br>つぎに開くと「つづきから」遊べる。</p>', [
     { label: 'セーブして終える', main: true, fn: async () => { await saveSlot('auto'); location.href = '../archive.html'; } },
     { label: 'もどる', fn: () => openMenu() },
   ]);
-  $('panel').classList.add('world');
+  $('panel').classList.add('world'); $('panel').dataset.back = '1';
 }
 // 文字（2026-10-13 ユーザー「ピクセル風のフォント」「いまのフォントも雰囲気に合うので切りかえられると」）。
 //   ドット＝DotGothic16（Google Fonts、SIL Open Font License。商用も無料）、明朝＝これまでの文字。localStorage に覚える
-const FONT_KEY = 'asobi-lab/edge-falls/font';
-let fontName = 'dot';
-try { fontName = localStorage.getItem(FONT_KEY) || 'dot'; } catch (e) { /* なし */ }
-function setFont(n) {
-  fontName = n === 'serif' ? 'serif' : 'dot';
+//   はじめは明朝（2026-10-13 ユーザー「デフォルトはきれいなフォントに」）。v014 で 'font' に覚えた値は使わない
+const FONT_KEY = 'asobi-lab/edge-falls/font2';
+let fontName = 'serif';
+try { fontName = localStorage.getItem(FONT_KEY) || 'serif'; } catch (e) { /* なし */ }
+function setFont(n, keep) {
+  fontName = n === 'dot' ? 'dot' : 'serif';
   document.body.classList.toggle('font-dot', fontName === 'dot');
-  try { localStorage.setItem(FONT_KEY, fontName); } catch (e) { /* なし */ }
+  if (!keep) try { localStorage.setItem(FONT_KEY, fontName); } catch (e) { /* なし */ }
   const sel = $('fontSel'); if (sel) sel.value = fontName;
 }
-setFont(fontName);
+setFont(fontName, true);
 $('fontSel').addEventListener('change', () => { setFont($('fontSel').value); $('fontSel').blur(); });
 // メニューの中は上下の矢印でえらぶ
 addEventListener('keydown', e => {

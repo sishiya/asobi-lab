@@ -107,6 +107,10 @@ function useTool(p, first) {
   const t = G.tool;
   if (t === 'raise' || t === 'dig') {
     const m = sculpt(p.x, p.y, (t === 'raise' ? 1 : -1) * 0.9 * (first ? 1 : 0.5));
+    if (t === 'raise' && m > 0) {          // 泉の上を盛ると、土でふさがって泉がなくなる（2026-10-13 ユーザー「泉を取り除くことはできる？」）
+      const k = W.springs.findIndex(sp => Math.hypot(sp.i % N - p.x, (sp.i / N | 0) - p.y) < 1.8);
+      if (k >= 0) { W.springs.splice(k, 1); toast('泉を土でふさいだ'); Sound.play('pin'); }
+    }
     if (t === 'raise' && W.soil < 1 && (first || !G.soilWarn)) { toast('土ぶくろがからっぽ。どこかを「削る」と、土がたまる', 4); Sound.play('no'); G.soilWarn = 1; }
     if (W.soil >= 1) G.soilWarn = 0;
     drawMeters();
@@ -244,7 +248,7 @@ addEventListener('keydown', e => {
   }
   else if (e.key === 'Escape') {
     if (!$('book').hidden) closeBook();
-    else if (G.menuOpen) { $('overlay').hidden = true; G.menuOpen = false; if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } }
+    else if (G.menuOpen) closeMenu();
     else if ($('overlay').hidden) openMenu();
   }
   else if (e.key === '1' || e.key === '2' || e.key === '3') {
@@ -332,8 +336,8 @@ function start() {
       try { await loadRecord(cont); G.started = true; toast('第 ' + W.day + ' 日から'); }
       catch (e) { toast('つづきを読みこめなかった: ' + e.message); G.started = true; enterChapter(0); }
       syncHands();
-    }) }, { label: 'はじめから', fn: go(() => { G.started = true; enterChapter(0); }) }]
-      : [{ label: 'はじめる', main: true, fn: go(() => { G.started = true; enterChapter(0); }) }]).concat([{ label: '自由な箱庭', fn: go(() => { newGame(undefined, false); G.started = true; syncHands(); }) }]));
+    }) }, { label: 'はじめから', fn: go(() => { if (W.t > 0 || L.list.length) newGame(); G.started = true; enterChapter(0); }) }]
+      : [{ label: 'はじめる', main: true, fn: go(() => { if (W.t > 0 || L.list.length) newGame(); G.started = true; enterChapter(0); }) }]).concat([{ label: '自由な箱庭', fn: go(() => { newGame(undefined, false); G.started = true; syncHands(); }) }]));
   $('panel').classList.add('titlecard');
 }
 

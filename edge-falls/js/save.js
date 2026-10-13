@@ -166,7 +166,7 @@ function openSavePanel(back, mode = 'save') {
     ? `<h2>セーブ</h2><p class="small center">地形・水・草・生き物（遺伝子も）・年まで、世界をまるごと残す。<br>1日ごとと、ページを閉じるときにも自動で残る。</p>${rows}${file}`
     : `<h2>ロード</h2><p class="small center">読みこむと、いまの世界は自動セーブに残してから入れかわる。</p>${rows}${file}`,
   [{ label: back ? 'もどる' : 'とじる', main: true, fn: back }]);
-  $('panel').classList.add('world');
+  $('panel').classList.add('world'); $('panel').dataset.back = back ? '1' : '';
   const panel = $('panel');
   panel.querySelectorAll('[data-save]').forEach(b => b.onclick = async () => {
     const ok = await saveSlot(b.dataset.save);

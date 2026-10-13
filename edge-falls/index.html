@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
-<link rel="stylesheet" href="css/style.css?v=14">
+<link rel="stylesheet" href="css/style.css?v=15">
 </head>
 <body class="titling">
 <main class="stage" id="field">
@@ -121,7 +121,7 @@
           <li>太陽と月は、つかんで動かせる。押すと止まる。</li>
           <li>右上の<b>天の輪</b>は、外の輪が1年の季節、針が今日、中の点が太陽と月。押すと時が止まる。下の小さな印で速さ。</li>
           <li>マウス: 左ドラッグ（大地の外）・右ドラッグで回す・傾ける。中ボタンのドラッグ・Shift＋ドラッグで平行移動。</li>
-          <li>キー: Esc メニュー（セーブ・ロード・終わる）・1 土・2 水・3 命・B 観察帳・スペース 止める・←→↑↓ 見る向き・WASD 動かす・＋－ 寄る。</li>
+          <li>キー: Esc メニュー（セーブ・ロード・タイトルへ・終わる）・1 土・2 水・3 命・B 観察帳・スペース 止める・←→↑↓ 見る向き・WASD 動かす・＋－ 寄る。</li>
         </ul>
         <div class="row">
           <button type="button" class="tbtn btnBgm" aria-pressed="true">♪ 音楽</button>
@@ -137,7 +137,7 @@
           <label>ルック <select id="lookSel" aria-label="ルック（絵の画風）">
             <option value="voxel">ボクセル</option><option value="etch">銅版画</option><option value="real">リアル</option><option value="cyber">サイバー</option><option value="paint">絵画</option>
           </select></label>
-          <label>文字 <select id="fontSel" aria-label="文字の形"><option value="dot">ドット</option><option value="serif">明朝</option></select></label>
+          <label>文字 <select id="fontSel" aria-label="文字の形"><option value="serif">明朝</option><option value="dot">ドット</option></select></label>
           <label>背景 <select id="backSel" aria-label="背景">
             <option value="dark">暗い宇宙</option><option value="space">宇宙</option><option value="clouds">雲の上</option><option value="room">部屋の中</option><option value="hand">手のひら</option><option value="fantasy">幻想</option><option value="neon">電脳</option><option value="auto">ルックにおまかせ</option>
           </select></label>
@@ -157,7 +157,7 @@
   <ul>
     <li>下の<b>土ぶくろ・水がめ・命のつぼ</b>を押すと、手に持つ。もう一度押すと手をあける。土ぶくろと命のつぼは、上に出る中身から選ぶ（削る・盛る／たね・生き物）。</li>
     <li>土ぶくろ: 削った土はふくろへ入り、盛るとへる（ふくろのふくらみと、下の細い線が土の量。からっぽになると盛れない）。ふちを盛ると、水がせき止められて湖になる。</li>
-    <li>水がめ: 大地を押すと泉がわく。泉を押すと止める／またわかせる。深淵の水が底をつくと、泉はわかない（水がめの中の水が深淵の水）。</li>
+    <li>水がめ: 大地を押すと泉がわく。泉を押すと止める／またわかせる。泉の上を土ぶくろで盛ると、ふさがって泉がなくなる。深淵の水が底をつくと、泉はわかない（水がめの中の水が深淵の水）。</li>
     <li>命のつぼ: たねをまく・生き物を放す（サカナは水の中へ）。つぼの命は、去った命が戻ってくるのと、春ごとにふえる。</li>
     <li>手をあけて生き物を押すと、その1匹の札が出る（遺伝子・おなか）。</li>
     <li>太陽と月はつかんで動かせる。押すと止まる。右上の<b>天の輪</b>（外の輪が1年の季節、針が今日、中の点が太陽と月）を押すと時が止まる。下の印で速さ（止める・ふつう・×4・×16）。</li>
@@ -165,7 +165,7 @@
     <li>右下の<b>観察帳</b>: いきものと遺伝子の移り変わり、水と土、見つけたこと、この世界の年、てびき（音・セーブ・世界の版画・ルック・くずす）。</li>
     <li>お題が進まないときは、何日かたつと世界がそっと助けてくれる。時間の制限はない。</li>
     <li>十の年のあとは、自由な箱庭として続けられる。はじめの画面の「自由な箱庭」からも遊べる。</li>
-    <li>Esc（スマホは左上の印）でメニュー: つづける・セーブ・ロード・観察帳・最初から・文字（ドット／明朝）・ゲームを終える。上下の矢印でえらぶ。</li>
+    <li>Esc（スマホは左上の印）でメニュー: つづける・セーブ・ロード・観察帳・タイトルへ・文字（明朝／ドット）・ゲームを終える。上下の矢印でえらぶ。メニューの外を押すと閉じる。</li>
     <li>キーボード: Esc メニュー・1 土・2 水・3 命・B 観察帳・スペース 止める・←→↑↓ 見る向き・WASD 平行移動・＋－ 寄る。</li>
   </ul>
   <h3>この世界のきまり</h3>
@@ -188,25 +188,25 @@
   <p>季節は、地球の自転の軸が 23.4 度かたむいたまま太陽のまわりを回るので、太陽の高さと昼の長さが変わって起きます。平らな大地の図には「夏は太陽が内がわ、冬は外がわを回る」と描くものがありますが、本当の地球ではそうなりません。寒い所のなかまほど体が大きい傾向（ベルクマンの規則）は本当に見られます（例外もたくさんあります）。</p>
   <p>生き残りやすい性質が子に伝わって積み重なり、生き物が変わっていく考え（自然選択）は、ダーウィンとウォレスが 1858 年に発表しました。本当の進化はふつう何百〜何万世代もかかります。この箱庭では、数十世代で目に見えるように、ずっと速くしています。</p>
   <p>大地を平らな円盤と考えた人は、昔たくさんいました。古代ギリシャのホメロスの詩では、平らな大地のまわりを大きな川オケアノスが取り巻き、タレスは大地が水に浮かぶと考えました。古代メソポタミアでは、大地の下に真水の海（アプスー）があり、泉や川の水はそこから来ると考えられていました。でも、<b>世界の果てから水が落ちる滝</b>は、近ごろの絵や物語でよく描かれる姿で、昔の人がそう書き残した例はあまり知られていません。「中世の人はみな大地が平らだと信じていた」もよくある誤解で、学のある人は大地が丸いと知っていました（天動説のプトレマイオスも、大地は丸いと考えていました）。</p>
-  <p class="small">版: 試作 v014（2026-10-13）・あそびラボ ・ 姉妹の箱庭: <a href="../heaven-spheres/">天をまわす箱庭</a></p>
+  <p class="small">版: 試作 v015（2026-10-13）・あそびラボ ・ 姉妹の箱庭: <a href="../heaven-spheres/">天をまわす箱庭</a></p>
   <form method="dialog"><button class="tbtn">とじる</button></form>
 </dialog>
 
-<script src="js/world.js?v=14"></script>
-<script src="js/life.js?v=14"></script>
-<script src="js/render.js?v=14"></script>
-<script src="js/backdrop.js?v=14"></script>
-<script src="js/style-voxel.js?v=14"></script>
-<script src="js/style-paint.js?v=14"></script>
-<script src="js/style-etch.js?v=14"></script>
-<script src="js/style-real.js?v=14"></script>
-<script src="js/style-cyber.js?v=14"></script>
-<script src="js/sound.js?v=14"></script>
-<script src="js/chapters.js?v=14"></script>
-<script src="js/ui.js?v=14"></script>
-<script src="js/save.js?v=14"></script>
-<script src="js/book.js?v=14"></script>
-<script src="js/collapse.js?v=14"></script>
-<script src="js/main.js?v=14"></script>
+<script src="js/world.js?v=15"></script>
+<script src="js/life.js?v=15"></script>
+<script src="js/render.js?v=15"></script>
+<script src="js/backdrop.js?v=15"></script>
+<script src="js/style-voxel.js?v=15"></script>
+<script src="js/style-paint.js?v=15"></script>
+<script src="js/style-etch.js?v=15"></script>
+<script src="js/style-real.js?v=15"></script>
+<script src="js/style-cyber.js?v=15"></script>
+<script src="js/sound.js?v=15"></script>
+<script src="js/chapters.js?v=15"></script>
+<script src="js/ui.js?v=15"></script>
+<script src="js/save.js?v=15"></script>
+<script src="js/book.js?v=15"></script>
+<script src="js/collapse.js?v=15"></script>
+<script src="js/main.js?v=15"></script>
 </body>
 </html>
