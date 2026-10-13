@@ -17,7 +17,7 @@ function toast(msg, sec = 3) {
 // ---- これまでの知らせ（v049。2026-10-14 ユーザー「吹き出し機能を付ける前の表示にもどしつつ、吹き出し機能自体を刷新。押したときに時間をとめ、
 //      画面大きめに。ふわっと出て見逃しがちなメッセージを見返せる。半透明系が圧迫感なくていいかも」） ----
 //   知らせはもとの、ふわっと出て消える形（toast）。左上のメニューの下の吹き出しのボタンを押すと、時が止まり、半透明の大きな札に
-//   これまでの知らせ（新しい順に 40 まで）が出る。×・Esc・札の外・もう一度ボタン でとじると、時がもとの速さにもどる。
+//   これまでの知らせ（古いものが上、40 まで。開くといちばん下の新しいものへ）が出る。×・Esc・札の外・もう一度ボタン でとじると、時がもとの速さにもどる。
 //   v033〜v048 のためし（メグリ・出しっぱなしの吹き出し）はやめた
 const MSGLOG = [];
 function logMsg(text) {
@@ -36,11 +36,11 @@ let logSpeed = null;
 const logOpen = () => $('msglog') && !$('msglog').hidden;
 function openLog() {
   const esc = t => t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-  let day = -1;   // 日が変わる所にだけ「第 ◯ 日」の区切り（v051。2026-10-14 ユーザー）
+  let day = -1;   // 日が変わる所にだけ「第 ◯ 日」の区切り（v051）。古いものが上、新しいものが下（v052。2026-10-14 ユーザー）
   $('msglogList').innerHTML = MSGLOG.length
-    ? MSGLOG.map(m => (m.day !== day && (day = m.day) ? `<li class="day">${TX(`第 ${m.day} 日`, `Day ${m.day}`)}</li>` : '') + `<li><p>${esc(m.text)}</p></li>`).join('')
+    ? MSGLOG.slice().reverse().map(m => (m.day !== day && (day = m.day) ? `<li class="day">${TX(`第 ${m.day} 日`, `Day ${m.day}`)}</li>` : '') + `<li><p>${esc(m.text)}</p></li>`).join('')
     : `<li class="none"><p>${TX('まだ知らせはない', 'No messages yet')}</p></li>`;
-  $('msglog').hidden = false; $('msglogList').scrollTop = 0; $('toast').classList.remove('on');   // いま出ている知らせは札の中にあるので消す
+  $('msglog').hidden = false; $('msglogList').scrollTop = $('msglogList').scrollHeight;   // 開いたら、いちばん新しい知らせ（下）へ $('toast').classList.remove('on');   // いま出ている知らせは札の中にあるので消す
   $('msgbtn').classList.remove('new'); $('msgbtn').setAttribute('aria-expanded', 'true');
   if (G.started && G.speed) { logSpeed = G.speed; setSpeed(0); }   // 読んでいるあいだは時を止める
   requestAnimationFrame(() => $('msglog').classList.add('on'));
