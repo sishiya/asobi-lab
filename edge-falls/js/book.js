@@ -201,8 +201,10 @@ function openSettings(back, focus) {
   if (focus !== undefined) $('panel').querySelectorAll('.btns .tbtn')[focus]?.focus();   // 押したボタンに印を残す（上下の矢印でつづけて選べる）
 }
 function quitGame() {
-  showPanel('<h2>ゲームを終える</h2><p class="center">いまの世界は自動セーブに残してから、<br>あそびラボの保管庫へもどる。<br>つぎに開くと「つづきから」遊べる。</p>', [
-    { label: 'セーブして終える', main: true, fn: async () => { await saveSlot('auto'); location.href = '../archive.html'; } },
+  // セーブしないで終えることもできる（2026-10-13 ユーザー）。ページを離れるときの自動セーブもしないよう、先に G.started を落とす
+  showPanel('<h2>ゲームを終える</h2><p class="center">あそびラボの保管庫へもどる。<br>セーブすると、つぎに開いたとき「つづきから」ここで遊べる。<br>セーブしないと、前に残った所までになる。</p>', [
+    { label: 'セーブして終える', main: true, fn: async () => { await saveSlot('auto'); G.started = false; location.href = '../archive.html'; } },
+    { label: 'セーブしないで終える', fn: () => { G.started = false; location.href = '../archive.html'; } },
     { label: 'もどる', fn: () => openMenu() },
   ]);
   $('panel').classList.add('world'); G.panelBack = openMenu;
