@@ -193,7 +193,7 @@ const VOX = (() => {
     tree: ['..LLL..', '.LLGLL.', 'LLGLLLL', 'LLLLLDL', '.LDLLD.', '...T...', '...T...'],
     pine: ['...L...', '..LGL..', '.LLLLL.', '..LGL..', '.LLLDL.', 'LLLLLDL', '...T...'],
     sap: ['.L.', 'LGL', '.T.'],
-    bare: ['.S.S.S.', 'T.T.T.T', '.T.T.T.', '..TTT..', '...T...', '...T...', '...T...'],
+    bare: ['..SSS..', '.SttSt.', 'tStuttt', 'tttttut', '.tuttu.', '...T...', '...T...'],   // 冬の木: 夏の木と同じ丸い形を枯れ枝の色にして、上に雪（v020。枝分かれの線だけだとシカの角に見えた。2026-10-13 ユーザー）
   };
   const PAL = {
     deer: { a: [232, 220, 192], h: [176, 122, 68], d: [58, 36, 20], b: [168, 116, 63], B: [138, 92, 48], w: [242, 234, 216], l: [90, 58, 28] },
@@ -204,7 +204,7 @@ const VOX = (() => {
     pine: { L: [63, 127, 74], G: [106, 168, 106], D: [45, 94, 56], T: [107, 74, 42] },
     treeSpring: { L: [104, 172, 76], G: [244, 178, 204], D: [74, 136, 60], T: [107, 74, 42] },
     treeAutumn: { L: [214, 128, 46], G: [242, 194, 72], D: [176, 70, 40], T: [107, 74, 42] },
-    bare: { T: [112, 84, 58], S: [240, 244, 250] },
+    bare: { T: [104, 74, 46], t: [134, 112, 98], u: [104, 86, 78], S: [236, 240, 248] },
     pineWinter: { L: [58, 112, 72], G: [236, 242, 248], D: [44, 88, 56], T: [107, 74, 42] },
   };
   const cache = {};
@@ -312,6 +312,8 @@ const VOX = (() => {
           if (d <= R + 4.5 && d > R + 3 && Math.abs(((an / (Math.PI / 4)) % 1 + 1) % 1 - 0.5) < 0.12) return '#ffd650';
           return null;
         });
+        const ek = eclipseK();                                        // 日食: 月の影が太陽を横切る
+        if (ek > 0) { const off = Math.round(2 * R * (1 - ek)) * (sunMoonGap() < 0 ? -1 : 1); pixDisk(cx, cy, R, (x, y, d) => d <= R && Math.hypot(x - off, y) <= R - 0.6 ? '#22283c' : null); }
       } else {
         const { ph, lit: lt } = moonPhase(), sh = 2 * R * lt * (ph < Math.PI ? 1 : -1);
         pixDisk(cx, cy, R, (x, y, d) => {

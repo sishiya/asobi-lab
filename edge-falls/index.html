@@ -12,11 +12,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
-<link rel="stylesheet" href="css/style.css?v=19">
+<link rel="stylesheet" href="css/style.css?v=20">
 </head>
 <body class="titling">
 <main class="stage" id="field">
   <canvas id="view" aria-label="深淵に浮かぶ平らな大地。ふちから滝が落ちる。上を太陽と月がめぐる" data-en-aria-label="A flat land floating over the Abyss. Waterfalls pour off its edge, and the Sun and Moon circle above."></canvas>
+  <div class="langsw" role="group" aria-label="言語 Language"><button type="button" data-lang="ja" aria-label="日本語">JP</button><button type="button" data-lang="en" aria-label="English">EN</button></div>
   <button type="button" class="menubtn" id="btnMenu" aria-label="メニュー（Esc）" title="メニュー（Esc）" data-en-aria-label="Menu (Esc)" data-en-title="Menu (Esc)"><canvas width="32" height="32"></canvas></button>
 
   <div class="quest" id="quest" hidden>
@@ -42,6 +43,7 @@
 
   <div class="fan" id="fan" hidden></div>
   <div class="hands" id="hands" role="group" aria-label="神の手に持つもの" data-en-aria-label="What the god's hand holds">
+    <button type="button" class="handoff" id="btnHandOff" hidden aria-label="手放す（Esc）" data-en-aria-label="Let go (Esc)"><b aria-hidden="true">×</b><span lang="ja">手放す</span><span lang="en">Let go</span></button>
     <button type="button" class="hand" data-hand="soil" aria-pressed="false" title="土ぶくろ（削る・盛る）" data-en-title="Soil Bag (dig and pile up)"><canvas width="32" height="32"></canvas><span lang="ja">土</span><span lang="en">Soil</span><b class="meter" aria-hidden="true"><i id="soilMeter"></i></b></button>
     <button type="button" class="hand" data-hand="water" aria-pressed="false" title="水がめ（泉をわかせる・止める）。中の水は深淵の水" data-en-title="Water Jar (start and stop springs). The water inside is the Abyss's water"><canvas width="32" height="32"></canvas><span lang="ja">水</span><span lang="en">Water</span><b class="meter water" aria-hidden="true"><i id="waterMeter"></i></b></button>
     <button type="button" class="hand" data-hand="life" aria-pressed="false" title="命のつぼ（たね・生き物を放す）" data-en-title="Life Jar (sow seeds and release animals)"><canvas width="32" height="32"></canvas><span lang="ja">命</span><span lang="en">Life</span></button>
@@ -126,14 +128,14 @@
           <li>水がめ: 大地を押すと泉がわく。泉を押すと止める／またわかせる。深淵の水が底をつくと、泉はわかない（水がめの中の水が深淵の水）。</li>
           <li>命のつぼ: たねをまく・生き物を放す（サカナは水の中へ）。つぼの命は、去った命が戻ってくるのと、春ごとにふえる。</li>
           <li>手をあけて生き物を押すと、その1匹の札が出る（遺伝子・おなか）。</li>
-          <li>太陽と月は、つかんで動かせる。押すと止まる。</li>
+          <li>太陽と月は、つかんで動かせる。押すと止まる。月を太陽に重ねたり、そろえたり、太陽を止めたままにしたりすると、見つけることがある。</li>
           <li>右上の<b>天の輪</b>は、外の輪が1年の季節、針が今日、中の点が太陽と月。押すと時が止まる。下の印で速さ（止める・ふつう・×4・×16）。</li>
           <li>マウス: 大地の外を左ドラッグ・右ドラッグで回す・傾ける（土や命を持ったままでも右ボタンで回せる）。中ボタン・Shift＋ドラッグで平行移動。ホイールで寄る（寄ると滝の音が聞こえる）。空をダブルクリックで真ん中へ。</li>
-          <li>スマホ: 2本指で回す（ひねる）・寄る（ひらく）・動かす。メニューは左上の印。</li>
-          <li>キー: Esc メニュー（ひとつ前へもどる）・1 土・2 水・3 命・B 観察帳・スペース 止める・←→↑↓ 見る向き・WASD 動かす・＋－ 寄る。</li>
+          <li>スマホ: 2本指で回す（ひねる）・寄る（ひらく）・動かす。手に持ったものは、横の「手放す」でも手放せる。メニューは左上の印。</li>
+          <li>キー: Esc 手放す・メニュー（ひとつ前へもどる）・1 土・2 水・3 命・B 観察帳・スペース 止める・←→↑↓ 見る向き・WASD 動かす・＋－ 寄る。</li>
           <li>観察帳をひらいているあいだは、時が止まる。</li>
           <li>お題が進まないときは、何日かたつと世界がそっと助けてくれる。時間の制限はない。十の年のあとは、自由な箱庭として続けられる（タイトルの「自由な箱庭」からも）。</li>
-          <li>Esc のメニュー: セーブ・ロード・設定（音楽・効果音・文字・背景・言語）・タイトルへ・ゲームを終える。</li>
+          <li>Esc のメニュー: セーブ・ロード・設定（音楽・効果音・文字・背景）・タイトルへ・ゲームを終える。言語（日本語・English）はタイトルの右上で。</li>
         </ul>
         <ul class="howto" lang="en">
           <li>Press the <b>Soil Bag, Water Jar or Life Jar</b> at the bottom to hold it. Press it again, or press the empty sky outside the land, to let go. For the Soil Bag and Life Jar, choose what to use from the options that appear above it (dig or pile up; seeds or animals).</li>
@@ -141,14 +143,14 @@
           <li>Water Jar: press the land to make a spring. Press a spring to stop it or start it again. When the water in the Abyss runs out, no springs will flow (the water in the jar is the Abyss’s water).</li>
           <li>Life Jar: sow seeds or release animals (fish go into the water). The jar fills up again as lives that passed away come back, and a little more every spring.</li>
           <li>With empty hands, press an animal to see its card (genes, hunger).</li>
-          <li>You can grab the Sun and Moon and move them. Press one to stop it.</li>
+          <li>You can grab the Sun and Moon and move them. Press one to stop it. Try putting the Moon over the Sun, lining them up, or keeping the Sun stopped — you may discover something.</li>
           <li>The <b>Sky Dial</b> at the top right: the outer ring is the seasons of the year, the hand is today, and the inner dots are the Sun and Moon. Press it to stop time. The marks below set the speed (stop, normal, ×4, ×16).</li>
           <li>Mouse: drag outside the land with the left or right button to turn and tilt (the right button works even while holding soil or life). Middle button or Shift + drag to move. Scroll to zoom in (zoom in to hear the falls). Double-click the sky to go back to the center.</li>
-          <li>Phone: use two fingers to turn (twist), zoom (spread) and move. The menu is the mark at the top left.</li>
-          <li>Keys: Esc menu (go back one step) · 1 soil · 2 water · 3 life · B Field Notes · Space stop · ←→↑↓ view · WASD move · + − zoom.</li>
+          <li>Phone: use two fingers to turn (twist), zoom (spread) and move. You can also let go of what you hold with the “Let go” button next to it. The menu is the mark at the top left.</li>
+          <li>Keys: Esc let go · menu (go back one step) · 1 soil · 2 water · 3 life · B Field Notes · Space stop · ←→↑↓ view · WASD move · + − zoom.</li>
           <li>Time stops while the Field Notes are open.</li>
           <li>If a goal isn’t moving forward, the world quietly helps you after a few days. There is no time limit. After the Ten Years, you can keep playing as a Free Garden (you can also start one with “Free Garden” on the title screen).</li>
-          <li>Esc menu: Save · Load · Settings (music, sound effects, font, background, language) · Title screen · Quit.</li>
+          <li>Esc menu: Save · Load · Settings (music, sound effects, font, background) · Title screen · Quit. Choose the language (日本語 / English) at the top right of the title screen.</li>
         </ul>
         <div class="row">
           <button type="button" class="tbtn" id="btnPrint"><span lang="ja">世界の版画をのこす</span><span lang="en">Make a World Print</span></button>
@@ -194,7 +196,7 @@
           <p>Long ago, many people thought the land was a flat disk. In the ancient Greek poems of Homer, a great river called Oceanus flows around the flat land, and Thales thought the land floated on water. In ancient Mesopotamia, people believed there was a sea of fresh water (the Abzu) under the land, and that the water of springs and rivers came from it. But <b>waterfalls pouring off the edge of the world</b> are mostly a picture from modern art and stories; few, if any, people long ago wrote about them. “Everyone in the Middle Ages believed the Earth was flat” is also a common myth. Educated people knew the Earth was round (even Ptolemy, who put the Earth at the center of the universe, thought it was round).</p>
           <p>A “what is really true” note for each year is written on the Years page.</p>
         </div>
-        <p class="note"><span lang="ja">版: 試作 v019（2026-10-13）・あそびラボ ・ 姉妹の箱庭: <a href="../heaven-spheres/">天をまわす箱庭</a></span><span lang="en">Version: prototype v019 (Oct 13, 2026) · Asobi Lab · Sister garden: <a href="../heaven-spheres/" hreflang="ja">Turning the Heavens</a> (Japanese only)</span></p>
+        <p class="note"><span lang="ja">版: 試作 v020（2026-10-13）・あそびラボ</span><span lang="en">Version: prototype v020 (Oct 13, 2026) · Asobi Lab</span></p>
       </section>
     </div>
   </div>
@@ -202,21 +204,21 @@
   <div class="overlay" id="overlay" hidden><div class="panel" id="panel"></div></div>
 </main>
 
-<script src="js/world.js?v=19"></script>
-<script src="js/life.js?v=19"></script>
-<script src="js/render.js?v=19"></script>
-<script src="js/backdrop.js?v=19"></script>
-<script src="js/style-voxel.js?v=19"></script>
-<script src="js/style-paint.js?v=19"></script>
-<script src="js/style-etch.js?v=19"></script>
-<script src="js/style-real.js?v=19"></script>
-<script src="js/style-cyber.js?v=19"></script>
-<script src="js/sound.js?v=19"></script>
-<script src="js/chapters.js?v=19"></script>
-<script src="js/ui.js?v=19"></script>
-<script src="js/save.js?v=19"></script>
-<script src="js/book.js?v=19"></script>
-<script src="js/collapse.js?v=19"></script>
-<script src="js/main.js?v=19"></script>
+<script src="js/world.js?v=20"></script>
+<script src="js/life.js?v=20"></script>
+<script src="js/render.js?v=20"></script>
+<script src="js/backdrop.js?v=20"></script>
+<script src="js/style-voxel.js?v=20"></script>
+<script src="js/style-paint.js?v=20"></script>
+<script src="js/style-etch.js?v=20"></script>
+<script src="js/style-real.js?v=20"></script>
+<script src="js/style-cyber.js?v=20"></script>
+<script src="js/sound.js?v=20"></script>
+<script src="js/chapters.js?v=20"></script>
+<script src="js/ui.js?v=20"></script>
+<script src="js/save.js?v=20"></script>
+<script src="js/book.js?v=20"></script>
+<script src="js/collapse.js?v=20"></script>
+<script src="js/main.js?v=20"></script>
 </body>
 </html>

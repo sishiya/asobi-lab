@@ -1,7 +1,7 @@
 'use strict';
 // 入力・ループ・章の進み。デバッグ用に window.__ef
 const cv = $('view'), ctx = cv.getContext('2d'), field = $('field');
-const G = { speed: 1, lastSpeed: 1, tool: 'look', hand: null, sub: { soil: 'dig', life: 'seed' }, ch: 0, chT: 0, streak: 0, helped: 0,
+const G = { speed: 1, lastSpeed: 1, tool: 'look', hand: null, sub: { soil: 'dig', water: 'spring', life: 'seed' }, ch: 0, chT: 0, streak: 0, helped: 0,
   done: [], found: {}, did: {}, tipped: {}, unlock: {}, started: false, sel: null };
 const THUMB = new URLSearchParams(location.search).has('thumb');
 let hover = null, ptr = null;
@@ -122,7 +122,7 @@ function useTool(p, first) {
     if (sow(p.x, p.y) > 0 && first) Sound.play('sow');
   } else if (t === 'spring' && first) {
     const r = addSpring(p.x, p.y);
-    if (r === 'max') { toast(TX('これ以上、泉はわかせられない。泉を押すと止められる', 'You can’t make any more springs. Press a spring to stop it')); Sound.play('no'); }
+    if (r === 'max') { toast(TX('これ以上、泉はわかせられない。いらない泉に土を盛ってふさぐと、新しくわかせられる', 'You can’t make any more springs. Pile soil on a spring you don’t need to block it, then you can make a new one'), 4); Sound.play('no'); }
     else if (r === 'dry') { toast(TX('深淵がからっぽで、泉がわかない。滝から水が帰ってくるのを待つ', 'The Abyss is empty, so no spring will flow. Wait for water to come back from the falls')); Sound.play('no'); }
     else if (r === 'off') { toast(TX('泉を止めた', 'You stopped the spring')); Sound.play('pin'); }
     else if (r === 'on') { toast(TX('泉がまたわき出した', 'The spring is flowing again')); Sound.play('spring'); }
@@ -145,6 +145,9 @@ cv.addEventListener('dblclick', e => { const p = local(e); if (!pick(p.x, p.y) &
 cv.addEventListener('pointerdown', e => {
   if (!G.started || ENDING) return;
   Sound.unlock();
+  // 観察帳の外を押した: 閉じるだけ。札（メニュー）を外を押して閉じた直後も、手に持ったものを使わない（2026-10-13 ユーザー「うっかり選択中のツールを実行してしまわないように」）
+  if (!$('book').hidden) { closeBook(); Sound.play('click'); return; }
+  if (performance.now() - (G.closedT || 0) < 400) return;
   try { cv.setPointerCapture(e.pointerId); } catch (err) { /* 捕まえられなくても動かす */ }
   const p = local(e);
   if (e.pointerType === 'touch') {
@@ -162,7 +165,8 @@ cv.addEventListener('pointerdown', e => {
   if (e.button === 2) { ptr.mode = 'view'; ptr.right = true; cv.classList.add('grabbing'); return; }
   if (b) { ptr.mode = 'body'; ptr.body = b; W[b].drag = true; Sound.play('grab'); G.did[b] = 1; return; }
   const w = G.tool === 'look' || COL ? null : pick(p.x, p.y);
-  if (w) { ptr.mode = 'tool'; ptr.w = w; useTool(w, true); }
+  // 指: すぐには使わず少し待つ（2本目の指が来たら、泉を置いたりせずに回す・寄るだけにする。2026-10-13 ユーザー）
+  if (w) { ptr.mode = 'tool'; ptr.w = w; if (e.pointerType === 'touch') ptr.wait = 0.12; else useTool(w, true); }
   else { ptr.mode = 'view'; cv.classList.add('grabbing'); }
 });
 cv.addEventListener('pointermove', e => {
@@ -201,6 +205,7 @@ function endPtr(e) {
   touches.delete(e.pointerId);
   if (touches.size < 2) pinch = null;
   if (!ptr || e.pointerId !== ptr.id) return;
+  if (ptr.mode === 'tool' && ptr.wait > 0 && e.type === 'pointerup') useTool(ptr.w, true);   // 指ですばやく押した
   if (ptr.mode === 'body') {
     const b = W[ptr.body]; b.drag = false;
     if (ptr.moved < 6) { b.stop = !b.stop; Sound.play('pin'); toast(TX((ptr.body === 'sun' ? '太陽' : '月') + (b.stop ? 'を止めた' : 'がまた動き出した'), (ptr.body === 'sun' ? 'The Sun ' : 'The Moon ') + (b.stop ? 'stopped' : 'is moving again'))); }
@@ -251,6 +256,7 @@ addEventListener('keydown', e => {
   }
   else if (e.key === 'Escape') {
     if (goBack()) Sound.play('click');          // 大きな絵・観察帳・メニューの下の札は、ひとつ前へ
+    else if ($('overlay').hidden && G.hand) dropHand();   // 手に持っていたら、まず手放す（もう一度 Esc でメニュー。2026-10-13 ユーザー）
     else if ($('overlay').hidden) openMenu();
   }
   else if (e.key === '1' || e.key === '2' || e.key === '3') {
@@ -292,10 +298,13 @@ function frame(now) {
   if (!V.cw) resize();
   moveByKeys(dt); stepLater(dt); stepEnding(dt);
   if (G.started && G.speed > 0 && !COL) simulate(dt * G.speed);
-  if (ptr && ptr.mode === 'tool' && G.tool !== 'spring') {
-    ptr.t += dt;
-    const every = KINDS[G.tool] ? 0.3 : 0.05;
-    if (ptr.t >= every) { ptr.t = 0; useTool(ptr.w, false); }
+  if (ptr && ptr.mode === 'tool') {
+    if (ptr.wait > 0) { ptr.wait -= dt; if (ptr.wait <= 0) useTool(ptr.w, true); }   // 指: 1本のままなら使いはじめる
+    else if (G.tool !== 'spring') {
+      ptr.t += dt;
+      const every = KINDS[G.tool] ? 0.3 : 0.05;
+      if (ptr.t >= every) { ptr.t = 0; useTool(ptr.w, false); }
+    }
   }
   const s = checkWorld(G.started && !COL ? dt * G.speed : 0);
   if (G.needSave && !THUMB) { G.needSave = false; autoSave(); }
@@ -327,6 +336,12 @@ function start() {
       : [{ label: TX('はじめる', 'Start'), main: true, fn: go(() => { if (W.t > 0 || L.list.length) newGame(); G.started = true; enterChapter(0); }) }]).concat([{ label: TX('自由な箱庭', 'Free Garden'), fn: go(() => { newGame(undefined, false); G.started = true; syncHands(); }) }]));
   $('panel').classList.add('titlecard');
 }
+
+// 言語はタイトルの右上だけで切りかえる（v020。2026-10-13 ユーザー）。タイトルでは G.started が false なので、読み直しても自動セーブは走らない
+document.querySelectorAll('.langsw [data-lang]').forEach(b => {
+  b.setAttribute('aria-pressed', b.dataset.lang === LANG);
+  b.onclick = () => { if (b.dataset.lang !== LANG && !G.started) setLang(b.dataset.lang); };
+});
 
 // ---- はじめ ----
 newGame();

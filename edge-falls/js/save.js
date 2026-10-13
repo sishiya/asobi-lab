@@ -152,11 +152,12 @@ function metaText(rec) {
 }
 
 // mode: 'save'（スロットに残す・ファイルに書き出す）／'load'（自動セーブ・スロット・ファイルから読む）。2026-10-13 ユーザー「セーブとロードは分けて」
-function openSavePanel(back, mode = 'save') {
+// just: いまセーブしたスロット（その行を光らせて「セーブした」。音を消していても分かるように。2026-10-13 ユーザー）
+function openSavePanel(back, mode = 'save', just) {
   const keys = mode === 'save' ? SLOTS.map((s, n) => [s, TX('スロット ', 'Slot ') + (n + 1)]) : [['auto', TX('自動セーブ', 'Autosave')], ...SLOTS.map((s, n) => [s, TX('スロット ', 'Slot ') + (n + 1)])];
   const rows = keys.map(([k, label]) => {
     const rec = readSlot(k);
-    return `<div class="slot"><div><b>${label}</b><p>${metaText(rec)}</p></div><div class="sbtn">` +
+    return `<div class="slot${k === just ? ' just' : ''}"><div><b>${label}</b>${k === just ? `<em class="savedmark">${TX('✓ セーブした', '✓ Saved')}</em>` : ''}<p>${metaText(rec)}</p></div><div class="sbtn">` +
       (mode === 'save' ? `<button type="button" class="tbtn" data-save="${k}">${rec ? TX('上書きする', 'Overwrite') : TX('ここに残す', 'Save here')}</button>` : rec ? `<button type="button" class="tbtn" data-load="${k}">${TX('読みこむ', 'Load')}</button>` : '') + '</div></div>';
   }).join('');
   const file = mode === 'save'
@@ -170,7 +171,7 @@ function openSavePanel(back, mode = 'save') {
   const panel = $('panel');
   panel.querySelectorAll('[data-save]').forEach(b => b.onclick = async () => {
     const ok = await saveSlot(b.dataset.save);
-    toast(ok ? TX('セーブした', 'Saved') : TX('セーブできなかった（ブラウザの保存の場所がいっぱいかもしれない）', 'Couldn’t save (the browser’s storage may be full)')); Sound.play(ok ? 'put' : 'no'); openSavePanel(back, 'save');
+    toast(ok ? TX('セーブした', 'Saved') : TX('セーブできなかった（ブラウザの保存の場所がいっぱいかもしれない）', 'Couldn’t save (the browser’s storage may be full)')); Sound.play(ok ? 'put' : 'no'); openSavePanel(back, 'save', ok ? b.dataset.save : null);
   });
   panel.querySelectorAll('[data-load]').forEach(b => b.onclick = async () => {
     const rec = readSlot(b.dataset.load);

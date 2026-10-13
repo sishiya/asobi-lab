@@ -313,3 +313,27 @@ body.thumb .menubtn,body.thumb .hands,body.thumb .fan,body.thumb .dial,body.thum
 .lightbox.print img{filter:none;aspect-ratio:auto;object-fit:contain;width:auto;height:auto;max-width:calc(100vw - 60px);max-height:calc(100vh - 140px);border:0;outline:0;background:none}
 .lightbox.print figcaption{color:var(--paper)}
 .lightbox.print figcaption p{color:rgba(239,227,196,.75)}
+/* v020 */
+/* 札・観察帳は、時が止まったときの影（.stage::after）より上に。「時が止まっている」の字は、札や観察帳が出ているあいだは出さない */
+.stage::after{z-index:2}
+.overlay,.book{z-index:3}
+body:has(#overlay:not([hidden])) .stage::after,body:has(#book:not([hidden])) .stage::after,body:has(#lightbox:not([hidden])) .stage::after{color:transparent;text-shadow:none}
+/* 設定のあいだは世界をうすくしない（背景を選んで見くらべられるように） */
+body:has(#overlay:not([hidden]) .panel.settings) #view{filter:none}
+body:has(#overlay:not([hidden]) .panel.settings) .overlay{background:transparent}
+body:has(#overlay:not([hidden]) .panel.settings) .stage::after{opacity:0}
+/* セーブした行: 音を消していても分かるように光らせる */
+.slot.just{animation:justSaved 1.6s ease-out}
+@keyframes justSaved{0%{background:rgba(var(--glowc),.38)}100%{background:transparent}}
+.savedmark{display:inline-block;margin-left:8px;font-style:normal;font-size:12px;color:rgb(var(--glowc));letter-spacing:.08em;animation:lbIn .3s ease-out}
+/* 手放す（スマホの Esc のかわり）。指で遊ぶときだけ、手に持つもの3つの左に（まん中をずらさない・観察帳とぶつからない） */
+.handoff{position:absolute;right:100%;bottom:0;margin-right:6px;display:none;flex-direction:column;align-items:center;justify-content:flex-end;width:52px;padding:6px 0 4px;border:0;border-radius:14px;background:radial-gradient(closest-side,var(--deep),transparent);color:var(--paper);cursor:pointer}
+.handoff b{font-size:24px;line-height:40px;font-weight:400;opacity:.85}
+.handoff span{font-size:11px;opacity:.75;letter-spacing:.06em;white-space:nowrap}
+@media (pointer:coarse),(max-width:640px){.handoff{display:flex}}
+/* 言語（タイトルの右上だけ） */
+.langsw{position:absolute;right:max(12px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));z-index:4;display:none;gap:2px;padding:3px;border-radius:10px;background:rgba(12,16,30,.55);border:1px solid rgba(239,227,196,.25)}
+body.titling .langsw{display:flex}
+.langsw button{border:0;background:transparent;color:var(--paper);font-size:13px;letter-spacing:.08em;padding:4px 10px;border-radius:7px;cursor:pointer;opacity:.65;min-height:32px}
+.langsw button[aria-pressed=true]{background:rgba(239,227,196,.9);color:#141b30;opacity:1}
+.langsw button:hover,.langsw button:focus-visible{opacity:1;outline:0}

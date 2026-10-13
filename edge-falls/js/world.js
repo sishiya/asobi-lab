@@ -166,12 +166,17 @@ const sunGround = () => ({ x: C + W.rs * Math.cos(W.sun.a), y: C + W.rs * Math.s
 const moonGround = () => ({ x: C + RS * Math.cos(W.moon.a), y: C + RS * Math.sin(W.moon.a) });
 
 function updateLight() {
-  const s = sunGround();
+  const s = sunGround(), ek = 1 - 0.72 * eclipseK();
   for (const i of INS) {
     const d = Math.hypot(i % N - s.x, (i / N | 0) - s.y);
-    W.light[i] = Math.min(1, Math.max(0.06, (1.25 - d / (1.25 * RD)) * W.sunAmp));
+    W.light[i] = Math.min(1, Math.max(0.06, (1.25 - d / (1.25 * RD)) * W.sunAmp * ek));
   }
 }
+// 太陽と月の遊び（v020。2026-10-13 ユーザー「太陽と月をつかった遊びを入れる」）
+//   月と太陽の向きの差（-π〜π）。0 に近いと同じ側にそろう（潮はもとから月＋少し太陽なので、そろうと大きくなる＝大潮）
+const sunMoonGap = () => Math.atan2(Math.sin(W.moon.a - W.sun.a), Math.cos(W.moon.a - W.sun.a));
+// 日食: 月が太陽にぴったり重なると、昼が暗くなる（ほうっておいても半月に一度ほど。月をつかんで重ねることもできる）
+const eclipseK = () => Math.max(0, 1 - Math.abs(sunMoonGap()) / 0.06);
 
 // 潮: 月（と少し太陽）のほうへ水が寄る。ふちで ±0.9 ほど
 let tcx = 0, tcy = 0;

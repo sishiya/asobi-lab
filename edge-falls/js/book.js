@@ -55,17 +55,27 @@ const iconURL = (() => { const cache = {}; return (key, fn) => { if (!cache[key]
 const LIFE_SUBS = [['seed', TX('たね', 'Seeds')], ['deer', TX('シカ', 'Deer')], ['wolf', TX('オオカミ', 'Wolf')], ['fish', TX('サカナ', 'Fish')], ['bird', TX('サギ', 'Heron')]];
 function toolOf() {
   if (G.hand === 'soil') return G.sub.soil;
-  if (G.hand === 'water') return 'spring';
+  if (G.hand === 'water') return G.sub.water;
   if (G.hand === 'life') return G.sub.life === 'seed' ? 'grass' : G.sub.life;
   return 'look';
 }
 function setHand(h) {
   G.hand = h; G.tool = toolOf();
   cv.classList.toggle('tool', !!h);
-  const cur = { dig: ['bagd', c => drawBag(c, 0.5, false)], raise: ['bagr', c => drawBag(c, 0.8, true)], spring: ['jar', c => drawJar(c, 0.7)], grass: ['seed', drawSeed] }[G.tool] ||
-    (KINDS[G.tool] ? ['c' + G.tool, c => drawCreature(c, G.tool)] : null);
-  cv.style.cursor = cur ? `url(${iconURL(cur[0], cur[1])}) 4 28, crosshair` : '';
+  setCursor();
   syncHands();
+}
+// 手放す（Esc・スマホの「やめる」）
+function dropHand() { setHand(null); hover = null; Sound.play('release'); }
+// マウスの横の絵: 土ぶくろ・水がめは、いまの中身の量で（2026-10-13 ユーザー「泉がからでも溜まっているようにみえる」）。6 段に丸める
+let cursorKey = '';
+function setCursor() {
+  const lv = v => Math.round(Math.max(0, Math.min(1, v)) * 6) / 6, sf = lv(W.soil / SOIL_FULL), wf = lv(W.abyss / 1000);
+  const cur = { dig: ['bagd' + sf, c => drawBag(c, sf, false)], raise: ['bagr' + sf, c => drawBag(c, sf, true)], spring: ['jar' + wf, c => drawJar(c, wf)], grass: ['seed', drawSeed] }[G.tool] ||
+    (KINDS[G.tool] ? ['c' + G.tool, c => drawCreature(c, G.tool)] : null);
+  const key = cur ? cur[0] : '';
+  if (key === cursorKey) return; cursorKey = key;
+  cv.style.cursor = cur ? `url(${iconURL(cur[0], cur[1])}) 4 28, crosshair` : '';
 }
 function syncHands() {
   const u = G.unlock || {};
@@ -76,14 +86,15 @@ function syncHands() {
     b.setAttribute('aria-pressed', G.hand === k);
   });
   $('btnBook').hidden = !G.started;
+  $('btnHandOff').hidden = !G.hand;
   drawHands();
-  // 手に持っているものの中身（扇のように上に並ぶ）
+  // 手に持っているものの中身（扇のように上に並ぶ）。水がめは一つだけでも、ほかと同じく出す（2026-10-13 ユーザー）
   const fan = $('fan');
-  if (G.hand === 'soil' || G.hand === 'life') {
-    const items = G.hand === 'soil' ? [['dig', TX('土をけずる', 'Dig')], ['raise', TX('土を盛る', 'Pile up')]] : LIFE_SUBS.filter(([k]) => k === 'seed' || u[k]);
+  if (G.hand) {
+    const items = G.hand === 'soil' ? [['dig', TX('土をけずる', 'Dig')], ['raise', TX('土を盛る', 'Pile up')]] : G.hand === 'water' ? [['spring', TX('泉をわかせる', 'Make a spring')]] : LIFE_SUBS.filter(([k]) => k === 'seed' || u[k]);
     fan.innerHTML = items.map(([k, label]) => {
       const n = KINDS[k] ? `<em>${W.stock[k]}</em>` : k === 'raise' ? `<em id="soilN">${Math.floor(W.soil)}</em>` : '';
-      const ic = k === 'dig' ? iconURL('bagd', c => drawBag(c, 0.5, false)) : k === 'raise' ? iconURL('bagr', c => drawBag(c, 0.8, true)) : k === 'seed' ? iconURL('seed', drawSeed) : iconURL('c' + k, c => drawCreature(c, k));
+      const ic = k === 'dig' ? iconURL('bagd', c => drawBag(c, 0.5, false)) : k === 'raise' ? iconURL('bagr', c => drawBag(c, 0.8, true)) : k === 'spring' ? iconURL('jar', c => drawJar(c, 0.7)) : k === 'seed' ? iconURL('seed', drawSeed) : iconURL('c' + k, c => drawCreature(c, k));
       return `<button type="button" data-sub="${k}" aria-pressed="${G.sub[G.hand] === k}"${KINDS[k] && W.stock[k] <= 0 ? ' class="empty"' : ''}><img src="${ic}" alt="">${label}${n}</button>`;
     }).join('');
     const hb = document.querySelector(`.hand[data-hand="${G.hand}"]`), r = hb.getBoundingClientRect(), fr = field.getBoundingClientRect();
@@ -101,6 +112,7 @@ function drawMeters() {
   const n = $('soilN'); if (n) n.textContent = Math.floor(W.soil);
   const bag = document.querySelector('.hand[data-hand="soil"]');
   bag.classList.toggle('empty', W.soil < 1);
+  if (G.hand) setCursor();
 }
 const SOIL_FULL = 300;
 function drawHands() {
@@ -166,7 +178,8 @@ function goBack() {
   return false;
 }
 // 札の外（何もない所）を押すと、ひとつ前へ（2026-10-13 ユーザー）
-$('overlay').addEventListener('click', e => { if (e.target === $('overlay') && goBack()) Sound.play('click'); });
+$('overlay').addEventListener('click', e => { if (e.target === $('overlay') && goBack()) { Sound.play('click'); G.closedT = performance.now(); } });
+$('btnHandOff').onclick = () => { Sound.unlock(); dropHand(); };
 // タイトルへ（2026-10-13 ユーザー「メニューの最初からの代わりにタイトルに戻れるように」）。いまの世界は自動セーブに残す
 //   セーブしないでもどることもできる（2026-10-13 ユーザー）。そのときは自動セーブも書きかえない（前に残った所から「つづきから」）
 function toTitle() {
@@ -185,7 +198,8 @@ function toTitle() {
   $('panel').classList.add('world'); G.panelBack = openMenu;
 }
 // 設定（v016。2026-10-13 ユーザー「設定メニューを追加して」「メニューには文字フォント切り替えは必要ない。設定画面に移して」）
-//   音楽・効果音・文字・背景（v017 で観察帳のてびきから移した）。押すとその場で切りかわる。back があれば「もどる」でそこへ（メニュー）
+//   音楽・効果音・文字・背景（v017 で観察帳のてびきから移した）。言語は v020 でタイトルの右上だけに（遊んでいるとちゅうで読み直すと、
+//   セーブのつもりがないのにページを離れるときの自動セーブが走るので）。押すとその場で切りかわる。back があれば「もどる」でそこへ（メニュー）
 function openSettings(back, focus) {
   const on = v => v ? TX('オン', 'On') : TX('オフ', 'Off'), again = k => () => openSettings(back, k);
   const bi = BACK_CHOICES.findIndex(([k]) => k === backName);
@@ -194,10 +208,9 @@ function openSettings(back, focus) {
     { label: TX('効果音　', 'Sound effects: ') + on(Sound.get('sfx')), fn: () => { Sound.set('sfx', !Sound.get('sfx')); again(1)(); } },
     { label: TX('文字　', 'Font: ') + (fontName === 'dot' ? TX('ドット', 'Pixel') : TX('明朝', 'Serif')), fn: () => { setFont(fontName === 'dot' ? 'serif' : 'dot'); again(2)(); } },
     { label: TX('背景　', 'Background: ') + (bi >= 0 ? BACK_CHOICES[bi][1] : TX('ほか', 'Other')), fn: () => { setBack(BACK_CHOICES[(bi + 1) % BACK_CHOICES.length][0]); again(3)(); } },
-    { label: TX('言語　日本語', 'Language: English'), fn: () => setLang(LANG === 'en' ? 'ja' : 'en') },   // 読み直す（遊んでいる世界はページを離れるときの自動セーブで「つづきから」に。v019）
     { label: back ? TX('もどる', 'Back') : TX('とじる', 'Close'), main: true, fn: () => { if (back) back(); } },
   ]);
-  $('panel').classList.add('menu', 'world');
+  $('panel').classList.add('menu', 'world', 'settings');   // 設定のあいだは、世界をうすくしない（背景を選びやすく。css）
   G.panelBack = back || (() => { $('overlay').hidden = true; });
   if (focus !== undefined) $('panel').querySelectorAll('.btns .tbtn')[focus]?.focus();   // 押したボタンに印を残す（上下の矢印でつづけて選べる）
 }
@@ -353,12 +366,17 @@ const FINDS = [
   ['catch', TX('サギの漁', 'The heron’s catch'), TX('サギが、浅瀬でサカナをとった。', 'A heron caught a fish in the shallows.'), () => L.why['fish:caught'] > 0],
   ['return', TX('帰ってきた命', 'Lives come back'), TX('去った命が、深淵からつぼへ戻ってきた。', 'Lives that passed away came back from the Abyss to the jar.'), () => W.flags.ret],
   ['gen10', TX('十代目', 'Tenth generation'), TX('第 10 世代の子が生まれた。', 'A young of the 10th generation was born.'), () => W.flags.gen10],
+  // 太陽と月の遊び（v020）
+  ['bigtide', TX('大潮', 'Spring tide'), TX('月と太陽が同じ向きにそろうと、潮がいちばん大きく寄った。', 'When the Moon and Sun lined up on the same side, the tide pulled the hardest.'), s => (W.knob ? W.knob.tide : 1) >= 0.5 && s.wet > 0.03 && Math.abs(sunMoonGap()) < 0.2],
+  ['eclipse', TX('日食', 'Eclipse'), TX('月が太陽に重なって、昼の大地が暗くなった。', 'The Moon covered the Sun, and the land grew dark in the daytime.'), () => eclipseK() > 0.6],
+  ['stillsun', TX('止まった昼', 'The Sun stands still'), TX('太陽を止めたまま一日がすぎた。昼の所はずっと昼、夜の所はずっと夜。', 'A whole day passed with the Sun stopped. Day stayed day, and night stayed night.'), () => G.sunStill > DAY],
 ];
 const SKETCH_KEY = 'asobi-lab/edge-falls/sketch';
 let sketches = {}; try { sketches = JSON.parse(localStorage.getItem(SKETCH_KEY) || '{}'); } catch (e) { sketches = {}; }
 let accFind = 0, wantSketch = null;
 function stepFinds(s, dt) {
   if (!G.started || COL || THUMB) return;
+  G.sunStill = W.sun.stop ? (G.sunStill || 0) + dt : 0;   // 太陽を止めていた時間
   accFind += dt; if (accFind < 0.5) return; accFind = 0;
   let mt = 0; for (const i of INS) if (W.tree[i] > mt) mt = W.tree[i]; G.maxTree = mt;
   if (!G.snowy || !G.icy) for (const i of INS) { if (W.snow[i] > 0.05) G.snowy = 1; if (W.ice[i]) G.icy = 1; }

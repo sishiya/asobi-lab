@@ -11,10 +11,12 @@ let backName = 'dark';          // はじめは暗い宇宙（2026-10-13 ユー�
 const BACK_KEY = 'asobi-lab/edge-falls/back';
 // 設定で選べる背景（v017。2026-10-13 ユーザー「暗い宇宙、宇宙、雲の上、幻想、ルックにおまかせ（名称変更）だけ残して」）。
 //   auto＝ボクセルの画風が自分で描く画素の雲海。ほかの背景（部屋の中・手のひら・電脳）は ?back= で見られる（試し用）
-const BACK_CHOICES = [['dark', TX('暗い宇宙', 'Dark space')], ['space', TX('宇宙', 'Space')], ['clouds', TX('雲の上', 'Above the clouds')], ['fantasy', TX('幻想', 'Fantasy')], ['auto', TX('画素の雲海', 'Pixel sea of clouds')]];
+//   v020: 「宇宙」は外した（2026-10-13 ユーザー）。前に「宇宙」を選んでいた人は、暗い宇宙にもどす（覚えた値も書きかえる）。?back=space ではまだ見られる
+const BACK_CHOICES = [['dark', TX('暗い宇宙', 'Dark space')], ['clouds', TX('雲の上', 'Above the clouds')], ['fantasy', TX('幻想', 'Fantasy')], ['auto', TX('画素の雲海', 'Pixel sea of clouds')]];
 try {
   const q = new URLSearchParams(location.search).get('back'), m = localStorage.getItem(BACK_KEY);
   backName = q || (BACK_CHOICES.some(([k]) => k === m) ? m : 'dark');
+  if (m && !q && m !== backName) localStorage.setItem(BACK_KEY, backName);
 } catch (e) { /* なし */ }
 function setBack(n) {
   if (n !== 'auto' && !BACKS[n]) return;
