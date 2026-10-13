@@ -112,9 +112,7 @@ function syncHands() {
   } else { fan.hidden = true; document.body.classList.remove('fan-open'); }
 }
 let handSig = '';
-function drawMeters() {
-  $('soilMeter').style.width = Math.min(100, W.soil / SOIL_FULL * 100) + '%';
-  $('waterMeter').style.width = Math.min(100, W.abyss / 1300 * 100) + '%';
+function drawMeters() {   // 量の線（ゲージ）は v040 でやめた（ユーザー「情報が二重化・選んだ印の黄色とまざってノイズ」）。量はふくろ・かめの絵の中身で見せる
   const n = $('soilN'); if (n) n.textContent = Math.floor(W.soil);
   const bag = document.querySelector('.hand[data-hand="soil"]');
   bag.classList.toggle('empty', W.soil < 1);
