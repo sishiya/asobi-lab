@@ -16,6 +16,7 @@
 // 台本: 果ての滝の箱庭（ショート、縦長 40秒＋締め。?short で開く）
 // ゲームをスマホの大きさ（540×960）で開き、4倍の細かさで描かせる。場面は edge-falls-digest.html が残した章のはじめのセーブから始める
 // （先にダイジェストを録る。セーブは out/edge-falls-save-ch<n>.json）。手（泉・たね）はゲームの道具の関数で打つ
+// エンディング・世界がくずれる演出は見せない（ネタバレ。2026-10-13 ユーザー。RULES 8章）
 const IW = 540, IH = 960, DPR = 4;
 const NAME = '果ての滝の箱庭', SUB = '世界の果てから、川が滝になって落ちる箱庭ゲーム';
 const END_LINE = 'ブラウザで遊べます（パソコン・スマホ）';
@@ -29,8 +30,8 @@ const CAPS = [
     en: ['Each year brings one new kind of life', 'Grass, deer, wolves, fish, herons (ten years)'] },
   { a: 24.4, b: 30.6, main: '何も生まれず、何も消えない', sub: 'ただ、めぐるだけ。食べる・食べられる',
     en: ['Nothing is created, nothing is lost', 'It only goes around. Eat and be eaten'] },
-  { a: 31.0, b: 35.0, main: '十の年をこえると、殻がはがれて…', sub: '',
-    en: ['After ten years, the shell peels away...', ''] },
+  { a: 31.0, b: 35.0, main: '十の年で、どんな世界になる？', sub: '水と命がめぐる世界をつくる',
+    en: ['What will your world become in ten years?', 'Build a world where water and life go around'] },
 ];
 const lakeP = (w, f) => { const W = w.__ef.W, C = efGet(w, 'C'), RD = efGet(w, 'RD'); return { x: C + W.lake.x * RD * f, y: C + W.lake.y * RD * f }; };
 let Y0 = 0;
@@ -52,12 +53,11 @@ const SC = [
     pre: w => { Y0 = w.__ef.V.yaw; },
     view: (V, lt, w) => { const W = w.__ef.W, C = efGet(w, 'C'), RD = efGet(w, 'RD'); V.yaw = Y0 + 0.2 + lt * 0.02; V.tilt = 0.5; V.zoom = 1.9 + lt * 0.03;
       const p = w.proj(C + W.lake.x * RD * 0.6, C + W.lake.y * RD * 0.6, 0); V.panX = (V.panX || 0) + (V.cw / 2 - p.x) * 0.5; V.panY = (V.panY || 0) + (V.ch * 0.45 - p.y) * 0.5; } },
-  // エンディング: 殻がはがれて丸い世界
-  { a: 31.0, b: 99, save: 'ch9', speed: 1, pre: w => { Y0 = w.__ef.V.yaw; w.__ef.V.zoom = 0.98; w.__ef.V.tilt = 0.55; w.__ef.V.panY = -70; },
-    ev: [{ t: 0.4, run: w => w.startCollapse('shell') }] },
+  // しめくくり: できた世界を引いて回す（エンディング・くずれる演出は見せない。RULES 8章）
+  { a: 31.0, b: 99, save: 'ch9', speed: 4, pre: w => { Y0 = w.__ef.V.yaw; }, view: (V, lt) => { V.yaw = Y0 - 0.6 + lt * 0.05; V.tilt = 0.5; V.zoom = 0.9; V.panY = -70; } },
 ];
 promoStart({
-  name: NAME, out: 'edge-falls', src: '../../edge-falls/index.html', iw: IW, ih: IH, dur: SHORT_END + IDENT_CLOSE, peek: 12,
+  name: NAME, out: 'edge-falls', src: EF_SRC, iw: IW, ih: IH, dur: SHORT_END + IDENT_CLOSE, peek: 12,
   inject: { pre: EF_PRE, dpr: DPR },
   music: { style: 'journey', root: 130.81, stopAt: SHORT_END, cues: [{ t: SHORT_END, type: 'jingle' }] },
   subs: shortSubs(NAME, 'Falls at the Edge of the World', SUB, 'A sandbox where rivers pour off the edge of a flat world', CAPS, END_LINE, 'Play in your browser (PC or phone). On-screen text is in Japanese for now'),

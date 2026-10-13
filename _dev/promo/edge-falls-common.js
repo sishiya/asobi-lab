@@ -5,6 +5,9 @@
 //          ゲームの道具の関数 useTool をそのまま使う（手に持つ・扇で選ぶ・大地を押す、と同じ道すじ）。
 'use strict';
 const EF = { w: null, vt: 0, log: [], acts: [], saves: {} };
+// 開くゲーム。?game=out/game のように渡すと、そこにある edge-falls を開く（別の会話がゲームを書きかえている途中に、コミットずみの版で録るとき。
+// 例: git archive HEAD edge-falls | tar -x -C _dev/promo/out/game）
+const EF_SRC = (new URLSearchParams(location.search).get('game') || '../..') + '/edge-falls/index.html';
 
 // ゲームより先に動く差しかえ（inject.pre）。時計はこちらの __efAdv(ミリ秒) で進む
 const EF_PRE = `

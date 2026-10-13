@@ -30,14 +30,14 @@ const out = document.getElementById('out'), g = out.getContext('2d'), go = docum
 const logEl = document.getElementById('log'), log = s => { logEl.textContent += s + '\n'; };
 const iframe = document.getElementById('app');
 (async () => {
-  const base = new URL('../../edge-falls/index.html', location.href);
+  const base = new URL(EF_SRC, location.href);
   const html = await (await fetch(base)).text();
   const head = `<base href="${base.href.replace(/[^/]*$/, '')}"><script>${EF_PRE}Object.defineProperty(window, 'devicePixelRatio', { get: () => ${K} });</` + 'script>';
   iframe.srcdoc = html.replace(/<head[^>]*>/i, m => m + head);
 })();
 
 const YN = ['第一', '第二', '第三', '第四', '第五', '第六', '第七', '第八', '第九', '第十'];
-const REP = { seed: SEED, chapters: [], errors: [], ending: false, days: 0, videoSec: 0, finds: 0 };
+const REP = { seed: SEED, chapters: [], errors: [], clear: false, ending: false, days: 0, videoSec: 0, finds: 0 };
 let w, vi = 0, phase = 'title', phaseV = 0, lastCh = -1, chStartV = 0, endV = 0, rate = 16;
 
 function hud(t) {
@@ -103,12 +103,13 @@ async function step() {
     rate = G.ch % 1 ? 16 : inCh < 4 ? 16 : days > 14 ? 240 : 90;
     sim = Math.max(0, rate / FPS_D - 16 / FPS_D);
     efBot(w);
-    if (efGet(w, 'COL') || G.ch >= 10) { phase = 'ending'; endV = t; rate = 1; log(`エンディングへ: 第 ${W.day} 日（動画 ${t.toFixed(0)} 秒）`); }
+    if (efGet(w, 'COL') || G.ch >= 10) { phase = 'ending'; endV = t; rate = 1; REP.clear = true; REP.clearDay = W.day; log(`エンディングへ: 第 ${W.day} 日（動画 ${t.toFixed(0)} 秒）`); }
   } else if (phase === 'ending') {
     rate = 1;
     const ov = w.document.getElementById('overlay');
     if (!REP.ending && !ov.hidden && /めぐる世界/.test(ov.textContent)) { REP.ending = true; endV = t; log(`エンディングの札が出た（動画 ${t.toFixed(0)} 秒）`); }
     if (REP.ending && t - endV > 6) return false;
+    if (!REP.ending && t - endV > 24) { log('エンディングの札は出なかった（十の年は通った）'); return false; }   // エンディングの演出がない版でも止まる
     // 殻がはがれる演出は自分では終わらないので、まん中まで見せたら「もとにもどす」と同じ道すじで札へ
     if (!REP.ending && t - endV > 16 && efGet(w, 'COL')) w.document.getElementById('btnRestore').click();
   }

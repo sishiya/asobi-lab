@@ -24,11 +24,13 @@
 - BGM はコードで合成した音だけ（`journey`、レの和音）。音の大きさは、まなびラボの説明動画と同じくらい（平均 -37dB、いちばん大きいところ -13dB）。
 
 ## 果ての滝の箱庭（2026-10-13）
+**ネタバレ厳禁**（`../../RULES.md` 8章）: ショート・説明動画・サムネイルにエンディングと世界がくずれる演出を出さない。終わりは第十の年「めぐる世界」までで、できた世界を回して見せる。ダイジェストは確認用なのでクリアまで録る（エンディングの演出がない版でも、十の年を通ったら止まる）。
+
 | 台本 | 中身 | 出力 |
 |---|---|---|
 | `edge-falls-digest.html` | **ダイジェスト**（あそびラボだけ。RULES 8章）: はじめの画面から自動で遊んでエンディングの札まで。1920×1080・音なし・長さは遊んだぶん（約2分半）。`?dry` は録らずに速く通す、`?seed=` は大地の種（はじめは 3）、`?max=秒` で途中で止める | `out/edge-falls-digest.mp4`・`.json`（章ごとの日・見つけたこと・エラー）、章のはじめのセーブ `out/edge-falls-save-ch0〜9.json` |
-| `edge-falls.html?short` | ショート（縦、ゲームをスマホの大きさ 540×960 で）: できた世界 → 泉を2つ・湖と滝 → 草とシカ（時を速めて）→ 湖に寄って生き物 → 殻がはがれて丸い世界 | `out/edge-falls-short.mp4`・`.ja.srt`・`.en.srt` |
-| `edge-falls-guide.html` | 説明動画（横、1280×720 で開いて3倍、ライオンつき）。はじめの画面 → 水がめ・泉 → 土ぶくろで出口を盛る → たね → シカ → 冬と天の輪 → 食べる・食べられる・命が戻る → 遺伝子の平均 → エンディング | `out/edge-falls-guide.mp4`・`.ja.srt`・`.en.srt` |
+| `edge-falls.html?short` | ショート（縦、ゲームをスマホの大きさ 540×960 で）: できた世界 → 泉を2つ・湖と滝 → 草とシカ（時を速めて）→ 湖に寄って生き物 → できた世界を引いて回す（十の年で、どんな世界になる？） | `out/edge-falls-short.mp4`・`.ja.srt`・`.en.srt` |
+| `edge-falls-guide.html` | 説明動画（横、1280×720 で開いて3倍、ライオンつき）。はじめの画面 → 水がめ・泉 → 土ぶくろで出口を盛る → たね → シカ → 冬と天の輪 → 食べる・食べられる・命が戻る → 遺伝子の平均 → 第十の年「めぐる世界」（エンディングは見せない） | `out/edge-falls-guide.mp4`・`.ja.srt`・`.en.srt` |
 
 - 共通の部品は `edge-falls-common.js`。ゲームを srcdoc で開き、ゲームより先に時計を差しかえる（`EF_PRE`: requestAnimationFrame・setTimeout・performance.now をこちらの `__efAdv(ミリ秒)` で進める。知らせや章のことばも動画の時間で消える）。保存してある果ての滝のセーブ・設定は、録る iframe の中で消し、音は切る。
 - 絵はゲームの `#view` に、**ゲームの画面の小物を写して重ねる**（`efDrawUI`: `#field` の中の見えている canvas・img・色の箱・ふち・文字を、画面での位置のとおりに。文字は1字ずつ Range の位置で）。台本ごとに写さないものを `skip` で選ぶ（説明動画は上が字幕なのでお題の1行を写さない、右下はライオン）。
@@ -38,3 +40,4 @@
   `powershell -NoProfile -ExecutionPolicy Bypass -File _dev/tools/record-promo.ps1 -Port 8781 -Script edge-falls-digest`
   `… -Script edge-falls -Short`、`… -Script edge-falls-guide`
 - BGM はコードで合成した音だけ（`journey`、ハの和音）。
+- **別の会話がゲームを書きかえている途中**（コミットしていない変更で動かないなど）は、コミットずみの版を `out/game/` に出して、そちらで録る: `git archive HEAD edge-falls | tar -x -C _dev/promo/out/game`、録るときは `-Query game=out/game`（3本とも `?game=` で開くゲームを選べる）。

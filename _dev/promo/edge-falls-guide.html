@@ -16,7 +16,7 @@
 // 台本: 果ての滝の箱庭 ― 使い方と見どころ（横長の説明動画、150秒、案内役のライオンつき）
 // ゲームを 1280×720 で開き、3倍の細かさで描かせる。ゲームの画面の小物（手に持つもの・扇・天の輪・知らせ・章のことば）も写す（efDrawUI）。
 // 上は字幕なので、ゲームのお題の1行は写さない。右下はライオン（観察帳のボタンは写さない）。
-// 場面は edge-falls-digest.html が残した章のはじめのセーブから（先にダイジェストを録る）。矢印は、押す所（大地の点・手に持つものの札）を毎コマ画面の位置に直して描く
+// 場面は edge-falls-digest.html が残した章のはじめのセーブから（先にダイジェストを録る）。エンディング・世界がくずれる演出は見せない（ネタバレ厳禁。RULES 8章）。矢印は、押す所（大地の点・手に持つものの札）を毎コマ画面の位置に直して描く
 const IW = 1280, IH = 720, DPR = 3, KK = 1920 / IW;   // KK: css の画素 → 字幕の座標（PW×PH）
 const END = 150, DUR = END + IDENT_CLOSE;
 const NAME = '果ての滝の箱庭';
@@ -45,10 +45,10 @@ const CAPS = [
     en: ['Lives that leave return to the jar through the abyss', 'Even if a species dies out, it can come back'] },
   { a: 106.4, b: 121.4, main: '生き物は遺伝子を持ち、体が変わっていく', sub: 'オオカミに追われるとシカの足が速く。いらない力は下がっていく（観察帳の遺伝子の頁）',
     en: ['Creatures carry genes, and their bodies change', 'Chased by wolves, deer get faster; unused abilities fade (genes page of the field notebook)'] },
-  { a: 122.4, b: 131.0, main: '十の年をこえると……', sub: '',
-    en: ['After the ten years...', ''] },
-  { a: 131.4, b: 141.6, main: '平らな大地の殻がはがれて、丸い世界', sub: '本当の世界には、果てがない。落ちていくものは、どこかでめぐっている',
-    en: ['The shell of the flat world peels away to reveal a round one', 'The real world has no edge. What falls away goes around somewhere'] },
+  { a: 122.4, b: 131.6, main: '第十の年は「めぐる世界」', sub: '草・シカ・オオカミ・サカナ・サギが、そろって1年つづくように',
+    en: ['Year ten: a world that goes around', 'Keep grass, deer, wolves, fish and herons all alive together for a year'] },
+  { a: 132.0, b: 141.6, main: '全部を止めようとせず、少し落としてやる', sub: '時間の制限はない。十の年のあとは、自由な箱庭としても遊べる',
+    en: ["Don't try to stop everything; let a little fall away", 'There is no time limit. After the ten years, keep playing as a free sandbox'] },
 ];
 const lakeP = (w, f) => { const W = w.__ef.W, C = efGet(w, 'C'), RD = efGet(w, 'RD'); return { x: C + W.lake.x * RD * f, y: C + W.lake.y * RD * f }; };
 const P = {};   // 場面のはじめに決める押す所（大地の区画）
@@ -104,9 +104,8 @@ const SC = [
     pre: w => { Y0 = w.__ef.V.yaw; },
     rate: () => 60,
     view: (V, lt) => { V.yaw = Y0 - 0.3 + lt * 0.01; V.tilt = 0.6; V.zoom = 0.95; V.panX = 170; } },
-  // エンディング
-  { a: 122.0, b: 999, save: 'ch9', speed: 1, pre: w => { const V = w.__ef.V; V.zoom = 1.0; V.tilt = 0.55; },
-    ev: [{ t: 1.0, run: w => w.startCollapse('shell') }] },
+  // 第十の年 めぐる世界: できた世界を回す（エンディング・くずれる演出は見せない。RULES 8章）
+  { a: 122.0, b: 999, save: 'ch9', speed: 4, pre: w => { Y0 = w.__ef.V.yaw; }, view: (V, lt) => { V.yaw = Y0 + 0.6 - lt * 0.03; V.tilt = 0.52 + lt * 0.002; V.zoom = 1.0; } },
 ];
 // 矢印: 押す所は場面の中で決まるので、毎コマ画面の位置に直す（{ t, at: w => css の点 }）
 const START = w => { const b = w.document.getElementById('overlay').hidden ? null : [...w.document.querySelectorAll('#panel button')].find(e => /はじめ/.test(e.textContent)); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
@@ -130,9 +129,9 @@ function cursorKeys(w, t) {   // いま見えている場面のぶんだけ（�
 const MUSIC = { style: 'journey', root: 130.81, stopAt: END, cues: [{ t: END, type: 'jingle' }] };
 const EXP = [[0, 'calm'], [7.5, 'smile'], [10, 'calm'], [15.4, 'think'], [19, 'calm'], [22.2, 'wow'], [25, 'calm'], [31.6, 'smile'], [35, 'calm'], [41, 'think'], [45, 'calm'],
   [50.6, 'smile'], [54, 'calm'], [61.4, 'smile'], [64, 'calm'], [70.6, 'cold'], [74, 'sad'], [78, 'calm'], [80, 'think'], [84, 'calm'], [88.6, 'wow'], [92, 'calm'],
-  [97.4, 'smile'], [101, 'calm'], [106.6, 'think'], [112, 'proud'], [116, 'calm'], [122.6, 'think'], [131.6, 'wow'], [135, 'calm'], [END - 7.6, 'smile']];
+  [97.4, 'smile'], [101, 'calm'], [106.6, 'think'], [112, 'proud'], [116, 'calm'], [122.6, 'think'], [132.2, 'smile'], [136, 'calm'], [END - 7.6, 'smile']];
 promoStart({
-  name: '果ての滝の箱庭（使い方）', out: 'edge-falls-guide', src: '../../edge-falls/index.html', iw: IW, ih: IH, dur: DUR, peek: 40,
+  name: '果ての滝の箱庭（使い方）', out: 'edge-falls-guide', src: EF_SRC, iw: IW, ih: IH, dur: DUR, peek: 40,
   inject: { pre: EF_PRE, dpr: DPR },
   music: MUSIC,
   ready: w => !!LION.api && efReady(w),
