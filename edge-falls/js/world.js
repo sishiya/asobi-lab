@@ -371,10 +371,10 @@ function sculpt(cx, cy, amt, rad = 3.2) {
 
 // たねをまく（v045 から、すぐ草にならず、まいた所が SPROUT 秒ほどで少しずつ芽ぶく。2026-10-14 ユーザー「少しだけ時間が立たないと草生えないように」）
 const SPROUT = 6;                       // 草 0.25 まで芽ぶくのにかかる世界の秒（×1 で 6 秒）
-// 手ざわりの粒（v056。2026-10-14 ユーザー「タネはもう少し上から」「泉も上から水滴」「土をけずる・盛るときも砂や土が散る」）:
+// 手ざわりの粒（v056。2026-10-14 ユーザー「タネはもう少し上から」「泉も上から水滴」「土をけずる・盛るときも砂や土が散る」。v057 で盛るは土ぼこりに）:
 //   粒は {x, y, h0（地面からの高さ）, vx, vy, vz, g, t0, col}。画面の時計で動く（止めていても動く）。地面に着いたら少しのあいだでうすれて消える。ボクセルの絵だけ（style-voxel.js）
 const PFX = [];
-const PCOL = { seed: ['#e8d48c', '#d8c070'], drop: ['#cfeaff', '#8fc4e2'], dig: ['#8a6238', '#a87a48', '#6e4c2a'], raise: ['#c8a070', '#d8b888', '#a87a48'] };
+const PCOL = { seed: ['#e8d48c', '#d8c070'], drop: ['#cfeaff', '#8fc4e2'], dig: ['#8a6238', '#a87a48', '#6e4c2a'], raise: ['#d2c6ae', '#b8aa90', '#e2d8c4'] };   // 盛る: 土ぼこり（土の上で見えるよう、うすい灰みの色）
 function burst(kind, cx, cy, n, rad = 1.5) {
   if (PFX.length > 160) return;
   const now = performance.now(), cols = PCOL[kind];
@@ -383,7 +383,7 @@ function burst(kind, cx, cy, n, rad = 1.5) {
     const p = { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, vx: 0, vy: 0, vz: 0, h0: 0, g: 16, t0: now + k * 35, col };
     if (kind === 'seed') { p.h0 = 6 + Math.random() * 1.5; }                                       // 上から（指にかくれないように。前は 3.2）
     else if (kind === 'drop') { p.h0 = 7 + Math.random() * 2; p.g = 20; }                           // 泉: 水のしずく
-    else if (kind === 'raise') { p.h0 = 4 + Math.random() * 2; p.g = 18; }                          // 盛る: 上から土がこぼれる
+    else if (kind === 'raise') { const s = 1.6 + Math.random() * 1.6; p.vx = Math.cos(a) * s; p.vy = Math.sin(a) * s; p.vz = 0.8; p.h0 = 0.2; p.g = 2; p.t0 = now; }   // 盛る: 地面すれすれに土ぼこりが外へ広がる（v057。上から落とすとたねと見分けにくかった）
     else if (kind === 'dig') { const s = 1.5 + Math.random() * 2; p.vx = Math.cos(a) * s; p.vy = Math.sin(a) * s; p.vz = 4 + Math.random() * 3; p.h0 = 0.3; p.g = 22; p.t0 = now; }   // 削る: 土がはねる
     PFX.push(p);
   }
