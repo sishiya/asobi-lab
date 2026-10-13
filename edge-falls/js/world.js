@@ -131,7 +131,7 @@ function newWorld(seed, bare) {
     W.springs = [];
     for (const i of INS) { W.abyss += W.w[i]; W.w[i] = 0; W.veg[i] = 0; W.tree[i] = 0; W.alg[i] = 0; W.moist[i] = 0; W.fL[i] = W.fR[i] = W.fU[i] = W.fD[i] = 0; }
     W.bigFall = Math.atan2(lk.y, lk.x);        // 湖のくぼみを手前に
-    W.soil = 60;
+    W.soil = 100;                               // はじめの土ぶくろ（v044 で 60 → 100。2026-10-14 ユーザー「土袋を 100 くらいに」）
   }
 }
 

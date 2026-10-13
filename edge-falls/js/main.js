@@ -1,7 +1,7 @@
 'use strict';
 // 入力・ループ・章の進み。デバッグ用に window.__ef
 const cv = $('view'), ctx = cv.getContext('2d'), field = $('field');
-const G = { speed: 1, lastSpeed: 1, tool: 'look', hand: null, sub: { soil: 'dig', water: 'spring', life: 'seed' }, ch: 0, chT: 0, streak: 0, helped: 0,
+const G = { speed: 1, lastSpeed: 1, tool: 'look', hand: null, sub: { soil: 'raise', water: 'spring', life: 'seed' },   /* 土ぶくろははじめ「盛る」（v044。2026-10-14 ユーザー） */ ch: 0, chT: 0, streak: 0, helped: 0,
   done: [], found: {}, did: {}, tipped: {}, unlock: {}, started: false, sel: null };
 const THUMB = new URLSearchParams(location.search).has('thumb');
 let hover = null, ptr = null;
