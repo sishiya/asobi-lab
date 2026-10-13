@@ -80,7 +80,7 @@ function syncHands() {
   // 手に持っているものの中身（扇のように上に並ぶ）
   const fan = $('fan');
   if (G.hand === 'soil' || G.hand === 'life') {
-    const items = G.hand === 'soil' ? [['dig', '削る（土がたまる）'], ['raise', '盛る（土を使う）']] : LIFE_SUBS.filter(([k]) => k === 'seed' || u[k]);
+    const items = G.hand === 'soil' ? [['dig', '土をけずる'], ['raise', '土を盛る']] : LIFE_SUBS.filter(([k]) => k === 'seed' || u[k]);
     fan.innerHTML = items.map(([k, label]) => {
       const n = KINDS[k] ? `<em>${W.stock[k]}</em>` : k === 'raise' ? `<em id="soilN">${Math.floor(W.soil)}</em>` : '';
       const ic = k === 'dig' ? iconURL('bagd', c => drawBag(c, 0.5, false)) : k === 'raise' ? iconURL('bagr', c => drawBag(c, 0.8, true)) : k === 'seed' ? iconURL('seed', drawSeed) : iconURL('c' + k, c => drawCreature(c, k));
