@@ -6,6 +6,7 @@
 - `promo.js` は写したもので、ちがいは先頭の `BRAND`（目印の名前「あそびラボ」と URL `sishiya.github.io/asobi-lab`）だけ。まなびラボ側で `promo.js` を直したら、こちらにも写す（`BRAND` は残す）。
 - ライオン（`../vtuber/index.html`）・アイコン（`../sns-icon/a-lion-glasses.svg`）・録画のスクリプト（`../tools/record-promo.ps1`・`cdp.ps1`）も写したもの。`record-promo.ps1` はポート 8780（サーバー `games`）・プロフィール `asobi-record`。
 - 保存（`out/` への PUT）は `.claude/serve.ps1`（まなびラボと同じもの）。`out/` は Git に入れない。
+- 2026-10-13 にまなびラボの最新の `promo.js` を写しなおし、音の `promo-audio.js`（音量を -20 LUFS にそろえる）・サムネイルの `short-thumb.html`・`short-thumbs.js`・`../tools/make-short-thumbs.ps1`・`../tools/check-loudness.ps1` も写した（台本は `promo-audio.js` も読む）。`record-promo.ps1` には `-Query`（台本のページに `?…` を足す）を足した。
 - YouTube・X に上げる道具（`youtube-upload.ps1`・`make-upload.ps1`・`x-post.ps1`）はまだ写していない。上げるときに写すか、まなびラボの道具で上げる（ユーザーの GO のあと）。
 
 ## 恐竜かけっこ牧場
@@ -21,3 +22,19 @@
   `powershell -NoProfile -ExecutionPolicy Bypass -File _dev/tools/record-promo.ps1 -Script dino-race-guide`
   （2026-10-11: ショート 32 秒・108MB、説明動画 2分12秒・478MB）。
 - BGM はコードで合成した音だけ（`journey`、レの和音）。音の大きさは、まなびラボの説明動画と同じくらい（平均 -37dB、いちばん大きいところ -13dB）。
+
+## 果ての滝の箱庭（2026-10-13）
+| 台本 | 中身 | 出力 |
+|---|---|---|
+| `edge-falls-digest.html` | **ダイジェスト**（あそびラボだけ。RULES 8章）: はじめの画面から自動で遊んでエンディングの札まで。1920×1080・音なし・長さは遊んだぶん（約2分半）。`?dry` は録らずに速く通す、`?seed=` は大地の種（はじめは 3）、`?max=秒` で途中で止める | `out/edge-falls-digest.mp4`・`.json`（章ごとの日・見つけたこと・エラー）、章のはじめのセーブ `out/edge-falls-save-ch0〜9.json` |
+| `edge-falls.html?short` | ショート（縦、ゲームをスマホの大きさ 540×960 で）: できた世界 → 泉を2つ・湖と滝 → 草とシカ（時を速めて）→ 湖に寄って生き物 → 殻がはがれて丸い世界 | `out/edge-falls-short.mp4`・`.ja.srt`・`.en.srt` |
+| `edge-falls-guide.html` | 説明動画（横、1280×720 で開いて3倍、ライオンつき）。はじめの画面 → 水がめ・泉 → 土ぶくろで出口を盛る → たね → シカ → 冬と天の輪 → 食べる・食べられる・命が戻る → 遺伝子の平均 → エンディング | `out/edge-falls-guide.mp4`・`.ja.srt`・`.en.srt` |
+
+- 共通の部品は `edge-falls-common.js`。ゲームを srcdoc で開き、ゲームより先に時計を差しかえる（`EF_PRE`: requestAnimationFrame・setTimeout・performance.now をこちらの `__efAdv(ミリ秒)` で進める。知らせや章のことばも動画の時間で消える）。保存してある果ての滝のセーブ・設定は、録る iframe の中で消し、音は切る。
+- 絵はゲームの `#view` に、**ゲームの画面の小物を写して重ねる**（`efDrawUI`: `#field` の中の見えている canvas・img・色の箱・ふち・文字を、画面での位置のとおりに。文字は1字ずつ Range の位置で）。台本ごとに写さないものを `skip` で選ぶ（説明動画は上が字幕なのでお題の1行を写さない、右下はライオン）。
+- 自動で遊ぶ手 `efBot`: 章ごとに DEVNOTES の「確認のしかた」と同じ手（湖のくぼみに泉2つ → 水が落ちていくふちの出口を盛る、土が足りなければ高い所を削る → 水辺にたね → 草の多い所にシカ → シカの近くにオオカミ → 深い水にサカナ → 浅瀬にサギ。少なくなったらつぼから足す）。道具はゲームの `useTool` をそのまま（手に持つ・扇で選ぶ・大地を押すのと同じ道すじ）。泉は 2.5 区画より近いと前の泉を止めてしまうので離す。
+- 紹介動画の場面（`efScenes`）は、ダイジェストが残した章のはじめのセーブから始める（**先にダイジェストを録る**）。セーブの中身はダイジェストのたびに変わる（乱数）ので、録りなおすときは3本まとめて。
+- 録り方（サーバー `games-2`＝8781 などを起動して、リポジトリのルートで）:
+  `powershell -NoProfile -ExecutionPolicy Bypass -File _dev/tools/record-promo.ps1 -Port 8781 -Script edge-falls-digest`
+  `… -Script edge-falls -Short`、`… -Script edge-falls-guide`
+- BGM はコードで合成した音だけ（`journey`、ハの和音）。

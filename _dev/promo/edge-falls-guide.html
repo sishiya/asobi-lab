@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>紹介動画づくり</title>
+<link rel="stylesheet" href="promo.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.min.js"></script>
+<script src="promo.js"></script>
+<script src="promo-audio.js"></script>
+<script src="edge-falls-common.js"></script>
+<script>
+'use strict';
+// 台本: 果ての滝の箱庭 ― 使い方と見どころ（横長の説明動画、150秒、案内役のライオンつき）
+// ゲームを 1280×720 で開き、3倍の細かさで描かせる。ゲームの画面の小物（手に持つもの・扇・天の輪・知らせ・章のことば）も写す（efDrawUI）。
+// 上は字幕なので、ゲームのお題の1行は写さない。右下はライオン（観察帳のボタンは写さない）。
+// 場面は edge-falls-digest.html が残した章のはじめのセーブから（先にダイジェストを録る）。矢印は、押す所（大地の点・手に持つものの札）を毎コマ画面の位置に直して描く
+const IW = 1280, IH = 720, DPR = 3, KK = 1920 / IW;   // KK: css の画素 → 字幕の座標（PW×PH）
+const END = 150, DUR = END + IDENT_CLOSE;
+const NAME = '果ての滝の箱庭';
+const CAPS = [
+  { a: 7.4, b: 14.6, main: '深淵に浮かぶ、平らな大地の箱庭', sub: '川は、世界の果てから滝になって落ちていく',
+    en: ['A sandbox on a flat world floating over the abyss', 'Rivers pour off the edge of the world as waterfalls'] },
+  { a: 15.2, b: 21.4, main: '1年に1つずつ、新しいものが来る（十の年）', sub: '第一の年は「水がめ」。大地を押すと、深淵の水が泉にわく',
+    en: ['Each year brings one new thing (ten years in all)', 'Year one: the water jar. Tap the land and abyss water wells up'] },
+  { a: 22.0, b: 30.4, main: '水は低い方へ流れ、果てから落ちる', sub: '落ちた水は深淵へ戻り、泉はそこから汲む。何も生まれず、何も消えない',
+    en: ['Water runs downhill and falls off the edge', 'It returns to the abyss, where springs draw it again. Nothing is created or lost'] },
+  { a: 31.4, b: 40.4, main: '第二の年は「土ぶくろ」', sub: '削った土がふくろに入り、その土で盛る',
+    en: ['Year two: the soil bag', 'Dig, and the soil goes into the bag; then use it to build up'] },
+  { a: 40.8, b: 49.6, main: '滝の出口を盛ると、湖が広がる', sub: 'そのぶん、下の流れはやせる。どの手にも、得と損がある',
+    en: ['Dam the outlet of a falls, and the lake spreads', 'But the stream below runs thin. Every move has a gain and a cost'] },
+  { a: 50.4, b: 60.4, main: '「命のつぼ」: たね、そして生き物', sub: '草は水辺から広がる。つぼの命は数に限りがある',
+    en: ['The jar of life: seeds, then animals', 'Grass spreads from the water\'s edge. The jar holds only so many lives'] },
+  { a: 61.2, b: 69.6, main: 'シカは草を食べて、ふえる', sub: 'おなかがいっぱいの大人が子を残す',
+    en: ['Deer eat the grass and multiply', 'Well-fed adults have young'] },
+  { a: 70.4, b: 79.4, main: '季節がめぐり、冬は雪と氷', sub: '秋にふえすぎたシカは、冬に食べものが足りなくなる',
+    en: ['Seasons turn; winter brings snow and ice', 'Deer that boom in autumn run short of food in winter'] },
+  { a: 79.8, b: 87.6, main: '右上の「天の輪」で、時を止める・速める', sub: '外の輪が季節、針が今日。時間の制限はない',
+    en: ['The sky dial (top right) pauses or speeds up time', 'Outer ring: the season. Hand: today. There is no time limit'] },
+  { a: 88.4, b: 96.8, main: 'オオカミ・サカナ・サギ。食べる・食べられる', sub: 'サギは浅瀬のサカナしかとれない。深い湖はかくれ場所',
+    en: ['Wolves, fish, herons: eat and be eaten', 'Herons can only catch fish in the shallows; deep lakes are a refuge'] },
+  { a: 97.2, b: 105.6, main: '去った命は深淵を通って、つぼへ戻ってくる', sub: '絶えても、取り返しはつく',
+    en: ['Lives that leave return to the jar through the abyss', 'Even if a species dies out, it can come back'] },
+  { a: 106.4, b: 121.4, main: '生き物は遺伝子を持ち、体が変わっていく', sub: 'オオカミに追われるとシカの足が速く。いらない力は下がっていく（観察帳の遺伝子の頁）',
+    en: ['Creatures carry genes, and their bodies change', 'Chased by wolves, deer get faster; unused abilities fade (genes page of the field notebook)'] },
+  { a: 122.4, b: 131.0, main: '十の年をこえると……', sub: '',
+    en: ['After the ten years...', ''] },
+  { a: 131.4, b: 141.6, main: '平らな大地の殻がはがれて、丸い世界', sub: '本当の世界には、果てがない。落ちていくものは、どこかでめぐっている',
+    en: ['The shell of the flat world peels away to reveal a round one', 'The real world has no edge. What falls away goes around somewhere'] },
+];
+const lakeP = (w, f) => { const W = w.__ef.W, C = efGet(w, 'C'), RD = efGet(w, 'RD'); return { x: C + W.lake.x * RD * f, y: C + W.lake.y * RD * f }; };
+const P = {};   // 場面のはじめに決める押す所（大地の区画）
+let Y0 = 0;
+const clickSel = (w, sel, re) => { const b = [...w.document.querySelectorAll(sel)].find(e => !re || re.test(e.textContent)); if (b) b.click(); return b; };
+const SC = [
+  { a: 0, b: 7.3, save: 'ch9', speed: 4, pre: w => { Y0 = w.__ef.V.yaw; }, view: (V, lt) => { V.yaw = Y0 + 0.4 - lt * 0.04; V.tilt = 0.55; V.zoom = 1.0; } },
+  // はじめの画面 → はじめる → 第一の年 水: 泉を2つ
+  { a: 7.3, b: 31.0, seed: 3, title: true,
+    pre: w => { Y0 = w.__ef.V.yaw; P.s1 = lakeP(w, 0.85); P.s2 = lakeP(w, 0.55); },
+    rate: lt => lt < 15.5 ? 16 : 40,
+    view: (V, lt) => { V.yaw = Y0 - 0.1 + lt * 0.01; V.tilt = 0.6; V.zoom = 1.0; },
+    ev: [{ t: 7.7, run: w => { clickSel(w, '#panel button', /はじめ/); w.__ef.setSpeed(16); } },
+         { t: 11.7, run: w => clickSel(w, '.hand[data-hand="water"]') },
+         { t: 13.2, run: w => efUse(w, 'water', null, P.s1.x, P.s1.y, '泉') },
+         { t: 14.6, run: w => efUse(w, 'water', null, P.s2.x, P.s2.y, '泉') }] },
+  // 第二の年 土: 扇で「土を盛る」→ 滝の出口を盛る
+  { a: 31.0, b: 50.0, save: 'ch1', speed: 16,
+    pre: w => { const { W } = w.__ef, INS = efGet(w, 'INS'), N = efGet(w, 'N'), eb = efGet(w, 'edgeBin'); Y0 = W ? w.__ef.V.yaw : 0;
+      const e = INS.filter(i => eb[i] >= 0 && W.w[i] > 0.05).sort((a, b) => W.w[b] - W.w[a]).slice(0, 3); P.ex = e.map(i => ({ x: i % N, y: i / N | 0 })); },
+    rate: lt => lt < 9 ? 16 : 40,
+    view: (V, lt) => { V.yaw = Y0 + lt * 0.008; V.tilt = 0.62; V.zoom = 1.05; },
+    ev: [{ t: 2.0, run: w => clickSel(w, '.hand[data-hand="soil"]') },
+         { t: 3.5, run: w => clickSel(w, '#fan [data-sub="raise"]') },
+         ...[0, 1, 2].map(k => ({ t: 5 + k * 1.2, run: w => { const p = P.ex[k]; if (p) for (let j = 0; j < 3; j++) w.useTool({ x: p.x, y: p.y, z: 0 }, true); } }))] },
+  // 第三の年 草: たねをまく → 時を速めて
+  { a: 50.0, b: 61.0, save: 'ch2', speed: 16,
+    pre: w => { const { W } = w.__ef; Y0 = w.__ef.V.yaw; P.sd = efPick(w, i => W.moist[i] > 0.6 && W.w[i] < 0.2 && W.veg[i] < 0.2, 3); },
+    rate: lt => lt < 6 ? 16 : 70,
+    view: (V, lt) => { V.yaw = Y0 + 0.2 + lt * 0.01; V.tilt = 0.62; V.zoom = 1.05; },
+    ev: [{ t: 1.6, run: w => clickSel(w, '.hand[data-hand="life"]') },
+         ...[0, 1, 2].map(k => ({ t: 3.2 + k * 1.0, run: w => { const p = P.sd[k]; if (p) efUse(w, 'life', 'seed', p.x, p.y, 'たね'); } }))] },
+  // 第四の年 シカ: 扇でシカ → 草の多い所に放す
+  { a: 61.0, b: 70.0, save: 'ch3', speed: 16,
+    pre: w => { const { W } = w.__ef; Y0 = w.__ef.V.yaw; P.dr = efPick(w, i => W.veg[i] > 0.5 && W.w[i] < 0.1, 3); w.setHand('life'); },
+    rate: lt => lt < 5 ? 16 : 40,
+    view: (V, lt) => { V.yaw = Y0 + 0.3 + lt * 0.01; V.tilt = 0.6; V.zoom = 1.25; },
+    ev: [{ t: 0.8, run: w => clickSel(w, '#fan [data-sub="deer"]') },
+         ...[0, 1, 2].map(k => ({ t: 2.2 + k * 0.8, run: w => { const p = P.dr[k]; if (p) { efUse(w, 'life', 'deer', p.x, p.y, 'シカ'); efUse(w, 'life', 'deer', p.x + 1, p.y, 'シカ'); } } }))] },
+  // 第五の年 冬: 冬まで進めておく。天の輪の ×16 を押す
+  { a: 70.0, b: 88.0, save: 'ch4', speed: 4,
+    pre: w => { const E = w.__ef; for (let k = 0; k < 1200 && !(efGet(w, 'seasonOf()') === 3 && efGet(w, 'seasonPhase()') > 0.82); k++) { efBot(w); E.step(1); } Y0 = E.V.yaw; },
+    rate: lt => lt < 12.6 ? 6 : 16,
+    view: (V, lt) => { V.yaw = Y0 + 0.5 - lt * 0.012; V.tilt = 0.58; V.zoom = 1.12; },
+    ev: [{ t: 12.6, run: w => clickSel(w, '.speeds [data-speed="16"]') }] },
+  // 生き物がそろった世界: 湖に寄る
+  { a: 88.0, b: 106.0, save: 'ch8', speed: 4,
+    pre: w => { Y0 = w.__ef.V.yaw; },
+    view: (V, lt, w) => { const W = w.__ef.W, C = efGet(w, 'C'), RD = efGet(w, 'RD'); V.yaw = Y0 + 0.2 + lt * 0.012; V.tilt = 0.5; V.zoom = 1.9 + lt * 0.02;
+      const p = w.proj(C + W.lake.x * RD * 0.6, C + W.lake.y * RD * 0.6, 0); V.panX = (V.panX || 0) + (V.cw * 0.45 - p.x) * 0.5; V.panY = (V.panY || 0) + (V.ch * 0.52 - p.y) * 0.5; } },
+  // 進化: 観察帳の遺伝子の頁のグラフ（ゲームの canvas）を重ねる。時を速めて
+  { a: 106.0, b: 122.0, save: 'ch8', speed: 16, bot: true,
+    pre: w => { Y0 = w.__ef.V.yaw; },
+    rate: () => 60,
+    view: (V, lt) => { V.yaw = Y0 - 0.3 + lt * 0.01; V.tilt = 0.6; V.zoom = 0.95; V.panX = 170; } },
+  // エンディング
+  { a: 122.0, b: 999, save: 'ch9', speed: 1, pre: w => { const V = w.__ef.V; V.zoom = 1.0; V.tilt = 0.55; },
+    ev: [{ t: 1.0, run: w => w.startCollapse('shell') }] },
+];
+// 矢印: 押す所は場面の中で決まるので、毎コマ画面の位置に直す（{ t, at: w => css の点 }）
+const START = w => { const b = w.document.getElementById('overlay').hidden ? null : [...w.document.querySelectorAll('#panel button')].find(e => /はじめ/.test(e.textContent)); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
+const H = sel => w => efHandPos(w, sel), B = f => w => { const p = f(); return p ? efScreen(w, p.x, p.y) : null; };
+const CURK = [
+  { t: 13.6, at: START }, { t: 15.0, at: START, click: true },
+  { t: 19.0, at: H('.hand[data-hand="water"]'), click: true }, { t: 20.5, at: B(() => P.s1), click: true }, { t: 21.9, at: B(() => P.s2), click: true }, { t: 23.2, at: B(() => P.s2), hide: true },
+  { t: 33.0, at: H('.hand[data-hand="soil"]'), click: true }, { t: 34.5, at: H('#fan [data-sub="raise"]'), click: true },
+  { t: 36.0, at: B(() => P.ex && P.ex[0]), click: true }, { t: 37.2, at: B(() => P.ex && P.ex[1]), click: true }, { t: 38.4, at: B(() => P.ex && P.ex[2]), click: true }, { t: 39.6, at: B(() => P.ex && P.ex[2]), hide: true },
+  { t: 51.6, at: H('.hand[data-hand="life"]'), click: true },
+  { t: 53.2, at: B(() => P.sd && P.sd[0]), click: true }, { t: 54.2, at: B(() => P.sd && P.sd[1]), click: true }, { t: 55.2, at: B(() => P.sd && P.sd[2]), click: true }, { t: 56.4, at: B(() => P.sd && P.sd[2]), hide: true },
+  { t: 61.8, at: H('#fan [data-sub="deer"]'), click: true },
+  { t: 63.2, at: B(() => P.dr && P.dr[0]), click: true }, { t: 64.0, at: B(() => P.dr && P.dr[1]), click: true }, { t: 64.8, at: B(() => P.dr && P.dr[2]), click: true }, { t: 66.0, at: B(() => P.dr && P.dr[2]), hide: true },
+  { t: 81.0, at: H('.dialbtn') }, { t: 82.6, at: H('.speeds [data-speed="16"]'), click: true }, { t: 84.0, at: H('.speeds [data-speed="16"]'), hide: true },
+];
+let lastPos = {};
+function cursorKeys(w, t) {   // いま見えている場面のぶんだけ（ほかの場面の点は前の位置のまま）
+  return CURK.map((k, i) => { let p = null; try { p = k.at(w); } catch (e) { p = null; } if (p) lastPos[i] = p; p = lastPos[i] || { x: 640, y: 400 };
+    return { t: k.t, x: p.x * KK, y: p.y * KK, click: k.click, hide: k.hide }; });
+}
+const MUSIC = { style: 'journey', root: 130.81, stopAt: END, cues: [{ t: END, type: 'jingle' }] };
+const EXP = [[0, 'calm'], [7.5, 'smile'], [10, 'calm'], [15.4, 'think'], [19, 'calm'], [22.2, 'wow'], [25, 'calm'], [31.6, 'smile'], [35, 'calm'], [41, 'think'], [45, 'calm'],
+  [50.6, 'smile'], [54, 'calm'], [61.4, 'smile'], [64, 'calm'], [70.6, 'cold'], [74, 'sad'], [78, 'calm'], [80, 'think'], [84, 'calm'], [88.6, 'wow'], [92, 'calm'],
+  [97.4, 'smile'], [101, 'calm'], [106.6, 'think'], [112, 'proud'], [116, 'calm'], [122.6, 'think'], [131.6, 'wow'], [135, 'calm'], [END - 7.6, 'smile']];
+promoStart({
+  name: '果ての滝の箱庭（使い方）', out: 'edge-falls-guide', src: '../../edge-falls/index.html', iw: IW, ih: IH, dur: DUR, peek: 40,
+  inject: { pre: EF_PRE, dpr: DPR },
+  music: MUSIC,
+  ready: w => !!LION.api && efReady(w),
+  setup() { MUSIC.cues.push(...lionSetup({ caps: CAPS.map(c => ({ ...c, main: c.main || c.sub })), cur: [], exp: EXP, end: END, bye: END - 5.8 })); return null; },
+  subs: () => guideSubs(END, NAME, 'Falls at the Edge of the World', CAPS, 'Play in your browser (PC or phone). On-screen text is in Japanese for now'),
+  async renderAt(t, w) { await efScenes(w, SC, t); },
+  drawSource(g, w, OW, OH) {
+    g.fillStyle = '#000'; g.fillRect(0, 0, OW, OH);
+    g.drawImage(w.document.getElementById('view'), 0, 0, OW, OH);
+    const t = SCR.t;
+    efDrawUI(g, w, OW / IW, { skip: ['quest', 'btnBook', 'btnMenu', 'btnRestore'].concat(t > END - 8 ? ['overlay'] : []).concat(t < 7.3 || t > 122 ? ['hands', 'dial', 'fan', 'toast', 'line'] : !w.__ef.G.started ? ['hands'] : []) });
+  },
+  overlay(g, t, w) {
+    if (SCR.k === 7) {   // 遺伝子の平均（この年のはじめ → いま。ゲームの geneStats と G.gbase）
+      const G = w.__ef.G, GN = efGet(w, 'GENES'), KN = efGet(w, 'KINDS'), rows = [];
+      for (const kd of ['deer', 'wolf', 'fish']) { const st = w.geneStats(kd), b = (G.gbase || {})[kd]; if (!st.n || !b) continue;
+        for (const [n, name] of GN[kd]) rows.push(`${KN[kd].name}の${name}  ${b[n].toFixed(2)} → ${st[n].toFixed(2)}`); }
+      drawPanel(g, 60, 230, 600, '観察帳: 遺伝子の平均（この年のはじめ → いま）', rows.slice(0, 9), fade(t, 107, 121.4, 0.5));
+    }
+    drawCursor(g, cursorKeys(w, t), t);
+    drawCaps(g, t, CAPS, true);
+    drawGuideChrome(g, t, END, NAME, 'あそびラボのゲーム（試作）。音楽・しゃべりの音はコードで合成');
+    drawLion(g, t);
+  },
+});
+lionOpen();   // 裏の iframe でライオンを開く（ready で待つ）
+</script>
+</body>
+</html>

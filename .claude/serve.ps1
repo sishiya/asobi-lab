@@ -12,6 +12,15 @@ while ($l.IsListening) {
   $c = $l.GetContext()
   try {
     $rel = [Uri]::UnescapeDataString($c.Request.Url.AbsolutePath.TrimStart('/'))
+    # PUT: the promo pages (_dev/promo/*.html) save videos, subtitles, check frames and saves into _dev/promo/out/ only
+    if ($c.Request.HttpMethod -eq 'PUT') {
+      if ($rel -match '^_dev/promo/out/[A-Za-z0-9_.-]+\.(mp4|webm|srt|jpg|wav|json)$') {
+        $dir = Join-Path $root '_dev/promo/out'
+        if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force $dir | Out-Null }
+        $fs = [IO.File]::Create((Join-Path $root $rel)); $c.Request.InputStream.CopyTo($fs); $fs.Close()
+      } else { $c.Response.StatusCode = 403 }
+      $c.Response.Close(); continue
+    }
     $path = [IO.Path]::GetFullPath((Join-Path $root $rel))
     if (Test-Path $path -PathType Container) { $path = Join-Path $path 'index.html' }
     # serve only files inside the project folder, and never the private word list

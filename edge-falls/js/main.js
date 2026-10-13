@@ -284,12 +284,8 @@ lookSel.value = STYLES[styleName] ? styleName : 'voxel'; backSel.value = backNam
 lookSel.addEventListener('change', () => { setStyle(lookSel.value); lookSel.blur(); });
 backSel.addEventListener('change', () => { setBack(backSel.value); backSel.blur(); });
 
-function syncSoundBtns() {
-  document.querySelectorAll('.btnBgm').forEach(b => b.setAttribute('aria-pressed', Sound.get('bgm')));
-  $('btnSfx').setAttribute('aria-pressed', Sound.get('sfx'));
-}
-document.querySelectorAll('.btnBgm').forEach(b => b.addEventListener('click', () => { Sound.unlock(); Sound.set('bgm', !Sound.get('bgm')); syncSoundBtns(); }));
-$('btnSfx').onclick = () => { Sound.unlock(); Sound.set('sfx', !Sound.get('sfx')); syncSoundBtns(); Sound.play('click'); };
+// 音と文字は「設定」の札で（v016。2026-10-13 ユーザー「音を消したい時に、てびきにあることに気づきづらいから独立させたい」）
+$('btnSettings').onclick = () => { Sound.unlock(); closeBook(); openSettings(null); };
 $('btnAbout').onclick = () => $('about').showModal();
 $('btnSave').onclick = () => { Sound.unlock(); closeBook(); openSavePanel(null, 'save'); };
 $('btnLoad').onclick = () => { Sound.unlock(); closeBook(); openSavePanel(null, 'load'); };
@@ -343,7 +339,6 @@ function start() {
 
 // ---- はじめ ----
 newGame();
-syncSoundBtns();
 resize();
 if (THUMB) {
   document.body.classList.add('thumb'); document.body.classList.remove('titling');

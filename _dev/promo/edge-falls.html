@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>紹介動画づくり</title>
+<link rel="stylesheet" href="promo.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.min.js"></script>
+<script src="promo.js"></script>
+<script src="promo-audio.js"></script>
+<script src="edge-falls-common.js"></script>
+<script>
+'use strict';
+// 台本: 果ての滝の箱庭（ショート、縦長 40秒＋締め。?short で開く）
+// ゲームをスマホの大きさ（540×960）で開き、4倍の細かさで描かせる。場面は edge-falls-digest.html が残した章のはじめのセーブから始める
+// （先にダイジェストを録る。セーブは out/edge-falls-save-ch<n>.json）。手（泉・たね）はゲームの道具の関数で打つ
+const IW = 540, IH = 960, DPR = 4;
+const NAME = '果ての滝の箱庭', SUB = '世界の果てから、川が滝になって落ちる箱庭ゲーム';
+const END_LINE = 'ブラウザで遊べます（パソコン・スマホ）';
+const CREDIT = 'あそびラボのゲーム（試作）。音楽はコードで合成';
+const CAPS = [
+  { a: 6.4, b: 11.6, main: '岩と土だけの大地に、泉をわかせる', sub: '水は低い方へ流れて、くぼみに湖',
+    en: ['Raise a spring on a world of bare rock and soil', 'Water flows downhill and pools into a lake'] },
+  { a: 11.9, b: 16.8, main: '世界の果てから、滝になって落ちる', sub: '落ちた水は深淵へ。泉はそこから汲む',
+    en: ['At the edge of the world, it falls away', 'The water returns to the abyss, and the spring draws from it'] },
+  { a: 17.4, b: 24.0, main: '1年に1つずつ、新しい命が来る', sub: '草・シカ・オオカミ・サカナ・サギ（十の年）',
+    en: ['Each year brings one new kind of life', 'Grass, deer, wolves, fish, herons (ten years)'] },
+  { a: 24.4, b: 30.6, main: '何も生まれず、何も消えない', sub: 'ただ、めぐるだけ。食べる・食べられる',
+    en: ['Nothing is created, nothing is lost', 'It only goes around. Eat and be eaten'] },
+  { a: 31.0, b: 35.0, main: '十の年をこえると、殻がはがれて…', sub: '',
+    en: ['After ten years, the shell peels away...', ''] },
+];
+const lakeP = (w, f) => { const W = w.__ef.W, C = efGet(w, 'C'), RD = efGet(w, 'RD'); return { x: C + W.lake.x * RD * f, y: C + W.lake.y * RD * f }; };
+let Y0 = 0;
+const SC = [
+  // はじめ: できあがった世界（めぐる世界の年のはじめ）をゆっくり回す
+  { a: 0, b: 6.4, save: 'ch9', speed: 4, pre: w => { Y0 = w.__ef.V.yaw; }, view: (V, lt) => { V.yaw = Y0 + 0.5 - lt * 0.05; V.tilt = 0.55; V.zoom = 0.98; V.panY = -70; } },
+  // 第一の年: 泉を2つ → 湖と滝
+  { a: 6.4, b: 17.0, save: 'ch0', speed: 16, rate: lt => lt < 1.8 ? 16 : 48,
+    pre: w => { Y0 = w.__ef.V.yaw; },
+    view: (V, lt) => { V.yaw = Y0 - 0.15 + lt * 0.02; V.tilt = 0.6; V.zoom = 0.95 + lt * 0.01; V.panY = -70; },
+    ev: [{ t: 0.6, run: w => { const p = lakeP(w, 0.85); efUse(w, 'water', null, p.x, p.y, '泉'); } },
+         { t: 1.3, run: w => { const p = lakeP(w, 0.55); efUse(w, 'water', null, p.x, p.y, '泉'); } },
+         { t: 2.2, run: w => w.__ef.setHand(null) }] },
+  // 草の年 → シカ（自動で遊ぶ手で、時を速めて）
+  { a: 17.0, b: 24.2, save: 'ch2', speed: 16, rate: () => 70, bot: true,
+    pre: w => { Y0 = w.__ef.V.yaw; }, view: (V, lt) => { V.yaw = Y0 + 0.3 + lt * 0.03; V.tilt = 0.62; V.zoom = 0.98; V.panY = -70; } },
+  // めぐる世界: 湖に寄って、生き物を見る
+  { a: 24.2, b: 31.0, save: 'ch8', speed: 4,
+    pre: w => { Y0 = w.__ef.V.yaw; },
+    view: (V, lt, w) => { const W = w.__ef.W, C = efGet(w, 'C'), RD = efGet(w, 'RD'); V.yaw = Y0 + 0.2 + lt * 0.02; V.tilt = 0.5; V.zoom = 1.9 + lt * 0.03;
+      const p = w.proj(C + W.lake.x * RD * 0.6, C + W.lake.y * RD * 0.6, 0); V.panX = (V.panX || 0) + (V.cw / 2 - p.x) * 0.5; V.panY = (V.panY || 0) + (V.ch * 0.45 - p.y) * 0.5; } },
+  // エンディング: 殻がはがれて丸い世界
+  { a: 31.0, b: 99, save: 'ch9', speed: 1, pre: w => { Y0 = w.__ef.V.yaw; w.__ef.V.zoom = 0.98; w.__ef.V.tilt = 0.55; w.__ef.V.panY = -70; },
+    ev: [{ t: 0.4, run: w => w.startCollapse('shell') }] },
+];
+promoStart({
+  name: NAME, out: 'edge-falls', src: '../../edge-falls/index.html', iw: IW, ih: IH, dur: SHORT_END + IDENT_CLOSE, peek: 12,
+  inject: { pre: EF_PRE, dpr: DPR },
+  music: { style: 'journey', root: 130.81, stopAt: SHORT_END, cues: [{ t: SHORT_END, type: 'jingle' }] },
+  subs: shortSubs(NAME, 'Falls at the Edge of the World', SUB, 'A sandbox where rivers pour off the edge of a flat world', CAPS, END_LINE, 'Play in your browser (PC or phone). On-screen text is in Japanese for now'),
+  ready: w => efReady(w),
+  setup() { return null; },
+  async renderAt(t, w) { await efScenes(w, SC, t); },
+  drawSource(g, w, OW, OH) {
+    g.fillStyle = '#000'; g.fillRect(0, 0, OW, OH);
+    g.drawImage(w.document.getElementById('view'), 0, 0, OW, OH);
+    efDrawUI(g, w, OW / IW, { skip: ['hands', 'btnBook', 'btnMenu', 'toast', 'line', 'fan', 'btnRestore', 'overlay'] });
+    if (SCR.k === 1) efDrawActs(g, w, OW / IW, 1.4);   // 泉を押した所だけ（時を速める場面の自動の手は出さない）
+  },
+  overlay(g, t) {
+    drawCaps(g, t, CAPS);
+    drawShortChrome(g, t, NAME, SUB, END_LINE, CREDIT);
+  },
+  short: { iw: IW, ih: IH },
+});
+</script>
+</body>
+</html>

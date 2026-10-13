@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ダイジェスト: 果ての滝の箱庭</title>
+<link rel="stylesheet" href="promo.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.min.js"></script>
+<script src="promo.js"></script>
+<script src="edge-falls-common.js"></script>
+<script>
+'use strict';
+// ダイジェスト: はじめの画面から、自動で遊んでエンディングまで（大枠の確認用。公開しない。2026-10-13 ユーザー
+// 「あそびラボに限っては、ダイジェストでゲームクリアまでの動画も。毎回プレイしてデバッグするのは時間を食いすぎるから、大枠があっているかの確認のため」）。
+// ゲームを裏で開き、自動で遊ぶ手（efBot）でゲームの道具を使い、時を速めて 1コマずつ描いて mp4（1920×1080・30コマ/秒、音なし）にする。
+// 長さは遊んだぶんだけ（決めない）。左上に日・章・速さ・数、下に十の年の進み、押した所に光る輪。
+// 終わったら out/edge-falls-digest.json に章ごとの日・ゲームのエラーを書く（動画を見なくても、通ったかが分かる）。
+// 章のはじめごとのセーブ out/edge-falls-save-ch<n>.json も残す（紹介動画の場面の始まりに使う）。
+// ?dry: 録画せずに速く通す（描くのは 10コマに1回）。?seed=数: 大地の種（はじめの画面の「はじめる」は乱数の大地なので、newGame(seed) で決める）
+const Q = new URLSearchParams(location.search), DRY = Q.has('dry'), SEED = +(Q.get('seed') || 3);
+const OW = 1920, OH = 1080, IW = 1280, IH = 720, K = OW / IW, FPS_D = 30, MAXV = +(Q.get('max') || 9 * 60);
+document.body.innerHTML = `
+<iframe id="app" style="position:fixed;left:0;top:0;width:${IW}px;height:${IH}px;border:0;opacity:0;pointer-events:none;z-index:-1"></iframe>
+<main><h1>ダイジェスト: 果ての滝の箱庭（自動でエンディングまで）</h1>
+<p>ゲームを裏で開き、自動で遊んでエンディングまで録ります（${OW}×${OH}、音なし）。<code>_dev/promo/out/edge-falls-digest.mp4</code>・<code>.json</code>。</p>
+<button id="go" disabled>準備中…</button><div id="log"></div><canvas id="out" width="${OW}" height="${OH}" style="width:100%;max-width:960px"></canvas><video id="vid" controls hidden style="width:100%;max-width:960px"></video></main>`;
+const out = document.getElementById('out'), g = out.getContext('2d'), go = document.getElementById('go');
+const logEl = document.getElementById('log'), log = s => { logEl.textContent += s + '\n'; };
+const iframe = document.getElementById('app');
+(async () => {
+  const base = new URL('../../edge-falls/index.html', location.href);
+  const html = await (await fetch(base)).text();
+  const head = `<base href="${base.href.replace(/[^/]*$/, '')}"><script>${EF_PRE}Object.defineProperty(window, 'devicePixelRatio', { get: () => ${K} });</` + 'script>';
+  iframe.srcdoc = html.replace(/<head[^>]*>/i, m => m + head);
+})();
+
+const YN = ['第一', '第二', '第三', '第四', '第五', '第六', '第七', '第八', '第九', '第十'];
+const REP = { seed: SEED, chapters: [], errors: [], ending: false, days: 0, videoSec: 0, finds: 0 };
+let w, vi = 0, phase = 'title', phaseV = 0, lastCh = -1, chStartV = 0, endV = 0, rate = 16;
+
+function hud(t) {
+  const { W, L, G } = w.__ef, s = w.waterStats(), CH = efGet(w, 'CHAPTERS');
+  g.save(); g.textBaseline = 'top'; g.textAlign = 'left';
+  // 左上の札
+  g.fillStyle = 'rgba(8,10,20,0.72)'; rr(g, 24, 132, 430, 214, 14); g.fill();
+  g.fillStyle = '#ffd27a'; g.font = 'bold 26px "Yu Gothic UI", sans-serif'; g.fillText('ダイジェスト（自動プレイ）', 44, 146);
+  g.fillStyle = '#efe3c4'; g.font = '24px "Yu Gothic UI", sans-serif';
+  const ch = G.started ? (G.ch >= 10 ? 'エンディング' : `${YN[Math.floor(G.ch)]}の年 ${CH[Math.floor(G.ch)].name}`) : 'はじめの画面';
+  g.fillText(`第 ${W.day} 日 ・ ${ch}`, 44, 186);
+  g.fillText(`速さ ${rate >= 60 ? (rate / 60).toFixed(1) + ' 日/秒' : '×' + Math.round(rate)}  ・ 動画 ${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`, 44, 220);
+  g.fillText(`草 ${Math.round(s.grass * 100)}%  シカ ${L.counts.deer}  オオカミ ${L.counts.wolf}`, 44, 254);
+  g.fillText(`サカナ ${L.counts.fish}  サギ ${L.counts.bird}  泉 ${W.springs.length}  土 ${Math.floor(W.soil)}`, 44, 288);
+  // 下: 十の年の進み
+  const x0 = 360, bw = 120, y0 = OH - 34;
+  for (let n = 0; n < 10; n++) {
+    const d = G.done && G.done[n], cur = Math.floor(G.ch) === n && G.started;
+    g.fillStyle = d ? 'rgba(255,210,122,0.85)' : cur ? 'rgba(239,227,196,0.35)' : 'rgba(239,227,196,0.12)';
+    rr(g, x0 + n * bw, y0, bw - 6, 24, 6); g.fill();
+    g.fillStyle = d ? '#141b30' : '#efe3c4'; g.font = '16px "Yu Gothic UI", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(d ? `${CH[n].name} ${d.day}日` : CH[n].name, x0 + n * bw + (bw - 6) / 2, y0 + 12);
+  }
+  // 自動で押した手の名前（いちばん新しいもの）
+  const a = EF.acts[EF.acts.length - 1];
+  if (a && EF.vt - a.vt < 2500) { g.textAlign = 'left'; g.textBaseline = 'top'; g.fillStyle = 'rgba(255,210,122,' + (1 - (EF.vt - a.vt) / 2500) + ')'; g.font = 'bold 24px "Yu Gothic UI", sans-serif'; g.fillText('自動: ' + a.label, 44, 360); }
+  g.restore();
+}
+
+function render(t) {
+  const view = w.document.getElementById('view');
+  g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#000'; g.fillRect(0, 0, OW, OH);
+  g.drawImage(view, 0, 0, OW, OH);
+  efDrawUI(g, w, K);
+  efDrawActs(g, w, K);
+  hud(t);
+}
+
+// 1コマ: いまの場面に合わせて速さを決め、自動で手を打ち、進める
+async function step() {
+  const { W, G } = w.__ef, t = vi / FPS_D;
+  EF.vt = w.performance.now();
+  let sim = 0;
+  if (phase === 'title') {
+    rate = 1;
+    if (t > 3) {   // 「はじめる」を押す（大地の種は決める）
+      const b = [...w.document.querySelectorAll('#panel button')].find(b => /はじめ/.test(b.textContent));
+      w.__ef.newGame(SEED); b.click(); w.document.body.classList.remove('titling');
+      w.__ef.setSpeed(16); phase = 'play'; log(`はじめた（大地の種 ${SEED}）`);
+    }
+  } else if (phase === 'play') {
+    if (G.ch !== lastCh && !(G.ch % 1) && G.ch < 10) {
+      lastCh = G.ch; chStartV = t;
+      REP.chapters[G.ch] = { n: G.ch, key: efGet(w, 'CHAPTERS')[G.ch].key, startDay: W.day, startVideo: +t.toFixed(1), startT: W.t / 60 };
+      await efSaveTo(w, 'ch' + G.ch);
+      log(`${YN[G.ch]}の年 はじまり: 第 ${W.day} 日（動画 ${t.toFixed(0)} 秒）`);
+    }
+    for (const [n, d] of (G.done || []).entries()) if (d && REP.chapters[n] && !REP.chapters[n].doneDay) {
+      REP.chapters[n].doneDay = d.day; REP.chapters[n].days = +((W.t / 60) - REP.chapters[n].startT).toFixed(1); REP.chapters[n].doneVideo = +t.toFixed(1);
+      log(`  できた: 第 ${d.day} 日（動画 ${t.toFixed(0)} 秒）`);
+    }
+    const inCh = t - chStartV, days = REP.chapters[lastCh] ? W.t / 60 - REP.chapters[lastCh].startT : 0;
+    rate = G.ch % 1 ? 16 : inCh < 4 ? 16 : days > 14 ? 240 : 90;
+    sim = Math.max(0, rate / FPS_D - 16 / FPS_D);
+    efBot(w);
+    if (efGet(w, 'COL') || G.ch >= 10) { phase = 'ending'; endV = t; rate = 1; log(`エンディングへ: 第 ${W.day} 日（動画 ${t.toFixed(0)} 秒）`); }
+  } else if (phase === 'ending') {
+    rate = 1;
+    const ov = w.document.getElementById('overlay');
+    if (!REP.ending && !ov.hidden && /めぐる世界/.test(ov.textContent)) { REP.ending = true; endV = t; log(`エンディングの札が出た（動画 ${t.toFixed(0)} 秒）`); }
+    if (REP.ending && t - endV > 6) return false;
+    // 殻がはがれる演出は自分では終わらないので、まん中まで見せたら「もとにもどす」と同じ道すじで札へ
+    if (!REP.ending && t - endV > 16 && efGet(w, 'COL')) w.document.getElementById('btnRestore').click();
+  }
+  efFrame(w, sim);
+  vi++;
+  if (t > MAXV) { log('長すぎるので止めた'); return false; }
+  return true;
+}
+
+async function run() {
+  const t0 = performance.now();
+  let muxer, venc, encErr = null, chunks = 0, ei = 0;
+  if (!DRY) {
+    muxer = new Mp4Muxer.Muxer({ target: new Mp4Muxer.ArrayBufferTarget(), video: { codec: 'avc', width: OW, height: OH, frameRate: FPS_D }, fastStart: 'in-memory' });
+    venc = new VideoEncoder({ output: (c, m) => { try { muxer.addVideoChunk(c, m); chunks++; } catch (e) { encErr = e; } }, error: e => encErr = e });
+    let vc = null;
+    for (const codec of ['avc1.640028', 'avc1.4d0028', 'avc1.640033']) { const c = { codec, width: OW, height: OH, bitrate: 10e6, framerate: FPS_D }; if ((await VideoEncoder.isConfigSupported(c)).supported) { vc = c; break; } }
+    if (!vc) throw new Error('H.264 1080p で書き出せません');
+    venc.configure(vc); log('映像 ' + vc.codec);
+  }
+  while (await step()) {
+    if (encErr) throw encErr;
+    if (DRY) { if (vi % 10 === 0) render(vi / FPS_D); }
+    else {
+      render(vi / FPS_D);
+      const vf = new VideoFrame(out, { timestamp: Math.round(ei * 1e6 / FPS_D), duration: Math.round(1e6 / FPS_D) });   // 最初のコマは 0 から（mp4-muxer の決まり）
+      venc.encode(vf, { keyFrame: ei % (FPS_D * 2) === 0 }); vf.close(); ei++;
+      while (venc.encodeQueueSize > 4) await sleep(2);
+    }
+    if (vi % 30 === 0) { go.textContent = `${DRY ? '試し' : '録画'}中 ${(vi / FPS_D).toFixed(0)} 秒・第 ${w.__ef.W.day} 日`; await sleep(0); }
+  }
+  const { W, G } = w.__ef;
+  REP.days = W.day; REP.videoSec = +(vi / FPS_D).toFixed(1); REP.finds = Object.keys(G.found || {}).length;
+  REP.errors = w.__efErrors.slice(0, 20); REP.wallSec = Math.round((performance.now() - t0) / 1000);
+  for (const c of REP.chapters) if (c) delete c.startT;
+  log(`終わり: 第 ${W.day} 日・動画 ${REP.videoSec} 秒・見つけたこと ${REP.finds}・エラー ${REP.errors.length}・${REP.wallSec} 秒かかった`);
+  if (REP.errors.length) log('ゲームのエラー: ' + REP.errors.join('\n'));
+  await fetch(`out/edge-falls-digest${DRY ? '-dry' : ''}.json`, { method: 'PUT', body: JSON.stringify(REP, null, 1) });
+  if (!DRY) {
+    await venc.flush(); muxer.finalize();
+    log(`書き出したコマ ${chunks}／${vi}`);
+    if (!chunks) throw new Error('映像が書き出せなかった（コマ 0）');
+    const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
+    const r = await fetch('out/edge-falls-digest.mp4', { method: 'PUT', body: blob });
+    log(r.ok ? `保存した: _dev/promo/out/edge-falls-digest.mp4（${(blob.size / 1e6).toFixed(1)} MB）` : '保存できなかった');
+    const vid = document.getElementById('vid'); vid.src = URL.createObjectURL(blob); vid.hidden = false;
+    window.__promo = { done: true, mb: blob.size / 1e6 };
+  } else window.__promo = { done: true, mb: 0 };
+}
+
+(async () => {
+  try {
+    for (let i = 0; i < 300; i++) { w = iframe.contentWindow; if (w && efReady(w)) break; await sleep(100); }
+    if (!efReady(w)) throw new Error('ゲームが開けませんでした');
+    for (let i = 0; i < 10; i++) efFrame(w);
+    render(0);
+    go.disabled = false; go.textContent = DRY ? '試す（録画しない）' : '録画する（数分〜十数分）';
+    go.onclick = async () => { go.disabled = true; try { await run(); go.textContent = '終わり'; } catch (e) { log('失敗: ' + (e && e.stack || e)); go.textContent = '失敗'; window.__promo = { error: String(e) }; } };
+    window.__promoRecord = () => go.click();
+    window.__peekSheet = async () => 200;
+  } catch (e) { log('失敗: ' + e.message); }
+})();
+</script>
+</body>
+</html>

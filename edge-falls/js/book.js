@@ -144,8 +144,8 @@ function openMenu() {
     { label: 'セーブ', fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'save'); } },
     { label: 'ロード', fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'load'); } },
     { label: '観察帳', fn: () => { G.menuOpen = false; resume(); openBook(); } },
+    { label: '設定', fn: () => { G.menuOpen = false; openSettings(() => openMenu()); } },
     { label: 'タイトルへ', fn: () => { G.menuOpen = false; toTitle(); } },
-    { label: '文字: ' + (fontName === 'dot' ? 'ドット' : '明朝'), fn: () => { setFont(fontName === 'dot' ? 'serif' : 'dot'); openMenu(); } },
     { label: 'ゲームを終える', fn: () => { G.menuOpen = false; quitGame(); } },
   ]);
   $('panel').classList.add('menu', 'world');
@@ -174,6 +174,20 @@ function toTitle() {
   ]);
   $('panel').classList.add('world'); $('panel').dataset.back = '1';
 }
+// 設定（v016。2026-10-13 ユーザー「設定メニューを追加して」「メニューには文字フォント切り替えは必要ない。設定画面に移して」）
+//   音楽・効果音・文字。押すとその場で切りかわる。back があれば「もどる」でそこへ（メニュー）、なければ閉じる（観察帳のてびきから）
+function openSettings(back, focus) {
+  const on = v => v ? 'オン' : 'オフ', again = k => () => openSettings(back, k);
+  showPanel('<p class="mtitle">設定</p>', [
+    { label: '音楽　' + on(Sound.get('bgm')), fn: () => { Sound.set('bgm', !Sound.get('bgm')); again(0)(); } },
+    { label: '効果音　' + on(Sound.get('sfx')), fn: () => { Sound.set('sfx', !Sound.get('sfx')); again(1)(); } },
+    { label: '文字　' + (fontName === 'dot' ? 'ドット' : '明朝'), fn: () => { setFont(fontName === 'dot' ? 'serif' : 'dot'); again(2)(); } },
+    { label: back ? 'もどる' : 'とじる', main: true, fn: () => { if (back) back(); } },
+  ]);
+  $('panel').classList.add('menu', 'world');
+  $('panel').dataset.back = back ? '1' : '';
+  if (focus !== undefined) $('panel').querySelectorAll('.btns .tbtn')[focus]?.focus();   // 押したボタンに印を残す（上下の矢印でつづけて選べる）
+}
 function quitGame() {
   showPanel('<h2>ゲームを終える</h2><p class="center">いまの世界は自動セーブに残してから、<br>あそびラボの保管庫へもどる。<br>つぎに開くと「つづきから」遊べる。</p>', [
     { label: 'セーブして終える', main: true, fn: async () => { await saveSlot('auto'); location.href = '../archive.html'; } },
@@ -191,10 +205,8 @@ function setFont(n, keep) {
   fontName = n === 'dot' ? 'dot' : 'serif';
   document.body.classList.toggle('font-dot', fontName === 'dot');
   if (!keep) try { localStorage.setItem(FONT_KEY, fontName); } catch (e) { /* なし */ }
-  const sel = $('fontSel'); if (sel) sel.value = fontName;
 }
 setFont(fontName, true);
-$('fontSel').addEventListener('change', () => { setFont($('fontSel').value); $('fontSel').blur(); });
 // メニューの中は上下の矢印でえらぶ
 addEventListener('keydown', e => {
   if ($('overlay').hidden || !(e.key === 'ArrowDown' || e.key === 'ArrowUp')) return;
