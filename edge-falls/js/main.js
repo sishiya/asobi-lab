@@ -20,7 +20,7 @@ function newGame(seed = (Math.random() * 1e9) | 0, story = true) {
 }
 
 function resize() {
-  const r = field.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  const r = field.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);   // 3 倍のスマホでも 2 倍まで（画素の絵なので見た目はほぼ同じ。熱くならないように。v029）
   cv.width = Math.max(1, Math.round(r.width * dpr)); cv.height = Math.max(1, Math.round(r.height * dpr));
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   layout(r.width, r.height);
@@ -224,7 +224,7 @@ function endPtr(e) {
 cv.addEventListener('pointerup', endPtr);
 cv.addEventListener('pointercancel', endPtr);
 cv.addEventListener('pointerleave', () => { if (!ptr) hover = null; });
-cv.addEventListener('wheel', e => { e.preventDefault(); zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12); G.did.rotate = 1; }, { passive: false });
+cv.addEventListener('wheel', e => { e.preventDefault(); lastInput = performance.now(); zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12); G.did.rotate = 1; }, { passive: false });
 function zoomBy(k) { V.zoom = Math.max(0.6, Math.min(3, V.zoom * k)); layout(V.cw, V.ch); }
 
 // 押しているあいだ、なめらかに動く（2026-10-13 ユーザー「カカカではなく、スーっと」）。キーのくりかえしは使わない
@@ -291,13 +291,28 @@ $('btnRestore').onclick = () => { if (COL) { $('overlay').hidden = true; endColl
 let last = performance.now(), animT = 0;
 // 絵の時計（雨・滝・さざ波・生き物の足などの動き）。時を止めると止まる。速くすると少しだけ速く（×4 で 1.25 倍、×16 で 1.75 倍。2026-10-13 ユーザー）
 const ANIM_RATE = { 0: 0, 1: 1, 4: 1.25, 16: 1.75 };   // 時そのものは倍率どおり（simulate に dt×速さ）
+// 軽く（v029。2026-10-13 ユーザー「クリアしたころにはスマホがアツアツ」）
+//   描くのは、さわっている・見る向きを変えているあいだと演出のあいだは毎回、それ以外は 30 回/秒（ボクセルは毎回すべてを描き直すので、これがいちばん効く）
+let lastDraw = 0, lastInput = 0;
+function drawNow(now) {
+  const busy = ptr || pinch || held.size || COL || ENDING || now - lastInput < 400;
+  if (busy || now - lastDraw > 30) { lastDraw = now; return true; }
+  return false;
+}
+//   時の計算は1コマ 6ms まで。重い端末では、速さの倍率より少しゆっくり進む（落ちたコマの分を取り返そうとして熱くならない）
+let simCost = 0.5;   // 世界の1秒ぶんの計算にかかる ms（ならした値）
+function simulateWithin(sec) {
+  const s = Math.min(sec, 6 / simCost), t0 = performance.now();
+  simulate(s);
+  if (s > 0.02) simCost = simCost * 0.9 + 0.1 * Math.max(0.05, (performance.now() - t0) / s);
+}
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   if (!(G.started && G.speed === 0 && !COL)) animT += dt * (COL || !G.started ? 1 : ANIM_RATE[G.speed] ?? 1);
   const t = animT;
   if (!V.cw) resize();
   moveByKeys(dt); stepLater(dt); stepEnding(dt);
-  if (G.started && G.speed > 0 && !COL) simulate(dt * G.speed);
+  if (G.started && G.speed > 0 && !COL) simulateWithin(dt * G.speed);
   if (ptr && ptr.mode === 'tool') {
     if (ptr.wait > 0) { ptr.wait -= dt; if (ptr.wait <= 0) useTool(ptr.w, true); }   // 指: 1本のままなら使いはじめる
     else if (G.tool !== 'spring') {
@@ -313,7 +328,7 @@ function frame(now) {
   }
   accSide += dt;
   if (accSide > 0.25) { accSide = 0; updateSide(s); }
-  if (V.cw > 1 && V.ch > 1) { drawWorld(ctx, t, hover); takeSketch(t); drawSpots(ctx, t); }   // 見えていないと大きさが 0
+  if (V.cw > 1 && V.ch > 1 && drawNow(now)) { drawWorld(ctx, t, hover); takeSketch(t); drawSpots(ctx, t); }   // 見えていないと大きさが 0
   Sound.update(COL ? 0 : s.out, !G.started || G.speed === 0 || !!COL, Math.max(0, Math.min(1, (V.zoom - 1.2) / 1.0)));   // 滝の音は寄ったときだけ
   requestAnimationFrame(frame);
 }

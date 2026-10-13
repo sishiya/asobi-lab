@@ -7,10 +7,10 @@
 //     どれも「得」と「損」があり、世界のきびしさ（オオカミ・流れ・干上がり・飢え）で、生き残りやすいものが増える。
 
 const KINDS = {   // 時間は秒（1日＝60 秒、1年＝16 日＝960 秒。寿命は1年より長く）。eMax・cost・speed は遺伝子で上下する（traits）
-  deer: { name: TX('シカ', 'Deer'), eMax: 10, cost: 0.08, speed: 2.0, adult: 75, repE: 0.8, cd: 80, life: 1500, cap: 220, childE: 0.35 },
-  wolf: { name: TX('オオカミ', 'Wolf'), eMax: 16, cost: 0.05, speed: 2.4, adult: 110, repE: 0.8, cd: 150, life: 2000, cap: 40, childE: 0.37 },
-  bird: { name: TX('サギ', 'Heron'), eMax: 12, cost: 0.05, speed: 0.6, adult: 150, repE: 0.8, cd: 200, life: 2000, cap: 30, childE: 0.35 },
-  fish: { name: TX('サカナ', 'Fish'), eMax: 6, cost: 0.05, speed: 1.4, adult: 50, repE: 0.77, cd: 40, life: 1000, cap: 360, childE: 0.33 },
+  deer: { name: TX('シカ', 'Deer'), eMax: 10, cost: 0.08, speed: 2.0, adult: 75, repE: 0.8, cd: 80, life: 1500, cap: 75, childE: 0.35 },
+  wolf: { name: TX('オオカミ', 'Wolf'), eMax: 16, cost: 0.05, speed: 2.4, adult: 110, repE: 0.8, cd: 150, life: 2000, cap: 16, childE: 0.37 },
+  bird: { name: TX('サギ', 'Heron'), eMax: 12, cost: 0.05, speed: 0.6, adult: 150, repE: 0.8, cd: 200, life: 2000, cap: 14, childE: 0.35 },
+  fish: { name: TX('サカナ', 'Fish'), eMax: 6, cost: 0.05, speed: 1.4, adult: 50, repE: 0.77, cd: 40, life: 1000, cap: 140, childE: 0.33 },
 };
 const GENES = {
   deer: [['speed', TX('あしの速さ', 'Leg speed')], ['size', TX('体の大きさ', 'Body size')], ['swim', TX('泳ぐ力', 'Swimming')]],
@@ -238,10 +238,24 @@ function stepAnimal(a, dt) {
   reproduce(a);
 }
 
+// 混みあうと子を残さない（v029。2026-10-13 ユーザー「シカが大量発生してしっちゃかめっちゃか」・スマホが熱くなる）。
+//   まわり（半径 r）に同じ種類が n より多いと、子を残さずに少し待つ。数が上限（cap）に近いほども生まれにくい
+const CROWD = { deer: [7, 5], wolf: [10, 4], fish: [5, 6], bird: [10, 3] };
+function crowded(a) {
+  const [r, n] = CROWD[a.kind];
+  let c = 0;
+  const gx0 = Math.max(0, (a.x - r) / GS | 0), gx1 = Math.min(GW - 1, (a.x + r) / GS | 0);
+  const gy0 = Math.max(0, (a.y - r) / GS | 0), gy1 = Math.min(GW - 1, (a.y + r) / GS | 0);
+  for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) for (const b of grid[gy * GW + gx]) {
+    if (b.kind === a.kind && !b.dead && b !== a && (b.x - a.x) ** 2 + (b.y - a.y) ** 2 < r * r && ++c > n) return true;
+  }
+  return false;
+}
 function reproduce(a) {
   const K = KINDS[a.kind], T = a.tr;
   if (W.T[cellOf(a.x, a.y)] < (a.kind === 'fish' ? 6 : 10)) return;   // 子が生まれるのは暖かいときだけ（春〜夏）
   if (a.e > K.repE * T.eMax && a.age > K.adult && a.cd <= 0) {
+    if (crowded(a) || Math.random() < (L.counts[a.kind] / K.cap) ** 2) { a.cd = K.cd * (0.4 + Math.random() * 0.4); return; }
     const mate = nearest(a, a.kind, a.kind === 'bird' ? 12 : 8, b => b.age > K.adult);      // 近くの大人と遺伝子を合わせる（いなければ自分だけ）
     const ce = K.childE * T.eMax;
     const c = spawn(a.kind, a.x + (Math.random() - 0.5), a.y + (Math.random() - 0.5), ce, childGenes(a.kind, a, mate));
