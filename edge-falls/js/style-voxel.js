@@ -425,11 +425,19 @@ const VOX = (() => {
     drawFalls(t);
     bctx.putImageData(img, 0, 0);
     // 泉
+    //   v059（2026-10-14 ユーザー「泉の場所が目立たなすぎる」）: 小さな噴き上がり。足もとに水たまり、まん中に 3 画素の水柱、しぶきが左右へ弧をえがいて落ちる。止めた泉は灰色の石
     for (const sp of W.springs) {
-      const p = pb(sp.i % N, sp.i / N | 0, Zq[sp.i]);
-      bctx.fillStyle = sp.on ? '#8fc4e2' : '#6a6a6a';
-      bctx.fillRect(Math.round(p.x) - 1, Math.round(p.y) - 1, 3, 1);
-      if (sp.on) { const k = Math.floor(t * 6) % 4; bctx.fillStyle = 'rgba(178,218,240,0.75)'; bctx.fillRect(Math.round(p.x), Math.round(p.y) - 2 - k, 1, 1); bctx.fillRect(Math.round(p.x) + (k % 2 ? 1 : -1), Math.round(p.y) - 1 - (k >> 1), 1, 1); }
+      const p = pb(sp.i % N, sp.i / N | 0, Zq[sp.i]), X = Math.round(p.x), Y = Math.round(p.y);
+      if (!sp.on) { bctx.fillStyle = '#5c5c5c'; bctx.fillRect(X - 1, Y - 1, 3, 2); bctx.fillStyle = '#7c7c7c'; bctx.fillRect(X - 1, Y - 1, 2, 1); continue; }
+      bctx.fillStyle = '#6fa8d8'; bctx.fillRect(X - 2, Y, 5, 1);                                   // 水たまり
+      bctx.fillStyle = '#a8d4f0'; bctx.fillRect(X - 1, Y - 1, 3, 1);
+      const sw = Math.sin(t * 5 + sp.i) > 0.6 ? 1 : 0;                                              // 水柱（ときどき少しゆれる）
+      bctx.fillStyle = '#d8f0ff'; bctx.fillRect(X, Y - 4, 1, 3); bctx.fillRect(X + sw, Y - 5, 1, 1);
+      for (let s = 0; s < 2; s++) {                                                                 // しぶき: 左右に弧
+        const f = (t * 1.4 + s * 0.5 + (sp.i % 7) * 0.13) % 1, dir = s ? 1 : -1;
+        const dx = Math.round(dir * (1 + f * 2.5)), dy = Math.round(-5 + 7 * f * f - 1.5 * f);
+        bctx.fillStyle = `rgba(206,236,252,${0.95 - f * 0.5})`; bctx.fillRect(X + dx, Y + dy, 1, 1);
+      }
     }
     // 木・生き物の画素の絵は、画面の上にじかに、寄り具合に合わせて途切れなく大きく描く（v030。2026-10-13 ユーザー「ある所を境に急に大きさが変わる」）。
     //   前は板の画素の整数倍（1→2→3 倍）でとんでいた。地形の板をいったん画面に広げ、その上に絵、そのあと雲・太陽と月・ホタル・足もとの輪を2枚目として重ねる
