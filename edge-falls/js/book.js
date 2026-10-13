@@ -86,7 +86,6 @@ function syncHands() {
     b.setAttribute('aria-pressed', G.hand === k);
   });
   $('btnBook').hidden = !G.started;
-  $('btnHandOff').hidden = !G.hand;
   drawHands();
   // 手に持っているものの中身（扇のように上に並ぶ）。水がめは一つだけでも、ほかと同じく出す（2026-10-13 ユーザー）
   const fan = $('fan');
@@ -96,13 +95,16 @@ function syncHands() {
       const n = KINDS[k] ? `<em>${W.stock[k]}</em>` : k === 'raise' ? `<em id="soilN">${Math.floor(W.soil)}</em>` : '';
       const ic = k === 'dig' ? iconURL('bagd', c => drawBag(c, 0.5, false)) : k === 'raise' ? iconURL('bagr', c => drawBag(c, 0.8, true)) : k === 'spring' ? iconURL('jar', c => drawJar(c, 0.7)) : k === 'seed' ? iconURL('seed', drawSeed) : iconURL('c' + k, c => drawCreature(c, k));
       return `<button type="button" data-sub="${k}" aria-pressed="${G.sub[G.hand] === k}"${KINDS[k] && W.stock[k] <= 0 ? ' class="empty"' : ''}><img src="${ic}" alt="">${label}${n}</button>`;
-    }).join('');
+    }).join('') +
+      // しまう（スマホの Esc のかわり）: 並びのいちばん右に（v032。2026-10-13 ユーザー）。指で遊ぶとき・せまい画面だけ（CSS）
+      `<button type="button" class="putaway" data-put aria-label="${TX('しまう（Esc）', 'Put away (Esc)')}"><b aria-hidden="true">×</b>${TX('しまう', 'Put away')}</button>`;
     const hb = document.querySelector(`.hand[data-hand="${G.hand}"]`), r = hb.getBoundingClientRect(), fr = field.getBoundingClientRect();
     fan.style.left = Math.max(8, r.left - fr.left + r.width / 2) + 'px';
     fan.hidden = false; document.body.classList.add('fan-open');
     const fw = fan.offsetWidth, cxp = r.left - fr.left + r.width / 2;   // 画面からはみ出さないように
     fan.style.left = Math.max(fw / 2 + 8, Math.min(fr.width - fw / 2 - 8, cxp)) + 'px';
     fan.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => { G.sub[G.hand] = b.dataset.sub; setHand(G.hand); Sound.play('click'); });
+    fan.querySelector('[data-put]').onclick = () => { Sound.unlock(); dropHand(); };
   } else { fan.hidden = true; document.body.classList.remove('fan-open'); }
 }
 let handSig = '';
@@ -179,7 +181,7 @@ function goBack() {
 }
 // 札の外（何もない所）を押すと、ひとつ前へ（2026-10-13 ユーザー）
 $('overlay').addEventListener('click', e => { if (e.target === $('overlay') && goBack()) { Sound.play('click'); G.closedT = performance.now(); } });
-$('btnHandOff').onclick = () => { Sound.unlock(); dropHand(); };
+
 // タイトルへ（2026-10-13 ユーザー「メニューの最初からの代わりにタイトルに戻れるように」）。いまの世界は自動セーブに残す
 //   セーブしないでもどることもできる（2026-10-13 ユーザー）。そのときは自動セーブも書きかえない（前に残った所から「つづきから」）
 function toTitle() {
