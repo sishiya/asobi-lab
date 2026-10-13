@@ -144,22 +144,31 @@ const VOX = (() => {
   const FC = { q: null, top: null, len: null, a: null };
   function drawFalls(t) {
     const BW = buf.width, BH = buf.height, bs = V.bs;
-    if (!FC.q || FC.q.length !== BW) { FC.q = new Float32Array(BW); FC.top = new Float32Array(BW); FC.len = new Float32Array(BW); FC.a = new Float32Array(BW); }
-    const Q = FC.q, TOP = FC.top, LEN = FC.len, AL = FC.a;
+    if (!FC.q || FC.q.length !== BW) { FC.q = new Float32Array(BW); FC.top = new Float32Array(BW); FC.len = new Float32Array(BW); FC.a = new Float32Array(BW); FC.u = new Float32Array(BW); }
+    const Q = FC.q, TOP = FC.top, LEN = FC.len, AL = FC.a, U = FC.u;
     Q.fill(0); TOP.fill(1e9);
     for (const f of fallList()) {
       const x0 = (f.top.x - f.wid / 2) / bs, x1 = (f.top.x + f.wid / 2) / bs;
       for (let X = Math.max(0, Math.floor(x0)); X <= Math.min(BW - 1, Math.ceil(x1)); X++) {
         const w = Math.max(0, Math.min(1, Math.min(X - x0, x1 - X) + 0.6));
-        if (f.q * w > Q[X]) { Q[X] = f.q * w; LEN[X] = f.L / bs; AL[X] = f.a; }
+        if (f.q * w > Q[X]) { Q[X] = f.q * w; LEN[X] = f.L / bs; AL[X] = f.a; U[X] = Math.max(0, Math.min(1, (X + 0.5 - x0) / Math.max(1, x1 - x0))); }
         TOP[X] = Math.min(TOP[X], f.top.y / bs);
       }
     }
     const sp = 34, fr = Math.floor(t * 10);
     for (let X = 0; X < BW; X++) {
       const q = Q[X]; if (q < 0.01) continue;
-      const top = TOP[X], L = LEN[X], a0 = Math.min(0.95, 0.38 + q * 0.6) * AL[X], ph = hash2(X, 3) * 30;
+      const top = TOP[X], L = LEN[X], ph = hash2(X, 3) * 30;
       const edge = Q[X - 1] < q * 0.5 || Q[X + 1] < q * 0.5;
+      // 厚み（v045。2026-10-14 ユーザー「滝に少し厚みを」）: 幅の中ほどほど明るく濃く（水の柱のまるみ）、右のふちの外に暗い側面
+      const cyl = Math.sin(Math.PI * U[X]), shade = 0.78 + 0.3 * cyl, a0 = Math.min(0.97, (0.38 + q * 0.6) * (0.8 + 0.35 * cyl)) * AL[X];
+      if (Q[X + 1] < q * 0.5 && X + 1 < BW) {                                            // 側面: 右どなりに水がなければ、暗い青の帯
+        for (let yy = 0; yy < L * 0.8; yy++) {
+          const f = yy / L, Y = Math.round(top + yy + 1); if (Y < 0) continue; if (Y >= BH) break;
+          if (f > 0.3 && hash2((X + 1) * 7 + Math.floor((yy - t * sp) / 2), 11) < (f - 0.3) * 1.5) continue;
+          blend(Y * BW + X + 1, 62, 98, 146, a0 * 0.85 * (1 - f));
+        }
+      }
       for (let yy = -1; yy < L; yy++) {
         const f = yy / L, Y = Math.round(top + yy);
         if (Y < 0) continue; if (Y >= BH) break;
@@ -169,7 +178,9 @@ const VOX = (() => {
         let r = 150, g = 190, b = 228;
         if (band < 3) { r = 246; g = 250; b = 255; } else if (band < 7) { r = 194; g = 222; b = 246; }
         if (edge && f < 0.4) { r *= 0.8; g *= 0.86; b *= 0.92; }
+        r *= shade; g *= shade; b = Math.min(255, b * (0.9 + 0.12 * cyl));
         if (yy <= 1) { r = 240; g = 248; b = 255; }                                                 // 落ち口のふくらみ
+        else if (yy === 2) { r = Math.min(255, r * 1.12); g = Math.min(255, g * 1.08); }            // 落ち口のふちの照り
         const dx = f > 0.15 ? Math.round((hash2(X, Math.floor(flow / 3)) - 0.5) * f * (4 + q * 6)) : 0;
         const XX = X + dx; if (XX < 0 || XX >= BW) continue;
         blend(Y * BW + XX, r, g, b, a0 * (1 - f * 0.75));
@@ -475,6 +486,15 @@ const VOX = (() => {
       bctx.fillStyle = 'rgba(232,255,138,0.9)'; bctx.fillRect(bx, by, 1, 1);
       bctx.fillStyle = 'rgba(232,255,138,0.3)'; bctx.fillRect(bx - 1, by, 3, 1); bctx.fillRect(bx, by - 1, 1, 3);
     });
+    // まいたたねの粒（v045）: 少し上から地面へ落ちて消える
+    const nowMs = performance.now();
+    for (let q = SEEDFX.length - 1; q >= 0; q--) {
+      const s = SEEDFX[q], e = (nowMs - s.t0) / 650;
+      if (e > 1) { SEEDFX.splice(q, 1); continue; }
+      if (e < 0) continue;
+      const ci = NEAR[Math.round(s.y) * N + Math.round(s.x)], p = pb(s.x, s.y, (ci >= 0 ? Zq[ci] : 0) + 3.2 * (1 - e * e) + 0.2);
+      bctx.fillStyle = `rgba(232,212,140,${e < 0.8 ? 0.95 : (1 - e) * 4.7})`; bctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1);
+    }
     for (const f of L.fx) {
       const p = pb(f.x, f.y, f.z);
       if (f.type === 'born') {                                        // 子が生まれた: 小さなきらめき

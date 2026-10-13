@@ -460,16 +460,21 @@ function drawAnimalVec(ctx, a, p, sz, pal) {
 // 奥から並べた、描くもの一覧（生き物・木）。山のかげに入ったものは除く
 function sceneItems() {
   const items = [], BW = buf.width, BH = buf.height;
+  // 山や段のかげにかくれているか: 足もと・胴・頭の高さの3点がどれも手前の地形の下なら（v045。前は足もとの1点だけで、段を歩くたびに消えたり出たりした。2026-10-14 ユーザー）
   const hidden = p => {
-    const bx = Math.round(p.x / V.bs), by = Math.round(p.y / V.bs) - 1;
-    if (bx < 0 || by < 0 || bx >= BW || by >= BH) return false;
-    return dep[by * BW + bx] > p.v + 1.6;
+    const bx = Math.round(p.x / V.bs); if (bx < 0 || bx >= BW) return false;
+    for (const up of [1, 3, 5]) {
+      const by = Math.round(p.y / V.bs) - up;
+      if (by < 0 || by >= BH || dep[by * BW + bx] <= p.v + 1.6) return false;
+    }
+    return true;
   };
   for (const a of L.list) {
     const z = a.kind === 'fish' ? surfAt(a.x, a.y) - 0.25 : surfAt(a.x, a.y) + (a.alt || 0);
     const p = proj(a.x, a.y, z);
     if (a.kind === 'bird' && a.alt > 0.5) { items.push({ type: 'animal', a, p, ground: proj(a.x, a.y, surfAt(a.x, a.y)) }); continue; }   // とんでいる鳥は山にかくれない
-    if (!hidden(p)) items.push({ type: 'animal', a, p });
+    a.hidN = hidden(p) ? (a.hidN || 0) + 1 : 0;                       // 何コマか続けてかくれたときだけ消す（ちらつかない）
+    if (a.hidN < 6) items.push({ type: 'animal', a, p });
   }
   for (const i of INS) {
     const t = W.tree[i];

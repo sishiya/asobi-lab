@@ -86,7 +86,7 @@ function applyWorld(s) {
   newWorld(num(s.seed, 1) | 0);                       // 区画の入れ物と木の場所を作り直してから、上書き
   for (const k of ['fL', 'fR', 'fU', 'fD']) W[k].fill(0);
   unpackCells(s.cells.g, 100, Int16Array, W.g); unpackCells(s.cells.w, 1000, Uint16Array, W.w);
-  unpackCells(s.cells.veg, 255, Uint8Array, W.veg); unpackCells(s.cells.alg, 255, Uint8Array, W.alg);
+  unpackCells(s.cells.veg, 255, Uint8Array, W.veg); unpackCells(s.cells.alg, 255, Uint8Array, W.alg); W.sown.fill(0);   // まきかけのたねは残さない
   unpackCells(s.cells.moist, 255, Uint8Array, W.moist); unpackCells(s.cells.tree, 255, Uint8Array, W.tree);
   if (typeof s.cells.snow === 'string' && unb64(s.cells.snow).length >= INS.length * 2) unpackCells(s.cells.snow, 1000, Uint16Array, W.snow);
   W.t = num(s.t, 0); W.day = num(s.day, 1); W.soil = num(s.soil, 120); W.abyss = num(s.abyss, 900);

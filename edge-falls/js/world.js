@@ -61,6 +61,7 @@ function newWorld(seed, bare) {
   W.g = A(); W.w = A(); W.fL = A(); W.fR = A(); W.fU = A(); W.fD = A();
   W.veg = A(); W.alg = A(); W.moist = A(); W.light = A();
   W.tree = A(); W.tseed = A();          // 木（草がよく茂る所に、ゆっくり育つ）
+  W.sown = A();                         // まいたたね（v045）: 少しずつ草になる（stepPlants）
   W.T = A(); W.snow = A(); W.ice = new Uint8Array(N * N);   // 気温・雪・氷
   W.rs = RS; W.sunAmp = 1;
   for (const i of INS) W.tseed[i] = rnd();
@@ -263,7 +264,9 @@ function stepMoist(dt) {
 // 草と水草
 function stepPlants(dt) {
   const v = W.veg, a = W.alg, w = W.w, m = W.moist, L = W.light;
+  const sw = W.sown, sp = 0.25 / SPROUT * dt;
   for (const i of INS) {
+    if (sw[i] > 0) { const d = Math.min(sw[i], sp); sw[i] -= d; if (w[i] <= 0.35) v[i] = Math.min(1, v[i] + d); }   // まいたたねが芽ぶく（水の中では芽ぶかない）
     if (w[i] > 0.35) { v[i] = Math.max(0, v[i] - 0.25 * dt); }
     else {
       let nb = 0;
@@ -366,12 +369,19 @@ function sculpt(cx, cy, amt, rad = 3.2) {
   return moved;
 }
 
+// たねをまく（v045 から、すぐ草にならず、まいた所が SPROUT 秒ほどで少しずつ芽ぶく。2026-10-14 ユーザー「少しだけ時間が立たないと草生えないように」）
+const SPROUT = 6;                       // 草 0.25 まで芽ぶくのにかかる世界の秒（×1 で 6 秒）
+const SEEDFX = [];                      // まいたときに落ちるたねの粒（画面の時計。止めていても落ちる。ボクセルの絵だけ）
 function sow(cx, cy, rad = 3) {
   let n = 0;
   for (let y = Math.floor(cy - rad); y <= cy + rad; y++) for (let x = Math.floor(cx - rad); x <= cx + rad; x++) {
     const i = y * N + x; if (x < 0 || y < 0 || x >= N || y >= N || !inside[i]) continue;
     if (Math.hypot(x - cx, y - cy) > rad || W.w[i] > 0.3) continue;
-    if (W.veg[i] < 0.25) { W.veg[i] = 0.25; n++; }
+    if (W.veg[i] + W.sown[i] < 0.25) { W.sown[i] = 0.25 - W.veg[i]; n++; }
+  }
+  if (n && SEEDFX.length < 80) for (let k = 0; k < 5; k++) {
+    const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * rad * 0.9;
+    SEEDFX.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, t0: performance.now() + k * 40 });
   }
   return n;
 }
