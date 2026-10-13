@@ -310,6 +310,7 @@ function chapterLine(a, b, sec = 7) {
   $('lineA').textContent = a; $('lineB').textContent = b;
   const el = $('line'); el.classList.toggle('on', !!(a || b));
   clearTimeout(lineT); if (a || b) lineT = setTimeout(() => el.classList.remove('on'), sec * 1000);
+  if ($('toast').classList.contains('on')) placeToast();   // いま出ている知らせは、章のことばの下へ（v053）
 }
 
 // ---- 観察帳 ----

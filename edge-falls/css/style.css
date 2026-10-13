@@ -108,7 +108,8 @@ body.titling .menubtn{opacity:0;pointer-events:none}
 .line span{font-size:clamp(14px,2vw,17px);letter-spacing:.05em}
 
 /* 知らせ: 下の一行（手に持つものの上） */
-.toast{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);color:var(--paper);font-size:14px;opacity:0;transition:opacity .5s;pointer-events:none;
+/* 知らせ: 章のことばと同じ、まん中の上あたりに（v053。前は下。2026-10-14 ユーザー「目線が散らばるので中央に」）。章のことばが出ているあいだは、そのすぐ下（ui.js の placeToast） */
+.toast{position:absolute;left:50%;top:24%;transform:translate(-50%,-50%);color:var(--paper);font-size:14px;opacity:0;transition:opacity .5s;pointer-events:none;
   max-width:min(760px,92%);text-align:center;text-shadow:0 1px 3px #000,0 0 14px rgba(0,0,0,.8);background:radial-gradient(closest-side,rgba(6,8,16,.62),rgba(6,8,16,.3) 65%,transparent);padding:8px 34px;font-size:clamp(14px,1.45vw,19px);line-height:1.5}
 .toast.on{opacity:1}
 #view{transition:filter .5s}
@@ -118,7 +119,6 @@ body.paused #view{filter:saturate(.35) brightness(.82) sepia(.18)}
   color:var(--paper);font-size:14px;letter-spacing:.4em;text-shadow:0 1px 3px #000}
 body.paused .stage::after{opacity:.9}
 body.paused .dialbtn canvas{filter:drop-shadow(0 0 8px rgba(var(--glowc),.7))}
-body.fan-open .toast{bottom:140px}
 
 /* 下: 手に持つもの3つ */
 .hands{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:14px;align-items:flex-end}
@@ -318,9 +318,8 @@ body.collapsing .viewpad,body.thumb .viewpad,body.thumb .gesture{display:none!im
   .bookbtn{bottom:max(10px,env(safe-area-inset-bottom));right:6px}
   .hand{width:56px}
   .hand canvas{width:40px;height:40px}
-  .toast{bottom:88px;font-size:13px}
+  .toast{top:30%;font-size:13px}
   .fan{bottom:88px;left:8px!important;right:8px;transform:none;flex-wrap:wrap;justify-content:center}
-  body.fan-open .toast{bottom:190px}
   .fan button{min-height:40px;font-size:12px}
   .book{top:auto;height:72%;width:100%;padding:8px}
   .line{top:30%}

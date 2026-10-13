@@ -8,8 +8,16 @@ if (LANG === 'en') {
   document.title = 'Edge Falls Garden';
 }
 let toastT = 0;
+// 知らせの置き場所: ふだんは章のことばと同じ所。章のことばが出ているあいだは、そのすぐ下に並べる（重ならないように。v053）
+function placeToast() {
+  const t = $('toast'), l = $('line');
+  if (l.classList.contains('on') && l.textContent.trim()) {
+    const lr = l.getBoundingClientRect(), fr = field.getBoundingClientRect();
+    t.style.top = Math.round(lr.bottom - fr.top + 12) + 'px'; t.style.transform = 'translate(-50%,0)';
+  } else { t.style.top = ''; t.style.transform = ''; }
+}
 function toast(msg, sec = 3) {
-  const el = $('toast'); el.textContent = msg; el.classList.add('on');
+  const el = $('toast'); el.textContent = msg; placeToast(); el.classList.add('on');
   clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), sec * 1000);
   if (sec >= 4) logMsg(msg);          // 4 秒より長い知らせ（ヒント・てびき・季節・見つけたこと）は、あとで読み返せる
 }
