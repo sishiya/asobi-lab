@@ -85,7 +85,7 @@ function syncHands() {
     const k = b.dataset.hand;
     b.hidden = !map[k];
     b.setAttribute('aria-pressed', G.hand === k);
-    // しまう: 持っている道具のボタンの角に小さな × の印。もう一度押すとしまう（v034。2026-10-13 ユーザー「しまうボタンは差別化したい」）
+    // 持っている道具は、もう一度押すとしまう（説明に出す）
     if (!b.dataset.t0) b.dataset.t0 = b.title;
     b.title = G.hand === k ? TX('しまう（もう一度押す・Esc）', 'Put away (press again or Esc)') : b.dataset.t0;
   });
@@ -99,13 +99,16 @@ function syncHands() {
       const n = KINDS[k] ? `<em>${W.stock[k]}</em>` : k === 'raise' ? `<em id="soilN">${Math.floor(W.soil)}</em>` : '';
       const ic = k === 'dig' ? iconURL('bagd', c => drawBag(c, 0.5, false)) : k === 'raise' ? iconURL('bagr', c => drawBag(c, 0.8, true)) : k === 'spring' ? iconURL('jar', c => drawJar(c, 0.7)) : k === 'seed' ? iconURL('seed', drawSeed) : iconURL('c' + k, c => drawCreature(c, k));
       return `<button type="button" data-sub="${k}" aria-pressed="${G.sub[G.hand] === k}"${KINDS[k] && W.stock[k] <= 0 ? ' class="empty"' : ''}><img src="${ic}" alt="">${label}${n}</button>`;
-    }).join('');
+    }).join('') +
+      // しまう: 並びのいちばん右に「×」だけ（v039。2026-10-13 ユーザー「草やシカのならびの最後に馴染む色味で ×」。v034〜v038 は持っている道具の角の × 印）
+      `<button type="button" class="putaway" data-put title="${TX('しまう（Esc）', 'Put away (Esc)')}" aria-label="${TX('しまう（Esc）', 'Put away (Esc)')}"><b aria-hidden="true">×</b></button>`;
     const hb = document.querySelector(`.hand[data-hand="${G.hand}"]`), r = hb.getBoundingClientRect(), fr = field.getBoundingClientRect();
     fan.style.left = Math.max(8, r.left - fr.left + r.width / 2) + 'px';
     fan.hidden = false; document.body.classList.add('fan-open');
     const fw = fan.offsetWidth, cxp = r.left - fr.left + r.width / 2;   // 画面からはみ出さないように
     fan.style.left = Math.max(fw / 2 + 8, Math.min(fr.width - fw / 2 - 8, cxp)) + 'px';
     fan.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => { G.sub[G.hand] = b.dataset.sub; setHand(G.hand); Sound.play('click'); });
+    fan.querySelector('[data-put]').onclick = () => { Sound.unlock(); dropHand(); };
   } else { fan.hidden = true; document.body.classList.remove('fan-open'); }
 }
 let handSig = '';
