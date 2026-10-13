@@ -247,6 +247,7 @@ body.fan-open .toast{bottom:140px}
 .panel .truth{font-size:13px;border-top:1px solid #cdb98f;padding-top:8px}
 .panel .chron{font-size:13px;columns:2;column-gap:16px}
 .slot{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid #cdb98f;padding:6px 0}
+.panel .slot ~ .btns{margin-top:20px}   /* セーブ・ロード（つづきから）の札: 行ともどるのあいだをあける（v043） */
 .slot p{margin:0;font-size:13px;color:#6d5a44}
 .slot .sbtn{display:flex;flex-direction:column;gap:4px}
 .slot .tbtn{padding:4px 8px;font-size:12px;white-space:nowrap}
