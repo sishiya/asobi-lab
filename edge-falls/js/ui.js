@@ -60,7 +60,7 @@ addEventListener('DOMContentLoaded', () => {
   b.innerHTML = '<canvas width="32" height="32"></canvas>'; drawBubble(b.firstChild.getContext('2d'));
   const box = document.createElement('div');
   box.className = 'msglog'; box.id = 'msglog'; box.hidden = true; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', TX('これまでの知らせ', 'Recent messages'));
-  box.innerHTML = `<div class="msglogbox"><h3>${TX('これまでの知らせ', 'Recent messages')}<small>${TX('時は止まっている', 'Time is stopped')}</small></h3>` +
+  box.innerHTML = `<div class="msglogbox"><h3>${TX('これまでの知らせ', 'Recent messages')}</h3>` +
     `<button type="button" class="msglogclose" id="msglogClose" aria-label="${TX('とじる', 'Close')}">×</button><ol id="msglogList"></ol></div>`;
   $('btnMenu').after(b);
   document.body.appendChild(box);
