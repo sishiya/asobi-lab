@@ -7,9 +7,10 @@ if (LANG === 'en') {
   for (const el of document.querySelectorAll('[data-en-aria-label]')) el.setAttribute('aria-label', el.dataset.enAriaLabel);
   document.title = 'Edge Falls Garden';
 }
-let toastT = 0;
-// 知らせの置き場所: はじめから章のことばのすぐ下の高さ（CSS。v054。2026-10-14 ユーザー「年のメッセージが出ると下にずらされるので、初めからその位置で」）。
-//   章のことばが長くて（スマホで折り返すなど）ふだんの位置にかかるときだけ、もう少し下へ
+// 知らせ（v055。2026-10-14 ユーザー「重なると古いほうがすぐ上書きで消されるので、下へ連ねて。先に出たものが消えたら、次のものはパカっとではなく、ふわっと上へ」）:
+//   #toast は入れ物（置き場所）で、知らせは一つずつ .tmsg として下へ積む。それぞれ自分の時間で消え、消えるときは
+//   うすくなってから高さをちぢめるので、下のものがなめらかに上へよる。同じ文がまだ出ていれば、出ている時間をのばすだけ。いちどに 4 つまで
+// 置き場所: はじめから章のことばのすぐ下の高さ（CSS。v054）。章のことばが長くて（スマホで折り返すなど）かかるときだけ、もう少し下へ
 function placeToast() {
   const t = $('toast'), l = $('line');
   t.style.top = '';
@@ -17,9 +18,30 @@ function placeToast() {
   const lb = l.getBoundingClientRect().bottom + 12, tt = t.getBoundingClientRect().top, fr = field.getBoundingClientRect();
   if (lb > tt) t.style.top = Math.round(lb - fr.top) + 'px';
 }
+const toastOn = () => !!$('toast').querySelector('.tmsg.on');
+function dropToast(el) {
+  if (el.dataset.gone) return;
+  el.dataset.gone = '1'; clearTimeout(el.tm);
+  el.classList.remove('on');                                         // まず、うすく
+  setTimeout(() => {                                                 // それから高さをちぢめる（下のものが、ふわっと上へ）
+    el.style.height = el.offsetHeight + 'px'; void el.offsetHeight;
+    el.classList.add('fold'); el.style.height = '0px';
+    setTimeout(() => el.remove(), 480);
+  }, 420);
+}
+function clearToasts() { for (const el of [...$('toast').children]) dropToast(el); }
 function toast(msg, sec = 3) {
-  const el = $('toast'); el.textContent = msg; placeToast(); el.classList.add('on');
-  clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), sec * 1000);
+  const box = $('toast');
+  const same = [...box.children].find(el => !el.dataset.gone && el.textContent === msg);
+  if (same) { clearTimeout(same.tm); same.tm = setTimeout(() => dropToast(same), sec * 1000); }
+  else {
+    if (!toastOn()) placeToast();                                    // 何も出ていないときだけ置き場所を決めなおす（出ているあいだは動かさない）
+    const live = [...box.children].filter(el => !el.dataset.gone);
+    if (live.length >= 4) dropToast(live[0]);
+    const el = document.createElement('div'); el.className = 'tmsg'; el.textContent = msg;
+    box.appendChild(el); void el.offsetHeight; el.classList.add('on');
+    el.tm = setTimeout(() => dropToast(el), sec * 1000);
+  }
   if (sec >= 4) logMsg(msg);          // 4 秒より長い知らせ（ヒント・てびき・季節・見つけたこと）は、あとで読み返せる
 }
 
@@ -49,7 +71,8 @@ function openLog() {
   $('msglogList').innerHTML = MSGLOG.length
     ? MSGLOG.slice().reverse().map(m => (m.day !== day && (day = m.day) ? `<li class="day">${TX(`第 ${m.day} 日`, `Day ${m.day}`)}</li>` : '') + (m.title ? `<li class="year"><b>${esc(m.title)}</b><p>${esc(m.text)}</p></li>` : `<li><p>${esc(m.text)}</p></li>`)).join('')
     : `<li class="none"><p>${TX('まだ知らせはない', 'No messages yet')}</p></li>`;
-  $('msglog').hidden = false; $('msglogList').scrollTop = $('msglogList').scrollHeight;   // 開いたら、いちばん新しい知らせ（下）へ $('toast').classList.remove('on');   // いま出ている知らせは札の中にあるので消す
+  $('msglog').hidden = false; $('msglogList').scrollTop = $('msglogList').scrollHeight;   // 開いたら、いちばん新しい知らせ（下）へ
+  clearToasts();                                                   // いま出ている知らせは札の中にあるので消す
   $('msgbtn').classList.remove('new'); $('msgbtn').setAttribute('aria-expanded', 'true');
   if (G.started && G.speed) { logSpeed = G.speed; setSpeed(0); }   // 読んでいるあいだは時を止める
   requestAnimationFrame(() => $('msglog').classList.add('on'));

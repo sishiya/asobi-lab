@@ -94,7 +94,7 @@ setInterval(() => {
     return;
   }
   if (!touchy() || !playing || gestDone() || GEST.shown >= 2) return;
-  if ($('line').classList.contains('on') || $('toast').classList.contains('on')) { GEST.next = Math.max(GEST.next, GEST.play + 1.5); return; }   // 章のことば・知らせと重ねない
+  if ($('line').classList.contains('on') || toastOn()) { GEST.next = Math.max(GEST.next, GEST.play + 1.5); return; }   // 章のことば・知らせと重ねない
   GEST.play += 0.5;
   if (GEST.play < GEST.next) return;
   GEST.shown++; GEST.t = 0; GEST.next = GEST.play + 90;            // 2回目は、遊んで 90 秒ほどあと
