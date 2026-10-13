@@ -345,6 +345,7 @@ function release(kind, x, y) {
   if (!a) return 'cap';
   a.e = a.tr.eMax * 0.7;
   a.age = KINDS[kind].adult * 0.8;
+  a.dropT0 = performance.now();                 // 命のつぼから放した生き物は、上から落ちてくる（v056。絵だけ。render.js）
   W.stock[kind]--;
   return 'ok';
 }

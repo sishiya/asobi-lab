@@ -440,9 +440,9 @@ const VOX = (() => {
     const k = Math.max(1, V.s / V.bs / 3.2);                       // 寄るほど画素の絵も大きく（小数のまま）
     for (const it of sceneItems()) {
       const bx = it.p.x / V.bs, by = it.p.y / V.bs;
-      if (!(it.type === 'animal' && (it.a.kind === 'fish' || it.a.alt > 0.5))) {         // 足もとの影
-        const w = 5 * k;
-        bctx.fillStyle = 'rgba(10,14,8,0.28)'; bctx.fillRect(Math.round(bx - w / 2), Math.round(by) - k, w, k);
+      if (!(it.type === 'animal' && (it.a.kind === 'fish' || it.a.alt > 0.5))) {         // 足もとの影（落ちてくる生き物は地面に）
+        const w = 5 * k, sy = it.drop ? it.ground.y / V.bs : by;
+        bctx.fillStyle = 'rgba(10,14,8,0.28)'; bctx.fillRect(Math.round(bx - w / 2), Math.round(sy) - k, w, k);
       }
       if (it.type === 'tree') {
         const L = lumAt(it.i % N, it.i / N | 0);
@@ -486,15 +486,20 @@ const VOX = (() => {
       bctx.fillStyle = 'rgba(232,255,138,0.9)'; bctx.fillRect(bx, by, 1, 1);
       bctx.fillStyle = 'rgba(232,255,138,0.3)'; bctx.fillRect(bx - 1, by, 3, 1); bctx.fillRect(bx, by - 1, 1, 3);
     });
-    // まいたたねの粒（v045）: 少し上から地面へ落ちて消える
+    // 手ざわりの粒（v056。world.js の PFX）: たね・泉のしずく・削った土・盛る土。地面に着いたら 0.25 秒でうすれる
     const nowMs = performance.now();
-    for (let q = SEEDFX.length - 1; q >= 0; q--) {
-      const s = SEEDFX[q], e = (nowMs - s.t0) / 650;
-      if (e > 1) { SEEDFX.splice(q, 1); continue; }
+    for (let q = PFX.length - 1; q >= 0; q--) {
+      const s = PFX[q], e = (nowMs - s.t0) / 1000;
       if (e < 0) continue;
-      const ci = NEAR[Math.round(s.y) * N + Math.round(s.x)], p = pb(s.x, s.y, (ci >= 0 ? Zq[ci] : 0) + 3.2 * (1 - e * e) + 0.2);
-      bctx.fillStyle = `rgba(232,212,140,${e < 0.8 ? 0.95 : (1 - e) * 4.7})`; bctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1);
+      const disc = s.vz * s.vz + 2 * s.g * s.h0, tl = (s.vz + Math.sqrt(disc)) / s.g;            // 地面に着くまでの秒
+      const te = Math.min(e, tl), fade = e > tl ? 1 - (e - tl) / 0.25 : 1;
+      if (fade <= 0) { PFX.splice(q, 1); continue; }
+      const x = s.x + s.vx * te, y = s.y + s.vy * te, h = Math.max(0, s.h0 + s.vz * te - s.g * te * te / 2);
+      const ci = NEAR[Math.round(y) * N + Math.round(x)]; if (ci < 0) { PFX.splice(q, 1); continue; }
+      const p = pb(x, y, Zq[ci] + h + 0.2);
+      bctx.globalAlpha = 0.95 * fade; bctx.fillStyle = s.col; bctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1);
     }
+    bctx.globalAlpha = 1;
     for (const f of L.fx) {
       const p = pb(f.x, f.y, f.z);
       if (f.type === 'born') {                                        // 子が生まれた: 小さなきらめき

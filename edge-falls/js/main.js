@@ -120,6 +120,7 @@ function useTool(p, first) {
     if (W.soil >= 1) G.soilWarn = 0;
     drawMeters();
     if (Math.abs(m) > 0.05 && Math.random() < 0.4) Sound.play('soil');
+    if (Math.abs(m) > 0.05) burst(t, p.x, p.y, first ? 6 : 2, 2);      // 土がはねる・こぼれる（v056）
     G.did.soil = 1;
   } else if (t === 'grass') {
     if (sow(p.x, p.y) > 0 && first) Sound.play('sow');
@@ -129,7 +130,8 @@ function useTool(p, first) {
     else if (r === 'dry') { toast(TX('深淵がからっぽで、泉がわかない。滝から水が帰ってくるのを待つ', 'The Abyss is empty, so no spring will flow. Wait for water to come back from the falls')); Sound.play('no'); }
     else if (r === 'off') { toast(TX('泉を止めた', 'You stopped the spring')); Sound.play('pin'); }
     else if (r === 'on') { toast(TX('泉がまたわき出した', 'The spring is flowing again')); Sound.play('spring'); }
-    else if (r === 'new') { if (!G.did.spring) { toast(TX('深淵の水がわき出した。泉をもう一度押すと止まる', 'Water from the Abyss is welling up. Press the spring again to stop it'), 5); toast(ABYSS_TALK, 6); } Sound.play('spring'); G.did.spring = 1; }
+    if (r === 'new' || r === 'on') burst('drop', p.x, p.y, 7, 0.9);        // 泉: 上からしずく（v056）
+    if (r === 'new') { if (!G.did.spring) { toast(TX('深淵の水がわき出した。泉をもう一度押すと止まる', 'Water from the Abyss is welling up. Press the spring again to stop it'), 5); toast(ABYSS_TALK, 6); } Sound.play('spring'); G.did.spring = 1; }
   } else if (KINDS[t]) {
     const r = release(t, p.x + (first ? 0 : (Math.random() - 0.5) * 2), p.y + (first ? 0 : (Math.random() - 0.5) * 2));
     if (r === 'ok') { Sound.play('put'); syncHands(); }

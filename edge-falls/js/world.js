@@ -371,7 +371,23 @@ function sculpt(cx, cy, amt, rad = 3.2) {
 
 // たねをまく（v045 から、すぐ草にならず、まいた所が SPROUT 秒ほどで少しずつ芽ぶく。2026-10-14 ユーザー「少しだけ時間が立たないと草生えないように」）
 const SPROUT = 6;                       // 草 0.25 まで芽ぶくのにかかる世界の秒（×1 で 6 秒）
-const SEEDFX = [];                      // まいたときに落ちるたねの粒（画面の時計。止めていても落ちる。ボクセルの絵だけ）
+// 手ざわりの粒（v056。2026-10-14 ユーザー「タネはもう少し上から」「泉も上から水滴」「土をけずる・盛るときも砂や土が散る」）:
+//   粒は {x, y, h0（地面からの高さ）, vx, vy, vz, g, t0, col}。画面の時計で動く（止めていても動く）。地面に着いたら少しのあいだでうすれて消える。ボクセルの絵だけ（style-voxel.js）
+const PFX = [];
+const PCOL = { seed: ['#e8d48c', '#d8c070'], drop: ['#cfeaff', '#8fc4e2'], dig: ['#8a6238', '#a87a48', '#6e4c2a'], raise: ['#c8a070', '#d8b888', '#a87a48'] };
+function burst(kind, cx, cy, n, rad = 1.5) {
+  if (PFX.length > 160) return;
+  const now = performance.now(), cols = PCOL[kind];
+  for (let k = 0; k < n; k++) {
+    const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * rad, col = cols[k % cols.length];
+    const p = { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, vx: 0, vy: 0, vz: 0, h0: 0, g: 16, t0: now + k * 35, col };
+    if (kind === 'seed') { p.h0 = 6 + Math.random() * 1.5; }                                       // 上から（指にかくれないように。前は 3.2）
+    else if (kind === 'drop') { p.h0 = 7 + Math.random() * 2; p.g = 20; }                           // 泉: 水のしずく
+    else if (kind === 'raise') { p.h0 = 4 + Math.random() * 2; p.g = 18; }                          // 盛る: 上から土がこぼれる
+    else if (kind === 'dig') { const s = 1.5 + Math.random() * 2; p.vx = Math.cos(a) * s; p.vy = Math.sin(a) * s; p.vz = 4 + Math.random() * 3; p.h0 = 0.3; p.g = 22; p.t0 = now; }   // 削る: 土がはねる
+    PFX.push(p);
+  }
+}
 function sow(cx, cy, rad = 3) {
   let n = 0;
   for (let y = Math.floor(cy - rad); y <= cy + rad; y++) for (let x = Math.floor(cx - rad); x <= cx + rad; x++) {
@@ -379,10 +395,7 @@ function sow(cx, cy, rad = 3) {
     if (Math.hypot(x - cx, y - cy) > rad || W.w[i] > 0.3) continue;
     if (W.veg[i] + W.sown[i] < 0.25) { W.sown[i] = 0.25 - W.veg[i]; n++; }
   }
-  if (n && SEEDFX.length < 80) for (let k = 0; k < 5; k++) {
-    const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * rad * 0.9;
-    SEEDFX.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, t0: performance.now() + k * 40 });
-  }
+  if (n) burst('seed', cx, cy, 5, rad * 0.9);
   return n;
 }
 

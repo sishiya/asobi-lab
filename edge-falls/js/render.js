@@ -474,6 +474,11 @@ function sceneItems() {
     const p = proj(a.x, a.y, z);
     if (a.kind === 'bird' && a.alt > 0.5) { items.push({ type: 'animal', a, p, ground: proj(a.x, a.y, surfAt(a.x, a.y)) }); continue; }   // とんでいる鳥は山にかくれない
     a.hidN = hidden(p) ? (a.hidN || 0) + 1 : 0;                       // 何コマか続けてかくれたときだけ消す（ちらつかない）
+    if (a.dropT0) {                                                    // 放したばかり: 上から落ちてくる（0.45 秒。影は地面に。v056）
+      const e = (performance.now() - a.dropT0) / 450;
+      if (e >= 1 || e < 0) a.dropT0 = 0;
+      else { items.push({ type: 'animal', a, p: proj(a.x, a.y, z + 8 * (1 - e * e)), ground: p, drop: true }); continue; }
+    }
     if (a.hidN < 6) items.push({ type: 'animal', a, p });
   }
   for (const i of INS) {
