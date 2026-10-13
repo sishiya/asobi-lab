@@ -48,6 +48,9 @@ body.font-dot,body.font-dot .panel{font-family:"DotGothic16","Hiragino Mincho Pr
 .msglogbox li.day + li{border-top:0;padding-top:4px}
 .msglogbox li p{margin:2px 0 0;font-size:15px;line-height:1.7;text-shadow:0 1px 2px rgba(0,0,0,.6)}
 .msglogbox li.none p{opacity:.6}
+.msglogbox li.year{padding:12px 0 12px 12px;border-left:2px solid rgba(var(--glowc),.55)}   /* 章のことば（年が変わったとき）: 見出しと、左に金の線（v054） */
+.msglogbox li.year b{display:block;font-size:16px;font-weight:400;letter-spacing:.24em;color:rgb(var(--glowc))}
+.msglogbox li.year p{opacity:.9}
 .msgbtn.new::after{content:"";position:absolute;right:5px;top:5px;width:6px;height:6px;border-radius:50%;background:rgb(var(--glowc));box-shadow:0 0 6px rgba(var(--glowc),.8)}
 @media (prefers-reduced-motion:reduce){.msglog{transition:none}}
 body.titling .menubtn{opacity:0;pointer-events:none}
@@ -109,7 +112,7 @@ body.titling .menubtn{opacity:0;pointer-events:none}
 
 /* 知らせ: 下の一行（手に持つものの上） */
 /* 知らせ: 章のことばと同じ、まん中の上あたりに（v053。前は下。2026-10-14 ユーザー「目線が散らばるので中央に」）。章のことばが出ているあいだは、そのすぐ下（ui.js の placeToast） */
-.toast{position:absolute;left:50%;top:24%;transform:translate(-50%,-50%);color:var(--paper);font-size:14px;opacity:0;transition:opacity .5s;pointer-events:none;
+.toast{position:absolute;left:50%;top:calc(24% + 56px);transform:translateX(-50%);color:var(--paper);font-size:14px;opacity:0;transition:opacity .5s;pointer-events:none;
   max-width:min(760px,92%);text-align:center;text-shadow:0 1px 3px #000,0 0 14px rgba(0,0,0,.8);background:radial-gradient(closest-side,rgba(6,8,16,.62),rgba(6,8,16,.3) 65%,transparent);padding:8px 34px;font-size:clamp(14px,1.45vw,19px);line-height:1.5}
 .toast.on{opacity:1}
 #view{transition:filter .5s}
@@ -318,7 +321,7 @@ body.collapsing .viewpad,body.thumb .viewpad,body.thumb .gesture{display:none!im
   .bookbtn{bottom:max(10px,env(safe-area-inset-bottom));right:6px}
   .hand{width:56px}
   .hand canvas{width:40px;height:40px}
-  .toast{top:30%;font-size:13px}
+  .toast{top:calc(30% + 64px);font-size:13px}
   .fan{bottom:88px;left:8px!important;right:8px;transform:none;flex-wrap:wrap;justify-content:center}
   .fan button{min-height:40px;font-size:12px}
   .book{top:auto;height:72%;width:100%;padding:8px}

@@ -8,13 +8,14 @@ if (LANG === 'en') {
   document.title = 'Edge Falls Garden';
 }
 let toastT = 0;
-// 知らせの置き場所: ふだんは章のことばと同じ所。章のことばが出ているあいだは、そのすぐ下に並べる（重ならないように。v053）
+// 知らせの置き場所: はじめから章のことばのすぐ下の高さ（CSS。v054。2026-10-14 ユーザー「年のメッセージが出ると下にずらされるので、初めからその位置で」）。
+//   章のことばが長くて（スマホで折り返すなど）ふだんの位置にかかるときだけ、もう少し下へ
 function placeToast() {
   const t = $('toast'), l = $('line');
-  if (l.classList.contains('on') && l.textContent.trim()) {
-    const lr = l.getBoundingClientRect(), fr = field.getBoundingClientRect();
-    t.style.top = Math.round(lr.bottom - fr.top + 12) + 'px'; t.style.transform = 'translate(-50%,0)';
-  } else { t.style.top = ''; t.style.transform = ''; }
+  t.style.top = '';
+  if (!l.classList.contains('on') || !l.textContent.trim()) return;
+  const lb = l.getBoundingClientRect().bottom + 12, tt = t.getBoundingClientRect().top, fr = field.getBoundingClientRect();
+  if (lb > tt) t.style.top = Math.round(lb - fr.top) + 'px';
 }
 function toast(msg, sec = 3) {
   const el = $('toast'); el.textContent = msg; placeToast(); el.classList.add('on');
@@ -28,9 +29,9 @@ function toast(msg, sec = 3) {
 //   これまでの知らせ（古いものが上、40 まで。開くといちばん下の新しいものへ）が出る。×・Esc・札の外・もう一度ボタン でとじると、時がもとの速さにもどる。
 //   v033〜v048 のためし（メグリ・出しっぱなしの吹き出し）はやめた
 const MSGLOG = [];
-function logMsg(text) {
+function logMsg(text, title) {   // title: 章のことばの見出し（「第一の年　水」）。見返しの札で少し目立たせる（v054）
   if (!text || (MSGLOG[0] && MSGLOG[0].text === text)) return;
-  MSGLOG.unshift({ text, day: typeof W !== 'undefined' && W.day ? W.day : 0 });
+  MSGLOG.unshift({ text, title, day: typeof W !== 'undefined' && W.day ? W.day : 0 });
   if (MSGLOG.length > 40) MSGLOG.pop();
   if ($('msgbtn')) $('msgbtn').classList.add('new');
 }
@@ -46,7 +47,7 @@ function openLog() {
   const esc = t => t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   let day = -1;   // 日が変わる所にだけ「第 ◯ 日」の区切り（v051）。古いものが上、新しいものが下（v052。2026-10-14 ユーザー）
   $('msglogList').innerHTML = MSGLOG.length
-    ? MSGLOG.slice().reverse().map(m => (m.day !== day && (day = m.day) ? `<li class="day">${TX(`第 ${m.day} 日`, `Day ${m.day}`)}</li>` : '') + `<li><p>${esc(m.text)}</p></li>`).join('')
+    ? MSGLOG.slice().reverse().map(m => (m.day !== day && (day = m.day) ? `<li class="day">${TX(`第 ${m.day} 日`, `Day ${m.day}`)}</li>` : '') + (m.title ? `<li class="year"><b>${esc(m.title)}</b><p>${esc(m.text)}</p></li>` : `<li><p>${esc(m.text)}</p></li>`)).join('')
     : `<li class="none"><p>${TX('まだ知らせはない', 'No messages yet')}</p></li>`;
   $('msglog').hidden = false; $('msglogList').scrollTop = $('msglogList').scrollHeight;   // 開いたら、いちばん新しい知らせ（下）へ $('toast').classList.remove('on');   // いま出ている知らせは札の中にあるので消す
   $('msgbtn').classList.remove('new'); $('msgbtn').setAttribute('aria-expanded', 'true');

@@ -306,7 +306,7 @@ $('dialBtn').addEventListener('click', () => { Sound.unlock(); bookSpeed = null;
 // ---- ことば（章のはじめ） ----
 let lineT = 0;
 function chapterLine(a, b, sec = 7) {
-  if (b) logMsg(a ? a + TX('　', ': ') + b : b);   // 章のことばも、あとで読み返せる（ui.js）
+  if (b) logMsg(b, a);   // 章のことばも、あとで読み返せる（ui.js。見出しつきで少し目立たせる）
   $('lineA').textContent = a; $('lineB').textContent = b;
   const el = $('line'); el.classList.toggle('on', !!(a || b));
   clearTimeout(lineT); if (a || b) lineT = setTimeout(() => el.classList.remove('on'), sec * 1000);
