@@ -24,15 +24,13 @@ body.font-dot,body.font-dot .panel{font-family:"DotGothic16","Hiragino Mincho Pr
 .menubtn{position:absolute;left:8px;top:8px;border:0;background:radial-gradient(closest-side,var(--deep),transparent);border-radius:12px;padding:6px;cursor:pointer;opacity:.6;transition:opacity .2s}
 .menubtn canvas{width:28px;height:28px;image-rendering:pixelated;display:block}
 .menubtn:hover,.menubtn:focus-visible{opacity:1}
-/* メグリ（v034）: メニューの下。しっぽをくわえた金色のヘビ。押すと話を出しっぱなし（.pinned で輪の光） */
-.meguri{position:absolute;left:4px;top:52px;border:0;background:radial-gradient(closest-side,var(--deep),transparent);border-radius:50%;padding:2px;cursor:pointer;transition:transform .2s}
-.meguri canvas{width:48px;height:48px;image-rendering:pixelated;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6))}
-.meguri:hover{transform:scale(1.06)}
-.meguri.talk canvas{animation:megBob .9s ease-in-out infinite}
-.meguri.pinned::after{content:"";position:absolute;inset:4px;border-radius:50%;box-shadow:0 0 0 1px rgba(var(--glowc),.55),0 0 10px rgba(var(--glowc),.35);pointer-events:none}
-@keyframes megBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+/* 知らせの吹き出しのボタン（v033。v034〜v040 はメグリ、v041 でもどした）: メニューの下。押すと出しっぱなし（.pinned で光る） */
+.msgbtn{position:absolute;left:8px;top:54px;border:0;background:radial-gradient(closest-side,var(--deep),transparent);border-radius:12px;padding:6px;cursor:pointer;opacity:.6;transition:opacity .2s}
+.msgbtn canvas{width:28px;height:28px;image-rendering:pixelated;display:block}
+.msgbtn:hover,.msgbtn:focus-visible,.msgbtn.pinned{opacity:1}
+.msgbtn.pinned::after{content:"";position:absolute;inset:3px;border-radius:10px;box-shadow:0 0 0 1px rgba(var(--glowc),.55),0 0 10px rgba(var(--glowc),.3);pointer-events:none}
 /* 吹き出し: 羊皮紙。これまでの話が上、新しいものが下。高さは JS（はじめのカメラで大地にかからないところまで） */
-.say{position:absolute;left:8px;top:108px;width:min(400px,calc(100% - 16px));z-index:4;display:flex;flex-direction:column;border-radius:12px;
+.say{position:absolute;left:8px;top:100px;width:min(400px,calc(100% - 16px));z-index:4;display:flex;flex-direction:column;border-radius:12px;
   background:#f4ead0;color:#3a2a1c;box-shadow:0 0 0 1px rgba(58,42,28,.5),0 6px 24px rgba(0,0,0,.55);font-size:14px;line-height:1.65;opacity:0;transform:translateY(-4px);transition:opacity .25s,transform .25s}
 .say.on{opacity:1;transform:none}
 .say::before{content:"";position:absolute;left:20px;top:-7px;width:12px;height:12px;background:#f4ead0;transform:rotate(45deg);box-shadow:-1px -1px 0 rgba(58,42,28,.5)}
@@ -45,7 +43,7 @@ body.font-dot,body.font-dot .panel{font-family:"DotGothic16","Hiragino Mincho Pr
 .say li.none{opacity:.6}
 body.sayover .line{top:var(--lineTop);transform:translate(-50%,0)}   /* 吹き出しと重なるときは、章のことばを下へ */
 @keyframes sayIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.meguri.talk canvas,.say li.fresh{animation:none}.say{transition:none}}
+@media (prefers-reduced-motion:reduce){.say li.fresh{animation:none}.say{transition:none}}
 body.titling .menubtn{opacity:0;pointer-events:none}
 /* 世界になじむ札（メニュー・セーブ・ロード）: 羊皮紙の箱ではなく、深淵の色のぼかしの上に羊皮紙色の文字。2026-10-13 ユーザー */
 .panel.world{background:radial-gradient(ellipse at 50% 45%,rgba(14,18,34,.94),rgba(10,13,24,.86) 70%,rgba(10,13,24,.7));color:var(--paper);border:1px solid rgba(239,227,196,.22);outline:0;border-radius:16px;
@@ -270,8 +268,8 @@ body.titling .overlay{background:radial-gradient(ellipse at 50% 40%,rgba(5,8,16,
 .panel.titlecard .tbtn:hover,.panel.titlecard .tbtn:focus-visible{border-color:rgba(var(--glowc),.85);background:rgba(30,36,58,.7);outline:0}
 .panel.titlecard .tbtn.main{background:rgba(239,227,196,.92);color:#141b30;border-color:transparent}
 .panel.titlecard .tbtn.main:hover,.panel.titlecard .tbtn.main:focus-visible{background:#fff4d8}
-body.titling .hands,body.titling .bookbtn,body.titling .quest,body.titling .dial,body.titling .viewpad,body.titling .meguri,body.titling .say{opacity:0;pointer-events:none}
-body.ending .meguri,body.collapsing .meguri,body.thumb .meguri,body.ending .say,body.collapsing .say,body.thumb .say{display:none!important}
+body.titling .hands,body.titling .bookbtn,body.titling .quest,body.titling .dial,body.titling .viewpad,body.titling .msgbtn,body.titling .say{opacity:0;pointer-events:none}
+body.ending .msgbtn,body.collapsing .msgbtn,body.thumb .msgbtn,body.ending .say,body.collapsing .say,body.thumb .say{display:none!important}
 body.ending .hands,body.ending .bookbtn,body.ending .quest,body.ending .dial,body.ending .menubtn,body.ending .fan,body.ending .viewpad{opacity:0;pointer-events:none}
 body.collapsing .viewpad,body.thumb .viewpad,body.thumb .gesture{display:none!important}
 .hands,.bookbtn,.dial,.menubtn{transition:opacity 1.2s}
@@ -322,7 +320,7 @@ body.collapsing .viewpad,body.thumb .viewpad,body.thumb .gesture{display:none!im
   /* スマホのはじめの画面: 題とことばは上、ボタンは下に縦にならべて、まん中の大地を見せる（2026-10-13 ユーザー） */
   body.titling .overlay{align-items:stretch;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));
     background:linear-gradient(rgba(5,8,16,.62),rgba(5,8,16,.08) 32%,rgba(5,8,16,.08) 62%,rgba(5,8,16,.66))}
-  .panel.titlecard{display:flex;flex-direction:column;width:100%;max-width:none;max-height:none;padding:clamp(12px,5vh,48px) 0 clamp(4px,2vh,20px)}
+  .panel.titlecard{display:flex;flex-direction:column;width:100%;max-width:none;max-height:none;padding:clamp(20px,7.5vh,72px) 0 clamp(4px,2vh,20px)}   /* 題と説明を少し下げる（v041。2026-10-14 ユーザー「下げて」→「もう半分上げて」で、もとの 48px と 96px のあいだ） */
   .panel.titlecard::before{display:none}
   .panel.titlecard h2.title{font-size:clamp(24px,8vw,34px);letter-spacing:.18em;padding-left:.18em;white-space:nowrap;margin-bottom:12px}
   .panel.titlecard .sub{font-size:13px;margin-bottom:4px}
@@ -332,7 +330,7 @@ body.collapsing .viewpad,body.thumb .viewpad,body.thumb .gesture{display:none!im
   .panel.titlecard .tbtn{font-size:16px;padding:12px 0;min-height:48px}
 }
 @media (max-width:640px) and (max-height:700px){
-  .panel.titlecard{padding-top:4px}
+  .panel.titlecard{padding-top:clamp(6px,2vh,12px)}
   .panel.titlecard h2.title{margin-bottom:6px}
   .panel.titlecard .btns{gap:6px}
   .panel.titlecard .tbtn{padding:9px 0;min-height:42px}

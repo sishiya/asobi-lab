@@ -447,11 +447,11 @@ addEventListener('keydown', e => {
 
 // ---- ちょっとしたてびき（その操作をまだしていない人にだけ、一度ずつ） ----
 const TIPS = [
-  ['rotate', () => !touchy() && G.chT > DAY * 0.4, TX('大地の外をドラッグすると、まわして見られるよ。ホイールで寄れる。左のボタンでもね', 'Drag outside the land to turn it, and scroll to zoom. The buttons on the left work too')],
-  ['speed', () => G.ch >= 1 && G.chT > DAY * 0.3, TX('右上の天の輪を押すと、時が止まるよ。下の ›› で速くなる', 'Press the Sky Dial at the top right to stop time. The ›› marks below make it go faster')],
-  ['sun', () => G.ch >= 2 && G.chT > DAY * 1.5, TX('太陽は、つかんで動かせるの。止めたところはよく育つけど、乾いて暑くなる。反対がわは夜のまま', 'You can grab the Sun and move it. Where you stop it, plants grow well, but it gets dry and hot. The other side stays in night')],
-  ['book', () => G.ch >= 3 && G.chT > DAY, TX('右下の観察帳に、いきものの移り変わりが書いてあるよ', 'The Field Notes at the bottom right show how life is changing')],
-  ['moon', () => G.ch >= 7 && G.chT > DAY, TX('月を寄せると、潮で水がそっちへ寄るの。浅瀬が動いて、ふちから水があふれるよ', 'Bring the Moon closer and the tide pulls the water toward it. The shallows move, and water spills over the edge')],
+  ['rotate', () => !touchy() && G.chT > DAY * 0.4, TX('大地の外をドラッグすると、回して見られる。ホイールで寄る。左のボタンでも', 'Drag outside the land to turn it, and scroll to zoom. The buttons on the left work too')],
+  ['speed', () => G.ch >= 1 && G.chT > DAY * 0.3, TX('右上の天の輪を押すと、時が止まる。下の ›› で速くなる', 'Press the Sky Dial at the top right to stop time. The ›› marks below make it go faster')],
+  ['sun', () => G.ch >= 2 && G.chT > DAY * 1.5, TX('太陽は、つかんで動かせる。止めたところはよく育つが、乾いて暑くなる。反対がわは夜のまま', 'You can grab the Sun and move it. Where you stop it, plants grow well, but it gets dry and hot. The other side stays in night')],
+  ['book', () => G.ch >= 3 && G.chT > DAY, TX('右下の観察帳に、いきものの移り変わりが書いてある', 'The Field Notes at the bottom right show how life is changing')],
+  ['moon', () => G.ch >= 7 && G.chT > DAY, TX('月を寄せると、潮で水がそちらへ寄る。浅瀬が動き、ふちから水があふれる', 'Bring the Moon closer and the tide pulls the water toward it. The shallows move, and water spills over the edge')],
 ];
 let accTip = 0;
 function stepTips(dt) {

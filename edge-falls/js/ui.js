@@ -9,7 +9,7 @@ if (LANG === 'en') {
 }
 let toastT = 0;
 function toast(msg, sec = 3) {
-  if (sec >= 4) {                     // 4 秒より長い知らせ（ヒント・てびき・季節・見つけたこと）は、メグリが話す（v034）。あとで読み返せる
+  if (sec >= 4) {                     // 4 秒より長い知らせ（ヒント・てびき・季節・見つけたこと）は、吹き出しに出す（v034）。あとで読み返せる
     logMsg(msg);
     if (G.started && !document.body.classList.contains('ending')) { say(msg); return; }
   }
@@ -17,10 +17,8 @@ function toast(msg, sec = 3) {
   clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), sec * 1000);
 }
 
-// ---- メグリ（v034。2026-10-13 ユーザー「マスコット的なキャラに喋らせる形」「シンプルでかわいいけど世界の謎を知ってそうな聡明さ」→ ウロボロス） ----
-//   自分のしっぽをくわえて輪になった小さな金色のヘビ。この箱庭のきまり「何も生まれず、何も消えない。ただ、めぐるだけ」そのもの。
-//   左上のメニューの下にいて、ヒントや知らせを吹き出しで話す（文の長さに合わせて長く残り、押すと消える。続いたら順に）。
-//   これまでの話は 40 まで、吹き出しの中を上へスクロールして読み返せる（v033 の吹き出しのボタンと読み返しの札を置きかえた）
+// ---- 知らせの吹き出し（v033。v034〜v040 はメグリ（ウロボロス）が話す形、v041 でシンプルな吹き出しにもどした。2026-10-14 ユーザー） ----
+//   左上のメニューの下の吹き出しのボタン。押すと出しっぱなし（もう一度押すとしまう）。これまでの知らせは 40 まで、上へスクロールして読み返せる
 const MSGLOG = [];
 function logMsg(text) {
   if (!text || (MSGLOG[0] && MSGLOG[0].text === text)) return;
@@ -29,48 +27,14 @@ function logMsg(text) {
   SAY.fresh = (SAY.fresh || 0) + 1;
   if (SAY.open) renderSay();
 }
-// 画素の絵（24×24 の格子を 48px に）。頭は右上、体は時計まわりに輪になり、細いしっぽの先が口に入る。rot で鱗の模様が流れて、輪がめぐって見える
-function drawMeguri(ctx, rot, blink) {
-  const S = 24, cx = 11.5, cy = 12.8, R = 7.2, HEAD = -Math.PI / 2 + 0.55, TAU = Math.PI * 2;
-  const at = (a, r) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
-  const [hx, hy] = at(HEAD, R + 0.9);                                   // 頭（輪より少し外に）
-  const [sx, sy] = at(HEAD - 0.4, R + 0.4);                             // 鼻先（しっぽのがわへ）
-  const C = { out: '#3a2414', dark: '#9a6a2c', base: '#d6a64e', lite: '#f2d48c', belly: '#f6e8c4', scale: '#b88838', eye: '#22140c', blush: '#ec9c80', mouth: '#5a2e18' };
-  const grid = Array.from({ length: S }, () => Array(S).fill(null));
-  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
-    const dx = x + 0.5 - cx, dy = y + 0.5 - cy, r = Math.hypot(dx, dy);
-    const u = ((Math.atan2(dy, dx) - HEAD) % TAU + TAU) % TAU / TAU;   // 頭で 0、時計まわりにしっぽの先へ 1
-    const th = 2.6 - 1.7 * u;                                            // しっぽへ細く
-    if (u < 0.87 && Math.abs(r - R) <= th) {
-      const lit = (-dx * 0.6 - dy * 0.8) / (r || 1);
-      let c = r < R - th * 0.3 ? C.belly : lit > 0.45 ? C.lite : lit < -0.35 ? C.dark : C.base;
-      if (c !== C.belly && r > R - 0.3 && (Math.floor(u * 28 + rot) % 2 === 0) && (x + y) % 2 === 0) c = C.scale;   // 鱗
-      grid[y][x] = c;
-    }
-  }
-  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {            // 頭と鼻先（まるく大きく、上が明るい）
-    const px = x + 0.5, py = y + 0.5;
-    if (Math.hypot(px - hx, py - hy) <= 3.9 || Math.hypot(px - sx, py - sy) <= 2.7)
-      grid[y][x] = py - hy < -1.6 ? C.lite : py - hy > 2.2 ? C.dark : C.base;
-  }
-  // しっぽの先: 鼻先の口へ入っていく（細い2つの画素）
-  for (const k of [0.7, 0.62]) { const [tx, ty] = at(HEAD - k, R); grid[Math.floor(ty)][Math.floor(tx)] = C.dark; }
-  // 口: 鼻先の下に、しっぽをくわえた線
-  for (const k of [0.52, 0.42, 0.32]) { const [mx, my] = at(HEAD - k, R - 0.6); const yy = Math.floor(my), xx = Math.floor(mx); if (grid[yy] && grid[yy][xx]) grid[yy][xx] = C.mouth; }
-  // 目（鼻先のがわに大きく、光つき）とほお
-  const ex = Math.round(hx - 2.0), ey = Math.round(hy - 1.8);
-  if (blink) { grid[ey + 1][ex] = C.eye; grid[ey + 1][ex + 1] = C.eye; }
-  else { grid[ey][ex] = '#ffffff'; grid[ey][ex + 1] = C.eye; grid[ey + 1][ex] = C.eye; grid[ey + 1][ex + 1] = C.eye; }
-  if (grid[ey + 2] && grid[ey + 2][ex + 2]) grid[ey + 2][ex + 2] = C.blush;
-  ctx.clearRect(0, 0, 48, 48);
-  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
-    let c = grid[y][x];
-    if (!c && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => grid[y + b] && grid[y + b][x + a] && grid[y + b][x + a] !== C.out)) c = C.out;   // 輪郭
-    if (c) { ctx.fillStyle = c; ctx.fillRect(x * 2, y * 2, 2, 2); }
-  }
+function drawBubble(ctx) {
+  ctx.clearRect(0, 0, 32, 32);
+  px(ctx, 3, 3, 10, 7, '#e6dcc4'); px(ctx, 2, 4, 12, 5, '#e6dcc4'); px(ctx, 4, 10, 3, 1, '#e6dcc4'); px(ctx, 4, 11, 1, 2, '#e6dcc4'); px(ctx, 5, 11, 1, 1, '#e6dcc4');   // 吹き出し
+  px(ctx, 3, 9, 10, 1, '#b8a888'); px(ctx, 13, 4, 1, 5, '#b8a888');                                                                                      // 影
+  for (let k = 0; k < 3; k++) px(ctx, 5 + k * 2, 6, 1, 1, '#5a4636');                                                                                   // …
 }
 // 話す（吹き出し）。これまでの話と一つになっていて、新しいものが下、上へスクロールでさかのぼれる（2026-10-13 ユーザー「トグルで出し続けることも」「スクロールで遡れるように」）。
-//   メグリを押すと出しっぱなし（もう一度押すとしまう。次に遊ぶときも覚えている）。しまっているあいだに話したときは、文の長さに合わせて 7〜20 秒だけ出る（PLAYTEST #11）。
+//   吹き出しのボタンを押すと出しっぱなし（もう一度押すとしまう。次に遊ぶときも覚えている）。しまっているあいだに話したときは、文の長さに合わせて 7〜20 秒だけ出る（PLAYTEST #11）。
 //   高さは、はじめのカメラで大地にかからないところまで（sayMaxH）
 const SAY = { pinned: false, open: false, seen: 0 };
 try { SAY.pinned = localStorage.getItem('edge-falls-say-pin') === '1'; } catch (e) { /* 覚えられなくても動く */ }
@@ -120,13 +84,13 @@ function renderSay(stick) {
   const items = MSGLOG.slice().reverse();
   list.innerHTML = items.length
     ? items.map((m, i) => `<li${SAY.fresh && i === items.length - 1 ? ' class="fresh"' : ''}>${m.day ? `<span>${TX(`第 ${m.day} 日`, `Day ${m.day}`)}</span>` : ''}${esc(m.text)}</li>`).join('')
-    : `<li class="none">${TX('まだ何も話していない', 'Nothing yet')}</li>`;
+    : `<li class="none">${TX('まだ知らせはない', 'No messages yet')}</li>`;
   if (stick || atEnd) list.scrollTop = list.scrollHeight;                // さかのぼって読んでいるときは、動かさない
 }
 function openSay(pin) {
   if (pin) { SAY.pinned = true; try { localStorage.setItem('edge-falls-say-pin', '1'); } catch (e) { /* */ } clearTimeout(sayT); }
   const el = $('say'), was = SAY.open;
-  SAY.open = true; el.hidden = false; $('meguri').classList.add('talk'); $('meguri').classList.toggle('pinned', SAY.pinned); $('meguri').setAttribute('aria-expanded', 'true');
+  SAY.open = true; el.hidden = false; $('msgbtn').classList.toggle('pinned', SAY.pinned); $('msgbtn').setAttribute('aria-expanded', 'true');
   fitSay(); renderSay(!was);
   requestAnimationFrame(() => el.classList.add('on'));
 }
@@ -134,26 +98,17 @@ function closeSay(unpin) {
   if (unpin) { SAY.pinned = false; try { localStorage.setItem('edge-falls-say-pin', '0'); } catch (e) { /* */ } }
   clearTimeout(sayT); SAY.open = false; SAY.fresh = 0; document.body.classList.remove('sayover');
   const el = $('say'); if (!el) return;
-  el.classList.remove('on'); $('meguri').classList.remove('talk', 'pinned'); $('meguri').setAttribute('aria-expanded', 'false');
+  el.classList.remove('on'); $('msgbtn').classList.remove('pinned'); $('msgbtn').setAttribute('aria-expanded', 'false');
   setTimeout(() => { if (!SAY.open) el.hidden = true; }, 250);
 }
 function clearSay() { closeSay(); renderSay(true); }
 addEventListener('DOMContentLoaded', () => {
   const b = document.createElement('button');
-  b.type = 'button'; b.className = 'meguri'; b.id = 'meguri';
-  b.title = TX('メグリ（押すと話を出しっぱなしに・もう一度でしまう）', 'Meguri (press to keep the talk open, again to close)'); b.setAttribute('aria-label', b.title);
-  b.innerHTML = '<canvas width="48" height="48"></canvas>';
-  const cx = b.firstChild.getContext('2d');
-  let rot = 0, blinkT = 3;
-  drawMeguri(cx, 0, false);
-  setInterval(() => {                                                    // 輪がめぐる・まばたき（見えているときだけ）
-    if (document.hidden || !G.started) return;
-    rot = (rot + 1) % 2; blinkT -= 0.4;
-    const bl = blinkT < 0; if (blinkT < -0.3) blinkT = 3 + Math.random() * 3;
-    drawMeguri(cx, rot, bl);
-  }, 400);
+  b.type = 'button'; b.className = 'msgbtn'; b.id = 'msgbtn';
+  b.title = TX('これまでの知らせ（押すと出しっぱなし・もう一度でしまう）', 'Recent messages (press to keep open, again to close)'); b.setAttribute('aria-label', b.title);
+  b.innerHTML = '<canvas width="32" height="32"></canvas>'; drawBubble(b.firstChild.getContext('2d'));
   const sb = document.createElement('div');
-  sb.className = 'say'; sb.id = 'say'; sb.hidden = true; sb.setAttribute('role', 'log'); sb.setAttribute('aria-live', 'polite'); sb.setAttribute('aria-label', TX('メグリの話', 'What Meguri says'));
+  sb.className = 'say'; sb.id = 'say'; sb.hidden = true; sb.setAttribute('role', 'log'); sb.setAttribute('aria-live', 'polite'); sb.setAttribute('aria-label', TX('これまでの知らせ', 'Recent messages'));
   sb.innerHTML = '<ol id="sayList"></ol>';
   $('btnMenu').after(b, sb);
   b.onclick = () => { Sound.unlock(); Sound.play('click'); if (SAY.open && SAY.pinned) closeSay(true); else openSay(true); };

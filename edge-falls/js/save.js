@@ -165,9 +165,11 @@ function openSavePanel(back, mode = 'save', just) {
   const file = mode === 'save'
     ? TX(`<div class="slot"><div><b>ファイル</b><p>ほかのブラウザへ持っていく・とっておく</p></div><div class="sbtn"><button type="button" class="tbtn" id="btnExport">書き出す</button></div></div>`, `<div class="slot"><div><b>File</b><p>Take it to another browser or keep a copy</p></div><div class="sbtn"><button type="button" class="tbtn" id="btnExport">Export</button></div></div>`)
     : `<div class="slot"><div><b>${TX('ファイル', 'File')}</b><p>${TX('書き出したファイルから', 'From an exported file')}</p></div><div class="sbtn"><button type="button" class="tbtn" id="btnImport">${TX('ファイルを選ぶ', 'Choose a file')}</button></div></div><input type="file" id="fileImport" accept=".json,application/json" hidden>`;
+  const fromTitle = !G.started;   // タイトルの「つづきから」から開いた（v041）。いまの世界はタイトルの背景なので、自動セーブに残さない
   showPanel(mode === 'save'
     ? TX(`<h2>セーブ</h2><p class="small center">地形・水・草・生き物（遺伝子も）・年まで、世界をまるごと残す。<br>1日ごとと、ページを閉じるときにも自動で残る。</p>`, `<h2>Save</h2><p class="small center">Saves the whole world: land, water, grass, animals (with their genes) and the year.<br>It also saves automatically every day and when you close the page.</p>`) + `${rows}${file}`
-    : TX(`<h2>ロード</h2><p class="small center">読みこむと、いまの世界は自動セーブに残してから入れかわる。</p>`, `<h2>Load</h2><p class="small center">When you load, the current world is kept in the autosave before it is replaced.</p>`) + `${rows}${file}`,
+    : (fromTitle ? TX(`<h2>つづきから</h2><p class="small center">どの世界から遊ぶかを選ぶ。</p>`, `<h2>Continue</h2><p class="small center">Choose the world to play.</p>`)
+      : TX(`<h2>ロード</h2><p class="small center">読みこむと、いまの世界は自動セーブに残してから入れかわる。</p>`, `<h2>Load</h2><p class="small center">When you load, the current world is kept in the autosave before it is replaced.</p>`)) + `${rows}${file}`,
   [{ label: back ? TX('もどる', 'Back') : TX('とじる', 'Close'), main: true, fn: back }]);
   $('panel').classList.add('world'); G.panelBack = back || (() => { $('overlay').hidden = true; });
   const panel = $('panel');
@@ -177,8 +179,8 @@ function openSavePanel(back, mode = 'save', just) {
   });
   panel.querySelectorAll('[data-load]').forEach(b => b.onclick = async () => {
     const rec = readSlot(b.dataset.load);
-    if (b.dataset.load !== 'auto') await saveSlot('auto');          // いまの世界は自動セーブに残してから
-    try { await loadRecord(rec); $('overlay').hidden = true; G.started = true; G.menuOpen = false; if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } toast(TX('読みこんだ: 第 ' + W.day + ' 日', 'Loaded: day ' + W.day)); Sound.play('spring'); }
+    if (b.dataset.load !== 'auto' && !fromTitle) await saveSlot('auto');          // いまの世界は自動セーブに残してから（タイトルからは残さない）
+    try { await loadRecord(rec); $('overlay').hidden = true; G.started = true; G.menuOpen = false; if (fromTitle) { document.body.classList.remove('titling'); syncHands(); } if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } toast(TX('読みこんだ: 第 ' + W.day + ' 日', 'Loaded: day ' + W.day)); Sound.play('spring'); }
     catch (e) { toast(TX('読みこめなかった: ', 'Couldn’t load: ') + e.message); Sound.play('no'); }
   });
   if ($('btnExport')) $('btnExport').onclick = async () => {
@@ -195,8 +197,9 @@ function openSavePanel(back, mode = 'save', just) {
     if (f.size > 5e6) { toast(TX('大きすぎるファイル', 'The file is too big')); return; }
     try {
       const rec = JSON.parse(await f.text());
-      await saveSlot('auto'); await loadRecord(rec);
-      $('overlay').hidden = true; G.started = true; G.menuOpen = false; if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } toast(TX('読みこんだ: 第 ' + W.day + ' 日', 'Loaded: day ' + W.day)); Sound.play('spring');
+      if (!fromTitle) await saveSlot('auto');
+      await loadRecord(rec);
+      $('overlay').hidden = true; G.started = true; G.menuOpen = false; if (fromTitle) { document.body.classList.remove('titling'); syncHands(); } if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } toast(TX('読みこんだ: 第 ' + W.day + ' 日', 'Loaded: day ' + W.day)); Sound.play('spring');
     } catch (err) { toast(TX('読みこめなかった: ', 'Couldn’t load: ') + err.message); Sound.play('no'); }
   };
 }
