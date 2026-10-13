@@ -496,8 +496,15 @@ const VOX = (() => {
       if (fade <= 0) { PFX.splice(q, 1); continue; }
       const x = s.x + s.vx * te, y = s.y + s.vy * te, h = Math.max(0, s.h0 + s.vz * te - s.g * te * te / 2);
       const ci = NEAR[Math.round(y) * N + Math.round(x)]; if (ci < 0) { PFX.splice(q, 1); continue; }
-      const p = pb(x, y, Zq[ci] + h + 0.2);
-      bctx.globalAlpha = 0.95 * fade; bctx.fillStyle = s.col; bctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1);
+      const p = pb(x, y, Zq[ci] + h + 0.2), X = Math.round(p.x), Y = Math.round(p.y);
+      bctx.globalAlpha = 0.95 * fade; bctx.fillStyle = s.col;
+      if (s.big) {                                                     // 大きな雫: 2×3 のしずく形に光（v058）
+        if (e < tl) { bctx.fillRect(X, Y - 2, 1, 1); bctx.fillRect(X - 1, Y - 1, 2, 2); bctx.fillStyle = '#eef9ff'; bctx.fillRect(X - 1, Y - 1, 1, 1); }
+        else if (!s.splashed) {                                        // 着いたら小さなしぶき
+          s.splashed = 1; const now2 = performance.now();
+          for (let k = 0; k < 5; k++) { const a = k / 5 * 6.283 + Math.random() * 0.6, v = 1.2 + Math.random(); PFX.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, vz: 2.2 + Math.random(), h0: 0.1, g: 20, t0: now2, col: '#cfeaff' }); }
+        }
+      } else bctx.fillRect(X, Y, 1, 1);
     }
     bctx.globalAlpha = 1;
     for (const f of L.fx) {

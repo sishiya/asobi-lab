@@ -382,7 +382,10 @@ function burst(kind, cx, cy, n, rad = 1.5) {
     const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * rad, col = cols[k % cols.length];
     const p = { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, vx: 0, vy: 0, vz: 0, h0: 0, g: 16, t0: now + k * 35, col };
     if (kind === 'seed') { p.h0 = 6 + Math.random() * 1.5; }                                       // 上から（指にかくれないように。前は 3.2）
-    else if (kind === 'drop') { p.h0 = 7 + Math.random() * 2; p.g = 20; }                           // 泉: 水のしずく
+    else if (kind === 'drop') {                                                                      // 泉: 水のしずく。一つめは一回り大きな雫（重く、少し速く落ち、着くと小さくはねる。v058）
+      p.h0 = 7 + Math.random() * 2; p.g = 20;
+      if (k === 0) { p.x = cx; p.y = cy; p.h0 = 9; p.g = 30; p.big = 1; p.t0 = now + 60; p.col = '#8fc8ee'; }
+    }
     else if (kind === 'raise') { const s = 1.6 + Math.random() * 1.6; p.vx = Math.cos(a) * s; p.vy = Math.sin(a) * s; p.vz = 0.8; p.h0 = 0.2; p.g = 2; p.t0 = now; }   // 盛る: 地面すれすれに土ぼこりが外へ広がる（v057。上から落とすとたねと見分けにくかった）
     else if (kind === 'dig') { const s = 1.5 + Math.random() * 2; p.vx = Math.cos(a) * s; p.vy = Math.sin(a) * s; p.vz = 4 + Math.random() * 3; p.h0 = 0.3; p.g = 22; p.t0 = now; }   // 削る: 土がはねる
     PFX.push(p);
