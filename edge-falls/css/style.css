@@ -121,6 +121,30 @@ body.fan-open .toast{bottom:140px}
 .fan button.empty em{color:#e8a08a}
 
 /* 右下: 観察帳 */
+/* 見る用のボタン（v030。指で遊ぶときだけ。左のまんなかに縦に） */
+.viewpad{position:absolute;left:6px;top:50%;transform:translateY(-50%);display:none;flex-direction:column;gap:2px;padding:6px 2px;border-radius:24px;background:radial-gradient(closest-side,rgba(12,16,30,.45),transparent);transition:opacity 1.2s}
+body.touchy .viewpad{display:flex}
+.viewpad button{border:0;background:transparent;padding:4px;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+.viewpad canvas{width:30px;height:30px;display:block;image-rendering:pixelated;opacity:.55;transition:transform .15s,opacity .15s;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6))}
+.viewpad button.on canvas,.viewpad button:active canvas{opacity:1;transform:scale(1.12)}
+.viewpad button:nth-child(3){margin-top:6px}
+.viewpad button:nth-child(5){margin-top:6px}
+.viewpad button:focus-visible{outline:2px solid var(--paper);outline-offset:1px;border-radius:50%}
+/* 見かたの練習: 光の点2つで、ひろげる → ひねる（手の絵は使わない） */
+.gesture{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);pointer-events:none;text-align:center;opacity:0;transition:opacity .6s}
+.gesture.on{opacity:1}
+.gesture .pair{position:relative;width:180px;height:180px;margin:0 auto;animation:gtwist 4.2s ease-in-out infinite}
+.gesture i{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;
+  background:radial-gradient(circle,rgba(var(--glowc),.95) 0 28%,rgba(var(--glowc),.35) 46%,transparent 70%);box-shadow:0 0 18px rgba(var(--glowc),.45)}
+.gesture i::after{content:"";position:absolute;inset:-8px;border-radius:50%;border:1px solid rgba(var(--glowc),.55);animation:gring 4.2s ease-out infinite}
+.gesture .f1{animation:gspread1 4.2s ease-in-out infinite}
+.gesture .f2{animation:gspread2 4.2s ease-in-out infinite}
+.gesture p{margin:4px 0 0;color:var(--paper);font-size:15px;letter-spacing:.08em;text-shadow:0 1px 3px #000,0 0 12px rgba(0,0,0,.9);white-space:nowrap}
+@keyframes gspread1{0%{transform:translate(-16px,16px);opacity:0}8%{opacity:1}40%,100%{transform:translate(-52px,52px)}92%{opacity:1}100%{opacity:0}}
+@keyframes gspread2{0%{transform:translate(16px,-16px);opacity:0}8%{opacity:1}40%,100%{transform:translate(52px,-52px)}92%{opacity:1}100%{opacity:0}}
+@keyframes gtwist{0%,48%{transform:rotate(0)}88%,100%{transform:rotate(70deg)}}
+@keyframes gring{0%{transform:scale(.6);opacity:0}8%{transform:scale(.8);opacity:.9}30%{transform:scale(1.5);opacity:0}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.gesture .pair,.gesture i,.gesture i::after{animation:none}.gesture .f1{transform:translate(-40px,40px)}.gesture .f2{transform:translate(40px,-40px)}}
 .bookbtn{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;align-items:center;border:0;background:radial-gradient(closest-side,var(--deep),transparent);border-radius:14px;padding:6px 6px 4px;cursor:pointer;color:var(--paper)}
 .bookbtn canvas{width:40px;height:40px;image-rendering:pixelated}
 .bookbtn span{font-size:11px;opacity:.7;letter-spacing:.1em}
@@ -228,8 +252,9 @@ body.titling .overlay{background:radial-gradient(ellipse at 50% 40%,rgba(5,8,16,
 .panel.titlecard .tbtn:hover,.panel.titlecard .tbtn:focus-visible{border-color:rgba(var(--glowc),.85);background:rgba(30,36,58,.7);outline:0}
 .panel.titlecard .tbtn.main{background:rgba(239,227,196,.92);color:#141b30;border-color:transparent}
 .panel.titlecard .tbtn.main:hover,.panel.titlecard .tbtn.main:focus-visible{background:#fff4d8}
-body.titling .hands,body.titling .bookbtn,body.titling .quest,body.titling .dial{opacity:0;pointer-events:none}
-body.ending .hands,body.ending .bookbtn,body.ending .quest,body.ending .dial,body.ending .menubtn,body.ending .fan{opacity:0;pointer-events:none}
+body.titling .hands,body.titling .bookbtn,body.titling .quest,body.titling .dial,body.titling .viewpad{opacity:0;pointer-events:none}
+body.ending .hands,body.ending .bookbtn,body.ending .quest,body.ending .dial,body.ending .menubtn,body.ending .fan,body.ending .viewpad{opacity:0;pointer-events:none}
+body.collapsing .viewpad,body.thumb .viewpad,body.thumb .gesture{display:none!important}
 .hands,.bookbtn,.dial,.menubtn{transition:opacity 1.2s}
 .panel.world.ending{max-width:560px}
 .panel.world .truth{border-top-color:rgba(239,227,196,.2)}

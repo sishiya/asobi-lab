@@ -420,7 +420,13 @@ const VOX = (() => {
       bctx.fillRect(Math.round(p.x) - 1, Math.round(p.y) - 1, 3, 1);
       if (sp.on) { const k = Math.floor(t * 6) % 4; bctx.fillStyle = 'rgba(178,218,240,0.75)'; bctx.fillRect(Math.round(p.x), Math.round(p.y) - 2 - k, 1, 1); bctx.fillRect(Math.round(p.x) + (k % 2 ? 1 : -1), Math.round(p.y) - 1 - (k >> 1), 1, 1); }
     }
-    const k = Math.max(1, Math.round(V.s / V.bs / 3.2));          // 寄るほど画素の絵も大きく
+    // 木・生き物の画素の絵は、画面の上にじかに、寄り具合に合わせて途切れなく大きく描く（v030。2026-10-13 ユーザー「ある所を境に急に大きさが変わる」）。
+    //   前は板の画素の整数倍（1→2→3 倍）でとんでいた。地形の板をいったん画面に広げ、その上に絵、そのあと雲・太陽と月・ホタル・足もとの輪を2枚目として重ねる
+    if (!drawBackdrop(ctx, t)) drawSky(ctx, t);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(buf, 0, 0, buf.width * V.bs, buf.height * V.bs);
+    const board = bctx; bctx = pen(ctx);
+    const k = Math.max(1, V.s / V.bs / 3.2);                       // 寄るほど画素の絵も大きく（小数のまま）
     for (const it of sceneItems()) {
       const bx = it.p.x / V.bs, by = it.p.y / V.bs;
       if (!(it.type === 'animal' && (it.a.kind === 'fish' || it.a.alt > 0.5))) {         // 足もとの影
@@ -449,6 +455,15 @@ const VOX = (() => {
         }
       }
     }
+    for (const f of L.fx) {
+      if (f.type === 'born' || f.type === 'puff') continue;
+      const p = pb(f.x, f.y, f.z);
+      bctx.globalAlpha = Math.max(0, 1 - f.t / 2.5);
+      sprite(SPR[f.kind][0], palAt(f.kind, 1), p.x, p.y, k, Math.floor(f.t * 4) % 2 === 0);
+      bctx.globalAlpha = 1;
+    }
+    bctx = board;
+    bctx.clearRect(0, 0, buf.width, buf.height);
     // 夜の草むらにホタル
     if (!fire) { fire = []; for (let n = 0; n < 60; n++) fire.push(INS[Math.floor(hash2(n, 77) * INS.length)]); }
     fire.forEach((i, n) => {
@@ -473,10 +488,6 @@ const VOX = (() => {
         bctx.fillStyle = `rgba(235,235,225,${0.7 * (1 - f.t / 1.2)})`;
         const r = Math.round(1 + f.t * 3);
         for (let q = 0; q < 6; q++) bctx.fillRect(Math.round(p.x + Math.cos(q) * r), Math.round(p.y - 2 + Math.sin(q * 2) * r * 0.6), 1, 1);
-      } else {
-        bctx.globalAlpha = Math.max(0, 1 - f.t / 2.5);
-        sprite(SPR[f.kind][0], palAt(f.kind, 1), p.x, p.y, k, Math.floor(f.t * 4) % 2 === 0);
-        bctx.globalAlpha = 1;
       }
     }
     // 足もとの印（画素の輪）
@@ -490,11 +501,17 @@ const VOX = (() => {
     }
     for (const cl of W.clouds) drawCloud(cl, t);
     drawBodies(t);
-    if (!drawBackdrop(ctx, t)) drawSky(ctx, t);
-    ctx.imageSmoothingEnabled = false;
     ctx.drawImage(buf, 0, 0, buf.width * V.bs, buf.height * V.bs);
     return true;
   }
+  // 板の座標（画素）で描く命令を、画面の上にじかに描く筆。四角のはしを画面の画素で丸めるので、小数の倍率でも画素の大きさがそろう
+  const PEN = { c: null, fillStyle: '#000', globalAlpha: 1,
+    fillRect(x, y, w, h) {
+      const s = V.bs, X = Math.round(x * s), Y = Math.round(y * s);
+      this.c.fillStyle = this.fillStyle; this.c.globalAlpha = this.globalAlpha;
+      this.c.fillRect(X, Y, Math.round((x + w) * s) - X, Math.round((y + h) * s) - Y);
+    } };
+  function pen(ctx) { PEN.c = ctx; PEN.fillStyle = '#000'; PEN.globalAlpha = 1; return PEN; }
 
   return { label: 'ボクセル', drawsSel: true, quant: true, bs: cw => Math.max(2, Math.round(cw / 400)), draw, hover: 'rgba(255,250,230,0.85)' };
 })();

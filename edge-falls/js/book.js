@@ -442,7 +442,7 @@ addEventListener('keydown', e => {
 
 // ---- ちょっとしたてびき（その操作をまだしていない人にだけ、一度ずつ） ----
 const TIPS = [
-  ['rotate', () => G.chT > DAY * 0.4, TX('大地の外をドラッグすると、回して見られる。ホイールで寄る', 'Drag outside the land to turn it. Scroll to zoom in')],
+  ['rotate', () => !touchy() && G.chT > DAY * 0.4, TX('大地の外をドラッグすると、回して見られる。ホイールで寄る', 'Drag outside the land to turn it. Scroll to zoom in')],
   ['speed', () => G.ch >= 1 && G.chT > DAY * 0.3, TX('右上の天の輪を押すと、時が止まる。下の ›› で速くなる', 'Press the Sky Dial at the top right to stop time. The ›› marks below make it faster')],
   ['sun', () => G.ch >= 2 && G.chT > DAY * 1.5, TX('太陽は、つかんで動かせる。止めた所はよく育つが、乾いて暑い。反対がわは夜のまま', 'You can grab the Sun and move it. Where you stop it, plants grow well but it gets dry and hot. The other side stays in night')],
   ['book', () => G.ch >= 3 && G.chT > DAY, TX('右下の観察帳に、いきものの移り変わりが書いてある', 'The Field Notes at the bottom right show how life is changing')],
