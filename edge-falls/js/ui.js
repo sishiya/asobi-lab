@@ -36,8 +36,9 @@ let logSpeed = null;
 const logOpen = () => $('msglog') && !$('msglog').hidden;
 function openLog() {
   const esc = t => t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  let day = -1;   // 日が変わる所にだけ「第 ◯ 日」の区切り（v051。2026-10-14 ユーザー）
   $('msglogList').innerHTML = MSGLOG.length
-    ? MSGLOG.map(m => `<li>${m.day ? `<span>${TX(`第 ${m.day} 日`, `Day ${m.day}`)}</span>` : ''}<p>${esc(m.text)}</p></li>`).join('')
+    ? MSGLOG.map(m => (m.day !== day && (day = m.day) ? `<li class="day">${TX(`第 ${m.day} 日`, `Day ${m.day}`)}</li>` : '') + `<li><p>${esc(m.text)}</p></li>`).join('')
     : `<li class="none"><p>${TX('まだ知らせはない', 'No messages yet')}</p></li>`;
   $('msglog').hidden = false; $('msglogList').scrollTop = 0; $('toast').classList.remove('on');   // いま出ている知らせは札の中にあるので消す
   $('msgbtn').classList.remove('new'); $('msgbtn').setAttribute('aria-expanded', 'true');
