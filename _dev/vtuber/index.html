@@ -50,7 +50,8 @@
     <button data-bg="bg-clear">透明</button>
   </div>
   <div class="row">
-    <button id="body" class="on">白衣</button>
+    <button id="body" class="on">体</button>
+    <button id="outfit">服: オーバーオール</button>
     <button id="calib">いまの顔を正面にする</button>
     <button id="pts" class="on" hidden>顔の点</button>
   </div>
@@ -90,21 +91,92 @@ const spring = { x: 0, y: 0, vx: 0, vy: 0, px: 0, py: 0 };
 // 耳のぴくっ
 const ear = { l: 0, r: 0, next: 2 };
 
+// 服（?outfit= ／ __lion.frame の outfit）。あそびラボは overalls（2026-10-13 ユーザーが決めた）。coat＝白衣（まなびラボ）、ほかは候補だった服
+const OUTFITS = { coat: '白衣', explorer: '探検服', hoodie: 'パーカー', overalls: 'オーバーオール' };
+let outfit = 'overalls';
+const torso = () => { g.beginPath(); g.moveTo(58, 600); g.bezierCurveTo(60, 405, 118, 342, 200, 336); g.bezierCurveTo(282, 342, 340, 405, 342, 600); g.closePath(); };
+const poly = (pts, fill, line) => { g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); if (fill) { g.fillStyle = fill; g.fill(); } if (line) { g.strokeStyle = line; g.stroke(); } };
+const rr = (x, y, w, h, r, fill, line) => { g.beginPath(); g.roundRect(x, y, w, h, r); if (fill) { g.fillStyle = fill; g.fill(); } if (line) { g.strokeStyle = line; g.stroke(); } };
+
 function drawBody(t, sway) {
-  g.save(); g.translate(sway * 0.35, 0);
-  g.fillStyle = C.coat; g.strokeStyle = C.coatLine; g.lineWidth = 3;
-  g.beginPath(); g.moveTo(58, 600); g.bezierCurveTo(60, 405, 118, 342, 200, 336); g.bezierCurveTo(282, 342, 340, 405, 342, 600); g.closePath(); g.fill(); g.stroke();
-  // 中のシャツ（メガネと同じ紺）とえり
-  g.fillStyle = C.navy; g.beginPath(); g.moveTo(166, 340); g.lineTo(200, 420); g.lineTo(234, 340); g.closePath(); g.fill();
-  g.fillStyle = C.coat; g.strokeStyle = C.coatLine;
-  for (const s of [-1, 1]) {
-    g.beginPath(); g.moveTo(200 + s * 34, 338); g.lineTo(200 + s * 6, 424); g.lineTo(200 + s * 30, 470); g.lineTo(200 + s * 62, 352); g.closePath(); g.fill(); g.stroke();
-  }
-  // むねポケットとペン
-  g.beginPath(); g.moveTo(244, 452); g.lineTo(292, 452); g.stroke();
-  g.fillStyle = C.mane; g.beginPath(); g.roundRect(256, 430, 7, 26, 3); g.fill();
-  g.fillStyle = C.navy; g.beginPath(); g.roundRect(270, 436, 6, 20, 3); g.fill();
+  g.save(); g.translate(sway * 0.35, 0); g.lineWidth = 3; g.lineJoin = 'round'; g.lineCap = 'round';
+  ({ coat: bodyCoat, explorer: bodyExplorer, hoodie: bodyHoodie, overalls: bodyOveralls }[outfit] || bodyCoat)(t);
   g.restore();
+}
+function bodyCoat() {
+  g.fillStyle = C.coat; g.strokeStyle = C.coatLine;
+  torso(); g.fill(); g.stroke();
+  // 中のシャツ（メガネと同じ紺）とえり
+  poly([[166, 340], [200, 420], [234, 340]], C.navy);
+  for (const s of [-1, 1]) poly([[200 + s * 34, 338], [200 + s * 6, 424], [200 + s * 30, 470], [200 + s * 62, 352]], C.coat, C.coatLine);
+  // むねポケットとペン
+  g.strokeStyle = C.coatLine; g.beginPath(); g.moveTo(244, 452); g.lineTo(292, 452); g.stroke();
+  rr(256, 430, 7, 26, 3, C.mane); rr(270, 436, 6, 20, 3, C.navy);
+}
+// 探検服: カーキのシャツ・緑のスカーフ・ふたつきのむねポケット・肩かけかばんのベルト
+function bodyExplorer() {
+  const K = '#CDB37C', KL = '#A68D58', KD = '#B89D63', G = '#4F8A5C', B = '#8A5A34';
+  g.fillStyle = K; g.strokeStyle = KL; torso(); g.fill(); g.stroke();
+  // 前立てとボタン
+  g.strokeStyle = KL; g.beginPath(); g.moveTo(200, 420); g.lineTo(200, 600); g.stroke();
+  for (const y of [470, 520, 570]) circ(206, y, 4, KL);
+  // むねポケット（ふたつき）
+  for (const x of [128, 230]) {
+    rr(x, 470, 44, 50, 5, KD, KL);
+    poly([[x - 2, 466], [x + 46, 466], [x + 46, 480], [x + 22, 488], [x - 2, 480]], K, KL);
+    circ(x + 22, 482, 3, KL);
+  }
+  // えり（ひらいた形）
+  for (const s of [-1, 1]) poly([[200 + s * 30, 340], [200 + s * 4, 418], [200 + s * 36, 440], [200 + s * 66, 356]], K, KL);
+  // スカーフ（結び目と、えりの間にのぞく三角）
+  poly([[172, 352], [228, 352], [200, 412]], G);
+  poly([[194, 404], [182, 446], [196, 440]], G); poly([[206, 404], [222, 444], [208, 440]], G);
+  circ(200, 404, 9, G);
+  // 肩かけかばんのベルト（右肩から左下へ）
+  g.save(); torso(); g.clip();
+  g.strokeStyle = B; g.lineWidth = 16; g.lineCap = 'butt';
+  g.beginPath(); g.moveTo(292, 360); g.lineTo(96, 610); g.stroke();
+  rr(150, 523, 22, 18, 3, null, '#D9B34A');
+  g.restore();
+}
+// パーカー: 青緑のパーカー・フード・ひも・前のポケット
+function bodyHoodie() {
+  const H = '#3E8F8A', HL = '#2D6E6A', HD = '#357F7A', S = '#F4EBDA';
+  g.fillStyle = H; g.strokeStyle = HL; torso(); g.fill(); g.stroke();
+  // フード（首のうしろでふっくら）
+  g.fillStyle = HD; g.strokeStyle = HL;
+  g.beginPath(); g.ellipse(200, 368, 92, 40, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.fillStyle = HL; g.beginPath(); g.ellipse(200, 372, 64, 24, 0, 0, Math.PI * 2); g.fill();
+  // ひも
+  g.strokeStyle = S; g.lineWidth = 5;
+  for (const [x0, x1, y1] of [[180, 172, 470], [220, 230, 462]]) { g.beginPath(); g.moveTo(x0, 392); g.quadraticCurveTo(x0 - 2, 430, x1, y1); g.stroke(); rr(x1 - 4, y1, 8, 14, 3, C.mane); }
+  // 前のポケット（カンガルーポケット）
+  g.lineWidth = 3; g.strokeStyle = HL;
+  g.beginPath(); g.moveTo(118, 600); g.lineTo(138, 520); g.quadraticCurveTo(200, 508, 262, 520); g.lineTo(282, 600); g.stroke();
+  // しし屋のマーク（胸にたてがみの丸）
+  circ(262, 466, 13, C.mane); circ(262, 466, 8, C.face);
+}
+// オーバーオール: 紺とクリームのボーダーのシャツ＋デニムのオーバーオール
+function bodyOveralls() {
+  const S1 = '#F4EBDA', S2 = '#2B3A55', D = '#4C74A8', DL = '#36598A', Y = '#E8B23A';
+  g.save(); torso(); g.clip();
+  g.fillStyle = S1; g.fillRect(40, 320, 320, 300);
+  g.fillStyle = S2; for (let y = 352; y < 620; y += 30) g.fillRect(40, y, 320, 13);
+  // デニムの胸あて・ズボン
+  g.fillStyle = D; g.strokeStyle = DL;
+  g.beginPath(); g.moveTo(132, 600); g.lineTo(140, 448); g.quadraticCurveTo(200, 440, 260, 448); g.lineTo(268, 600); g.closePath(); g.fill(); g.stroke();
+  g.fillRect(40, 560, 320, 60);
+  // 胸ポケット
+  rr(176, 474, 48, 42, 6, '#5A84B8', DL);
+  g.strokeStyle = Y; g.setLineDash([5, 5]); g.beginPath(); g.moveTo(180, 470 + 12); g.lineTo(220, 482); g.stroke(); g.setLineDash([]);
+  // つりひも
+  for (const s of [-1, 1]) {
+    g.fillStyle = D; g.strokeStyle = DL;
+    poly([[200 + s * 96, 352], [200 + s * 120, 362], [200 + s * 70, 462], [200 + s * 46, 454]], D, DL);
+    circ(200 + s * 54, 454, 8, Y);
+  }
+  g.restore();
+  g.strokeStyle = '#D9CDB8'; torso(); g.stroke();
 }
 
 function drawEye(cx, cy, open, ex, t) {
@@ -570,13 +642,13 @@ function loop() {
   requestAnimationFrame(loop);
 }
 // ?ext: 紹介動画の台本などから1コマずつ描かせる（自分のループは回さない）。
-// window.__lion.frame(t, dt, { yaw, pitch, roll, x, y, bs: { 表情の値（MediaPipe の名前）}, shine: キラーンの時刻, body })
+// window.__lion.frame(t, dt, { yaw, pitch, roll, x, y, bs: { 表情の値（MediaPipe の名前）}, shine: キラーンの時刻, body, outfit: OUTFITS の名前 })
 // 値はなめらかにせずそのまま使う（同じ t なら同じ絵。なめらかさは台本の側で）
 const EXT = new URLSearchParams(location.search).has('ext');
 if (EXT) {
   window.__lion = {
     frame(t, dt, P) {
-      mode = 'real'; showPts = false; showBody = P.body ?? true;
+      mode = 'real'; showPts = false; showBody = P.body ?? true; if (P.outfit) outfit = P.outfit;
       for (const k of ['yaw', 'pitch', 'roll', 'x', 'y']) S[k] = T[k] = P[k] ?? 0;
       for (const k in SB) SB[k] = 0;
       Object.assign(SB, P.bs || {});
@@ -608,6 +680,9 @@ document.querySelectorAll('[data-bg]').forEach(b => b.onclick = () => {
   document.body.className = b.dataset.bg; pick('[data-bg]', b);
 });
 document.getElementById('body').onclick = e => { showBody = !showBody; e.target.classList.toggle('on', showBody); };
+const outBtn = document.getElementById('outfit');
+const setOutfit = k => { if (OUTFITS[k]) { outfit = k; outBtn.textContent = '服: ' + OUTFITS[k]; } };
+outBtn.onclick = () => { const ks = Object.keys(OUTFITS); setOutfit(ks[(ks.indexOf(outfit) + 1) % ks.length]); };
 document.getElementById('calib').onclick = () => { calibAsk = true; };
 document.getElementById('pts').onclick = e => { showPts = !showPts; e.target.classList.toggle('on', showPts); };
 addEventListener('keydown', e => {
@@ -620,6 +695,7 @@ const q = new URLSearchParams(location.search);
 if (q.has('clean')) ui.classList.add('hide');
 if (q.get('bg') === 'green') document.querySelector('[data-bg="bg-green"]').click();
 if (q.has('ex')) setExpr(q.get('ex'));
+if (q.has('outfit')) setOutfit(q.get('outfit'));
 // ?pose=1〜4: カメラなしでリアルの描き方を確かめる（決まった表情の値を入れる）
 const POSES = {
   1: { yaw: 0.3, mouthSmileLeft: 0.9, mouthSmileRight: 0.9, eyeSquintLeft: 0.6, eyeSquintRight: 0.6, eyeBlinkLeft: 0.9, cheekSquintLeft: 0.5 },

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>ライオンの服くらべ</title>
+<style>
+  body { margin: 0; background: #F7EEDC; font-family: system-ui, "Yu Gothic UI", sans-serif; }
+  main { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 8px; }
+  figure { margin: 0; text-align: center; }
+  iframe { width: 100%; aspect-ratio: 4 / 5; border: 0; border-radius: 10px; background: #FFF8EC; }
+  figcaption { font-weight: bold; color: #2B3A55; padding: 4px; }
+</style></head>
+<body><main id="m"></main>
+<script>
+// 服の見くらべ（index.html の ?outfit= を4つならべる）
+for (const [k, n] of [['coat', '白衣（まなびラボ）'], ['explorer', '探検服'], ['hoodie', 'パーカー'], ['overalls', 'オーバーオール']])
+  document.getElementById('m').insertAdjacentHTML('beforeend', `<figure><iframe src="index.html?clean&outfit=${k}"></iframe><figcaption>${n}</figcaption></figure>`);
+</script></body></html>
