@@ -121,7 +121,9 @@ function applyWorld(s) {
   } else { G.done = []; G.found = {}; G.did = {}; G.tipped = {}; enterChapter(CHAPTERS.length, true); }
   G.streak = num(q.streak, 0);
   G.sel = null;
-  if (s.view) { V.yaw = num(s.view.yaw, V.yaw); V.tilt = Math.max(0.32, Math.min(0.92, num(s.view.tilt, V.tilt))); V.zoom = Math.max(0.6, Math.min(3, num(s.view.zoom, 1))); V.panX = num(s.view.panX, 0); V.panY = num(s.view.panY, 0); }
+  // 読みこんだら、見る向き（回した向き）だけ残して、寄り・平行移動・傾きははじめのカメラに（v034。2026-10-13 ユーザー「ロード直後にすごい寄ったカメラになってる」）
+  if (s.view) V.yaw = num(s.view.yaw, V.yaw);
+  V.tilt = 0.56; V.zoom = 1; V.panX = 0; V.panY = 0;
   updateLight(); stepClimate(0, true); stepMoist(0.25);
   prevCounts = { ...L.counts };
   layout(V.cw, V.ch);

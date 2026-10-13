@@ -12,7 +12,7 @@ function newGame(seed = (Math.random() * 1e9) | 0, story = true) {
   newWorld(seed, story); resetLife(); HIST.length = 0;
   V.yaw = Math.PI / 2 - W.bigFall + 0.35;   // いちばん大きな滝（はじめの章は湖のくぼみ）が手前に
   V.panX = V.panY = 0;
-  G.sel = null; G.done = []; G.found = {}; G.did = {}; G.tipped = {}; MSGLOG.length = 0;
+  G.sel = null; G.done = []; G.found = {}; G.did = {}; G.tipped = {}; MSGLOG.length = 0; clearSay();
   prevCounts = { deer: 0, wolf: 0, fish: 0, bird: 0 };
   if (story) { for (const k in W.stock) W.stock[k] = 0; enterChapter(0, true); }
   else { G.ch = CHAPTERS.length; G.unlock = unlockedAt(G.ch); W.knob = { winter: 1, tide: 1 }; for (const k in W.stock) W.stock[k] = STOCK_MAX[k]; }
@@ -74,7 +74,7 @@ function checkWorld(dt) {
   const s = waterStats(); lastStats = s;
   // いなくなった知らせ（責めない）
   for (const k of ['deer', 'wolf', 'fish', 'bird']) {
-    if (prevCounts[k] > 0 && L.counts[k] === 0) { toast(TX(KINDS[k].name + 'が いなくなった。命は深淵を通って、いつかつぼへ戻ってくる', `The ${KPL[k]} are gone. Their lives will pass through the Abyss and come back to the jar someday`), 5); Sound.play('extinct'); }
+    if (prevCounts[k] > 0 && L.counts[k] === 0) { toast(TX(KINDS[k].name + 'が、いなくなっちゃった。……だいじょうぶ。命は深淵をめぐって、いつか命のつぼへ帰ってくるよ', `The ${KPL[k]} are gone… It’s all right. Lives go round through the Abyss and come back to the Life Jar someday`), 5); Sound.play('extinct'); }
     prevCounts[k] = L.counts[k];
   }
   const falls = W.events.filter(e => e.type === 'die' && e.how === 'fall').length;
@@ -85,8 +85,12 @@ function checkWorld(dt) {
   return s;
 }
 
-const SEASON_MSG = TX(['春になった。雪がとけ、草がまた伸びはじめる。つぼにも命が一つずつ', '夏になった。太陽の道が内がわへ', '秋になった。草の伸びがおそくなる', '冬になった。太陽の道が外がわへ'],
-  ['Spring is here. The snow melts and the grass starts to grow again. One more of each life comes to the jar', 'Summer is here. The Sun’s path moves inward', 'Autumn is here. The grass grows more slowly', 'Winter is here. The Sun’s path moves outward']);
+const SEASON_MSG = TX(['春がきたよ。雪がとけて、草がまた伸びはじめる。命のつぼにも、命が一つずつ', '夏だよ。太陽の道が内がわへ', '秋だね。草の伸びがゆっくりになる', '冬がきた。太陽の道が外がわへ'],
+  ['Spring is here. The snow melts and the grass starts to grow again. One more of each life comes to the Life Jar', 'It’s summer. The Sun’s path moves inward', 'It’s autumn. The grass grows more slowly', 'Winter is here. The Sun’s path moves outward']);
+// メグリが一度だけ話すこと（v034。2026-10-13 ユーザーの家族「深淵ってなに？」「ツボってなに？」）
+const ABYSS_TALK = TX('深淵はね、この大地の下に広がる暗い海。滝から落ちた水はそこにたまって、また泉からわいてくるの。水は、めぐっているんだよ', 'The Abyss is the dark sea under this land. Water that falls off the edge collects there, then wells up again from the springs. Water goes round and round.');
+const JAR_TALK = TX('命のつぼには、この世界の命が入っているの。去った命も、深淵をめぐって、ここへ帰ってくるよ', 'The Life Jar holds the lives of this world. Lives that pass away go round through the Abyss and come back here.');
+const HELLO_TALK = TX('メグリだよ。しっぽをくわえて、ずっとめぐってる。この世界のことなら、少しだけ知ってるの。話したことは、わたしを押すと読み返せるよ', 'I’m Meguri. I hold my own tail and go round and round. I know a little about this world. Press me to read what I’ve said.');
 
 // ---- 入力 ----
 const RAD = { raise: 3.2, dig: 3.2, grass: 3, spring: 1.2, deer: 1, wolf: 1, fish: 1, bird: 1 };
@@ -113,7 +117,7 @@ function useTool(p, first) {
       const k = W.springs.findIndex(sp => Math.hypot(sp.i % N - p.x, (sp.i / N | 0) - p.y) < 1.8);
       if (k >= 0) { W.springs.splice(k, 1); toast(TX('泉を土でふさいだ', 'You blocked the spring with soil')); Sound.play('pin'); }
     }
-    if (t === 'raise' && W.soil < 1 && (first || !G.soilWarn)) { toast(TX('土ぶくろがからっぽ。どこかを「削る」と、土がたまる', 'The Soil Bag is empty. “Dig” somewhere to collect soil'), 4); Sound.play('no'); G.soilWarn = 1; }
+    if (t === 'raise' && W.soil < 1 && (first || !G.soilWarn)) { toast(TX('土ぶくろがからっぽだよ。どこかを「削る」と、土がたまるの', 'Your Soil Bag is empty. “Dig” somewhere to fill it'), 4); Sound.play('no'); G.soilWarn = 1; }
     if (W.soil >= 1) G.soilWarn = 0;
     drawMeters();
     if (Math.abs(m) > 0.05 && Math.random() < 0.4) Sound.play('soil');
@@ -122,11 +126,11 @@ function useTool(p, first) {
     if (sow(p.x, p.y) > 0 && first) Sound.play('sow');
   } else if (t === 'spring' && first) {
     const r = addSpring(p.x, p.y);
-    if (r === 'max') { toast(TX('これ以上、泉はわかせられない。いらない泉に土を盛ってふさぐと、新しくわかせられる', 'You can’t make any more springs. Pile soil on a spring you don’t need to block it, then you can make a new one'), 4); Sound.play('no'); }
+    if (r === 'max') { toast(TX('泉はもう、これ以上わかせないの。いらない泉に土を盛ってふさぐと、新しくわかせるよ', 'No more springs for now. Pile soil on a spring you don’t need to close it, and you can make a new one'), 4); Sound.play('no'); }
     else if (r === 'dry') { toast(TX('深淵がからっぽで、泉がわかない。滝から水が帰ってくるのを待つ', 'The Abyss is empty, so no spring will flow. Wait for water to come back from the falls')); Sound.play('no'); }
     else if (r === 'off') { toast(TX('泉を止めた', 'You stopped the spring')); Sound.play('pin'); }
     else if (r === 'on') { toast(TX('泉がまたわき出した', 'The spring is flowing again')); Sound.play('spring'); }
-    else if (r === 'new') { if (!G.did.spring) toast(TX('深淵の水がわき出した。泉を押すと止まる', 'Water from the Abyss wells up. Press the spring to stop it')); Sound.play('spring'); G.did.spring = 1; }
+    else if (r === 'new') { if (!G.did.spring) { toast(TX('深淵の水がわきだしたね。泉をもう一度押すと、止まるよ', 'Water from the Abyss is welling up. Press the spring again to stop it'), 5); toast(ABYSS_TALK, 6); } Sound.play('spring'); G.did.spring = 1; }
   } else if (KINDS[t]) {
     const r = release(t, p.x + (first ? 0 : (Math.random() - 0.5) * 2), p.y + (first ? 0 : (Math.random() - 0.5) * 2));
     if (r === 'ok') { Sound.play('put'); syncHands(); }

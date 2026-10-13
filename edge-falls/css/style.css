@@ -24,20 +24,28 @@ body.font-dot,body.font-dot .panel{font-family:"DotGothic16","Hiragino Mincho Pr
 .menubtn{position:absolute;left:8px;top:8px;border:0;background:radial-gradient(closest-side,var(--deep),transparent);border-radius:12px;padding:6px;cursor:pointer;opacity:.6;transition:opacity .2s}
 .menubtn canvas{width:28px;height:28px;image-rendering:pixelated;display:block}
 .menubtn:hover,.menubtn:focus-visible{opacity:1}
-/* 知らせの記録（v033）: メニューの下の吹き出し。押すと、これまでの知らせ */
-.msgbtn{position:absolute;left:8px;top:54px;border:0;background:radial-gradient(closest-side,var(--deep),transparent);border-radius:12px;padding:6px;cursor:pointer;opacity:.6;transition:opacity .2s}
-.msgbtn canvas{width:28px;height:28px;image-rendering:pixelated;display:block}
-.msgbtn:hover,.msgbtn:focus-visible,.msgbtn[aria-expanded=true]{opacity:1}
-.msgbtn.new{opacity:.95}
-.msgbtn.new::after{content:"";position:absolute;right:5px;top:5px;width:7px;height:7px;border-radius:50%;background:rgb(var(--glowc));box-shadow:0 0 8px rgba(var(--glowc),.9)}
-.msglog{position:absolute;left:8px;top:100px;width:min(380px,calc(100% - 16px));max-height:min(58vh,440px);overflow:auto;z-index:4;padding:10px 14px 12px;border-radius:12px;
-  background:var(--deep2);color:var(--paper);box-shadow:0 6px 24px rgba(0,0,0,.6);font-size:14px;line-height:1.6}
-.msglog h4{margin:0 0 6px;font-size:13px;font-weight:400;letter-spacing:.12em;opacity:.75}
-.msglog ol{list-style:none;margin:0;padding:0}
-.msglog li{padding:6px 0;border-top:1px solid rgba(239,227,196,.14)}
-.msglog li:first-child{border-top:0}
-.msglog li span{display:block;font-size:11px;opacity:.6;letter-spacing:.06em}
-.msglog p{margin:4px 0;opacity:.7}
+/* メグリ（v034）: メニューの下。しっぽをくわえた金色のヘビ。押すと話を出しっぱなし（.pinned で輪の光） */
+.meguri{position:absolute;left:4px;top:52px;border:0;background:radial-gradient(closest-side,var(--deep),transparent);border-radius:50%;padding:2px;cursor:pointer;transition:transform .2s}
+.meguri canvas{width:48px;height:48px;image-rendering:pixelated;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6))}
+.meguri:hover{transform:scale(1.06)}
+.meguri.talk canvas{animation:megBob .9s ease-in-out infinite}
+.meguri.pinned::after{content:"";position:absolute;inset:4px;border-radius:50%;box-shadow:0 0 0 1px rgba(var(--glowc),.55),0 0 10px rgba(var(--glowc),.35);pointer-events:none}
+@keyframes megBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+/* 吹き出し: 羊皮紙。これまでの話が上、新しいものが下。高さは JS（はじめのカメラで大地にかからないところまで） */
+.say{position:absolute;left:8px;top:108px;width:min(400px,calc(100% - 16px));z-index:4;display:flex;flex-direction:column;border-radius:12px;
+  background:#f4ead0;color:#3a2a1c;box-shadow:0 0 0 1px rgba(58,42,28,.5),0 6px 24px rgba(0,0,0,.55);font-size:14px;line-height:1.65;opacity:0;transform:translateY(-4px);transition:opacity .25s,transform .25s}
+.say.on{opacity:1;transform:none}
+.say::before{content:"";position:absolute;left:20px;top:-7px;width:12px;height:12px;background:#f4ead0;transform:rotate(45deg);box-shadow:-1px -1px 0 rgba(58,42,28,.5)}
+.say ol{list-style:none;margin:0;padding:8px 14px 10px;overflow-y:auto;overscroll-behavior:contain;position:relative}
+.say li{padding:6px 0;border-top:1px dashed #d8c7a0;opacity:.62}
+.say li:first-child{border-top:0}
+.say li:last-child{opacity:1}
+.say li.fresh{animation:sayIn .35s ease-out}
+.say li span{display:block;font-size:11px;color:#8a785c;letter-spacing:.06em}
+.say li.none{opacity:.6}
+body.sayover .line{top:var(--lineTop);transform:translate(-50%,0)}   /* 吹き出しと重なるときは、章のことばを下へ */
+@keyframes sayIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.meguri.talk canvas,.say li.fresh{animation:none}.say{transition:none}}
 body.titling .menubtn{opacity:0;pointer-events:none}
 /* 世界になじむ札（メニュー・セーブ・ロード）: 羊皮紙の箱ではなく、深淵の色のぼかしの上に羊皮紙色の文字。2026-10-13 ユーザー */
 .panel.world{background:radial-gradient(ellipse at 50% 45%,rgba(14,18,34,.94),rgba(10,13,24,.86) 70%,rgba(10,13,24,.7));color:var(--paper);border:1px solid rgba(239,227,196,.22);outline:0;border-radius:16px;
@@ -275,8 +283,8 @@ body.titling .overlay{background:radial-gradient(ellipse at 50% 40%,rgba(5,8,16,
 .panel.titlecard .tbtn:hover,.panel.titlecard .tbtn:focus-visible{border-color:rgba(var(--glowc),.85);background:rgba(30,36,58,.7);outline:0}
 .panel.titlecard .tbtn.main{background:rgba(239,227,196,.92);color:#141b30;border-color:transparent}
 .panel.titlecard .tbtn.main:hover,.panel.titlecard .tbtn.main:focus-visible{background:#fff4d8}
-body.titling .hands,body.titling .bookbtn,body.titling .quest,body.titling .dial,body.titling .viewpad,body.titling .msgbtn{opacity:0;pointer-events:none}
-body.ending .msgbtn,body.collapsing .msgbtn,body.thumb .msgbtn,body.collapsing .msglog,body.thumb .msglog{display:none!important}
+body.titling .hands,body.titling .bookbtn,body.titling .quest,body.titling .dial,body.titling .viewpad,body.titling .meguri,body.titling .say{opacity:0;pointer-events:none}
+body.ending .meguri,body.collapsing .meguri,body.thumb .meguri,body.ending .say,body.collapsing .say,body.thumb .say{display:none!important}
 body.ending .hands,body.ending .bookbtn,body.ending .quest,body.ending .dial,body.ending .menubtn,body.ending .fan,body.ending .viewpad{opacity:0;pointer-events:none}
 body.collapsing .viewpad,body.thumb .viewpad,body.thumb .gesture{display:none!important}
 .hands,.bookbtn,.dial,.menubtn{transition:opacity 1.2s}
@@ -377,10 +385,10 @@ body:has(#overlay:not([hidden]) .panel.settings) .stage::after{opacity:0}
 .slot.just{animation:justSaved 1.6s ease-out}
 @keyframes justSaved{0%{background:rgba(var(--glowc),.38)}100%{background:transparent}}
 .savedmark{display:inline-block;margin-left:8px;font-style:normal;font-size:12px;color:rgb(var(--glowc));letter-spacing:.08em;animation:lbIn .3s ease-out}
-/* しまう（Esc と同じ）。手に持つものの中身の並びのいちばん右に（v032。v033 で PC でも出す） */
-.fan .putaway{display:flex;border-left:1px solid rgba(239,227,196,.18);border-radius:0 8px 8px 0;padding-left:10px;margin-left:2px}
-.fan .putaway b{font-size:18px;font-weight:400;line-height:1;opacity:.85}
-.fan .putaway:hover{opacity:1}
+/* しまう: 持っている道具のボタンの右上に小さな × の印（v034。押すとしまう。前は中身の並びの右はしに「× しまう」） */
+.hand[aria-pressed=true]::before{content:"×";position:absolute;right:6px;top:-2px;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:14px;line-height:1;color:#3a2a1c;background:#e6dcc4;box-shadow:0 0 0 1px rgba(58,42,28,.5),0 1px 4px rgba(0,0,0,.6);z-index:1;transition:transform .15s}
+.hand[aria-pressed=true]:hover::before{transform:scale(1.15)}
 /* 言語（タイトルの右上だけ） */
 .langsw{position:absolute;right:max(12px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));z-index:4;display:none;gap:2px;padding:3px;border-radius:10px;background:rgba(12,16,30,.55);border:1px solid rgba(239,227,196,.25)}
 body.titling .langsw{display:flex}

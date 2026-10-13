@@ -86,6 +86,9 @@ function syncHands() {
     const k = b.dataset.hand;
     b.hidden = !map[k];
     b.setAttribute('aria-pressed', G.hand === k);
+    // しまう: 持っている道具のボタンの角に小さな × の印。もう一度押すとしまう（v034。2026-10-13 ユーザー「しまうボタンは差別化したい」）
+    if (!b.dataset.t0) b.dataset.t0 = b.title;
+    b.title = G.hand === k ? TX('しまう（もう一度押す・Esc）', 'Put away (press again or Esc)') : b.dataset.t0;
   });
   $('btnBook').hidden = !G.started;
   drawHands();
@@ -97,16 +100,13 @@ function syncHands() {
       const n = KINDS[k] ? `<em>${W.stock[k]}</em>` : k === 'raise' ? `<em id="soilN">${Math.floor(W.soil)}</em>` : '';
       const ic = k === 'dig' ? iconURL('bagd', c => drawBag(c, 0.5, false)) : k === 'raise' ? iconURL('bagr', c => drawBag(c, 0.8, true)) : k === 'spring' ? iconURL('jar', c => drawJar(c, 0.7)) : k === 'seed' ? iconURL('seed', drawSeed) : iconURL('c' + k, c => drawCreature(c, k));
       return `<button type="button" data-sub="${k}" aria-pressed="${G.sub[G.hand] === k}"${KINDS[k] && W.stock[k] <= 0 ? ' class="empty"' : ''}><img src="${ic}" alt="">${label}${n}</button>`;
-    }).join('') +
-      // しまう（スマホの Esc のかわり）: 並びのいちばん右に（v032。2026-10-13 ユーザー）。v033 で PC でも
-      `<button type="button" class="putaway" data-put aria-label="${TX('しまう（Esc）', 'Put away (Esc)')}"><b aria-hidden="true">×</b>${TX('しまう', 'Put away')}</button>`;
+    }).join('');
     const hb = document.querySelector(`.hand[data-hand="${G.hand}"]`), r = hb.getBoundingClientRect(), fr = field.getBoundingClientRect();
     fan.style.left = Math.max(8, r.left - fr.left + r.width / 2) + 'px';
     fan.hidden = false; document.body.classList.add('fan-open');
     const fw = fan.offsetWidth, cxp = r.left - fr.left + r.width / 2;   // 画面からはみ出さないように
     fan.style.left = Math.max(fw / 2 + 8, Math.min(fr.width - fw / 2 - 8, cxp)) + 'px';
     fan.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => { G.sub[G.hand] = b.dataset.sub; setHand(G.hand); Sound.play('click'); });
-    fan.querySelector('[data-put]').onclick = () => { Sound.unlock(); dropHand(); };
   } else { fan.hidden = true; document.body.classList.remove('fan-open'); }
 }
 let handSig = '';
@@ -447,11 +447,11 @@ addEventListener('keydown', e => {
 
 // ---- ちょっとしたてびき（その操作をまだしていない人にだけ、一度ずつ） ----
 const TIPS = [
-  ['rotate', () => !touchy() && G.chT > DAY * 0.4, TX('大地の外をドラッグすると、回して見られる。ホイールで寄る', 'Drag outside the land to turn it. Scroll to zoom in')],
-  ['speed', () => G.ch >= 1 && G.chT > DAY * 0.3, TX('右上の天の輪を押すと、時が止まる。下の ›› で速くなる', 'Press the Sky Dial at the top right to stop time. The ›› marks below make it faster')],
-  ['sun', () => G.ch >= 2 && G.chT > DAY * 1.5, TX('太陽は、つかんで動かせる。止めた所はよく育つが、乾いて暑い。反対がわは夜のまま', 'You can grab the Sun and move it. Where you stop it, plants grow well but it gets dry and hot. The other side stays in night')],
-  ['book', () => G.ch >= 3 && G.chT > DAY, TX('右下の観察の巻物に、いきものの移り変わりが書いてある', 'The Field Scroll at the bottom right shows how life is changing')],
-  ['moon', () => G.ch >= 7 && G.chT > DAY, TX('月を寄せると、潮で水がそちらへ寄る。浅瀬が動き、ふちから水があふれる', 'Bring the Moon closer and the tide pulls water toward it. The shallows move, and water spills over the edge')],
+  ['rotate', () => !touchy() && G.chT > DAY * 0.4, TX('大地の外をドラッグすると、まわして見られるよ。ホイールで寄れる。左のボタンでもね', 'Drag outside the land to turn it, and scroll to zoom. The buttons on the left work too')],
+  ['speed', () => G.ch >= 1 && G.chT > DAY * 0.3, TX('右上の天の輪を押すと、時が止まるよ。下の ›› で速くなる', 'Press the Sky Dial at the top right to stop time. The ›› marks below make it go faster')],
+  ['sun', () => G.ch >= 2 && G.chT > DAY * 1.5, TX('太陽は、つかんで動かせるの。止めたところはよく育つけど、乾いて暑くなる。反対がわは夜のまま', 'You can grab the Sun and move it. Where you stop it, plants grow well, but it gets dry and hot. The other side stays in night')],
+  ['book', () => G.ch >= 3 && G.chT > DAY, TX('右下の巻物に、いきものの移り変わりが書いてあるよ', 'The scroll at the bottom right shows how life is changing')],
+  ['moon', () => G.ch >= 7 && G.chT > DAY, TX('月を寄せると、潮で水がそっちへ寄るの。浅瀬が動いて、ふちから水があふれるよ', 'Bring the Moon closer and the tide pulls the water toward it. The shallows move, and water spills over the edge')],
 ];
 let accTip = 0;
 function stepTips(dt) {
