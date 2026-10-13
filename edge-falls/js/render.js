@@ -143,10 +143,10 @@ function cellColors() {
     // 草・花
     const v = veg[i];
     if (v > 0.03 && h < 13.5 && slope < 2.5) {
-      // 芽ばえ（まいた所は 0.25 から）は少し黄みに（2026-10-13 ユーザー「茂った状態と比べて差別化」）。土にとけないよう少し濃く。
-      //   0.2 より下のまばらな草はもとのまま（ここまで色をつけると、地面のあちこちが緑に見えた）
-      const sprout = v >= 0.2, tone = HASH[i] > 0.5 ? 1 : 0.9, t = Math.min(1, (sprout ? 0.12 : 0) + v * 1.4), y = sprout ? Math.max(0, 1 - v / 0.45) : 0;
-      r = mix(r, mix(mix(150, 168, y), 66, v) * tone, t); gg = mix(gg, mix(mix(188, 194, y), 132, v) * tone, t); b = mix(b, mix(mix(84, 62, y), 52, v) * tone, t);
+      // v020・v021 で芽ばえを黄みにする式を足したら、iPhone の Safari で少したつと地面の色が紫・緑・黄色・黒にくずれた
+      //   （はじめの一瞬は正しい。くり返して速い形に作り直されたあと計算が狂うのでは、と見ている）。v019 の式にもどした（v022）
+      const tone = HASH[i] > 0.5 ? 1 : 0.9, t = Math.min(1, v * 1.4);
+      r = mix(r, mix(150, 66, v) * tone, t); gg = mix(gg, mix(188, 132, v) * tone, t); b = mix(b, mix(84, 52, v) * tone, t);
       if (v > 0.6 && HASH[i] > 0.972 && win < 0.3) { if (HASH[i] > 0.986) { r = 246; gg = 222; b = 92; } else { r = 240; gg = 236; b = 236; } }
       if (aut > 0) { const k = aut * 0.55 * t; r = mix(r, 196, k); gg = mix(gg, 158, k); b = mix(b, 70, k); }   // 秋は黄色く
       if (win > 0) { const k = win * 0.5 * t; r = mix(r, 164, k); gg = mix(gg, 150, k); b = mix(b, 108, k); }   // 冬は枯れ草色
