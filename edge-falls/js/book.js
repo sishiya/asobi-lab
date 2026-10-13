@@ -134,7 +134,7 @@ function glowHand(key) {
 // ---- メニュー（Esc。2026-10-13 ユーザー「Esc で中央にメニュー。セーブ・ロード・ゲームの終了」）。開いているあいだは時を止める ----
 let menuSpeed = null;
 function openMenu() {
-  if (!G.started || COL) return;
+  if (!G.started || COL || ENDING) return;
   closeBook();
   if (menuSpeed === null) { menuSpeed = G.speed; setSpeed(0); }
   const resume = () => { if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } };
@@ -143,49 +143,61 @@ function openMenu() {
     { label: 'つづける', main: true, fn: closeMenu },
     { label: 'セーブ', fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'save'); } },
     { label: 'ロード', fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'load'); } },
-    { label: '観察帳', fn: () => { G.menuOpen = false; resume(); openBook(); } },
+    { label: '観察帳', fn: () => { G.menuOpen = false; resume(); openBook(null, true); } },
     { label: '設定', fn: () => { G.menuOpen = false; openSettings(() => openMenu()); } },
     { label: 'タイトルへ', fn: () => { G.menuOpen = false; toTitle(); } },
     { label: 'ゲームを終える', fn: () => { G.menuOpen = false; quitGame(); } },
   ]);
   $('panel').classList.add('menu', 'world');
-  $('panel').dataset.back = '';
 }
 function closeMenu() {
   $('overlay').hidden = true; G.menuOpen = false;
   if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; }
 }
-// 札の外（何もない所）を押すと閉じる（2026-10-13 ユーザー）。メニューは閉じて時が動き、メニューから開いたセーブ・ロードはメニューへもどる
-$('overlay').addEventListener('click', e => {
-  if (e.target !== $('overlay')) return;
-  const p = $('panel');
-  if (p.classList.contains('menu')) { closeMenu(); Sound.play('click'); }
-  else if (p.classList.contains('world')) { if (p.dataset.back) openMenu(); else $('overlay').hidden = true; Sound.play('click'); }
-});
+// ひとつ前へもどる（Esc・札の外を押したとき）。2026-10-13 ユーザー「メニューのサブメニューも ESC キーで一段戻れるように」
+//   大きな絵 → 観察帳（メニューから開いたならメニューへ）→ メニューの下の札（G.panelBack）→ メニューを閉じる。
+//   タイトルやエンディングの札には、もどる先がない（false）
+function goBack() {
+  if (!$('lightbox').hidden) { closeLightbox(); return true; }
+  if (!$('book').hidden) { const m = bookFromMenu; closeBook(); if (m) openMenu(); return true; }
+  if ($('overlay').hidden) return false;
+  if (G.menuOpen) { closeMenu(); return true; }
+  if (G.panelBack) { G.panelBack(); return true; }
+  return false;
+}
+// 札の外（何もない所）を押すと、ひとつ前へ（2026-10-13 ユーザー）
+$('overlay').addEventListener('click', e => { if (e.target === $('overlay') && goBack()) Sound.play('click'); });
 // タイトルへ（2026-10-13 ユーザー「メニューの最初からの代わりにタイトルに戻れるように」）。いまの世界は自動セーブに残す
+//   セーブしないでもどることもできる（2026-10-13 ユーザー）。そのときは自動セーブも書きかえない（前に残った所から「つづきから」）
 function toTitle() {
-  showPanel('<h2>タイトルへ</h2><p class="center">いまの世界は自動セーブに残してから、<br>タイトルへもどる。<br>タイトルの「つづきから」で、ここにもどれる。</p>', [
-    { label: 'セーブしてタイトルへ', main: true, fn: async () => {
-      await saveSlot('auto');
-      menuSpeed = null; setHand(null); closeBook(); G.sel = null; updateCard(); G.started = false; setSpeed(1);
-      document.body.classList.remove('paused'); chapterLine('', ''); start();
-    } },
+  const go = async save => {
+    if (save) await saveSlot('auto');
+    G.started = false;                 // ページを閉じたときの自動セーブも、もうしない
+    menuSpeed = null; setHand(null); closeBook(); G.sel = null; updateCard(); setSpeed(1);
+    newGame(); layout(V.cw, V.ch);    // タイトルのうしろは、ひらいたときと同じ新しい大地に（2026-10-13 ユーザー「箱庭が切り替わってない」）
+    document.body.classList.remove('paused'); chapterLine('', ''); start();
+  };
+  showPanel('<h2>タイトルへ</h2><p class="center">セーブすると、いまの世界を自動セーブに残す。<br>タイトルの「つづきから」で、ここにもどれる。<br>セーブしないと、前に残った所までになる。</p>', [
+    { label: 'セーブしてタイトルへ', main: true, fn: () => go(true) },
+    { label: 'セーブしないでタイトルへ', fn: () => go(false) },
     { label: 'もどる', fn: () => openMenu() },
   ]);
-  $('panel').classList.add('world'); $('panel').dataset.back = '1';
+  $('panel').classList.add('world'); G.panelBack = openMenu;
 }
 // 設定（v016。2026-10-13 ユーザー「設定メニューを追加して」「メニューには文字フォント切り替えは必要ない。設定画面に移して」）
-//   音楽・効果音・文字。押すとその場で切りかわる。back があれば「もどる」でそこへ（メニュー）、なければ閉じる（観察帳のてびきから）
+//   音楽・効果音・文字・背景（v017 で観察帳のてびきから移した）。押すとその場で切りかわる。back があれば「もどる」でそこへ（メニュー）
 function openSettings(back, focus) {
   const on = v => v ? 'オン' : 'オフ', again = k => () => openSettings(back, k);
+  const bi = BACK_CHOICES.findIndex(([k]) => k === backName);
   showPanel('<p class="mtitle">設定</p>', [
     { label: '音楽　' + on(Sound.get('bgm')), fn: () => { Sound.set('bgm', !Sound.get('bgm')); again(0)(); } },
     { label: '効果音　' + on(Sound.get('sfx')), fn: () => { Sound.set('sfx', !Sound.get('sfx')); again(1)(); } },
     { label: '文字　' + (fontName === 'dot' ? 'ドット' : '明朝'), fn: () => { setFont(fontName === 'dot' ? 'serif' : 'dot'); again(2)(); } },
+    { label: '背景　' + (bi >= 0 ? BACK_CHOICES[bi][1] : 'ほか'), fn: () => { setBack(BACK_CHOICES[(bi + 1) % BACK_CHOICES.length][0]); again(3)(); } },
     { label: back ? 'もどる' : 'とじる', main: true, fn: () => { if (back) back(); } },
   ]);
   $('panel').classList.add('menu', 'world');
-  $('panel').dataset.back = back ? '1' : '';
+  G.panelBack = back || (() => { $('overlay').hidden = true; });
   if (focus !== undefined) $('panel').querySelectorAll('.btns .tbtn')[focus]?.focus();   // 押したボタンに印を残す（上下の矢印でつづけて選べる）
 }
 function quitGame() {
@@ -193,7 +205,7 @@ function quitGame() {
     { label: 'セーブして終える', main: true, fn: async () => { await saveSlot('auto'); location.href = '../archive.html'; } },
     { label: 'もどる', fn: () => openMenu() },
   ]);
-  $('panel').classList.add('world'); $('panel').dataset.back = '1';
+  $('panel').classList.add('world'); G.panelBack = openMenu;
 }
 // 文字（2026-10-13 ユーザー「ピクセル風のフォント」「いまのフォントも雰囲気に合うので切りかえられると」）。
 //   ドット＝DotGothic16（Google Fonts、SIL Open Font License。商用も無料）、明朝＝これまでの文字。localStorage に覚える
@@ -269,7 +281,7 @@ function drawSpeedIcon(ctx, v) {
 }
 document.querySelectorAll('.speeds [data-speed]').forEach(b => drawSpeedIcon(b.querySelector('canvas').getContext('2d'), +b.dataset.speed));
 
-$('dialBtn').addEventListener('click', () => { Sound.unlock(); setSpeed(G.speed ? 0 : (G.lastSpeed || 1)); Sound.play('pin'); G.did.speed = 1; });
+$('dialBtn').addEventListener('click', () => { Sound.unlock(); bookSpeed = null; setSpeed(G.speed ? 0 : (G.lastSpeed || 1)); Sound.play('pin'); G.did.speed = 1; });
 
 // ---- ことば（章のはじめ） ----
 let lineT = 0;
@@ -280,15 +292,24 @@ function chapterLine(a, b, sec = 7) {
 }
 
 // ---- 観察帳 ----
-let page = 'life';
-function openBook(p) {
+// ひらいているあいだは時を止める（2026-10-13 ユーザー）。閉じると、もとの速さへ（ひらいたまま速さを変えたら、そのまま）
+let page = 'life', bookSpeed = null, bookFromMenu = false;
+function openBook(p, fromMenu) {
   if (p) page = p;
+  if ($('book').hidden) {
+    bookFromMenu = !!fromMenu;
+    if (G.started && bookSpeed === null && menuSpeed === null) { bookSpeed = G.speed; setSpeed(0); }
+  }
   $('book').hidden = false; G.did.book = 1;
   document.querySelectorAll('.tabs [data-page]').forEach(b => b.setAttribute('aria-selected', b.dataset.page === page));
   document.querySelectorAll('.page').forEach(s => { s.hidden = s.dataset.page !== page; });
   renderBook();
 }
-function closeBook() { $('book').hidden = true; }
+function closeBook() {
+  if ($('book').hidden) return;
+  $('book').hidden = true; closeLightbox(); bookFromMenu = false;
+  if (bookSpeed !== null) { if (G.speed === 0) setSpeed(bookSpeed); bookSpeed = null; }
+}
 $('btnBook').onclick = () => { Sound.unlock(); Sound.play('click'); $('btnBook').classList.remove('glow'); $('book').hidden ? openBook() : closeBook(); };
 $('bookClose').onclick = closeBook;
 document.querySelectorAll('.tabs [data-page]').forEach(b => b.onclick = () => { Sound.play('click'); openBook(b.dataset.page); });
@@ -309,7 +330,7 @@ function renderYears() {
     if (n === Math.floor(G.ch)) return `<li class="now"><b>${YEARNAME[n]}の年　${c.title}</b><span>いまの年</span><p>${c.text}</p>${G.helped ? `<p class="hint">${c.hint}</p>` : ''}</li>`;
     return `<li class="later"><b>${YEARNAME[n]}の年</b><span>……</span></li>`;
   }).join('');
-  $('years').innerHTML = rows + (isFree() ? '<li class="done"><b>そして</b><span>大地は丸かった</span><p>ここからは自由な箱庭。</p></li>' : '');
+  $('years').innerHTML = rows + (isFree() ? '<li class="done"><b>そして</b><span>十の年がめぐった</span><p>ここからは自由な箱庭。</p></li>' : '');
 }
 
 // ---- 見つけたこと（観察の記録） ----
@@ -348,26 +369,55 @@ function stepFinds(s, dt) {
     break;                              // 一度に一つずつ
   }
 }
-// 見つけた瞬間の絵（描いたあとの画面を小さく。セピアは CSS で）
-function takeSketch() {
+// 見つけた瞬間の絵（セピアは CSS で）。v017: 画面を切り取るのをやめて、大地全体が入る向きで別に描く
+//   （寄ったり動かしたりしていると、切り取りが画面の外にはみ出して黒くなったり、大地が端に寄ったりしていた）。
+//   いまの見る向き・傾きのまま、寄りと平行移動だけもとに。大きく見せられるよう 540×360 で残す
+function takeSketch(t) {
   if (!wantSketch) return;
   const id = wantSketch; wantSketch = null;
+  const keep = { cw: V.cw, ch: V.ch, zoom: V.zoom, panX: V.panX, panY: V.panY, sel: G.sel };
   try {
-    const w = 180, h = 120, c = document.createElement('canvas'); c.width = w; c.height = h;
-    const k = cv.width / V.cw, o = proj(C, C, 4), rw = Math.min(V.cw, RD * V.s * 2.1), rh = rw * h / w;   // 大地のまわりだけ
-    c.getContext('2d').drawImage(cv, (o.x - rw / 2) * k, (o.y - rh / 2) * k, rw * k, rh * k, 0, 0, w, h);
-    sketches[id] = c.toDataURL('image/jpeg', 0.72);
+    const W0 = 720, H0 = 480, big = document.createElement('canvas'); big.width = W0; big.height = H0;
+    const o = big.getContext('2d');
+    G.sel = null; V.zoom = 1; V.panX = V.panY = 0; layout(W0, H0);
+    for (let k = 0; k < 2; k++) { V.dirty = true; o.clearRect(0, 0, W0, H0); drawWorld(o, t, null); }
+    const c = document.createElement('canvas'); c.width = 540; c.height = 360;
+    const cx = c.getContext('2d'); cx.imageSmoothingQuality = 'high'; cx.drawImage(big, 0, 0, 540, 360);
+    sketches[id] = c.toDataURL('image/jpeg', 0.8);
     localStorage.setItem(SKETCH_KEY, JSON.stringify(sketches));
   } catch (e) { /* 残せなくても遊べる */ }
+  finally { G.sel = keep.sel; V.zoom = keep.zoom; V.panX = keep.panX; V.panY = keep.panY; layout(keep.cw, keep.ch); }
 }
 function addPage() { /* 年の頁は G.done から作るので、ここでは観察帳の印だけ */ $('btnBook').classList.remove('glow'); void $('btnBook').offsetWidth; $('btnBook').classList.add('glow'); }
 function renderFinds() {
   const f = G.found || {};
   $('findN').textContent = `${Object.keys(f).length} ／ ${FINDS.length}`;
   $('finds').innerHTML = FINDS.map(([id, title, text]) => f[id]
-    ? `<figure>${sketches[id] ? `<img src="${sketches[id]}" alt="">` : '<div class="blank"></div>'}<figcaption><b>${title}</b><span>第 ${f[id].day} 日</span><p>${text}</p></figcaption></figure>`
+    ? `<figure>${sketches[id] ? `<button type="button" class="shot" data-find="${id}" aria-label="${title}の絵を大きく見る"><img src="${sketches[id]}" alt=""></button>` : '<div class="blank"></div>'}<figcaption><b>${title}</b><span>第 ${f[id].day} 日</span><p>${text}</p></figcaption></figure>`
     : '<figure class="unfound"><div class="blank">？</div><figcaption><b>まだ見ていない</b></figcaption></figure>').join('');
 }
+// 見つけたことの絵を大きく（2026-10-13 ユーザー「クリックしたら世界観にマッチする枠をつけて大きく表示」）。
+//   観察帳と同じ羊皮紙の台紙に二重の墨の線。押す・Esc で閉じる。←→ でとなりの絵へ
+let lbId = null;
+$('finds').addEventListener('click', e => { const b = e.target.closest('[data-find]'); if (b) { Sound.play('click'); openLightbox(b.dataset.find); } });
+function openLightbox(id) {
+  const f = FINDS.find(x => x[0] === id), d = (G.found || {})[id];
+  if (!f || !d || !sketches[id]) return;
+  lbId = id;
+  $('lbImg').src = sketches[id]; $('lbTitle').textContent = f[1]; $('lbDay').textContent = `第 ${d.day} 日`; $('lbText').textContent = f[2];
+  $('lightbox').hidden = false;
+}
+function closeLightbox() { $('lightbox').hidden = true; lbId = null; }
+function stepLightbox(dir) {
+  const ids = FINDS.map(x => x[0]).filter(k => (G.found || {})[k] && sketches[k]);
+  const i = ids.indexOf(lbId); if (i < 0 || ids.length < 2) return;
+  openLightbox(ids[(i + dir + ids.length) % ids.length]); Sound.play('click');
+}
+$('lightbox').addEventListener('click', () => { closeLightbox(); Sound.play('click'); });
+addEventListener('keydown', e => {
+  if ($('lightbox').hidden || !(e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
+  stepLightbox(e.key === 'ArrowRight' ? 1 : -1); e.preventDefault(); e.stopImmediatePropagation();
+}, true);
 
 // ---- ちょっとしたてびき（その操作をまだしていない人にだけ、一度ずつ） ----
 const TIPS = [

@@ -196,21 +196,41 @@ function finishChapter() {
   }
 }
 
-// エンディング: 殻がはがれて丸い世界（collapse.js の shell）。そのあと年表と世界の版画
+// エンディング（v017）: 殻がはがれる演出（collapse.js）はやめた（2026-10-13 ユーザー）。
+//   世界はそのまま。手に持つものなどを隠して、ゆっくり大地を一回りながめ、ことばのあとに年表と世界の版画の札。
+//   ENDING: 0 のあいだはまだ（ながめ中）。札のあとは自由な箱庭
+let ENDING = null;
 function startEnding() {
-  chapterLine('', '');
-  startCollapse('shell');
-  COL.ending = true;
+  setHand(null); closeBook(); G.sel = null; updateCard();
+  ENDING = { t: 0, panel: false };
+  document.body.classList.add('ending');
+  chapterLine('めぐる世界', '十の年が、めぐった。水も土も命も、何ひとつ消えずに。', 9);
+  Sound.play('reveal');
+}
+// 毎フレーム（main.js の frame）: 大地がゆっくり回り、少し引いて全体を見せる
+function stepEnding(dt) {
+  if (!ENDING) return;
+  ENDING.t += dt;
+  V.yaw += dt * 0.12;
+  V.zoom += (0.9 - V.zoom) * Math.min(1, dt * 0.6); V.panX *= 1 - Math.min(1, dt); V.panY *= 1 - Math.min(1, dt);
+  layout(V.cw, V.ch);
+  if (!ENDING.panel && ENDING.t > 10) { ENDING.panel = true; endingPanel(); }
 }
 function endingPanel() {
   const rows = (G.done || []).map((d, n) => d && CHAPTERS[n] ? `<li>第 ${d.day} 日　${CHAPTERS[n].title}</li>` : '').join('');
   const found = Object.keys(G.found || {}).length;
+  chapterLine('', '');
   showPanel(`<h2>めぐる世界</h2>
-    <p>平らな大地の殻の中から、丸い世界が出てきた。</p>
+    <p>果ての滝は落ちつづけ、深淵の水は泉からまたわき出る。草はシカに、シカはオオカミに、去った命はつぼへ。この平らな大地では、何も生まれず、何も消えない。ただ、めぐっていた。</p>
     <p class="truth"><b>本当は</b>　大地は丸い球（地球）。重さはどこでも球の中心へ向かってはたらくので、海の水は果てから落ちていかない。水は海から雲へ、雲から雨へ、川から海へとめぐっている。落ちていくものは、どこかで、めぐっている。</p>
     <p class="small">きみの世界の年表</p><ul class="chron">${rows}</ul>
     <p class="small">見つけたこと ${found} ／ ${FINDS.length}。いちばん新しい世代 ${Math.max(...['deer', 'wolf', 'fish', 'bird'].map(k => geneStats(k).gen))}。</p>`,
-  [{ label: '世界の版画をのこす', fn: () => { makePrint(); setTimeout(endingPanel, 400); } }, { label: '自由な箱庭へ', main: true, fn: () => { endCollapse(); toast('ここからは自由な箱庭。つぼの中身はぜんぶ、つまみは世界のまま', 6); } }]);
+  [{ label: '世界の版画をのこす', fn: () => { makePrint(); setTimeout(endingPanel, 400); } }, { label: '自由な箱庭へ', main: true, fn: endEnding }]);
+  $('panel').classList.add('world', 'ending');
+}
+function endEnding() {
+  ENDING = null; document.body.classList.remove('ending');
+  toast('ここからは自由な箱庭。つぼの中身はぜんぶ、つまみは世界のまま', 6);
 }
 
 // 章とお題の1行（上のまんなか）

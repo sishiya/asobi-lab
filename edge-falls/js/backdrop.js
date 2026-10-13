@@ -9,7 +9,13 @@ const BACKS = {};
 const gau = x => Math.exp(-x * x);
 let backName = 'dark';          // はじめは暗い宇宙（2026-10-13 ユーザー）
 const BACK_KEY = 'asobi-lab/edge-falls/back';
-try { backName = new URLSearchParams(location.search).get('back') || localStorage.getItem(BACK_KEY) || 'dark'; } catch (e) { /* なし */ }
+// 設定で選べる背景（v017。2026-10-13 ユーザー「暗い宇宙、宇宙、雲の上、幻想、ルックにおまかせ（名称変更）だけ残して」）。
+//   auto＝ボクセルの画風が自分で描く画素の雲海。ほかの背景（部屋の中・手のひら・電脳）は ?back= で見られる（試し用）
+const BACK_CHOICES = [['dark', '暗い宇宙'], ['space', '宇宙'], ['clouds', '雲の上'], ['fantasy', '幻想'], ['auto', '画素の雲海']];
+try {
+  const q = new URLSearchParams(location.search).get('back'), m = localStorage.getItem(BACK_KEY);
+  backName = q || (BACK_CHOICES.some(([k]) => k === m) ? m : 'dark');
+} catch (e) { /* なし */ }
 function setBack(n) {
   if (n !== 'auto' && !BACKS[n]) return;
   backName = n;
@@ -313,4 +319,3 @@ BACKS.neon = {
   },
 };
 
-const BACK_ORDER = ['dark', 'auto', 'space', 'clouds', 'room', 'hand', 'fantasy', 'neon'];

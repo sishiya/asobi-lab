@@ -8,7 +8,7 @@ html,body{margin:0;height:100%;overflow:hidden}
 body{background:#0d1222;color:var(--ink);font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif;line-height:1.6}
 p{margin:0}
 button{font:inherit;color:inherit}
-body.font-dot,body.font-dot dialog,body.font-dot select,body.font-dot .panel{font-family:"DotGothic16","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",sans-serif}
+body.font-dot,body.font-dot .panel{font-family:"DotGothic16","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",sans-serif}
 [hidden]{display:none!important}
 
 .stage{position:fixed;inset:0;overflow:hidden;background:#0d1222;touch-action:none;
@@ -32,6 +32,7 @@ body.titling .menubtn{opacity:0;pointer-events:none}
 .panel.world .tbtn{color:var(--paper);border-color:rgba(239,227,196,.3);background:rgba(239,227,196,.04);text-shadow:none}
 .panel.world .tbtn:hover,.panel.world .tbtn:focus-visible{border-color:rgba(var(--glowc),.8);background:rgba(239,227,196,.1);outline:0}
 .panel.world .tbtn.main{background:rgba(239,227,196,.9);color:#141b30;border-color:transparent}
+.panel.world:not(.menu) .tbtn{font-size:14px;padding:8px 18px;letter-spacing:.08em}
 .panel.menu{min-width:280px;text-align:center;padding:22px 26px 18px}
 .panel.menu .mtitle{font-size:18px;letter-spacing:.2em;margin:0 0 2px;color:var(--paper)}
 .panel.menu .msub{font-size:12px;letter-spacing:.4em;margin:0 0 8px;opacity:.7}
@@ -186,9 +187,7 @@ body.fan-open .toast{bottom:140px}
 .years li.later b{color:#b3a283;font-weight:400}
 .years li.now{background:rgba(140,60,20,.06);padding-left:6px;padding-right:6px}
 .howto{margin:0 0 10px;padding-left:18px;font-size:13px;color:#3a2a1c}
-.row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
-.looks label{font-size:13px;display:flex;align-items:center;gap:4px}
-.looks select{font:inherit;font-size:13px;background:#f4ead0;color:#3a2a1c;border:1px solid #cdb98f;border-radius:6px;padding:2px 4px}
+.row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
 
 .tbtn{padding:6px 10px;border:1px solid #cdb98f;border-radius:8px;background:transparent;cursor:pointer;font-size:13px;color:#3a2a1c}
 .tbtn:hover{border-color:#8c3c14}
@@ -211,22 +210,44 @@ body.fan-open .toast{bottom:140px}
 .slot .tbtn{padding:4px 8px;font-size:12px;white-space:nowrap}
 /* はじめの画面: 箱を出さず、世界の上に題とことばだけ */
 body.titling .overlay{background:radial-gradient(ellipse at 50% 40%,rgba(5,8,16,.15),rgba(5,8,16,.55))}
-.panel.titlecard{background:transparent;border:0;outline:0;color:var(--paper);text-align:center;max-width:560px;text-shadow:0 1px 4px #000,0 0 20px rgba(0,0,0,.8)}
-.panel.titlecard h2.title{font-size:clamp(30px,6vw,46px);font-weight:400;letter-spacing:.32em;margin-bottom:16px}
-.panel.titlecard .sub{font-size:clamp(13px,3.6vw,15px);letter-spacing:.06em;margin-bottom:10px;opacity:.9}
-.panel.titlecard .small{color:var(--paper);opacity:.7}
-.panel.titlecard .tbtn{color:var(--paper);border-color:rgba(239,227,196,.4);text-shadow:none;background:rgba(12,16,30,.4)}
+/* 題とことばの下に、深淵の色のぼかし（明るい大地の上でも読めるように。2026-10-13 ユーザー） */
+.panel.titlecard{background:transparent;border:0;outline:0;color:var(--paper);text-align:center;max-width:600px;padding:28px 40px 24px;position:relative;isolation:isolate;overflow:visible;
+  text-shadow:0 1px 4px #000,0 0 20px rgba(0,0,0,.8)}
+.panel.titlecard::before{content:"";position:absolute;inset:-30px -70px;z-index:-1;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(6,8,16,.5),rgba(6,8,16,.36) 55%,rgba(6,8,16,.12) 82%,transparent)}
+.panel.titlecard h2.title{font-size:clamp(30px,6vw,46px);font-weight:400;letter-spacing:.32em;margin:0 0 18px;padding-left:.32em}
+.panel.titlecard .sub{font-size:clamp(13px,3.6vw,15px);letter-spacing:.06em;margin-bottom:8px;opacity:.92}
+.panel.titlecard .small{color:var(--paper);opacity:.75;margin:12px 0 0}
+.panel.titlecard .btns{margin-top:30px;gap:14px}
+.panel.titlecard .tbtn{color:var(--paper);border:1px solid rgba(239,227,196,.45);text-shadow:none;background:rgba(12,16,30,.55);
+  font-size:15px;letter-spacing:.14em;padding:10px 0;min-width:9.5em;border-radius:10px;transition:background .2s,border-color .2s}
+.panel.titlecard .tbtn:hover,.panel.titlecard .tbtn:focus-visible{border-color:rgba(var(--glowc),.85);background:rgba(30,36,58,.7);outline:0}
 .panel.titlecard .tbtn.main{background:rgba(239,227,196,.92);color:#141b30;border-color:transparent}
+.panel.titlecard .tbtn.main:hover,.panel.titlecard .tbtn.main:focus-visible{background:#fff4d8}
 body.titling .hands,body.titling .bookbtn,body.titling .quest,body.titling .dial{opacity:0;pointer-events:none}
-.hands,.bookbtn,.dial{transition:opacity 1.2s}
+body.ending .hands,body.ending .bookbtn,body.ending .quest,body.ending .dial,body.ending .menubtn,body.ending .fan{opacity:0;pointer-events:none}
+.hands,.bookbtn,.dial,.menubtn{transition:opacity 1.2s}
+.panel.world.ending{max-width:560px}
+.panel.world .truth{border-top-color:rgba(239,227,196,.2)}
 
-dialog{max-width:580px;background:var(--card);color:var(--ink);border:2px solid var(--ink);border-radius:6px;padding:16px 20px}
-dialog::backdrop{background:rgba(0,0,0,.4)}
-dialog h2{margin:0 0 8px;font-size:20px}
-dialog h3{margin:14px 0 4px;font-size:15px}
-dialog ul{margin:0;padding-left:20px;font-size:14px}
-dialog p{font-size:14px;margin:0 0 6px}
-dialog a{color:var(--accent)}
+/* 見つけたことの絵を大きく: 観察帳と同じ羊皮紙の台紙と二重の墨の線 */
+.finds .shot{display:block;width:100%;padding:0;border:0;background:none;cursor:zoom-in}
+.finds .shot:hover img,.finds .shot:focus-visible img{filter:sepia(.6) contrast(1.15) brightness(1.02);outline:2px solid #8c3c14;outline-offset:1px}
+.lightbox{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out;
+  background:radial-gradient(ellipse at 50% 50%,rgba(6,8,16,.6),rgba(6,8,16,.88));animation:lbIn .25s ease-out}
+@keyframes lbIn{from{opacity:0}to{opacity:1}}
+.lightbox .frame{margin:0;max-width:min(760px,100%);background:#f4ead0;color:#3a2a1c;border:2px solid #3a2a1c;outline:1px solid #3a2a1c;outline-offset:4px;border-radius:3px;
+  padding:16px 16px 12px;box-shadow:0 0 0 7px rgba(244,234,208,.18),0 14px 60px rgba(0,0,0,.75);text-align:center;
+  background-image:radial-gradient(ellipse at 30% 0%,rgba(255,255,255,.35),transparent 60%),radial-gradient(ellipse at 100% 100%,rgba(140,100,50,.14),transparent 60%)}
+.lightbox img{display:block;width:min(720px,calc(100vw - 72px),calc((100vh - 190px) * 1.5));aspect-ratio:3/2;object-fit:cover;border:1px solid #3a2a1c;outline:1px solid #cdb98f;outline-offset:4px;
+  filter:sepia(.75) contrast(1.12) brightness(.97);background:#e2d4b0}
+.lightbox figcaption{margin-top:12px}
+.lightbox figcaption b{font-size:18px;letter-spacing:.24em;font-weight:400}
+.lightbox figcaption span{margin-left:12px;font-size:12px;color:#8a785c}
+.lightbox figcaption p{font-size:14px;color:#6d5a44;margin-top:2px}
+.lbclose{position:absolute;right:14px;top:10px;border:0;background:transparent;color:var(--paper);font-size:26px;width:40px;height:40px;cursor:pointer;opacity:.8}
+.truths p{font-size:13px;color:#3a2a1c;margin:0 0 8px}
+.page a{color:#8c3c14}
 
 @media (max-width:640px){
   .quest{top:6px;max-width:calc(100% - 130px);left:calc(50% - 46px);padding:4px 8px 8px}
@@ -249,6 +270,8 @@ dialog a{color:var(--accent)}
   .fan button{min-height:40px;font-size:12px}
   .book{top:auto;height:72%;width:100%;padding:8px}
   .line{top:30%}
+  .panel.titlecard{padding:20px 6px 18px}
+  .panel.titlecard h2.title{font-size:clamp(24px,8vw,34px);letter-spacing:.18em;padding-left:.18em;white-space:nowrap}
 }
 .restore{display:none;position:absolute;left:50%;bottom:14px;transform:translateX(-50%);padding:7px 18px;border-radius:8px;border:1px solid rgba(239,227,196,.5);background:rgba(20,27,48,.85);color:#efe3c4;font:inherit;font-size:14px;cursor:pointer}
 body.collapsing .restore{display:block}

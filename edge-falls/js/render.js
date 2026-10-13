@@ -27,14 +27,13 @@ for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
 const STYLES = {};
 let styleName = 'voxel';
 // 本命はボクセル（2026-10-12 ユーザー）。2026-10-13 ユーザー「ルックをかえる実験をしたい」→ 遊ぶ所の左上の
-//   「ルック」で切りかえ（ボクセル・銅版画・リアル・サイバー・絵画）、選んだものを覚える。?style= があればそちらを先に
-const LOOK_KEY = 'asobi-lab/edge-falls/look';
-try { styleName = new URLSearchParams(location.search).get('style') || localStorage.getItem(LOOK_KEY) || 'voxel'; } catch (e) { /* なし */ }
+//   「ルック」で切りかえ（ボクセル・銅版画・リアル・サイバー・絵画）。v017 で画面の切りかえはやめて、ボクセルだけ
+//   （2026-10-13 ユーザー「てびきの設定項目は消す」）。ほかの画風は ?style= で見られる（試し用。覚えない）
+try { styleName = new URLSearchParams(location.search).get('style') || 'voxel'; } catch (e) { /* なし */ }
 const style = () => STYLES[styleName] || STYLES.voxel;
 function setStyle(n) {
   if (!STYLES[n]) return;
   styleName = n;
-  try { localStorage.setItem(LOOK_KEY, n); } catch (e) { /* なし */ }
   buf = null; layout(V.cw, V.ch);
 }
 

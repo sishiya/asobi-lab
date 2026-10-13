@@ -141,7 +141,7 @@ cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('dblclick', e => { const p = local(e); if (!pick(p.x, p.y) && !hitBody(p)) { V.panX = V.panY = 0; layout(V.cw, V.ch); } });   // 空をダブルクリックで真ん中へ
 
 cv.addEventListener('pointerdown', e => {
-  if (!G.started) return;
+  if (!G.started || ENDING) return;
   Sound.unlock();
   try { cv.setPointerCapture(e.pointerId); } catch (err) { /* 捕まえられなくても動かす */ }
   const p = local(e);
@@ -240,15 +240,15 @@ function moveByKeys(dt) {
 addEventListener('keydown', e => {
   if (e.target.closest && (e.target.closest('dialog') || e.target.closest('select'))) return;
   if (!$('overlay').hidden && e.key !== 'Escape') return;     // 札が出ているあいだは、Esc のほかは世界を動かさない
+  if (ENDING) return;                                         // エンディングのあいだは、ながめるだけ
   const mk = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   if (MOVE_KEYS.includes(mk)) { held.add(mk); e.preventDefault(); return; }
   if (e.key === ' ') {           // 連打・押しっぱなしでは切りかわらない（0.35 秒あける）
     const now = performance.now();
-    if (!e.repeat && G.started && !COL && !G.menuOpen && $('overlay').hidden && now - (G.spaceT || 0) > 350) { G.spaceT = now; setSpeed(G.speed ? 0 : G.lastSpeed); Sound.play('pin'); G.did.speed = 1; }
+    if (!e.repeat && G.started && !COL && !G.menuOpen && $('overlay').hidden && now - (G.spaceT || 0) > 350) { G.spaceT = now; bookSpeed = null; setSpeed(G.speed ? 0 : G.lastSpeed); Sound.play('pin'); G.did.speed = 1; }
   }
   else if (e.key === 'Escape') {
-    if (!$('book').hidden) closeBook();
-    else if (G.menuOpen) closeMenu();
+    if (goBack()) Sound.play('click');          // 大きな絵・観察帳・メニューの下の札は、ひとつ前へ
     else if ($('overlay').hidden) openMenu();
   }
   else if (e.key === '1' || e.key === '2' || e.key === '3') {
@@ -271,26 +271,13 @@ function setSpeed(v) {
   document.querySelectorAll('[data-speed]').forEach(b => b.setAttribute('aria-pressed', +b.dataset.speed === G.speed));
   drawDial();
 }
-document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => { Sound.unlock(); setSpeed(+b.dataset.speed); Sound.play(+b.dataset.speed ? 'click' : 'pin'); G.did.speed = 1; }));
+document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => { Sound.unlock(); bookSpeed = null; setSpeed(+b.dataset.speed); Sound.play(+b.dataset.speed ? 'click' : 'pin'); G.did.speed = 1; }));
 
-// 世界をくずす（v010。見せるだけで、もとにもどせる）
-$('btnBreak').onclick = () => { if (COL) return; closeBook(); showPanel('<h2>世界をくずす</h2><p>この大地をくずしてみる。見せるだけなので、いつでも「もとにもどす」で、いまの世界にもどれる。</p>',
-  [{ label: '崩れ落ちる', main: true, fn: () => startCollapse('fall') }, { label: '殻がはがれる', main: true, fn: () => startCollapse('shell') }, { label: 'やめる' }]); };
-$('btnRestore').onclick = () => { if (COL) { $('overlay').hidden = true; if (COL.ending) endingPanel(); else endCollapse(); } };
-
-// ルックと背景（実験。2026-10-13 ユーザー）。v011 から観察帳の「てびき」の頁に
-const lookSel = document.getElementById('lookSel'), backSel = document.getElementById('backSel');
-lookSel.value = STYLES[styleName] ? styleName : 'voxel'; backSel.value = backName === 'auto' || BACKS[backName] ? backName : 'dark';
-lookSel.addEventListener('change', () => { setStyle(lookSel.value); lookSel.blur(); });
-backSel.addEventListener('change', () => { setBack(backSel.value); backSel.blur(); });
-
-// 音と文字は「設定」の札で（v016。2026-10-13 ユーザー「音を消したい時に、てびきにあることに気づきづらいから独立させたい」）
-$('btnSettings').onclick = () => { Sound.unlock(); closeBook(); openSettings(null); };
-$('btnAbout').onclick = () => $('about').showModal();
-$('btnSave').onclick = () => { Sound.unlock(); closeBook(); openSavePanel(null, 'save'); };
-$('btnLoad').onclick = () => { Sound.unlock(); closeBook(); openSavePanel(null, 'load'); };
-$('btnReset').onclick = () => { closeBook(); showPanel('<h2>最初から</h2><p>新しい大地で、第一の年からやり直す。いまの世界は、セーブのスロットに残していなければ消える（自動セーブも次の日に上書きされる）。</p>',
-  [{ label: '第一の年から', main: true, fn: () => { newGame(); G.started = true; enterChapter(0); } }, { label: '自由な箱庭で', fn: () => { newGame(undefined, false); G.started = true; } }, { label: 'やめる' }]); };
+// 世界をくずす（v010）は v017 でやめた（2026-10-13 ユーザー「最後の演出（崩れて地球がでてくる）がダサすぎるので外して」）。
+//   collapse.js は COL を null のまま置いてある。「もとにもどす」は COL があるときだけ
+$('btnRestore').onclick = () => { if (COL) { $('overlay').hidden = true; endCollapse(); } };
+// v017: てびきの設定・セーブ・ロード・このゲームについて・最初から・ルック・背景の切りかえはやめた。
+//   セーブ・ロード・設定（背景も）は Esc のメニューに、遊び方と「本当は」はてびきの頁に、最初からはタイトルに
 
 // ---- ループ ----
 let last = performance.now(), animT = 0;
@@ -301,7 +288,7 @@ function frame(now) {
   if (!(G.started && G.speed === 0 && !COL)) animT += dt * (COL || !G.started ? 1 : ANIM_RATE[G.speed] ?? 1);
   const t = animT;
   if (!V.cw) resize();
-  moveByKeys(dt); stepLater(dt);
+  moveByKeys(dt); stepLater(dt); stepEnding(dt);
   if (G.started && G.speed > 0 && !COL) simulate(dt * G.speed);
   if (ptr && ptr.mode === 'tool' && G.tool !== 'spring') {
     ptr.t += dt;
@@ -315,7 +302,7 @@ function frame(now) {
   }
   accSide += dt;
   if (accSide > 0.25) { accSide = 0; updateSide(s); }
-  if (V.cw > 1 && V.ch > 1) { drawWorld(ctx, t, hover); takeSketch(); drawSpots(ctx, t); }   // 見えていないと大きさが 0
+  if (V.cw > 1 && V.ch > 1) { drawWorld(ctx, t, hover); takeSketch(t); drawSpots(ctx, t); }   // 見えていないと大きさが 0
   Sound.update(COL ? 0 : s.out, !G.started || G.speed === 0 || !!COL, Math.max(0, Math.min(1, (V.zoom - 1.2) / 1.0)));   // 滝の音は寄ったときだけ
   requestAnimationFrame(frame);
 }

@@ -8,7 +8,7 @@ function toast(msg, sec = 3) {
 }
 
 function showPanel(html, btns) {
-  $('panel').className = 'panel';
+  $('panel').className = 'panel'; G.panelBack = null;   // Esc・札の外でもどる先（入れる札だけが入れる。book.js の goBack）
   $('panel').innerHTML = html;
   const box = document.createElement('div'); box.className = 'btns';
   for (const b of btns) {
