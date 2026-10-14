@@ -448,7 +448,7 @@ body.titling .tally,body.ending .tally,body.thumb .tally{display:none}
 .yearcard .ytitle b::before{background:linear-gradient(90deg,transparent,rgba(222,192,124,.8))}
 .yearcard .ytitle b::after{background:linear-gradient(90deg,rgba(222,192,124,.8),transparent)}
 .panel.world .yarrive{color:rgba(239,227,196,.88);font-size:16px;line-height:1.85;margin:0 auto 20px;max-width:27em}
-.yearcard .ygoal{margin:0 0 26px;padding:16px 0 0;position:relative;
+.yearcard .ygoal{margin:0 0 40px;padding:16px 0 0;position:relative;
   background:linear-gradient(90deg,transparent,rgba(222,192,124,.55) 30%,rgba(222,192,124,.55) 70%,transparent) top/100% 1px no-repeat}
 .yearcard .ygoal::before{content:"◆";position:absolute;top:-.62em;left:50%;transform:translateX(-50%);font-size:9px;color:#d8c08a;padding:0 8px;text-shadow:0 0 8px rgba(222,192,124,.7)}
 .yearcard .ygoal span{display:block;font-size:12px;letter-spacing:.4em;padding-left:.4em;color:#d8c08a;opacity:.85}
