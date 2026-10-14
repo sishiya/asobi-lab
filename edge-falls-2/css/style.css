@@ -1,0 +1,417 @@
+/* 果ての滝の箱庭: 画面いっぱいが世界（深淵の夜空）。v011 から、まわりの羊皮紙の箱は「観察帳」の中へ。
+   世界の上の小物は、深淵の色にとける半透明と、羊皮紙の文字の色（--paper）だけで描く。四角い原色のボタンを置かない */
+:root{--bg:#e8dcbc;--ink:#3a2a1c;--muted:#6d5a44;--line:#cdb98f;--card:#f4ead0;--accent:#8c3c14;--water:#4a6a8a;
+  --paper:#efe3c4;--deep:rgba(12,16,30,.62);--deep2:rgba(12,16,30,.82);--glowc:255,226,150;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#1b1712;--ink:#efe3c4;--muted:#b3a283;--line:#3f3527;--card:#252019;--accent:#e08a50;--water:#8fb0cf}}
+*{box-sizing:border-box}
+/* 英語（v019）: 選んでいないほうの言語を隠す（まなびラボの I18N.md と同じ） */
+:root[lang=en] [lang=ja],:root:not([lang=en]) [lang=en]{display:none!important}
+html,body{margin:0;height:100%;overflow:hidden}
+body{background:#0d1222;color:var(--ink);font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif;line-height:1.6}
+p{margin:0}
+button{font:inherit;color:inherit}
+body.font-dot,body.font-dot .panel{font-family:"DotGothic16","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",sans-serif}
+[hidden]{display:none!important}
+
+.stage{position:fixed;inset:0;overflow:hidden;background:#0d1222;touch-action:none;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}   /* スマホで長押し・タップしたときの選択色やハイライトを出さない */
+.stage button,.stage a{-webkit-tap-highlight-color:transparent}
+.pages p,.pages li{-webkit-user-select:text;user-select:text}
+#view{display:block;width:100%;height:100%;cursor:grab}
+#view.grabbing{cursor:grabbing}
+
+/* 左上: メニューの印（Esc と同じ。うっかり保管庫へ戻らないよう、矢印はやめた。2026-10-13 ユーザー） */
+.menubtn{position:absolute;left:8px;top:8px;border:0;background:radial-gradient(closest-side,var(--deep),transparent);border-radius:12px;padding:6px;cursor:pointer;opacity:.6;transition:opacity .2s}
+.menubtn canvas{width:28px;height:28px;image-rendering:pixelated;display:block}
+.menubtn:hover,.menubtn:focus-visible{opacity:1}
+/* 右下: 知らせの吹き出しと観察帳（縦に。吹き出しが上）。2026-10-14 ユーザー「観察帳はあまり見ないので吹き出しのような見た目・大きさに」「吹き出しを右下へ」。
+   吹き出しは v033〜、v049 で押すと時が止まってこれまでの知らせを見返す形に。前は左上のメニューの下 */
+.corner{position:absolute;right:10px;bottom:12px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.msgbtn,.bookbtn{position:relative;border:0;background:radial-gradient(closest-side,var(--deep),transparent);border-radius:12px;padding:6px;cursor:pointer;opacity:.6;transition:opacity .2s}
+.msgbtn canvas,.bookbtn canvas{width:28px;height:28px;image-rendering:pixelated;display:block}
+.msgbtn:hover,.msgbtn:focus-visible,.msgbtn[aria-expanded=true],.bookbtn:hover,.bookbtn:focus-visible,.bookbtn.glow{opacity:1}
+.msgbtn:focus:not(:focus-visible),.bookbtn:focus:not(:focus-visible){outline:0}
+body:has(#book:not([hidden])) .bookbtn{opacity:1}
+/* これまでの知らせ（v049）: 吹き出しのボタンを押すと、時が止まって、半透明の大きな札に新しい順。圧迫感がないよう、世界が透けて見える */
+.msglog{position:fixed;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:56px 16px;background:rgba(6,8,16,.3);opacity:0;transition:opacity .2s}
+.msglog.on{opacity:1}
+.msglogbox{position:relative;width:min(640px,100%);max-height:100%;display:flex;flex-direction:column;padding:16px 8px 10px 22px;border-radius:14px;color:var(--paper);
+  background:rgba(12,16,30,.6);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);border:1px solid rgba(239,227,196,.16);box-shadow:0 10px 40px rgba(0,0,0,.45)}
+.msglogbox h3{margin:0 40px 8px 0;font-size:15px;font-weight:400;letter-spacing:.14em;text-shadow:0 1px 2px #000}
+.msglogbox h3 small{margin-left:12px;font-size:12px;letter-spacing:.06em;opacity:.6}
+.msglogclose{position:absolute;right:8px;top:6px;width:36px;height:36px;border:0;background:transparent;color:var(--paper);font-size:22px;cursor:pointer;opacity:.75}
+.msglogclose:hover,.msglogclose:focus-visible{opacity:1;outline:0}
+.msglogbox ol{list-style:none;margin:0;padding:0 14px 0 0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(239,227,196,.35) transparent}
+.msglogbox ol::-webkit-scrollbar{width:6px}
+.msglogbox ol::-webkit-scrollbar-thumb{background:rgba(239,227,196,.35);border-radius:3px}
+.msglogbox li{padding:10px 0;border-top:1px solid rgba(239,227,196,.12)}
+.msglogbox li:first-child{border-top:0}
+.msglogbox li.day{padding:14px 0 2px;border-top:0;font-size:12px;letter-spacing:.12em;opacity:.55}   /* 日の区切り（v051） */
+.msglogbox li.day:first-child{padding-top:0}
+.msglogbox li.day + li{border-top:0;padding-top:4px}
+.msglogbox li p{margin:2px 0 0;font-size:15px;line-height:1.7;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.msglogbox li.none p{opacity:.6}
+.msglogbox li.year{padding:12px 0 12px 12px;border-left:2px solid rgba(var(--glowc),.55)}   /* 章のことば（年が変わったとき）: 見出しと、左に金の線（v054） */
+.msglogbox li.year b{display:block;font-size:16px;font-weight:400;letter-spacing:.24em;color:rgb(var(--glowc))}
+.msglogbox li.year p{opacity:.9}
+.msgbtn.new::after,.bookbtn.new::after{content:"";position:absolute;right:5px;top:5px;width:6px;height:6px;border-radius:50%;background:rgb(var(--glowc));box-shadow:0 0 6px rgba(var(--glowc),.8)}
+@media (prefers-reduced-motion:reduce){.msglog{transition:none}}
+body.titling .menubtn{opacity:0;pointer-events:none}
+/* 世界になじむ札（メニュー・セーブ・ロード）: 羊皮紙の箱ではなく、深淵の色のぼかしの上に羊皮紙色の文字。2026-10-13 ユーザー */
+.panel.world{background:radial-gradient(ellipse at 50% 45%,rgba(14,18,34,.94),rgba(10,13,24,.86) 70%,rgba(10,13,24,.7));color:var(--paper);border:1px solid rgba(239,227,196,.22);outline:0;border-radius:16px;
+  box-shadow:0 0 0 1px rgba(0,0,0,.4),0 10px 50px rgba(0,0,0,.7);text-shadow:0 1px 2px #000;max-width:520px}
+.panel.world h2{font-weight:400;letter-spacing:.3em}
+.panel.world p,.panel.world .small{color:rgba(239,227,196,.78)}
+.panel.world .tbtn{color:var(--paper);border-color:rgba(239,227,196,.3);background:rgba(239,227,196,.04);text-shadow:none}
+.panel.world .tbtn:hover,.panel.world .tbtn:focus-visible{border-color:rgba(var(--glowc),.8);background:rgba(239,227,196,.1);outline:0}
+.panel.world .tbtn.main{background:rgba(239,227,196,.9);color:#141b30;border-color:transparent}
+.panel.world:not(.menu) .tbtn{font-size:14px;padding:8px 18px;letter-spacing:.08em}
+.panel.menu{min-width:280px;text-align:center;padding:22px 26px 18px}
+.panel.menu .mtitle{font-size:18px;letter-spacing:.2em;margin:0 0 2px;color:var(--paper)}
+.panel.menu .msub{font-size:12px;letter-spacing:.4em;margin:0 0 8px;opacity:.7}
+.panel.menu .btns{flex-direction:column;align-items:stretch;gap:2px}
+.panel.menu .tbtn{font-size:16px;padding:9px 18px;border:0;background:transparent;letter-spacing:.2em;position:relative;border-radius:8px}
+.panel.menu .tbtn:hover,.panel.menu .tbtn:focus-visible{background:rgba(239,227,196,.08)}
+.panel.menu .tbtn:focus-visible::after,.panel.menu .tbtn:hover::after{content:"";position:absolute;bottom:4px;left:40%;right:40%;height:2px;border-radius:1px;background:rgba(var(--glowc),.9);box-shadow:0 0 8px rgba(var(--glowc),.8)}
+.panel.menu .tbtn.main{background:transparent;color:var(--paper)}
+.panel.menu .tbtn.main::before{content:"▸ ";opacity:.7}
+.panel .center{text-align:center}
+
+/* 上のまんなか: いまのお題（1行。ふだんはうすく） */
+.quest{position:absolute;left:50%;top:12px;transform:translateX(-50%);max-width:min(720px,calc(100% - 300px));text-align:center;color:var(--paper);isolation:isolate;
+  text-shadow:0 1px 3px rgba(0,0,0,.95),0 0 14px rgba(0,0,0,.8);pointer-events:none;transition:opacity .6s;padding:6px 28px 10px}
+.quest::before{content:"";position:absolute;inset:-10px -50px -14px;z-index:-1;background:radial-gradient(closest-side,rgba(6,8,16,.72),rgba(6,8,16,.4) 62%,transparent);border-radius:50%}
+.qtitle{font-size:clamp(13px,1.2vw,16px);letter-spacing:.24em;opacity:.85}
+.qtext{font-size:clamp(15px,1.6vw,21px);letter-spacing:.05em;line-height:1.45}
+.qbar{height:3px;margin:7px auto 0;width:min(300px,70%);background:rgba(239,227,196,.18);border-radius:2px;overflow:hidden}
+.qbar i{display:block;height:100%;width:0;background:rgba(var(--glowc),.9);transition:width .8s}
+.quest.free .qtext,.quest.free .qbar{display:none}
+
+/* 右上: 天の輪 */
+.dial{position:absolute;right:10px;top:8px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 6px 4px;isolation:isolate}
+.dial::before{content:"";position:absolute;inset:-14px -22px -18px;z-index:-1;background:radial-gradient(closest-side,rgba(6,8,16,.72),rgba(6,8,16,.4) 62%,transparent);border-radius:50%}
+.dialbtn{width:96px;height:96px;padding:0;border:0;border-radius:50%;background:transparent;cursor:pointer;transition:transform .2s}
+.dialbtn:hover{transform:scale(1.04)}
+.dialbtn canvas{width:96px;height:96px;display:block;image-rendering:pixelated;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
+.dialbtn:focus-visible{outline:2px solid var(--paper);outline-offset:2px}
+.speeds{display:flex;gap:0}
+.speeds button{display:flex;flex-direction:column;align-items:center;border:0;background:transparent;color:var(--paper);cursor:pointer;padding:2px 3px;min-width:40px;position:relative}
+.speeds canvas{width:30px;height:30px;image-rendering:pixelated;opacity:.55;transition:transform .2s,opacity .2s}
+.speeds span{font-size:11px;opacity:.6;white-space:nowrap}
+.speeds button:hover canvas{opacity:.85;transform:translateY(-2px)}
+.speeds button[aria-pressed=true] canvas{opacity:1;transform:translateY(-3px)}
+.speeds button[aria-pressed=true] span{opacity:1}
+.speeds button[aria-pressed=true]::after{content:"";position:absolute;bottom:0;left:30%;right:30%;height:2px;border-radius:1px;background:rgba(var(--glowc),.9);box-shadow:0 0 8px rgba(var(--glowc),.8)}
+.dialtxt{margin:8px 0 0;font-size:13px;color:var(--paper);opacity:.85;text-shadow:0 1px 2px #000;white-space:nowrap;letter-spacing:.06em}
+
+/* 章のことば（世界の上に、にじむように） */
+.line{isolation:isolate;position:absolute;left:50%;top:24%;transform:translate(-50%,-50%);text-align:center;color:var(--paper);pointer-events:none;opacity:0;transition:opacity 1.6s;width:min(640px,92%);
+  text-shadow:0 1px 4px rgba(0,0,0,.95),0 0 24px rgba(0,0,0,.7)}
+.line::before{content:"";position:absolute;inset:-30px -40px;z-index:-1;background:radial-gradient(closest-side,rgba(6,8,16,.62),rgba(6,8,16,.35) 60%,transparent)}
+.line.on{opacity:1}
+.line b{display:block;font-size:clamp(22px,4vw,34px);font-weight:400;letter-spacing:.3em;margin-bottom:6px}
+.line span{font-size:clamp(14px,2vw,17px);letter-spacing:.05em}
+
+/* 知らせ: 下の一行（手に持つものの上） */
+/* 知らせ: 章のことばと同じ、まん中の上あたりに（v053。前は下。2026-10-14 ユーザー「目線が散らばるので中央に」）。章のことばが出ているあいだは、そのすぐ下（ui.js の placeToast） */
+.toast{position:absolute;left:50%;top:calc(24% + 56px);transform:translateX(-50%);width:min(760px,92%);display:flex;flex-direction:column;align-items:center;pointer-events:none;color:var(--paper);transition:top .4s ease}
+/* 一つの知らせ（v055）: 下へ積む。出るときはふわっと、消えるときはうすくなってから高さをちぢめる */
+.tmsg{text-align:center;text-shadow:0 1px 3px #000,0 0 14px rgba(0,0,0,.8);background:radial-gradient(closest-side,rgba(6,8,16,.62),rgba(6,8,16,.3) 65%,transparent);padding:8px 34px;font-size:clamp(14px,1.45vw,19px);line-height:1.5;
+  opacity:0;transform:translateY(6px);transition:opacity .45s ease,transform .45s ease;overflow:hidden}
+.tmsg.on{opacity:1;transform:none}
+.tmsg.fold{transition:height .6s cubic-bezier(.45,0,.25,1),padding .6s cubic-bezier(.45,0,.25,1);padding-top:0;padding-bottom:0}   /* 下のものがよるとき、はじめはゆっくり（v061） */
+#view{transition:filter .5s}
+body.paused #view{filter:saturate(.35) brightness(.82) sepia(.18)}
+.stage::after{content:"時が止まっている";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .5s;
+  box-shadow:inset 0 0 120px 30px rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;padding-bottom:150px;
+  color:var(--paper);font-size:14px;letter-spacing:.4em;text-shadow:0 1px 3px #000}
+body.paused .stage::after{opacity:.9}
+body.paused .dialbtn canvas{filter:drop-shadow(0 0 8px rgba(var(--glowc),.7))}
+
+/* 下: 手に持つもの3つ */
+.hands{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:14px;align-items:flex-end}
+.hand{display:flex;flex-direction:column;align-items:center;gap:0;width:62px;padding:6px 0 4px;border:0;border-radius:14px;background:radial-gradient(closest-side,var(--deep),transparent);color:var(--paper);cursor:pointer;transition:transform .2s}
+.hand canvas{width:44px;height:44px;image-rendering:pixelated;display:block;transition:transform .2s}
+.hand span{font-size:12px;opacity:.7;letter-spacing:.2em}
+.hand:hover canvas{transform:translateY(-3px)}
+.hand[aria-pressed=true] canvas{transform:translateY(-8px) scale(1.08)}
+.hand[aria-pressed=true] span{opacity:1}
+.hand[aria-pressed=true]::after{content:"";position:absolute;bottom:2px;width:22px;height:2px;border-radius:1px;background:rgba(var(--glowc),.9);box-shadow:0 0 8px rgba(var(--glowc),.8)}
+.hand{position:relative}
+.hand.empty canvas{opacity:.65}
+.hand:focus-visible,.bookbtn:focus-visible{outline:2px solid var(--paper);outline-offset:2px}
+.glow{animation:glow 1.4s ease-in-out 4}
+@keyframes glow{0%,100%{filter:none}50%{filter:drop-shadow(0 0 10px rgba(var(--glowc),.95)) brightness(1.25)}}
+/* 手に持ったものの中身（上に並ぶ） */
+.fan{position:absolute;bottom:92px;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 16px);gap:6px;padding:4px 8px;border-radius:12px;background:var(--deep);box-shadow:0 0 18px rgba(0,0,0,.4)}
+.fan button{display:flex;align-items:center;gap:4px;border:0;background:transparent;color:var(--paper);opacity:.6;cursor:pointer;font-size:13px;padding:4px 6px;border-radius:8px;white-space:nowrap;min-height:36px}
+.fan button img{width:24px;height:24px;image-rendering:pixelated}
+/* まだ一度も選んでいない道具（v060）: 知らせのボタンの「新しい」と同じ小さな光 */
+.hand.new::before,.fan button.new::after{content:"";position:absolute;width:6px;height:6px;border-radius:50%;background:rgb(var(--glowc));box-shadow:0 0 6px rgba(var(--glowc),.8);pointer-events:none}
+.hand.new::before{right:10px;top:4px}
+.fan button{position:relative}
+.fan button.new::after{right:2px;top:3px}
+.fan button em{font-style:normal;font-size:11px;opacity:.85;margin-left:2px}
+.fan button[aria-pressed=true]{opacity:1;background:rgba(239,227,196,.12)}
+.fan button.empty em{color:#e8a08a}
+
+/* 右下: 観察帳 */
+/* 見る用のボタン（v030。左のまんなかに縦に。v033 で PC でも出す） */
+.viewpad{position:absolute;left:6px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:2px;padding:6px 2px;border-radius:24px;background:radial-gradient(closest-side,rgba(12,16,30,.45),transparent);transition:opacity 1.2s}
+.viewpad:hover canvas{opacity:.8}
+.viewpad button{border:0;background:transparent;padding:4px;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+.viewpad canvas{width:30px;height:30px;display:block;image-rendering:pixelated;opacity:.55;transition:transform .15s,opacity .15s;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6))}
+.viewpad button.on canvas,.viewpad button:active canvas{opacity:1;transform:scale(1.12)}
+.viewpad button:nth-child(3){margin-top:6px}
+.viewpad button:nth-child(5){margin-top:6px}
+.viewpad button:focus-visible{outline:2px solid var(--paper);outline-offset:1px;border-radius:50%}
+/* 見かたの練習: 光の点2つで、ひろげる → ひねる（手の絵は使わない） */
+.gesture{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);pointer-events:none;text-align:center;opacity:0;transition:opacity .6s}
+.gesture.on{opacity:1}
+.gesture .pair{position:relative;width:180px;height:180px;margin:0 auto;animation:gtwist 4.2s ease-in-out infinite}
+.gesture i{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;
+  background:radial-gradient(circle,rgba(var(--glowc),.95) 0 28%,rgba(var(--glowc),.35) 46%,transparent 70%);box-shadow:0 0 18px rgba(var(--glowc),.45)}
+.gesture i::after{content:"";position:absolute;inset:-8px;border-radius:50%;border:1px solid rgba(var(--glowc),.55);animation:gring 4.2s ease-out infinite}
+.gesture .f1{animation:gspread1 4.2s ease-in-out infinite}
+.gesture .f2{animation:gspread2 4.2s ease-in-out infinite}
+.gesture p{margin:4px 0 0;color:var(--paper);font-size:15px;letter-spacing:.08em;text-shadow:0 1px 3px #000,0 0 12px rgba(0,0,0,.9);white-space:nowrap}
+@keyframes gspread1{0%{transform:translate(-16px,16px);opacity:0}8%{opacity:1}40%,100%{transform:translate(-52px,52px)}92%{opacity:1}100%{opacity:0}}
+@keyframes gspread2{0%{transform:translate(16px,-16px);opacity:0}8%{opacity:1}40%,100%{transform:translate(52px,-52px)}92%{opacity:1}100%{opacity:0}}
+@keyframes gtwist{0%,48%{transform:rotate(0)}88%,100%{transform:rotate(70deg)}}
+@keyframes gring{0%{transform:scale(.6);opacity:0}8%{transform:scale(.8);opacity:.9}30%{transform:scale(1.5);opacity:0}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.gesture .pair,.gesture i,.gesture i::after{animation:none}.gesture .f1{transform:translate(-40px,40px)}.gesture .f2{transform:translate(40px,-40px)}}
+
+/* 生き物の札 */
+.card{position:absolute;left:12px;top:48px;background:rgba(244,234,208,.94);color:#3a2a1c;border:1px solid #3a2a1c;border-radius:6px;padding:8px 10px;font-size:13px;width:190px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.card h4{margin:0 0 4px;font-size:14px;display:flex;justify-content:space-between}
+.card h4 button{border:0;background:transparent;cursor:pointer;font-size:14px;padding:0 2px;color:#3a2a1c}
+.card .row{display:grid;grid-template-columns:5.5em 1fr;gap:6px;align-items:center;margin:2px 0}
+.card .gbar{border-color:#3a2a1c}
+.card .gbar b{background:#4a6a8a}
+.card .gbar s{border-color:#3a2a1c}
+.card p{margin:2px 0;color:#6d5a44;font-size:12px}
+
+/* 観察帳: 右がわに開く羊皮紙の本（スマホは下から）。v038 で v032 までの形にもどした */
+.book{position:absolute;right:0;top:0;bottom:0;width:min(400px,100%);padding:12px;display:flex;pointer-events:none}
+.pages{pointer-events:auto;position:relative;flex:1;background:#f4ead0;color:#3a2a1c;border:2px solid #3a2a1c;outline:1px solid #3a2a1c;outline-offset:3px;border-radius:4px;
+  box-shadow:0 6px 30px rgba(0,0,0,.55);overflow:auto;padding:12px 16px 16px;
+  background-image:radial-gradient(ellipse at 30% 0%,rgba(255,255,255,.35),transparent 60%),radial-gradient(ellipse at 100% 100%,rgba(140,100,50,.12),transparent 60%)}
+.tabs{display:flex;flex-wrap:wrap;gap:2px 10px;border-bottom:1px solid #cdb98f;padding:0 28px 6px 0;margin-bottom:10px}
+.tabs button{border:0;background:transparent;cursor:pointer;font-size:13px;color:#6d5a44;padding:4px 0;border-bottom:2px solid transparent}
+.tabs button[aria-selected=true]{color:#3a2a1c;border-bottom-color:#8c3c14}
+.close{position:absolute;right:8px;top:6px;border:0;background:transparent;font-size:20px;cursor:pointer;color:#3a2a1c;width:32px;height:32px}
+.page h3{font-size:15px;margin:10px 0 6px;letter-spacing:.08em;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.page h3:first-child{margin-top:0}
+.page h3 small{font-size:12px;color:#6d5a44;font-weight:400;letter-spacing:0}
+.note{font-size:13px;color:#6d5a44;margin:6px 0}
+.note b{color:#3a2a1c}
+.locked{font-size:14px;color:#8a785c;border:1px dashed #cdb98f;border-radius:6px;padding:20px 14px;text-align:center}
+#chart{display:block;width:100%;height:110px;border-bottom:1px solid #cdb98f;margin-bottom:6px}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:13px}
+.legend i,.wleg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px;border:1px solid #3a2a1c}
+.gtabs{margin-bottom:6px}
+.gtabs button{font-size:13px;padding:4px}
+#gchart{display:block;width:100%;height:70px;border-bottom:1px solid #cdb98f;margin-bottom:6px}
+.grows{display:grid;grid-template-columns:auto 1fr auto;gap:3px 8px;align-items:center;font-size:13px}
+.grows i{display:inline-block;width:10px;height:3px;margin-right:4px;vertical-align:middle}
+.gbar{position:relative;height:8px;border:1px solid #3a2a1c;border-radius:4px;overflow:hidden}
+.gbar b{display:block;height:100%;background:#4a6a8a}
+.gbar s{position:absolute;left:50%;top:-2px;bottom:-2px;border-left:1px dashed #3a2a1c;opacity:.6}
+.grows em{font-style:normal;font-variant-numeric:tabular-nums;color:#6d5a44;font-size:12px}
+.wbar{display:flex;height:12px;border:1px solid #3a2a1c;border-radius:4px;overflow:hidden;margin:4px 0}
+.wbar i{display:block;height:100%;transition:width .5s}
+.land{background:#4f86b8}.cloud{background:#dfe6ee}.abyss{background:#1d2742}
+.wleg{display:flex;gap:10px;flex-wrap:wrap;font-size:12px}
+.bar{display:block;height:8px;border:1px solid #3a2a1c;border-radius:4px;overflow:hidden;margin:4px 0}
+.bar i{display:block;height:100%;width:0;background:repeating-linear-gradient(135deg,#8a6a3a 0 3px,transparent 3px 5px)}
+.seg{display:flex;border:1px solid #cdb98f;border-radius:8px;overflow:hidden}
+.seg button{flex:1;padding:6px 4px;border:0;background:transparent;cursor:pointer;font-size:14px;color:#3a2a1c}
+.seg button+button{border-left:1px solid #cdb98f}
+.seg button[aria-pressed=true]{background:#3a2a1c;color:#f4ead0}
+.finds{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.finds figure{margin:0;font-size:12px}
+.finds img,.finds .blank{display:block;width:100%;aspect-ratio:3/2;object-fit:cover;border:1px solid #3a2a1c;filter:sepia(.85) contrast(1.15) brightness(.95);background:#e2d4b0}
+.finds .blank{display:flex;align-items:center;justify-content:center;color:#b3a283;font-size:22px;filter:none;border-style:dashed;border-color:#cdb98f}
+.finds figcaption b{display:block;font-size:13px;margin-top:3px}
+.finds figcaption span{color:#8a785c;font-size:11px}
+.finds figcaption p{color:#6d5a44;margin:1px 0 0}
+.finds .unfound figcaption b{color:#b3a283;font-weight:400}
+.years{list-style:none;margin:0;padding:0}
+.years li{border-top:1px solid #cdb98f;padding:8px 0}
+.years li b{font-size:14px;letter-spacing:.06em}
+.years li span{float:right;font-size:12px;color:#8a785c}
+.years li p{font-size:13px;color:#6d5a44;margin-top:3px}
+.years li .hint{color:#8c3c14}
+.years li.later b{color:#b3a283;font-weight:400}
+.years li.now{background:rgba(140,60,20,.06);padding-left:6px;padding-right:6px}
+.howto{margin:0 0 10px;padding-left:18px;font-size:13px;color:#3a2a1c}
+.row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+
+.tbtn{padding:6px 10px;border:1px solid #cdb98f;border-radius:8px;background:transparent;cursor:pointer;font-size:13px;color:#3a2a1c}
+.tbtn:hover{border-color:#8c3c14}
+.tbtn[aria-pressed=false]{color:#8a785c;text-decoration:line-through}
+.tbtn.main{background:#3a2a1c;color:#f4ead0;border-color:#3a2a1c;font-size:16px;padding:8px 22px}
+
+/* 札（セーブ・最初から・章のおわりなど、必要なときだけ） */
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,8,16,.45);padding:16px}
+.panel{background:#f4ead0;color:#3a2a1c;border:2px solid #3a2a1c;outline:1px solid #3a2a1c;outline-offset:3px;border-radius:4px;max-width:460px;padding:18px 20px;max-height:100%;overflow:auto}
+.panel h2{margin:0 0 8px;font-size:22px;letter-spacing:.08em;text-align:center}
+.panel p{margin:0 0 10px;font-size:15px}
+.panel ul{margin:0 0 10px;padding-left:20px;font-size:14px}
+.panel .btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+.panel .small{color:#6d5a44;font-size:13px}
+.panel .truth{font-size:13px;border-top:1px solid #cdb98f;padding-top:8px}
+.panel .chron{font-size:13px;columns:2;column-gap:16px}
+/* はじめの画面: 箱を出さず、世界の上に題とことばだけ */
+body.titling .overlay{background:radial-gradient(ellipse at 50% 40%,rgba(5,8,16,.15),rgba(5,8,16,.55))}
+/* 題とことばの下に、深淵の色のぼかし（明るい大地の上でも読めるように。2026-10-13 ユーザー） */
+.panel.titlecard{background:transparent;border:0;outline:0;color:var(--paper);text-align:center;max-width:600px;padding:28px 40px 24px;position:relative;isolation:isolate;overflow:visible;
+  text-shadow:0 1px 4px #000,0 0 20px rgba(0,0,0,.8)}
+.panel.titlecard::before{content:"";position:absolute;inset:-30px -70px;z-index:-1;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(6,8,16,.5),rgba(6,8,16,.36) 55%,rgba(6,8,16,.12) 82%,transparent)}
+.panel.titlecard h2.title{font-size:clamp(30px,6vw,46px);font-weight:400;letter-spacing:.32em;margin:0 0 18px;padding-left:.32em}
+.panel.titlecard .sub{font-size:clamp(13px,3.6vw,15px);letter-spacing:.06em;margin-bottom:8px;opacity:.92}
+.panel.titlecard h2.title .two{color:#ffd66a;letter-spacing:0;font-size:1.05em;text-shadow:0 0 18px rgba(255,214,106,.45)}
+.panel.titlecard .ver{font-size:12px;letter-spacing:.14em;margin:-10px 0 14px;opacity:.7}
+:root[lang=en] .panel.titlecard h2.title{letter-spacing:.12em;padding-left:.12em}   /* 英語の題は字間をせまく（1行に） */
+:root[lang=en] .panel.titlecard .sub{letter-spacing:.02em}
+.panel.titlecard .small{color:var(--paper);opacity:.75;margin:12px 0 0}
+.panel.titlecard .btns{margin-top:30px;gap:14px}
+.panel.titlecard .tbtn{color:var(--paper);border:1px solid rgba(239,227,196,.45);text-shadow:none;background:rgba(12,16,30,.55);
+  font-size:15px;letter-spacing:.14em;padding:10px 0;min-width:9.5em;border-radius:10px;transition:background .2s,border-color .2s}
+.panel.titlecard .tbtn:hover,.panel.titlecard .tbtn:focus-visible{border-color:rgba(var(--glowc),.85);background:rgba(30,36,58,.7);outline:0}
+.panel.titlecard .tbtn small,.panel.world .tbtn small{display:block;font-size:11px;letter-spacing:.06em;opacity:.7;margin-top:1px;line-height:1.3}   /* ボタンの下の小さな行（どこまで遊んだか。v067） */
+body.titling .hands,body.titling .bookbtn,body.titling .quest,body.titling .dial,body.titling .viewpad,body.titling .msgbtn{opacity:0;pointer-events:none}
+body.ending .msgbtn,body.collapsing .msgbtn,body.thumb .msgbtn,body.thumb .msglog{display:none!important}
+body.ending .hands,body.ending .bookbtn,body.ending .quest,body.ending .dial,body.ending .menubtn,body.ending .fan,body.ending .viewpad{opacity:0;pointer-events:none}
+body.collapsing .viewpad,body.thumb .viewpad,body.thumb .gesture{display:none!important}
+.hands,.corner,.dial,.menubtn{transition:opacity 1.2s}
+.panel.world.ending{max-width:560px}
+.panel.world .truth{border-top-color:rgba(239,227,196,.2)}
+
+/* 見つけたことの絵を大きく: 観察帳と同じ羊皮紙の台紙と二重の墨の線 */
+.finds .shot{display:block;width:100%;padding:0;border:0;background:none;cursor:zoom-in}
+.finds .shot:hover img,.finds .shot:focus-visible img{filter:sepia(.6) contrast(1.15) brightness(1.02);outline:2px solid #8c3c14;outline-offset:1px}
+.lightbox{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out;
+  background:radial-gradient(ellipse at 50% 50%,rgba(6,8,16,.6),rgba(6,8,16,.88));animation:lbIn .25s ease-out}
+@keyframes lbIn{from{opacity:0}to{opacity:1}}
+.lightbox .frame{margin:0;max-width:min(760px,100%);background:#f4ead0;color:#3a2a1c;border:2px solid #3a2a1c;outline:1px solid #3a2a1c;outline-offset:4px;border-radius:3px;
+  padding:16px 16px 12px;box-shadow:0 0 0 7px rgba(244,234,208,.18),0 14px 60px rgba(0,0,0,.75);text-align:center;
+  background-image:radial-gradient(ellipse at 30% 0%,rgba(255,255,255,.35),transparent 60%),radial-gradient(ellipse at 100% 100%,rgba(140,100,50,.14),transparent 60%)}
+.lightbox img{display:block;width:min(720px,calc(100vw - 72px),calc((100vh - 190px) * 1.5));aspect-ratio:3/2;object-fit:cover;border:1px solid #3a2a1c;outline:1px solid #cdb98f;outline-offset:4px;
+  filter:sepia(.75) contrast(1.12) brightness(.97);background:#e2d4b0}
+.lightbox figcaption{margin-top:12px}
+.lightbox figcaption b{font-size:18px;letter-spacing:.24em;font-weight:400}
+.lightbox figcaption span{margin-left:12px;font-size:12px;color:#8a785c}
+.lightbox figcaption p{font-size:14px;color:#6d5a44;margin-top:2px}
+.lbclose{position:absolute;right:14px;top:10px;border:0;background:transparent;color:var(--paper);font-size:26px;width:40px;height:40px;cursor:pointer;opacity:.8}
+.truths p{font-size:13px;color:#3a2a1c;margin:0 0 8px}
+.page a{color:#8c3c14}
+
+@media (max-width:640px){
+  .quest{top:6px;left:56px;right:100px;max-width:none;transform:none;padding:4px 4px 8px}   /* 左上のメニュー（〜48px）と右上の天の輪（280px〜）のあいだに（v032。2026-10-13 ユーザー「目的が左上メニューと被る」） */
+  .quest::before{inset:-8px -12px -12px}
+  .qtitle{font-size:12px}
+  .qtext{font-size:13px}
+  .dial{right:2px;top:max(4px,env(safe-area-inset-top));padding:4px 2px}
+  .dialbtn,.dialbtn canvas{width:68px;height:68px}
+  .speeds button{min-width:28px;padding:2px 1px}
+  .speeds canvas{width:24px;height:24px}
+  .speeds span{font-size:9px}
+  .card{top:auto;bottom:150px;left:8px;width:170px}
+  .stage::after{padding-bottom:140px}
+  .hands{gap:8px;bottom:max(10px,env(safe-area-inset-bottom))}
+  .corner{bottom:max(10px,env(safe-area-inset-bottom));right:4px}
+  .noted{right:6px;bottom:calc(max(10px,env(safe-area-inset-bottom)) + 96px)}
+  body.fan-open .noted{display:none}   /* 手に持ったものの並びと重なるので（メニューの見出しでも分かる） */
+  .hand{width:56px}
+  .hand canvas{width:40px;height:40px}
+  .toast{top:calc(30% + 64px)}
+  .tmsg{font-size:13px}
+  .fan{bottom:88px;left:8px!important;right:52px;transform:none;flex-wrap:wrap;justify-content:center}
+  .fan button{min-height:40px;font-size:12px}
+  .book{top:auto;height:72%;width:100%;padding:8px}
+  .line{top:30%}
+  /* スマホのはじめの画面: 題とことばは上、ボタンは下に縦にならべて、まん中の大地を見せる（2026-10-13 ユーザー） */
+  body.titling .overlay{align-items:stretch;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));
+    background:linear-gradient(rgba(5,8,16,.62),rgba(5,8,16,.08) 32%,rgba(5,8,16,.08) 62%,rgba(5,8,16,.66))}
+  .panel.titlecard{display:flex;flex-direction:column;width:100%;max-width:none;max-height:none;padding:clamp(20px,7.5vh,72px) 0 clamp(4px,2vh,20px)}   /* 題と説明を少し下げる（v041。2026-10-14 ユーザー「下げて」→「もう半分上げて」で、もとの 48px と 96px のあいだ） */
+  .panel.titlecard::before{display:none}
+  .panel.titlecard h2.title{font-size:clamp(24px,8vw,34px);letter-spacing:.18em;padding-left:.18em;white-space:nowrap;margin-bottom:12px}
+  .panel.titlecard .sub{font-size:13px;margin-bottom:4px}
+  .panel.titlecard .small{margin-top:auto;font-size:12px;line-height:1.4}
+  .panel.titlecard .btns{flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:8px;width:min(300px,100%);margin:auto auto 0}
+  .panel.titlecard .small + .btns{margin-top:10px}
+  .panel.titlecard .tbtn{font-size:16px;padding:12px 0;min-height:48px}
+}
+@media (max-width:640px) and (max-height:700px){
+  .panel.titlecard{padding-top:clamp(6px,2vh,12px)}
+  .panel.titlecard h2.title{margin-bottom:6px}
+  .panel.titlecard .btns{gap:6px}
+  .panel.titlecard .tbtn{padding:9px 0;min-height:42px}
+}
+.restore{display:none;position:absolute;left:50%;bottom:14px;transform:translateX(-50%);padding:7px 18px;border-radius:8px;border:1px solid rgba(239,227,196,.5);background:rgba(20,27,48,.85);color:#efe3c4;font:inherit;font-size:14px;cursor:pointer}
+body.collapsing .restore{display:block}
+body.collapsing .hands,body.collapsing .fan,body.collapsing .dial,body.collapsing .card,body.collapsing .quest,body.collapsing .bookbtn,body.collapsing .book{display:none}
+body.thumb .menubtn,body.thumb .hands,body.thumb .fan,body.thumb .dial,body.thumb .toast,body.thumb .quest,body.thumb .bookbtn,body.thumb .line,body.thumb .card{display:none!important}
+@media (prefers-reduced-motion:reduce){.toast,.line,.quest{transition:none}.glow{animation:none;filter:drop-shadow(0 0 8px rgba(var(--glowc),.9))}}
+/* 世界の版画の型を見くらべる札（試作） */
+.panel.world.printpanel{max-width:min(860px,96vw)}
+.prints{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin:10px 0 4px}
+.pcard{margin:0;text-align:center}
+.pshot{display:block;width:100%;padding:0;border:1px solid rgba(239,227,196,.25);background:none;cursor:zoom-in;border-radius:3px;overflow:hidden}
+.pshot img{display:block;width:100%;aspect-ratio:4/3;object-fit:contain;background:rgba(0,0,0,.25)}
+.pshot:hover,.pshot:focus-visible{border-color:rgba(var(--glowc),.8);outline:0}
+.pcard figcaption{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:6px}
+.pcard figcaption b{font-weight:400;letter-spacing:.14em}
+.pcard figcaption span{font-size:12px;opacity:.75}
+.pcard .tbtn{margin-top:4px;padding:4px 14px!important;font-size:13px!important}
+.lightbox.print .frame{background:none;border:0;outline:0;box-shadow:none;padding:0;max-width:100%}   /* 絵が 760px より広いと右へはみ出していた */
+.lightbox.print img{margin:0 auto}
+.lightbox.print img{filter:none;aspect-ratio:auto;object-fit:contain;width:auto;height:auto;max-width:calc(100vw - 60px);max-height:calc(100vh - 140px);border:0;outline:0;background:none}
+.lightbox.print figcaption{color:var(--paper)}
+.lightbox.print figcaption p{color:rgba(239,227,196,.75)}
+/* v020 */
+/* 札・観察帳は、時が止まったときの影（.stage::after）より上に。「時が止まっている」の字は、札や観察帳が出ているあいだは出さない */
+.stage::after{z-index:2}
+.overlay,.book{z-index:3}
+body:has(#overlay:not([hidden])) .stage::after,body:has(#book:not([hidden])) .stage::after,body:has(#lightbox:not([hidden])) .stage::after{color:transparent;text-shadow:none}
+/* 設定のあいだは世界をうすくしない（背景を選んで見くらべられるように） */
+body:has(#overlay:not([hidden]) .panel.settings) #view{filter:none}
+body:has(#overlay:not([hidden]) .panel.settings) .overlay{background:transparent}
+body:has(#overlay:not([hidden]) .panel.settings) .stage::after{opacity:0}
+/* 書きとめた（v067）: 右下の吹き出し・観察帳の上に、小さく出て消える。音を消していても分かるように */
+.noted{position:absolute;right:12px;bottom:110px;color:var(--paper);font-size:12px;letter-spacing:.08em;text-shadow:0 1px 3px #000,0 0 10px rgba(0,0,0,.8);pointer-events:none;opacity:0;white-space:nowrap}
+.noted::before{content:"✓ ";color:rgb(var(--glowc))}
+.noted.bad{color:#f0b8a0}.noted.bad::before{content:""}
+.noted.on{animation:noted 3.2s ease-out forwards}
+@keyframes noted{0%{opacity:0;transform:translateY(4px)}12%{opacity:.9;transform:none}70%{opacity:.9}100%{opacity:0}}
+body.titling .noted,body.thumb .noted,body.ending .noted{display:none}
+.panel.menu .msub.noted-line{letter-spacing:.08em;font-size:12px;margin:0 0 10px;opacity:.6}
+@media (prefers-reduced-motion:reduce){.noted.on{animation-duration:3.2s;animation-timing-function:steps(1,end)}}
+/* しまう: 中身の並び（草・シカ…）のいちばん右に「×」だけ。並びのボタンと同じ色味（v039。v034〜v038 は持っている道具の角の × 印） */
+.fan .putaway{justify-content:center;min-width:36px;padding:4px 8px}
+.fan .putaway b{font-size:20px;font-weight:400;line-height:1}
+.fan .putaway:hover,.fan .putaway:focus-visible{opacity:1;background:rgba(239,227,196,.12)}
+/* 言語（タイトルの右上だけ） */
+.langsw{position:absolute;right:max(12px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));z-index:4;display:none;gap:2px;padding:3px;border-radius:10px;background:rgba(12,16,30,.55);border:1px solid rgba(239,227,196,.25)}
+body.titling.atitle .langsw{display:flex}   /* タイトルの札のときだけ（「つづきから」の札とは重ねない。v042） */
+.langsw button{border:0;background:transparent;color:var(--paper);font-size:13px;letter-spacing:.08em;padding:4px 10px;border-radius:7px;cursor:pointer;opacity:.65;min-height:32px}
+.langsw button[aria-pressed=true]{background:rgba(239,227,196,.9);color:#141b30;opacity:1}
+.langsw button:hover,.langsw button:focus-visible{opacity:1;outline:0}
+/* 観察帳の未読（2026-10-14 ユーザー）: 観察帳の印は吹き出しと同じ光（上）。羊皮紙の中は、金の光が見えないので朱の点。
+   タブ＝まだ見ていない頁、絵や年＝いまひらいて新しく見たもの */
+.tabs button{position:relative}
+.tabs button.new::after,.finds figure.fresh figcaption b::after,.years li.fresh b::after{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:#b8501e;box-shadow:0 0 4px rgba(184,80,30,.6)}
+.tabs button.new::after{position:absolute;right:-5px;top:3px;width:5px;height:5px}
+.finds figure.fresh figcaption b::after,.years li.fresh b::after{margin-left:6px;vertical-align:2px}
+/* 消してしまう確かめ（はじめから・大地をつくりなおす。2026-10-14 ユーザー「前の世界が消えることを強調」）: 消えることを朱の字で、消すボタンも朱に */
+.panel.world .warn{text-align:center;color:#f2a98a;font-size:16px;letter-spacing:.14em;margin:6px 0 4px}
+.panel.menu .tbtn.danger{color:#f2a98a}
+.panel.menu .tbtn.danger:hover::after,.panel.menu .tbtn.danger:focus-visible::after{background:rgba(242,169,138,.9);box-shadow:0 0 8px rgba(242,169,138,.7)}
+
+/* v2: 札の「はじめの姿」と「この子」 */
+.card .anc{display:grid;grid-template-columns:1fr 1fr;justify-items:center;margin:2px 0 6px;font-size:11px;opacity:.9}
+.card .anc canvas{grid-column:1/3;width:168px;height:64px;image-rendering:pixelated}
+.quest.ask{pointer-events:auto;cursor:pointer}
+.quest.ask .qtext{text-decoration:underline dotted;text-underline-offset:3px}
