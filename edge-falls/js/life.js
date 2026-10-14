@@ -317,7 +317,11 @@ function stepBird(a, dt) {
 
 function stepLife(dt) {
   buildGrid();
-  for (const a of L.list) if (!a.dead) stepAnimal(a, dt);
+  const nowMs = performance.now();
+  for (const a of L.list) if (!a.dead) {
+    if (a.holdUntil) { if (nowMs < a.holdUntil) continue; a.holdUntil = 0; }   // 放したばかり: 落ちて着くまで（と少しのあいだ）動かない（v062）
+    stepAnimal(a, dt);
+  }
   if (L.list.some(a => a.dead)) L.list = L.list.filter(a => !a.dead);
   for (const f of L.fx) {
     f.t += dt;
@@ -346,6 +350,7 @@ function release(kind, x, y) {
   a.e = a.tr.eMax * 0.7;
   a.age = KINDS[kind].adult * 0.8;
   a.dropT0 = performance.now();                 // 命のつぼから放した生き物は、上から落ちてくる（v056。絵だけ。render.js）
+  a.holdUntil = a.dropT0 + 450 + 350;           // 落ちているあいだと着いてから少し、動かない（v062。2026-10-14 ユーザー「空中ですでに動き出してる」）
   W.stock[kind]--;
   return 'ok';
 }

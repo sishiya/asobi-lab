@@ -476,7 +476,17 @@ function sceneItems() {
     a.hidN = hidden(p) ? (a.hidN || 0) + 1 : 0;                       // 何コマか続けてかくれたときだけ消す（ちらつかない）
     if (a.dropT0) {                                                    // 放したばかり: 上から落ちてくる（0.45 秒。影は地面に。v056）
       const e = (performance.now() - a.dropT0) / 450;
-      if (e >= 1 || e < 0) a.dropT0 = 0;
+      if (e >= 1 || e < 0) {                                           // 着いた: サカナは水しぶき、陸の生き物は土ぼこり（v062）
+        a.dropT0 = 0;
+        if (e >= 1 && typeof PFX !== 'undefined') {
+          const now = performance.now(), fish = a.kind === 'fish';
+          for (let k = 0; k < (fish ? 6 : 4); k++) {
+            const ang = k / (fish ? 6 : 4) * 6.283 + Math.random() * 0.5, v = (fish ? 1.2 : 1.4) + Math.random() * 0.8;
+            PFX.push(fish ? { x: a.x, y: a.y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, vz: 2.6 + Math.random() * 1.2, h0: 0.1, g: 20, t0: now, col: '#cfeaff' }
+                          : { x: a.x, y: a.y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, vz: 0.6, h0: 0.15, g: 2, t0: now, col: '#d2c6ae' });
+          }
+        }
+      }
       else { items.push({ type: 'animal', a, p: proj(a.x, a.y, z + 8 * (1 - e * e)), ground: p, drop: true }); continue; }
     }
     if (a.hidN < 6) items.push({ type: 'animal', a, p });
