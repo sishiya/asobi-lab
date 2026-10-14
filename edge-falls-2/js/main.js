@@ -46,7 +46,7 @@ function simulate(sec) {
     if (accHist >= DAY / 2) { accHist = 0; recordHist(waterStats()); }
     if (Math.floor(W.t / DAY) !== dayBefore) {
       W.day = Math.floor(W.t / DAY) + 1;
-      dailySafety();
+      dailySafety(); dailySpecies();
       G.needSave = true;                    // 1日ごとに書きとめる（ループの中で）
     }
     if (!(G.ch % 1)) tickChapter(h, lastStats);

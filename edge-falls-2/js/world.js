@@ -78,7 +78,7 @@ function newWorld(seed, bare) {
   W.souls = { deer: 0, wolf: 0, fish: 0, bird: 0, human: 0 };   // 去った命（深淵を通って、少しずつつぼへ戻る。v011）
   W.knob = { winter: 1, tide: 1 };                     // 世界のきびしさ（章で少しずつ上げる。v011）
   W.flags = {};                                        // 一度だけ見つける出来事（観察の記録）
-  resetCycle(); resetHumans();                         // 深淵の命・光の粒（v2。cycle.js）、ヒトの村・畑・知恵（humans.js）
+  resetCycle(); resetHumans(); resetSpecies();                         // 深淵の命・光の粒（v2。cycle.js）、ヒトの村・畑・知恵（humans.js）
   W.events = [];
 
   // 地形: ゆるい丸屋根（ふちへ向かって低い）＋ノイズ＋山2つ＋湖のくぼみ＋ふちの岩

@@ -134,6 +134,7 @@ function updateSide(s) {
   $('soilBar').style.width = Math.min(100, W.soil / 300 * 100) + '%';
   $('nSpring').textContent = W.springs.length;
   questLine(s); drawDial(); drawHands(); updateTally(s);
+  const sl = speciesList(); $('spList').hidden = !sl; if (sl) $('spList').textContent = TX('分かれた種: ', 'New species: ') + sl;
   if (!$('fan').hidden) { const sig = ['deer', 'wolf', 'fish', 'bird', 'human'].map(k => W.stock[k]).join(); if (sig !== G.fanSig) { G.fanSig = sig; syncHands(); } }
   renderBook(); updateCard();
 }
@@ -234,7 +235,7 @@ function updateCard() {
     el.hidden = false; return;
   }
   const days = (a.age / DAY).toFixed(1);
-  el.innerHTML = `<h4><span>${TX(`${KINDS[a.kind].name}（第 ${a.gen} 世代）`, `${KINDS[a.kind].name} (generation ${a.gen})`)}</span><button type="button" aria-label="${TX('とじる', 'Close')}" onclick="G.sel=null;updateCard()">×</button></h4>` +
+  el.innerHTML = `<h4><span>${TX(`${speciesName(a.kind, a.sp)}（第 ${a.gen} 世代）`, `${speciesName(a.kind, a.sp)} (generation ${a.gen})`)}</span><button type="button" aria-label="${TX('とじる', 'Close')}" onclick="G.sel=null;updateCard()">×</button></h4>` +
     (a.kind === 'human' ? `<p>${TX('村の知恵', 'Village wisdom')}: ${wisdomList() || TX('まだない', 'none yet')}</p>` : `<div class="anc"><canvas id="ancCv" width="168" height="64"></canvas><span>${TX('はじめの姿', 'First form')}</span><span>${TX('この子', 'This one')}</span></div>`) +
     GENES[a.kind].map(([k, name]) => `<div class="row"><span>${name}</span>${gbar(a.g[k])}</div>`).join('') +
     `<div class="row"><span>${TX('おなか', 'Hunger')}</span>${gbar(Math.max(0, a.e / a.tr.eMax))}</div><p>${TX(`生まれて ${days} 日`, `${days} days old`)}</p>`;

@@ -281,11 +281,11 @@ function reproduce(a) {
     // サカナは満月のころに多く卵を産む（v2。本当にクサフグやサンゴは月の満ち欠けに合わせて産卵する）
     if (a.kind === 'fish') { const full = fullMoon(); if (!full && Math.random() < 0.45) { a.cd = K.cd * 0.5; return; } if (full) { W.flags.moonspawn = 1; L.fx.push({ type: 'spawn', x: a.x, y: a.y, z: heightAt(a.x, a.y, true), t: 0 }); } }
     if (crowded(a) || Math.random() < (L.counts[a.kind] / K.cap) ** 2) { a.cd = K.cd * (0.4 + Math.random() * 0.4); return; }
-    const mate = nearest(a, a.kind, a.kind === 'bird' ? 12 : 8, b => b.age > K.adult);      // 近くの大人と遺伝子を合わせる（いなければ自分だけ）
+    const mate = nearest(a, a.kind, a.kind === 'bird' ? 12 : 8, b => b.age > K.adult && (b.sp || 0) === (a.sp || 0));   // 別の種とは子を残さない（v2。species.js）      // 近くの大人と遺伝子を合わせる（いなければ自分だけ）
     const ce = K.childE * T.eMax;
     const c = spawn(a.kind, a.x + (Math.random() - 0.5), a.y + (Math.random() - 0.5), ce, childGenes(a.kind, a, mate));
     if (c) {
-      c.gen = Math.max(a.gen, mate ? mate.gen : 0) + 1;
+      c.gen = Math.max(a.gen, mate ? mate.gen : 0) + 1; if (a.sp) c.sp = a.sp;
       if (c.gen >= 10) W.flags.gen10 = 1;
       a.e -= ce + 1; a.cd = K.cd * (0.8 + Math.random() * 0.4); L.born++;
       L.fx.push({ type: 'born', x: c.x, y: c.y, z: heightAt(c.x, c.y, true), t: 0 });

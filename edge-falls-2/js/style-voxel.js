@@ -235,12 +235,13 @@ const VOX = (() => {
   const TINT = { human: [], deer: [['swim', [112, 132, 150], 'bBh'], ['size', [96, 60, 30], 'bB']], wolf: [['speed', [196, 176, 132], 'bBht'], ['size', [70, 70, 78], 'bB']], fish: [['strength', [214, 64, 44], 'ft']], bird: [['size', [90, 98, 110], 'bBw'], ['beak', [240, 150, 40], 'k']] };
   function palGene(a, L) {
     const q = Math.round(L * 10), parts = TINT[a.kind].map(([g]) => Math.round(Math.max(0, a.g[g] - 0.35) / 0.65 * 4));
-    const key = a.kind + q + ':' + parts.join(',');
+    const sp = a.sp || 0, key = a.kind + q + ':' + parts.join(',') + ':' + sp;
     if (cache[key]) return cache[key];
     const base = PAL[a.kind], o = {};
     for (const ch in base) {
       let [r, g, b] = base[ch];
       TINT[a.kind].forEach(([, col, chars], n) => { if (chars.includes(ch)) { const t = parts[n] / 4 * 0.75; r = mix(r, col[0], t); g = mix(g, col[1], t); b = mix(b, col[2], t); } });
+      if (sp && SP_TINT[sp] && 'bBhftw'.includes(ch)) { const c = SP_TINT[sp]; r = mix(r, c[0], 0.4); g = mix(g, c[1], 0.4); b = mix(b, c[2], 0.4); }   // 種ごとの色（v2）
       o[ch] = `rgb(${r * q / 10 | 0},${g * q / 10 | 0},${Math.min(255, b * (q / 10 + 0.1)) | 0})`;
     }
     return (cache[key] = o);

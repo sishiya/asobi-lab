@@ -428,3 +428,4 @@ body.titling.atitle .langsw{display:flex}   /* タイトルの札のときだけ
 @keyframes tneed{50%{opacity:.45}}
 body.titling .tally,body.ending .tally,body.thumb .tally{display:none}
 @media (max-width:520px){.tally{width:66px}}
+.spname{font:inherit;font-size:18px;text-align:center;width:min(260px,80%);padding:6px 10px;border-radius:8px;border:1px solid rgba(239,227,196,.4);background:rgba(10,13,24,.6);color:var(--paper)}

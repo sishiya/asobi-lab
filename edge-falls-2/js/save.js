@@ -52,11 +52,11 @@ function snapshot() {
       snow: packCells(W.snow, 1000, Uint16Array), fert: packCells(W.fert, 170, Uint8Array), farm: packCells(W.farm, 255, Uint8Array),
     },
     // [種類, x, y, おなか, のど, 年, 次の子まで, 向き, ぬれ, 世代, 遺伝子1〜3]
-    animals: L.list.filter(a => !a.dead).map(a => [KI[a.kind], a.x, a.y, a.e, a.th, a.age, a.cd, a.dir, a.wet, a.gen, ...GENES[a.kind].map(([k]) => a.g[k])]),
+    animals: L.list.filter(a => !a.dead).map(a => [KI[a.kind], a.x, a.y, a.e, a.th, a.age, a.cd, a.dir, a.wet, a.gen, ...GENES[a.kind].map(([k]) => a.g[k]), a.sp || 0]),
     stats: { born: L.born, eaten: L.eaten, fell: L.fell },
     hist: HIST,
     quest: { ch: G.ch, chT: G.chT, streak: G.streak, helped: G.helped, goal: G.goal, gbase: G.gbase, gpick: G.gpick, winterOk: G.winterOk, winterSeen: G.winterSeen },
-    story: { mode: G.mode, unread: G.unread, done: G.done, found: G.found, did: G.did, tipped: G.tipped, souls: W.souls, lives: livesForSave(), abyssFert: W.abyssFert, humans: { village: W.village, wisdom: W.wisdom, wisP: W.wisT, seasons: W.hSeasons, season: W.hSeason, dammed: W.dammed }, knob: W.knob, flags: W.flags },
+    story: { mode: G.mode, unread: G.unread, done: G.done, found: G.found, did: G.did, tipped: G.tipped, souls: W.souls, lives: livesForSave(), abyssFert: W.abyssFert, species: W.species, sepDays: W.sepDays, humans: { village: W.village, wisdom: W.wisdom, wisP: W.wisT, seasons: W.hSeasons, season: W.hSeason, dammed: W.dammed }, knob: W.knob, flags: W.flags },
     view: { yaw: V.yaw, tilt: V.tilt, zoom: V.zoom, panX: V.panX || 0, panY: V.panY || 0 },
   };
 }
@@ -108,7 +108,7 @@ function applyWorld(s) {
     const a = spawn(kind, num(r[1], C), num(r[2], C), num(r[3], 5), g);
     if (!a) continue;
     if (kind === 'bird') a.alt = 0;
-    a.th = num(r[4], 0); a.age = num(r[5], 0); a.cd = num(r[6], 0); a.dir = num(r[7], 0); a.wet = num(r[8], 0); a.gen = num(r[9], 1) | 0;
+    a.th = num(r[4], 0); a.age = num(r[5], 0); a.cd = num(r[6], 0); a.dir = num(r[7], 0); a.wet = num(r[8], 0); a.gen = num(r[9], 1) | 0; a.sp = num(r[10 + GENES[kind].length], 0) | 0;
   }
   if (s.stats) { L.born = num(s.stats.born, 0); L.eaten = num(s.stats.eaten, 0); L.fell = num(s.stats.fell, 0); }
   HIST.length = 0; if (Array.isArray(s.hist)) HIST.push(...s.hist.slice(-240));
@@ -125,6 +125,7 @@ function applyWorld(s) {
     if (st.souls) for (const k of ['deer', 'wolf', 'fish', 'bird', 'human']) W.souls[k] = num(st.souls[k], 0);
     resetCycle(); if (st.lives) for (const k of ['deer', 'wolf', 'fish', 'bird', 'human']) W.abyssLives[k] = Math.max(0, num(st.lives[k], 0) | 0);
     W.abyssFert = num(st.abyssFert, 60);
+    if (Array.isArray(st.species)) W.species = st.species.filter(r => r && SP_KINDS.includes(r.kind) && typeof r.id === 'number').map(r => ({ kind: r.kind, id: r.id | 0, name: String(r.name || '').slice(0, 14), day: num(r.day, 1), from: num(r.from, 0) })); if (st.sepDays && typeof st.sepDays === 'object') W.sepDays = { ...st.sepDays };
     const hu = st.humans; if (hu) { W.village = hu.village && typeof hu.village.x === 'number' ? { x: hu.village.x, y: hu.village.y } : null; W.wisdom = hu.wisdom && typeof hu.wisdom === 'object' ? { ...hu.wisdom } : {}; W.wisT = num(hu.wisP, 0); W.hSeasons = num(hu.seasons, 0) | 0; W.hSeason = num(hu.season, -1) | 0; W.dammed = hu.dammed ? 1 : 0; }
     if (st.flags) W.flags = { ...st.flags };
   } else { G.done = []; G.found = {}; G.did = {}; G.tipped = {}; G.unread = {}; enterChapter(CHAPTERS.length, true); }

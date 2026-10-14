@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body class="titling">
 <main class="stage" id="field">
@@ -74,6 +74,7 @@
           <span data-k="fish"><i style="background:#ef9a4a"></i><span lang="ja">サカナ</span><span lang="en">Fish</span> <b id="nFish">0</b></span>
           <span data-k="bird"><i style="background:#9ab4cc"></i><span lang="ja">サギ</span><span lang="en">Herons</span> <b id="nBird">0</b></span>
         </div>
+        <p class="note" id="spList" hidden></p>
         <p class="note" lang="ja">大地の生き物を押すと、その1匹の札が出る。</p>
         <p class="note" lang="en">Press an animal on the land to see its card.</p>
       </section>
@@ -132,6 +133,7 @@
           <li>生き物には昼と夜がある。シカは昼に食べて夜は休み、オオカミは夜に狩る。サギは大潮の引き潮でよくとり、サカナは満月のころに卵を産む。</li>
           <li>生き物の札には「はじめの姿」（命のつぼから来たころ）の影が並ぶ。遺伝子が変わると、足の長さ・体の大きさ・くちばしが変わって見える。第九の年は、どのきびしさで体を変えるかを選ぶ（オオカミ・寒さ・潮）。</li>
           <li>去った命の体は土にかえって土を肥やし（花が咲く）、命は光の粒になって深淵へ落ちる。深淵の命は滝の霧にのって雲になり、雨といっしょにおりて命のつぼへ帰る（泉からも）。手をあけて光の粒を押すと、そのゆくえを追える。</li>
+          <li>シカやサカナの群れが、水や陸で長く隔てられると、別の種に分かれることがある（色が少し変わり、名前をつける）。別の種どうしは子を残さない。</li>
           <li>十の年のあとは、命のつぼにヒトが来る。ヒトは村をつくり、知恵（火・狩り・漁・畑・水路・堤・暦）で世界を変えていく。</li>
           <li>右上の<b>天の輪</b>は、外の輪が1年の季節、針が今日、中の点が太陽と月。押すと時が止まる。下の印で速さ（止める・ふつう・×4・×16）。</li>
           <li>マウス: 大地の外を左ドラッグ・右ドラッグで回す・傾ける（土や命を持ったままでも右ボタンで回せる）。中ボタン・Shift＋ドラッグで平行移動。ホイールで寄る（寄ると滝の音が聞こえる）。空をダブルクリックで真ん中へ。</li>
@@ -152,6 +154,7 @@
           <li>Animals have day and night. Deer eat by day and rest at night; wolves hunt at night. Herons catch more at the low water of spring tides, and fish lay eggs around the full moon.</li>
           <li>An animal’s card shows the shadow of its “first form” (when it came from the Life Jar). As genes change, leg length, body size and beaks look different. In Year Nine, you choose which hardship will change their bodies (wolves, cold or tides).</li>
           <li>The bodies of lives that pass away go back to the soil and enrich it (flowers bloom), and their lives fall into the Abyss as specks of light. Lives in the Abyss rise with the mist of the falls into clouds, come down with the rain, and return to the Life Jar (from springs too). With empty hands, press a speck of light to follow where it goes.</li>
+          <li>When groups of deer or fish are cut off by water or land for a long time, they may split into a new species (their color changes a little, and you name it). Different species don’t have young together.</li>
           <li>After the Ten Years, humans come to the Life Jar. They build a village and change the world with their wisdom (fire, hunting, fishing, farming, canals, dams, the calendar).</li>
           <li>The <b>Sky Dial</b> at the top right: the outer ring is the seasons of the year, the hand is today, and the inner dots are the Sun and Moon. Press it to stop time. The marks below set the speed (stop, normal, ×4, ×16).</li>
           <li>Mouse: drag outside the land with the left or right button to turn and tilt (the right button works even while holding soil or life). Middle button or Shift + drag to move. Scroll to zoom in (zoom in to hear the falls). Double-click the sky to go back to the center.</li>
@@ -202,6 +205,7 @@
           <p>生き残りやすい性質が子に伝わって積み重なり、生き物が変わっていく考え（自然選択）は、ダーウィンとウォレスが 1858 年に発表しました。本当の進化はふつう何百〜何万世代もかかります。この箱庭では、数十世代で目に見えるように、ずっと速くしています。</p>
           <p>大地を平らな円盤と考えた人は、昔たくさんいました。古代ギリシャのホメロスの詩では、平らな大地のまわりを大きな川オケアノスが取り巻き、タレスは大地が水に浮かぶと考えました。古代メソポタミアでは、大地の下に真水の海（アプスー）があり、泉や川の水はそこから来ると考えられていました。でも、<b>世界の果てから水が落ちる滝</b>は、近ごろの絵や物語でよく描かれる姿で、昔の人がそう書き残した例はあまり知られていません。「中世の人はみな大地が平らだと信じていた」もよくある誤解で、学のある人は大地が丸いと知っていました（天動説のプトレマイオスも、大地は丸いと考えていました）。</p>
           <p>本当の潮も、新月と満月のころに大きくなります（大潮）。月と太陽の引く力が同じ線の上で重なるからです。多くの動物には決まった活動の時間があり、オオカミは夕方から夜によく狩りをします。クサフグやサンゴのように、月の満ち欠けに合わせて卵を産む生き物も本当にいます。捕食者は、遅いもの・弱いものをつかまえやすく、これが獲物の逃げる力を進化させる力の一つになります。</p>
+          <p>同じ種の群れが、山や海で長く隔てられると、それぞれの場所に合った形に変わり、やがて出会っても子を残さない別の種になります（地理的隔離による種分化）。本当はふつう何千〜何万年もかかります。この箱庭ではずっと速くしています。</p>
           <p>死んだ生き物やふんは、小さな生き物（分解者）に分けられて、炭素や窒素などにもどり、また植物の体になります。体をつくる物は、こうしてめぐっています（物質の循環）。でも、命が光になって雲にのり、つぼへ帰る、というのはこの箱庭の作りごとです。遺伝子は、親から子へしか伝わりません。</p>
           <p>年の頁には、年ごとの「本当は」が書きこまれていく。</p>
         </div>
@@ -211,6 +215,7 @@
           <p>The idea that traits that help survival are passed to young and add up, so that living things change (natural selection), was published by Darwin and Wallace in 1858. Real evolution usually takes hundreds to tens of thousands of generations. In this garden it is made much faster, so you can see it in a few dozen generations.</p>
           <p>Long ago, many people thought the land was a flat disk. In the ancient Greek poems of Homer, a great river called Oceanus flows around the flat land, and Thales thought the land floated on water. In ancient Mesopotamia, people believed there was a sea of fresh water (the Abzu) under the land, and that the water of springs and rivers came from it. But <b>waterfalls pouring off the edge of the world</b> are mostly a picture from modern art and stories; few, if any, people long ago wrote about them. “Everyone in the Middle Ages believed the Earth was flat” is also a common myth. Educated people knew the Earth was round (even Ptolemy, who put the Earth at the center of the universe, thought it was round).</p>
           <p>Real tides also grow bigger around the new and full moon (spring tides), because the pulls of the Moon and Sun line up. Many animals are active at set times of day; wolves often hunt from evening into the night. Some living things, like grass puffers and corals, really do lay eggs in time with the Moon’s phases. Predators catch slow and weak prey more easily, and this is one of the forces that makes prey evolve better ways to escape.</p>
+          <p>When groups of one species are cut off from each other by mountains or seas for a long time, each changes to fit its own place, until they become separate species that no longer have young together even if they meet (speciation by geographic isolation). In reality this usually takes thousands to tens of thousands of years. This garden makes it much faster.</p>
           <p>Dead living things and droppings are broken down by tiny living things (decomposers) into carbon, nitrogen and more, which become parts of plants again. The stuff bodies are made of goes around like this (the cycle of matter). But lives turning into light, riding the clouds and returning to a jar is make-believe in this garden. Genes are passed only from parents to young.</p>
           <p>A “what is really true” note for each year is written on the Years page.</p>
         </div>
@@ -222,25 +227,26 @@
   <div class="overlay" id="overlay" hidden><div class="panel" id="panel"></div></div>
 </main>
 
-<script src="js/world.js?v=4"></script>
-<script src="js/life.js?v=4"></script>
-<script src="js/render.js?v=4"></script>
-<script src="js/cycle.js?v=4"></script>
-<script src="js/humans.js?v=4"></script>
-<script src="js/backdrop.js?v=4"></script>
-<script src="js/style-voxel.js?v=4"></script>
-<script src="js/style-paint.js?v=4"></script>
-<script src="js/style-etch.js?v=4"></script>
-<script src="js/style-real.js?v=4"></script>
-<script src="js/style-cyber.js?v=4"></script>
-<script src="js/sound.js?v=4"></script>
-<script src="js/chapters.js?v=4"></script>
-<script src="js/ui.js?v=4"></script>
-<script src="js/save.js?v=4"></script>
-<script src="js/finds.js?v=4"></script>
-<script src="js/book.js?v=4"></script>
-<script src="js/view.js?v=4"></script>
-<script src="js/collapse.js?v=4"></script>
-<script src="js/main.js?v=4"></script>
+<script src="js/world.js?v=5"></script>
+<script src="js/life.js?v=5"></script>
+<script src="js/render.js?v=5"></script>
+<script src="js/cycle.js?v=5"></script>
+<script src="js/humans.js?v=5"></script>
+<script src="js/species.js?v=5"></script>
+<script src="js/backdrop.js?v=5"></script>
+<script src="js/style-voxel.js?v=5"></script>
+<script src="js/style-paint.js?v=5"></script>
+<script src="js/style-etch.js?v=5"></script>
+<script src="js/style-real.js?v=5"></script>
+<script src="js/style-cyber.js?v=5"></script>
+<script src="js/sound.js?v=5"></script>
+<script src="js/chapters.js?v=5"></script>
+<script src="js/ui.js?v=5"></script>
+<script src="js/save.js?v=5"></script>
+<script src="js/finds.js?v=5"></script>
+<script src="js/book.js?v=5"></script>
+<script src="js/view.js?v=5"></script>
+<script src="js/collapse.js?v=5"></script>
+<script src="js/main.js?v=5"></script>
 </body>
 </html>
