@@ -69,10 +69,10 @@ function stepMotes(dt) {
     } else if (m.s === 'fall') {                                     // 深淵へ落ちていく
       const r = Math.hypot(m.x - C, m.y - C) || 1;
       m.x += (m.x - C) / r * 0.8 * dt; m.y += (m.y - C) / r * 0.8 * dt; m.z -= (6 + m.t * 10) * dt;
-      if (m.t > 2.4) { W.abyssLives[m.k]++; MOTES.splice(n, 1); }
+      if (m.t > 2.4) { W.abyssLives[m.k]++; m.end = 'abyss'; MOTES.splice(n, 1); }
     } else if (m.s === 'down') {                                     // 雨・泉から、命のつぼへ
       m.z += (m.up ? 3 : -5) * dt;
-      if (m.t > 1.4) { homeLife(m.k); MOTES.splice(n, 1); }
+      if (m.t > 1.4) { m.end = homeLife(m.k) ? 'home' : 'abyss'; MOTES.splice(n, 1); }
     }
   }
   // 泉から、ときどき帰る（泉 1 つで 1 日に 0.6 ほど）
@@ -106,8 +106,8 @@ function cloudGone(cl) {   // 雲が消えた: のせていた命は、そこで
 }
 // 命のつぼへ。つぼがいっぱいなら深淵へもどる
 function homeLife(k) {
-  if (W.stock[k] < STOCK_MAX[k] && (!G.unlock || G.unlock[k])) { W.stock[k]++; W.flags.ret = 1; if (typeof glowHand === 'function') glowHand('deer'); }
-  else W.abyssLives[k]++;
+  if (W.stock[k] < STOCK_MAX[k] && (!G.unlock || G.unlock[k])) { W.stock[k]++; W.flags.ret = 1; if (typeof glowHand === 'function') glowHand('deer'); return true; }
+  W.abyssLives[k]++; return false;
 }
 // いなくなった種類は、深淵とつぼに何もなくても、1日に1つは帰る（取り返しがつかないことは起きない。v011 と同じ）
 function dailySafety() {
@@ -126,5 +126,22 @@ function livesForSave() {
   for (const m of MOTES) out[m.k]++;
   for (const c of W.clouds) if (c.lives) for (const k of c.lives) out[k]++;
   return out;
+}
+// 光の粒を追う（v2）: 手があいているとき粒を押すと、カメラがその粒について行く。深淵へ落ちるか、つぼへ帰るまで
+function pickMote(sx, sy) {
+  let best = null, bd = 26 * 26;
+  for (const m of MOTES) { const p = proj(m.x, m.y, m.z), d = (p.x - sx) ** 2 + (p.y - sy) ** 2; if (d < bd) { bd = d; best = m; } }
+  return best;
+}
+function stepFollow(dt) {
+  const m = G.follow; if (!m) return;
+  if (!MOTES.includes(m)) {
+    G.follow = null;
+    toast(m.end === 'home' ? TX('命の光が、命のつぼへ帰った。また大地へ放たれる日を待っている', 'The light of life went home to the Life Jar. It waits for the day it is released onto the land again')
+      : TX('命の光は深淵へ落ちた。いつか滝のしぶきの霧にのって雲になり、雨といっしょに帰ってくる', 'The light of life fell into the Abyss. Someday it will rise with the mist of the falls into a cloud and come back with the rain'), 7);
+    return;
+  }
+  const p = proj(m.x, m.y, m.z), k = Math.min(1, dt * 3);
+  V.panX = (V.panX || 0) + (V.cw / 2 - p.x) * k; V.panY = (V.panY || 0) + (V.ch * 0.45 - p.y) * k; layout(V.cw, V.ch);
 }
 const abyssLifeCount = () => KINDS4.reduce((a, k) => a + W.abyssLives[k], 0);

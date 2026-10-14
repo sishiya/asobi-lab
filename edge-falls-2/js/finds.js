@@ -16,6 +16,7 @@ const FINDS = [
   ['fallen', TX('果てへ', 'Over the edge'), TX('流された生き物が、滝から落ちていった。', 'An animal was carried away and fell off the falls.'), () => L.fell > 0],
   ['catch', TX('サギの漁', 'The heron’s catch'), TX('サギが、浅瀬でサカナをとった。', 'A heron caught a fish in the shallows.'), () => L.why['fish:caught'] > 0],
   ['return', TX('帰ってきた命', 'Lives come back'), TX('去った命が、深淵からつぼへ戻ってきた。', 'Lives that passed away came back from the Abyss to the jar.'), () => W.flags.ret],
+  ['follow', TX('光を追って', 'Following the light'), TX('命の光の粒を押して、そのゆくえを追った。', 'You pressed a speck of the light of life and followed where it went.'), () => W.flags.follow],
   ['bloom', TX('土にかえる', 'Back to the soil'), TX('生き物が去った所の土が肥えて、花が咲いた。', 'Where an animal passed away, the soil grew rich and flowers bloomed.'), () => W.flags.bloom && INS.some(i => W.fert[i] > 0.95 && W.veg[i] > 0.5)],
   ['mistlife', TX('霧にのる命', 'Lives on the mist'), TX('深淵の命の光が、滝のしぶきの霧にのって、雲へのぼった。', 'A light of life from the Abyss rose with the mist of the falls into a cloud.'), () => W.flags.mistlife],
   ['rainlife', TX('雨とおりる命', 'Lives come down with the rain'), TX('雲にのった命の光が、雨といっしょに大地へおりて、命のつぼへ帰った。', 'A light of life riding a cloud came down with the rain and went home to the Life Jar.'), () => W.flags.rainlife],

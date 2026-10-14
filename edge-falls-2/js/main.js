@@ -194,6 +194,7 @@ cv.addEventListener('pointermove', e => {
     const dx = p.x - ptr.x, dy = p.y - ptr.y;
     ptr.moved += Math.abs(dx) + Math.abs(dy); ptr.x = p.x; ptr.y = p.y;
     if (ptr.mode === 'view') {
+      if (ptr.moved > 12) G.follow = null;
       V.yaw -= dx * 0.008;                                            // 手前の地面が手の動きについてくる向き（2026-10-12 ユーザー「逆かも」）
       V.tilt = Math.max(0.32, Math.min(0.92, V.tilt + dy * 0.002));   // 下へ引くと真上から見る向きへ（2026-10-12 ユーザー「上下も逆かも」）
       layout(V.cw, V.ch);
@@ -223,6 +224,7 @@ function endPtr(e) {
     let best = null, bd = 2.2 * 2.2;
     if (w) for (const a of L.list) { const d = (a.x - w.x) ** 2 + (a.y - w.y) ** 2; if (d < bd) { bd = d; best = a; } }
     G.sel = best; if (best) Sound.play('click'); updateCard();
+    if (!best && !G.hand) { const m = pickMote(ptr.x, ptr.y); if (m) { G.follow = m; Sound.play('click'); toast(TX('命の光を追う', 'Following the light of life'), 3); W.flags.follow = 1; } }   // 光の粒を押すと追う（v2）
     if (G.hand && !w) { setHand(null); Sound.play('release'); }   // 何もない空を押すと手放す（2026-10-13 ユーザー）
   }
   cv.classList.remove('grabbing');
@@ -319,7 +321,7 @@ function frame(now) {
   if (!(G.started && G.speed === 0 && !COL)) animT += dt * (COL || !G.started ? 1 : ANIM_RATE[G.speed] ?? 1);
   const t = animT;
   if (!V.cw) resize();
-  moveByKeys(dt); stepLater(dt); stepEnding(dt);
+  moveByKeys(dt); stepLater(dt); stepEnding(dt); stepFollow(dt);
   if (G.started && G.speed > 0 && !COL) simulateWithin(dt * G.speed);
   if (ptr && ptr.mode === 'tool') {
     if (ptr.wait > 0) { ptr.wait -= dt; if (ptr.wait <= 0) useTool(ptr.w, true); }   // 指: 1本のままなら使いはじめる

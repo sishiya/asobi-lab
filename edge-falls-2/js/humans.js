@@ -9,12 +9,12 @@
 //   死をむごく見せない（ほかの生き物と同じ小さなけむり）。オオカミはヒトをおそわない。
 
 const WISDOM = [
-  ['fire', TX('火', 'Fire'), TX('ヒトは火を使いはじめた。夜は村の火のまわりで、寒さをしのぐ', 'The humans began to use fire. At night they gather around the village fire and keep out the cold'), 0.5],
-  ['hunt', TX('狩り', 'Hunting'), TX('ヒトは、むれで力を合わせてシカを狩ることを覚えた', 'The humans learned to hunt deer together as a group'), 1],
-  ['fish', TX('漁', 'Fishing'), TX('ヒトは、浅瀬でサカナをとることを覚えた', 'The humans learned to catch fish in the shallows'), 1],
-  ['farm', TX('畑', 'Farming'), TX('ヒトは、草地を耕して畑をつくりはじめた。草地はシカのものではなくなる', 'The humans began to plow grassland into fields. That grass is no longer the deer’s'), 1.5],
-  ['canal', TX('水路', 'Canals'), TX('ヒトは、川から畑へ水路を掘りはじめた。掘った土は、水路の両わきに盛る', 'The humans began to dig canals from the river to their fields, piling the dug soil on both banks'), 1],
-  ['dam', TX('堤', 'Dams'), TX('ヒトは、川をせき止めて堤をつくった。ため池ができたが、下流の水はへる', 'The humans dammed the river. A pond formed, but there is less water downstream'), 1],
+  ['fire', TX('火', 'Fire'), TX('ヒトは火を使いはじめた。夜は村の火のまわりで、寒さをしのぐ', 'The humans began to use fire. At night they gather around the village fire and keep out the cold'), 1],
+  ['hunt', TX('狩り', 'Hunting'), TX('ヒトは、むれで力を合わせてシカを狩ることを覚えた', 'The humans learned to hunt deer together as a group'), 2],
+  ['fish', TX('漁', 'Fishing'), TX('ヒトは、浅瀬でサカナをとることを覚えた', 'The humans learned to catch fish in the shallows'), 2.5],
+  ['farm', TX('畑', 'Farming'), TX('ヒトは、草地を耕して畑をつくりはじめた。草地はシカのものではなくなる', 'The humans began to plow grassland into fields. That grass is no longer the deer’s'), 3],
+  ['canal', TX('水路', 'Canals'), TX('ヒトは、川から畑へ水路を掘りはじめた。掘った土は、水路の両わきに盛る', 'The humans began to dig canals from the river to their fields, piling the dug soil on both banks'), 2],
+  ['dam', TX('堤', 'Dams'), TX('ヒトは、川をせき止めて堤をつくった。ため池ができたが、下流の水はへる', 'The humans dammed the river. A pond formed, but there is less water downstream'), 2],
   ['calendar', TX('暦', 'The calendar'), TX('ヒトは空を見上げて、太陽の道で季節を、月の満ち欠けで潮を読む暦をつくった。春にまけば畑はよく実り、大潮には漁がはかどる', 'The humans watched the sky and made a calendar: the Sun’s path tells the seasons, and the Moon’s phases tell the tides. Fields sown in spring bear more, and fishing goes well at spring tides'), 0],
   ['round', TX('丸い大地', 'A round land'), TX('空を見つづけたヒトが、ひとつの考えにたどりついた。「この大地は、本当は丸いのではないか」', 'The humans who kept watching the sky arrived at one idea: “Perhaps this land is really round.”'), 0],
 ];
@@ -204,8 +204,8 @@ function stepWisdom(dt) {
   const ok = { fire: () => true, hunt: () => L.counts.deer > 0, fish: () => L.counts.fish > 0, farm: () => H >= 3,
     canal: () => { let n = 0, dry = 0; for (const i of INS) if (W.farm[i] > 0) { n++; if (W.moist[i] < 0.45) dry++; } return n >= 6 && dry > 0; },
     dam: () => INS.some(i => W.w[i] > 0.1 && Math.hypot(i % N - W.village.x, (i / N | 0) - W.village.y) < 14 && Math.hypot(flowAt(i).vx, flowAt(i).vy) > 0.4),
-    calendar: () => W.hSeasons >= 2, round: () => W.hSeasons >= 6 || (W.hSeasons >= 3 && eclipseK() > 0.6) }[k];
-  if (!ok || !ok()) { W.wisT = 0; return; }
+    calendar: () => W.hSeasons >= 4, round: () => W.hSeasons >= 10 || (W.hSeasons >= 6 && eclipseK() > 0.6) }[k];   // 暦は1年見てから、丸い大地は2年半（日食を見れば1年半）
+  if (!ok || !ok()) { W.wisT = Math.max(0, W.wisT - dt * 0.3); return; }   // 条件が切れても、すぐには忘れない
   W.wisT += dt * Math.sqrt(H);
   if (W.wisT < (days || 0.2) * DAY) return;
   W.wisdom[k] = W.day; W.wisT = 0;
