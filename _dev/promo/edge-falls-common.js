@@ -13,7 +13,7 @@ const EF_SRC = (new URLSearchParams(location.search).get('game') || '../..') + '
 const EF_PRE = `
 (() => {
   try { for (let k = localStorage.length - 1; k >= 0; k--) { const n = localStorage.key(k); if (n && n.startsWith('asobi-lab/edge-falls/')) localStorage.removeItem(n); } } catch (e) {}
-  try { localStorage.setItem('asobi-lab/edge-falls/sound', JSON.stringify({ bgm: false, sfx: false })); } catch (e) {}
+  try { localStorage.setItem('asobi-lab/edge-falls/sound', JSON.stringify({ bgm: false, sfx: false })); localStorage.setItem('asobi-lab/edge-falls/from2', '1'); } catch (e) {}   // from2: 作り直し（2）の置き場所から写さない（ver. 2.0）
   try { localStorage.setItem('manabi-lang', 'ja'); } catch (e) {}   // 動画は日本語で録る（英語は字幕。v019 でゲームが英語に切りかわるようになった。録る Chrome の言語は英語のことがある）
   let vt = 1000, seq = 0; const timers = new Map(); let raf = [];
   performance.now = () => vt;
@@ -36,7 +36,23 @@ const EF_PRE = `
 const efGet = (w, name) => { try { return w.eval(name); } catch (e) { return undefined; } };
 const efReady = w => !!(w && w.__ef && w.__efAdv && w.useTool && w.document.getElementById('view'));
 // 1コマ（1/30 秒）進める。sim: そのコマのあいだに足して進めるゲームの秒（×16 より速く見せるとき）
+// 年の札と第九の年の「どのきびしさで」の札（ver. 2.0）: 時が止まるので、EF.cardHold ミリ秒（動画の時間）見せてから、いちばん上のボタンを押す
+//   （第九の年は「逃げ足」）。閉じたら、札が出る前の速さにもどす。ダイジェストは 2500、ショート・説明動画は 0（場面の時間をずらさない）
+EF.cardHold = 2500;
+function efCards(w) {
+  const d = w.document, ov = d.getElementById('overlay'), p = d.getElementById('panel');
+  const card = !ov.hidden && p && (p.classList.contains('yearcard') || /どのきびしさ|Which hardship/.test(p.textContent));
+  if (!card) { EF.cardAt = null; return; }
+  if (EF.cardAt == null) EF.cardAt = EF.vt || w.performance.now();
+  if (EF.cardSpeed == null) EF.cardSpeed = w.__ef.G.lastSpeed || 1;   // 年の札のすぐあとに第九の札が出ても、はじめの速さを覚えておく
+  if ((EF.vt || w.performance.now()) - EF.cardAt < EF.cardHold) return;
+  const b = p.querySelector('.btns button');
+  EF.cardAt = null;
+  if (b) b.click();
+  if (ov.hidden) { w.__ef.setSpeed(EF.cardSpeed); EF.cardSpeed = null; }
+}
 function efFrame(w, sim = 0) {
+  efCards(w);
   const G = w.__ef.G;
   if (sim > 0 && G.started && !efGet(w, 'COL')) { let s = sim; while (s > 1e-6) { const h = Math.min(1, s); s -= h; w.__ef.step(h); } }
   w.__efAdv(1000 / 30);
@@ -100,7 +116,7 @@ function efBot(w) {
     if ((key === 'deer' && W.stock.deer > 0) || (L.counts.deer < 10 && W.stock.deer > 0)) rel('deer', grassy, 2, 'シカを放す');
     if (key !== 'deer' && key !== 'winter') {
       const wolfOk = L.counts.deer >= 14 || key === 'wolf' && L.counts.deer >= 10;
-      if (G.unlock.wolf && L.counts.wolf < 3 && W.stock.wolf > 0 && wolfOk) {
+      if (G.unlock.wolf && L.counts.wolf < (key === 'genes' ? 8 : 3) && W.stock.wolf > 0 && wolfOk) {   // 第九の年（逃げ足）はオオカミを 8 頭まで（ver. 2.0。DEVNOTES の自動の通し）
         const d = L.list.filter(a => a.kind === 'deer'); if (d.length) { const a = d[(Math.random() * d.length) | 0]; efUse(w, 'life', 'wolf', a.x + 2, a.y + 2, 'オオカミを放す'); }
       }
       if (G.unlock.fish && L.counts.fish < 20 && W.stock.fish > 0) rel('fish', deep, 2, 'サカナを放す');
