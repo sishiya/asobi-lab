@@ -84,6 +84,9 @@ const JAR_TALK = TX('命のつぼには、この世界の命が入っている�
 const RAD = { raise: 3.2, dig: 3.2, grass: 3, spring: 1.2, deer: 1, wolf: 1, fish: 1, bird: 1, human: 1 };
 const TOOLCOL = { raise: '#ffe9b0', dig: '#e8b48a', grass: '#b8e890', spring: '#bfe6ff', deer: '#e8c49a', wolf: '#c8ccd8', fish: '#ffc890', bird: '#e0e8f0', human: '#f0d0a8' };
 
+// 指で使うとき、効く所は指の少し上（指で隠れないように。v2。PLAYTEST #3）。マウスはそのまま
+const TOUCH_UP = 46;
+const toolPick = (p, touch) => pick(p.x, p.y - (touch ? TOUCH_UP : 0));
 function local(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
 function hitBody(p) {
   for (const k of ['sun', 'moon']) { const b = bodyHit[k]; if (b && Math.hypot(p.x - b.x, p.y - b.y) < b.r + 10) return k; }
@@ -166,8 +169,9 @@ cv.addEventListener('pointerdown', e => {
   if (e.button === 1 || e.shiftKey) { ptr.mode = 'pan'; cv.classList.add('grabbing'); return; }
   if (e.button === 2) { ptr.mode = 'view'; ptr.right = true; cv.classList.add('grabbing'); return; }
   if (b) { ptr.mode = 'body'; ptr.body = b; W[b].drag = true; Sound.play('grab'); G.did[b] = 1; return; }
-  const w = G.tool === 'look' || COL ? null : pick(p.x, p.y);
+  const w = G.tool === 'look' || COL ? null : toolPick(p, e.pointerType === 'touch');
   // 指: すぐには使わず少し待つ（2本目の指が来たら、泉を置いたりせずに回す・寄るだけにする。2026-10-13 ユーザー）
+  if (w) { hover = { x: w.x, y: w.y, z: w.z, r: RAD[G.tool], color: TOOLCOL[G.tool] }; ptr.touch = e.pointerType === 'touch'; }
   if (w) { ptr.mode = 'tool'; ptr.w = w; if (e.pointerType === 'touch') ptr.wait = 0.12; else useTool(w, true); }
   else { ptr.mode = 'view'; cv.classList.add('grabbing'); }
 });
@@ -197,10 +201,10 @@ cv.addEventListener('pointermove', e => {
     }
     else if (ptr.mode === 'pan') panBy(dx, dy);
     else if (ptr.mode === 'body') { W[ptr.body].a = bodyAngle(p); updateLight(); }
-    else if (ptr.mode === 'tool') { const w = pick(p.x, p.y); if (w) ptr.w = w; }
+    else if (ptr.mode === 'tool') { const w = toolPick(p, ptr.touch); if (w) ptr.w = w; }
   }
   if (G.tool !== 'look' && !COL && (!ptr || ptr.mode === 'tool')) {
-    const w = pick(p.x, p.y);
+    const w = toolPick(p, e.pointerType === 'touch');
     hover = w ? { x: w.x, y: w.y, z: w.z, r: RAD[G.tool], color: TOOLCOL[G.tool] } : null;
   } else hover = null;
 });
@@ -222,6 +226,7 @@ function endPtr(e) {
     if (G.hand && !w) { setHand(null); Sound.play('release'); }   // 何もない空を押すと手放す（2026-10-13 ユーザー）
   }
   cv.classList.remove('grabbing');
+  if (ptr.touch) hover = null;   // 指をはなしたら輪を消す
   ptr = null;
 }
 cv.addEventListener('pointerup', endPtr);

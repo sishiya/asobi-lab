@@ -298,5 +298,14 @@ function questLine(s) {
   $('qBar').style.width = Math.min(100, c.key === 'winter' ? (G.winterSeen ? 60 : L.counts.deer >= 10 ? 25 : 0) : v / G.goal * 100) + '%';
 }
 
+// めぐる世界の年（と第十の年までのつづく日数のお題）で、いまいちばん足りないもの（v2。PLAYTEST #9）。数の印が光る
+function tallyNeed(s) {
+  if (isFree() || G.ch % 1) return null;
+  const c = CHAPTERS[G.ch]; if (!c || !c.streak || c.streak(s)) return null;
+  if (c.key === 'cycle') { if (s.grass < 0.15) return 'grass'; for (const k of ['deer', 'wolf', 'fish', 'bird']) if (!L.counts[k]) return k; }
+  if (c.key === 'wolf') return L.counts.deer < 10 ? 'deer' : 'wolf';
+  if (c.key === 'bird') return L.counts.fish < 15 ? 'fish' : 'bird';
+  return null;
+}
 // 進化の章で、まだ選んでいないとき: お題の札を押すと、選ぶ札（v2）
 document.getElementById('quest').addEventListener('click', () => { const c = CHAPTERS[G.ch]; if (c && c.key === 'genes' && !G.gpick && G.started && !ENDING) { Sound.play('click'); chooseGene(); } });

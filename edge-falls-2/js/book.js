@@ -227,7 +227,8 @@ function openSettings(back, focus) {
     { label: TX('効果音　', 'Sound effects: ') + on(Sound.get('sfx')), fn: () => { Sound.set('sfx', !Sound.get('sfx')); again(1)(); } },
     { label: TX('文字　', 'Font: ') + (fontName === 'dot' ? TX('ドット', 'Pixel') : TX('明朝', 'Serif')), fn: () => { setFont(fontName === 'dot' ? 'serif' : 'dot'); again(2)(); } },
     { label: TX('背景　', 'Background: ') + (bi >= 0 ? BACK_CHOICES[bi][1] : TX('ほか', 'Other')), fn: () => { setBack(BACK_CHOICES[(bi + 1) % BACK_CHOICES.length][0]); again(3)(); } },
-    ...(G.started ? [{ label: TX('ファイル', 'File'), fn: () => openFilePanel(() => openSettings(back, 4)) }] : []),
+    { label: TX('数の印　', 'Population marks: ') + on(tallyOn), fn: () => { setTally(!tallyOn); again(4)(); } },
+    ...(G.started ? [{ label: TX('ファイル', 'File'), fn: () => openFilePanel(() => openSettings(back, 5)) }] : []),
     { label: back ? TX('もどる', 'Back') : TX('とじる', 'Close'), main: true, fn: () => { if (back) back(); } },
   ]);
   $('panel').classList.add('menu', 'world', 'settings');   // 設定のあいだは、世界をうすくしない（背景を選びやすく。css）
@@ -399,7 +400,7 @@ function stepFinds(s, dt) {
   for (const [id, title, text, test] of FINDS) {
     if (G.found[id] || !test(s)) continue;
     G.found[id] = { day: W.day };
-    toast(TX(`見つけた　${title}　— ${text}`, `Discovery: ${title} — ${text}`), 5); Sound.play('put');
+    if (!id.startsWith('w_')) { toast(TX(`見つけた　${title}　— ${text}`, `Discovery: ${title} — ${text}`), 5); Sound.play('put'); }   // ヒトの知恵は知らせを出したので、ここでは書きとめるだけ（v2）
     wantSketch = id;
     $('btnBook').classList.remove('glow'); void $('btnBook').offsetWidth; $('btnBook').classList.add('glow');
     markNew('finds', id);
@@ -502,12 +503,24 @@ function printWords() {
   return TX({ title: '果ての滝の箱庭 2', sub: `${isFree() ? '自由な箱庭・' : ''}${yr} 年目の${SEASONS[seasonOf()]}・第 ${W.day} 日　見つけたこと ${nf} ／ ${FINDS.length}　あそびラボ` },
     { title: 'Edge Falls Garden 2', sub: `${isFree() ? 'Free Garden · ' : ''}Year ${yr}, ${SEASONS[seasonOf()]} · Day ${W.day}   Discoveries ${nf} / ${FINDS.length}   Asobi Lab` });
 }
-// 見たままの絵（整数倍で 1600 画素ほどの幅に）
+// 見たままの絵（v2）: 画面を写さず、版画のために大きなキャンバス（幅 2400）へ、いまの向き・寄り・平行移動のまま一度だけ描き直す。
+//   画素の板も細かくする（PRINT。粒は残して線をくっきり）。遊ぶための印（止めた印・選んだ輪・足もとの輪・泉の印・道すじ）は描かない。重いのは押した一瞬だけ
 function seenCanvas() {
-  const k = Math.max(1, Math.round(1600 / cv.width)), c = document.createElement('canvas');
-  c.width = cv.width * k; c.height = cv.height * k;
-  const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(cv, 0, 0, c.width, c.height);
-  return c;
+  const W0 = 2400, H0 = Math.round(W0 * V.ch / Math.max(1, V.cw)), out = document.createElement('canvas'); out.width = W0; out.height = H0;
+  const o = out.getContext('2d'), k = W0 / Math.max(1, V.cw);
+  const keep = { cw: V.cw, ch: V.ch, panX: V.panX, panY: V.panY, sel: G.sel };
+  try {
+    PRINT = true; buf = null; G.sel = null;
+    V.panX = (V.panX || 0) * k; V.panY = (V.panY || 0) * k;
+    layout(W0, H0);
+    const t = performance.now() / 1000;
+    o.fillStyle = '#05070e'; o.fillRect(0, 0, W0, H0);
+    V.dirty = true; drawWorld(o, t, null);
+  } finally {
+    PRINT = false; buf = null; G.sel = keep.sel;
+    V.panX = keep.panX; V.panY = keep.panY; layout(keep.cw, keep.ch);
+  }
+  return out;
 }
 // 銅版画（これまでの版画。くらべるために残す）
 function etchCanvas() {
@@ -532,9 +545,9 @@ function etchCanvas() {
   }
   return out;
 }
-function printCanvas(kind) {
+function printCanvas(kind, seen) {
   if (kind === 'etch') return etchCanvas();
-  const src = seenCanvas(), Wi = src.width, Hi = src.height, w = printWords();
+  const src = seen || seenCanvas(), Wi = src.width, Hi = src.height, w = printWords();
   if (kind === 'stone') return stoneCanvas(src, w);
   if (kind === 'seen') {
     const out = document.createElement('canvas'); out.width = Wi; out.height = Hi;
@@ -687,13 +700,15 @@ function savePrint(c, kind) {
 function makePrint(kind = 'seen') { savePrint(printCanvas(kind), kind); }
 // 型を見くらべる札（試作）。back があれば「もどる」でそこへ（エンディングの札）
 function openPrints(back) {
-  const made = PRINTS.map(([k]) => { try { return printCanvas(k); } catch (e) { return null; } });
+  const seen = seenCanvas();   // 描き直すのは一度だけ（v2）
+  const made = PRINTS.map(([k]) => { try { return printCanvas(k, seen); } catch (e) { return null; } });
   const thumb = c => { const t = document.createElement('canvas'), w = 300; t.width = w; t.height = Math.round(c.height * w / c.width); const x = t.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(c, 0, 0, t.width, t.height); return t.toDataURL('image/jpeg', 0.85); };
   const cells = PRINTS.map(([k, name, note], n) => made[n] ? `<figure class="pcard"><button type="button" class="pshot" data-pv="${n}" aria-label="${TX(`${name}を大きく見る`, `See ${name} larger`)}"><img src="${thumb(made[n])}" alt=""></button><figcaption><b>${name}</b><span>${note}</span><button type="button" class="tbtn" data-ps="${n}">${TX('のこす', 'Save')}</button></figcaption></figure>` : '').join('');
   showPanel(TX(`<h2>世界の版画</h2><p class="small center">いま見えている世界を、一枚の絵にのこす（ためしに型をいくつか）。押すと大きく見られる。</p>`, `<h2>World Prints</h2><p class="small center">Save the world you see now as a single picture (in a few styles). Press one to see it larger.</p>`) + `<div class="prints">${cells}</div>`,
     [{ label: back ? TX('もどる', 'Back') : TX('とじる', 'Close'), main: true, fn: back }]);
   $('panel').classList.add('world', 'printpanel'); G.panelBack = back || (() => { $('overlay').hidden = true; });
   const panel = $('panel');
+  panel.querySelector('.tbtn.main')?.focus({ preventScroll: true }); panel.scrollTop = 0;   // 開いたときは一番上（型の一覧）から（PLAYTEST #18）
   panel.querySelectorAll('[data-ps]').forEach(b => b.onclick = () => savePrint(made[+b.dataset.ps], PRINTS[+b.dataset.ps][0]));
   panel.querySelectorAll('[data-pv]').forEach(b => b.onclick = () => {
     const n = +b.dataset.pv; Sound.play('click');

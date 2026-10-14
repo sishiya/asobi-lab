@@ -133,9 +133,35 @@ function updateSide(s) {
   $('wAbyss').style.width = (s.abyss / tot * 100) + '%';
   $('soilBar').style.width = Math.min(100, W.soil / 300 * 100) + '%';
   $('nSpring').textContent = W.springs.length;
-  questLine(s); drawDial(); drawHands();
+  questLine(s); drawDial(); drawHands(); updateTally(s);
   if (!$('fan').hidden) { const sig = ['deer', 'wolf', 'fish', 'bird', 'human'].map(k => W.stock[k]).join(); if (sig !== G.fanSig) { G.fanSig = sig; syncHands(); } }
   renderBook(); updateCard();
+}
+
+// 数の印（v2。PLAYTEST #9・#10「シムシティの需要バーのようにさりげなく」）: 天の輪の下に、来ている生き物だけの細い棒。
+//   数字は出さず、絵と長さと色だけ。少ない（青み）・ちょうど（緑）・多すぎ（琥珀）。めぐる世界の年は、足りないものが光る。
+//   設定の「数の印」で出す・出さない（localStorage に覚える）
+const TALLY_KEY = 'asobi-lab/edge-falls-2/tally';
+let tallyOn = true; try { tallyOn = localStorage.getItem(TALLY_KEY) !== '0'; } catch (e) { /* なし */ }
+function setTally(v) { tallyOn = v; try { localStorage.setItem(TALLY_KEY, v ? '1' : '0'); } catch (e) { /* なし */ } updateTally(lastStats); }
+const TALLY = [   // [種類, ちょうどの下, ちょうどの上, 棒いっぱいの数]
+  ['grass', 15, 65, 80], ['deer', 10, 50, 75], ['wolf', 3, 10, 16], ['fish', 15, 90, 140], ['bird', 3, 10, 14], ['human', 4, 12, 14]];
+function updateTally(s) {
+  const el = $('tally'); if (!el) return;
+  const u = G.unlock || {}, rows = TALLY.filter(([k]) => k === 'grass' ? u.seed : u[k]);
+  el.hidden = !tallyOn || !G.started || !rows.length;
+  if (el.hidden || !s) return;
+  const need = typeof tallyNeed === 'function' ? tallyNeed(s) : null;
+  if (el.dataset.sig !== rows.map(r => r[0]).join()) {
+    el.dataset.sig = rows.map(r => r[0]).join();
+    el.innerHTML = rows.map(([k]) => `<div class="trow" data-k="${k}"><img alt="" src="${k === 'grass' ? iconURL('seed', drawSeed) : iconURL('c' + k, c => drawCreature(c, k))}"><i><b></b></i></div>`).join('');
+  }
+  for (const [k, lo, hi, full] of rows) {
+    const n = k === 'grass' ? Math.round(s.grass * 100) : L.counts[k], r = el.querySelector(`[data-k="${k}"]`);
+    r.querySelector('b').style.width = Math.max(n > 0 ? 6 : 0, Math.min(100, n / full * 100)) + '%';
+    r.className = 'trow ' + (n < lo ? 'low' : n > hi ? 'many' : 'ok') + (need === k ? ' need' : '');
+    r.title = (k === 'grass' ? TX('草', 'Grass') : KINDS[k].name) + (n < lo ? TX('：少ない', ': few') : n > hi ? TX('：多すぎ', ': too many') : TX('：ちょうど', ': about right'));
+  }
 }
 
 // 半日ごとに記録して、移り変わりのグラフ

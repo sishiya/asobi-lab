@@ -38,6 +38,8 @@ function setStyle(n) {
 }
 
 let buf = null, bctx = null, img = null, d32 = null, dep = null;
+// 版画を描いているあいだ（v2。PLAYTEST #21・#22）: 遊ぶための印（止めた印・選んだ輪・泉の印・道すじ）を描かず、画素の板を細かくする
+let PRINT = false;
 
 function layout(cw, ch) {
   V.cw = cw; V.ch = ch;

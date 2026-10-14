@@ -415,3 +415,16 @@ body.titling.atitle .langsw{display:flex}   /* タイトルの札のときだけ
 .card .anc canvas{grid-column:1/3;width:168px;height:64px;image-rendering:pixelated}
 .quest.ask{pointer-events:auto;cursor:pointer}
 .quest.ask .qtext{text-decoration:underline dotted;text-underline-offset:3px}
+.tally{display:flex;flex-direction:column;gap:3px;margin-top:6px;width:84px}
+.tally[hidden]{display:none}
+.tally .trow{display:flex;align-items:center;gap:5px;opacity:.82}
+.tally img{width:16px;height:16px;filter:brightness(1.25);image-rendering:pixelated;flex:none}
+.tally i{flex:1;height:4px;border-radius:2px;background:rgba(239,227,196,.16);overflow:hidden}
+.tally b{display:block;height:100%;border-radius:2px;background:#8fb87a;transition:width .8s,background .8s}
+.tally .low b{background:#7f9ab8}
+.tally .many b{background:#d8a24a}
+.tally .need{opacity:1;animation:tneed 1.4s ease-in-out infinite}
+.tally .need i{box-shadow:0 0 6px rgba(255,214,120,.8)}
+@keyframes tneed{50%{opacity:.45}}
+body.titling .tally,body.ending .tally,body.thumb .tally{display:none}
+@media (max-width:520px){.tally{width:66px}}

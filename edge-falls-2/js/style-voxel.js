@@ -324,14 +324,14 @@ const VOX = (() => {
     const bs = V.bs;
     // 道すじ（点線）
     bctx.fillStyle = 'rgba(240,228,190,0.35)';
-    for (const R of [RS, W.rs]) for (let k = 0; k < 96; k += 2) { const a = k / 96 * Math.PI * 2; const p = pb(C + R * Math.cos(a), C + R * Math.sin(a), HS); bctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); }   // 月の道と、季節で変わる太陽の道
+    if (!PRINT) for (const R of [RS, W.rs]) for (let k = 0; k < 96; k += 2) { const a = k / 96 * Math.PI * 2; const p = pb(C + R * Math.cos(a), C + R * Math.sin(a), HS); bctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); }   // 月の道と、季節で変わる太陽の道
     for (const [key, b] of [['sun', W.sun], ['moon', W.moon]]) {
       const p = bodyPos(b), R = Math.max(4, Math.round(V.s * (key === 'sun' ? 1.9 : 1.5) / bs));
       const cx = p.x / bs, cy = p.y / bs;
       // 地へおろした線
       const OR = bodyR(b), g = pb(C + OR * Math.cos(b.a), C + OR * Math.sin(b.a), surfAt(C + OR * Math.cos(b.a), C + OR * Math.sin(b.a)));
       bctx.fillStyle = key === 'sun' ? 'rgba(255,220,120,0.35)' : 'rgba(210,220,255,0.25)';
-      for (let y = Math.round(cy + R + 2); y < g.y; y += 3) bctx.fillRect(Math.round(cx), y, 1, 1);
+      if (!PRINT) for (let y = Math.round(cy + R + 2); y < g.y; y += 3) bctx.fillRect(Math.round(cx), y, 1, 1);
       if (key === 'sun') {
         const ra = t * 0.4;
         pixDisk(cx, cy, R, (x, y, d) => {
@@ -352,8 +352,8 @@ const VOX = (() => {
           return d > R - 1 ? '#aab3c8' : (hash2(x + 9, y + 3) > 0.85 ? '#cfd5e2' : '#eef1f7');
         });
       }
-      if (b.stop || b.drag) drawHold(key, b, g, cx, cy, R, t);       // 止めた・つかんでいる: 地面への効き目をすぐ見せる（v2）
-      if (b.stop) { bctx.fillStyle = '#f4ead0'; bctx.fillRect(Math.round(cx + R), Math.round(cy - R - 4), 5, 5); bctx.fillStyle = '#3a2a1c'; bctx.fillRect(Math.round(cx + R) + 1, Math.round(cy - R - 3), 1, 3); bctx.fillRect(Math.round(cx + R) + 3, Math.round(cy - R - 3), 1, 3); }
+      if ((b.stop || b.drag) && !PRINT) drawHold(key, b, g, cx, cy, R, t);       // 止めた・つかんでいる: 地面への効き目をすぐ見せる（v2）
+      if (b.stop && !PRINT) { bctx.fillStyle = '#f4ead0'; bctx.fillRect(Math.round(cx + R), Math.round(cy - R - 4), 5, 5); bctx.fillStyle = '#3a2a1c'; bctx.fillRect(Math.round(cx + R) + 1, Math.round(cy - R - 3), 1, 3); bctx.fillRect(Math.round(cx + R) + 3, Math.round(cy - R - 3), 1, 3); }
       bodyHit[key] = { x: p.x, y: p.y, r: R * bs, v: p.v };
     }
   }
@@ -493,7 +493,7 @@ const VOX = (() => {
     bctx.putImageData(img, 0, 0);
     // 泉
     //   v066 で最初の形（v058 まで）にもどした（2026-10-14 ユーザー「最初の案に戻して」）。v059〜v065 は噴き上がり・光・線を広くする などをためした
-    for (const sp of W.springs) {
+    if (!PRINT) for (const sp of W.springs) {
       const p = pb(sp.i % N, sp.i / N | 0, Zq[sp.i]);
       bctx.fillStyle = sp.on ? '#8fc4e2' : '#6a6a6a';
       bctx.fillRect(Math.round(p.x) - 1, Math.round(p.y) - 1, 3, 1);
@@ -607,7 +607,7 @@ const VOX = (() => {
       }
     }
     // 足もとの印（画素の輪）
-    if (hover) {
+    if (hover && !PRINT) {
       bctx.fillStyle = hover.color || '#fff';
       const n = Math.max(16, Math.round(hover.r * V.s / V.bs * 5));
       for (let q = 0; q < n; q++) {
@@ -639,6 +639,6 @@ const VOX = (() => {
     }
   }
 
-  return { label: 'ボクセル', icon, drawsSel: true, quant: true, bs: cw => Math.max(2, Math.round(cw / 400)), draw, hover: 'rgba(255,250,230,0.85)' };
+  return { label: 'ボクセル', icon, drawsSel: true, quant: true, bs: cw => PRINT ? Math.max(2, Math.round(cw / 800)) : Math.max(2, Math.round(cw / 400)), draw, hover: 'rgba(255,250,230,0.85)' };
 })();
 STYLES.voxel = VOX;
