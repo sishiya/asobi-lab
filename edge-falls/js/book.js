@@ -62,6 +62,7 @@ function toolOf() {
 }
 function setHand(h) {
   G.hand = h; G.tool = toolOf();
+  if (h) { G.did['pick_' + h] = 1; G.did['pick_' + G.sub[h]] = 1; }   // 選んだことのある道具（まだのものには印。v060）
   cv.classList.toggle('tool', !!h);
   setCursor();
   syncHands();
@@ -85,6 +86,7 @@ function syncHands() {
     const k = b.dataset.hand;
     b.hidden = !map[k];
     b.setAttribute('aria-pressed', G.hand === k);
+    b.classList.toggle('new', !!map[k] && !G.did['pick_' + k]);   // まだ一度も選んでいない道具に小さな光（v060。2026-10-14 ユーザー）
     // 持っている道具は、もう一度押すとしまう（説明に出す）
     if (!b.dataset.t0) b.dataset.t0 = b.title;
     b.title = G.hand === k ? TX('しまう（もう一度押す・Esc）', 'Put away (press again or Esc)') : b.dataset.t0;
@@ -98,7 +100,8 @@ function syncHands() {
     fan.innerHTML = items.map(([k, label]) => {
       const n = KINDS[k] ? `<em>${W.stock[k]}</em>` : k === 'raise' ? `<em id="soilN">${Math.floor(W.soil)}</em>` : '';
       const ic = k === 'dig' ? iconURL('bagd', c => drawBag(c, 0.5, false)) : k === 'raise' ? iconURL('bagr', c => drawBag(c, 0.8, true)) : k === 'spring' ? iconURL('jar', c => drawJar(c, 0.7)) : k === 'seed' ? iconURL('seed', drawSeed) : iconURL('c' + k, c => drawCreature(c, k));
-      return `<button type="button" data-sub="${k}" aria-pressed="${G.sub[G.hand] === k}"${KINDS[k] && W.stock[k] <= 0 ? ' class="empty"' : ''}><img src="${ic}" alt="">${label}${n}</button>`;
+      const cls = [KINDS[k] && W.stock[k] <= 0 ? 'empty' : '', G.did['pick_' + k] ? '' : 'new'].filter(Boolean).join(' ');
+      return `<button type="button" data-sub="${k}" aria-pressed="${G.sub[G.hand] === k}"${cls ? ` class="${cls}"` : ''}><img src="${ic}" alt="">${label}${n}</button>`;
     }).join('') +
       // しまう: 並びのいちばん右に「×」だけ（v039。2026-10-13 ユーザー「草やシカのならびの最後に馴染む色味で ×」。v034〜v038 は持っている道具の角の × 印）
       `<button type="button" class="putaway" data-put title="${TX('しまう（Esc）', 'Put away (Esc)')}" aria-label="${TX('しまう（Esc）', 'Put away (Esc)')}"><b aria-hidden="true">×</b></button>`;

@@ -144,6 +144,11 @@ body.paused .dialbtn canvas{filter:drop-shadow(0 0 8px rgba(var(--glowc),.7))}
 .fan{position:absolute;bottom:92px;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 16px);gap:6px;padding:4px 8px;border-radius:12px;background:var(--deep);box-shadow:0 0 18px rgba(0,0,0,.4)}
 .fan button{display:flex;align-items:center;gap:4px;border:0;background:transparent;color:var(--paper);opacity:.6;cursor:pointer;font-size:13px;padding:4px 6px;border-radius:8px;white-space:nowrap;min-height:36px}
 .fan button img{width:24px;height:24px;image-rendering:pixelated}
+/* まだ一度も選んでいない道具（v060）: 知らせのボタンの「新しい」と同じ小さな光 */
+.hand.new::before,.fan button.new::after{content:"";position:absolute;width:6px;height:6px;border-radius:50%;background:rgb(var(--glowc));box-shadow:0 0 6px rgba(var(--glowc),.8);pointer-events:none}
+.hand.new::before{right:10px;top:4px}
+.fan button{position:relative}
+.fan button.new::after{right:2px;top:3px}
 .fan button em{font-style:normal;font-size:11px;opacity:.85;margin-left:2px}
 .fan button[aria-pressed=true]{opacity:1;background:rgba(239,227,196,.12)}
 .fan button.empty em{color:#e8a08a}
