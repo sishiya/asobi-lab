@@ -1,0 +1,16 @@
+{
+  "_todo": "TODO 録りなおしたら、チャプターの時刻を新しい字幕（out/edge-falls-guide.ja.srt）に合わせ、場面が変わっていれば名前も直す。いまの時刻は 2026-10-13 に録った版のもの。publishAt はサプライズ投稿の日時が決まったら（20:00〜20:15 はさける）。済んだらこの行を消す",
+  "file": "_dev/promo/out/edge-falls-guide.mp4",
+  "thumbnail": "_dev/promo/thumbs/edge-falls-guide.jpg",
+  "privacy": "private",
+  "captions": { "en": "_dev/promo/out/edge-falls-guide.en.srt" },
+  "title": "果ての滝の箱庭 ― 遊び方と見どころ（泉と滝・食べる食べられる・遺伝子で進化）",
+  "description": "深淵に浮かぶ平らな大地。川は世界の果てから滝になって落ちていく。岩と土だけの大地に泉をわかせ、土を動かし、草と生き物を放して、水と命がめぐる世界をつくる。何も生まれず、何も消えない。1年に1つずつ新しいものが来る十の年。生き物は遺伝子を持って進化する。ブラウザのゲーム「果ての滝の箱庭」の、遊び方と見どころです。\n\n0:00 はじめに\n0:15 第一の年: 水がめで泉をわかせる\n0:31 第二の年: 土ぶくろで滝の出口を盛る\n0:50 命のつぼ: 草とシカ\n1:10 季節と天の輪（時を止める・速める）\n1:28 食べる・食べられる（オオカミ・サカナ・サギ）\n1:46 遺伝子と進化\n2:02 第十の年「めぐる世界」\n\nゲーム（ブラウザで遊べます。パソコン・スマホ）:\nhttps://sishiya.github.io/asobi-lab/edge-falls/\n\nしし屋 あそびラボ（ほかのゲーム）:\nhttps://sishiya.github.io/asobi-lab/\n\n音楽: プログラムで合成したオリジナルの音です。\n\n#箱庭ゲーム #ブラウザゲーム #あそびラボ",
+  "tags": ["果ての滝の箱庭", "箱庭ゲーム", "ブラウザゲーム", "生態系", "進化", "シミュレーション", "遊び方", "あそびラボ", "しし屋", "Edge Falls Garden", "browser game", "sandbox game", "ecosystem", "evolution", "simulation"],
+  "localizations": {
+    "en": {
+      "title": "Edge Falls Garden ― How to Play: Springs and Falls, Predators and Prey, Evolution by Genes",
+      "description": "How to play \"Edge Falls Garden\", a browser game. A flat land floating over the Abyss, where rivers fall from the edge of the world. Make springs, move soil, and release grass and animals on bare rock and soil to build a world where water and life go around. Nothing is made and nothing is lost. Something new arrives each of the Ten Years, and animals evolve through their genes. Turn on English subtitles (CC).\n\n0:00 Intro\n0:15 Year One: the Water Jar and springs\n0:31 Year Two: the Soil Bag, raising the outlet of the falls\n0:50 The Jar of Life: grass and deer\n1:10 Seasons and the Ring of Heaven (pause and speed up time)\n1:28 Eat and be eaten (wolves, fish and herons)\n1:46 Genes and evolution\n2:02 Year Ten: \"A World Going Around\"\n\nPlay the game (runs in your browser, PC or phone; switch the game to English in the settings):\nhttps://sishiya.github.io/asobi-lab/edge-falls/\n\nShishiya Asobi Lab (more games):\nhttps://sishiya.github.io/asobi-lab/\n\nMusic: original sounds synthesized by code.\n\n#SandboxGame #BrowserGame #Evolution"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "_todo": "TODO 録りなおしたら、タイトルと説明がショートの中身と合っているか見る。publishAt はサプライズ投稿の日時が決まったら（説明動画の数分あと。20:00〜20:15 はさける）。済んだらこの行を消す",
+  "file": "_dev/promo/out/edge-falls-short.mp4",
+  "thumbnail": "_dev/promo/thumbs/edge-falls-short.jpg",
+  "privacy": "private",
+  "captions": { "en": "_dev/promo/out/edge-falls-short.en.srt" },
+  "title": "世界の果てから、川が滝になって落ちる箱庭 #Shorts",
+  "description": "深淵に浮かぶ平らな大地。川は世界の果てから滝になって落ちていく。岩と土だけの大地に泉をわかせ、土を動かし、草と生き物を放して、水と命がめぐる世界をつくる。何も生まれず、何も消えない。1年に1つずつ新しいものが来る十の年。生き物は遺伝子を持って進化する。ブラウザのゲーム「果ての滝の箱庭」から。\n\nゲーム: https://sishiya.github.io/asobi-lab/edge-falls/\n\nしし屋 あそびラボ（ほかのゲーム）: https://sishiya.github.io/asobi-lab/\n\n音楽: プログラムで合成したオリジナルの音です。\n\n#箱庭ゲーム #ブラウザゲーム #あそびラボ",
+  "tags": ["果ての滝の箱庭", "Shorts", "箱庭ゲーム", "ブラウザゲーム", "生態系", "進化", "あそびラボ", "しし屋", "Edge Falls Garden", "browser game", "sandbox game", "ecosystem"],
+  "localizations": {
+    "en": {
+      "title": "A Garden Where Rivers Fall from the Edge of the World #Shorts",
+      "description": "From \"Edge Falls Garden\", a browser game. A flat land floating over the Abyss, where rivers fall from the edge of the world. Make springs, move soil, and release grass and animals on bare rock and soil to build a world where water and life go around. Nothing is made and nothing is lost. Something new arrives each of the Ten Years, and animals evolve through their genes.\n\nGame (switch the game to English in the settings): https://sishiya.github.io/asobi-lab/edge-falls/\n\nShishiya Asobi Lab (more games): https://sishiya.github.io/asobi-lab/\n\nMusic: original sounds synthesized by code.\n\n#SandboxGame #BrowserGame"
+    }
+  }
+}

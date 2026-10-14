@@ -2,6 +2,8 @@
 .private-words.txt
 # per-machine notes such as the Artifact URLs (PUBLISH.local.md)
 *.local.md
+# per-machine pointers such as where the YouTube secrets live (youtube-upload.local.txt)
+*.local.txt
 
 # secrets
 .env
@@ -26,3 +28,5 @@ node_modules/
 
 # promo videos made by _dev/promo/*.html (large binaries)
 _dev/promo/out/
+# logs written by _dev/tools (YouTube API usage etc.)
+_dev/tools/out/

@@ -7,7 +7,10 @@
 - ライオン（`../vtuber/index.html`）・アイコン（`../sns-icon/a-lion-glasses.svg`）・録画のスクリプト（`../tools/record-promo.ps1`・`cdp.ps1`）も写したもの。`record-promo.ps1` はポート 8780（サーバー `games`）・プロフィール `asobi-record`。
 - 保存（`out/` への PUT）は `.claude/serve.ps1`（まなびラボと同じもの）。`out/` は Git に入れない。
 - 2026-10-13 にまなびラボの最新の `promo.js` を写しなおし、音の `promo-audio.js`（音量を -20 LUFS にそろえる）・サムネイルの `short-thumb.html`・`short-thumbs.js`・`../tools/make-short-thumbs.ps1`・`../tools/check-loudness.ps1` も写した（台本は `promo-audio.js` も読む）。`record-promo.ps1` には `-Query`（台本のページに `?…` を足す）を足した。
-- YouTube・X に上げる道具（`youtube-upload.ps1`・`make-upload.ps1`・`x-post.ps1`）はまだ写していない。上げるときに写すか、まなびラボの道具で上げる（ユーザーの GO のあと）。
+- YouTube に上げる道具 `../tools/youtube-upload.ps1`・`../tools/make-upload.ps1` を 2026-10-14 に写した（`x-post.ps1` はまだ）。使い方はまなびラボの `_dev/promo/README.md`「YouTube に上げる」と同じ。ちがい:
+  - `youtube-upload.ps1` は分類がゲーム（20）。チャンネルは同じしし屋なので許可（トークン）もまなびラボと同じ。秘密の置き場所を書いた `../tools/youtube-upload.local.txt`（Git に入れない）は**ユーザーがまなびラボから写す**（Claude は写さない）。API の使用量の記録（`-Quota`）はリポジトリごとに分かれるが、割り当ては同じ Google のプロジェクトで共通なので、まなびラボの記録と足して見る。
+  - `make-upload.ps1` は入口の `GAMES` から下書きを作り、説明欄は「しし屋 あそびラボ（ほかのゲーム）」。出どころはあれば書く。`-Check` はネタバレになりそうな言葉と、まなびラボ・Zenn の 20:00〜20:15 に重なる予約を注意する（いつ出すかは RULES 8章「YouTube への出し方」: ときどきのサプライズ投稿）。
+- 下書き: `edge-falls-guide.upload.json`・`edge-falls-short.upload.json`（2026-10-14。`_todo` の行に、録りなおしたあとにすることを書いてある。消すまで `-Check` は NG）。
 
 ## 恐竜かけっこ牧場
 | 台本 | 中身 | 出力 |
