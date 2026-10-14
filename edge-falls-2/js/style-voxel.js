@@ -3,6 +3,12 @@
 //   格子を1区画ずつたどり（DDA）、柱の横の面と上の面を塗る。生き物・木・太陽と月は画素の絵、雲は箱。
 //   ぜんぶを低い解像度の板に描いて、ぼかさずに広げる（画素がそろって見える）。
 
+// ボクセルの細かさ（試験。v010。2026-10-14 ユーザー「ジャギーを和らげる処理を試験的に切り替えられるように。荒いのが味かもしれないので、まず見てみたい」）:
+//   0 荒い（これまで）・1 細かい（画素の板を倍細かく。描く画素が約4倍で重くなる）・2 なめらか（細かい＋板をぼかして広げる。木や生き物の画素の絵はそのまま）。
+//   設定の「ボクセル（試験）」で切りかえ。localStorage に覚える
+const VOXSMOOTH_KEY = 'asobi-lab/edge-falls-2/voxsmooth';
+let VOXSMOOTH = 0; try { VOXSMOOTH = Math.max(0, Math.min(2, +(localStorage.getItem(VOXSMOOTH_KEY) || 0))); } catch (e) { /* なし */ }
+function setVoxSmooth(n) { VOXSMOOTH = n; try { localStorage.setItem(VOXSMOOTH_KEY, String(n)); } catch (e) { /* なし */ } buf = null; layout(V.cw, V.ch); }
 const VOX = (() => {
   const STRATA = [[170, 128, 84], [142, 104, 70], [188, 152, 104], [124, 94, 70], [160, 120, 80]];
   const OUT = [0, 0, 0];
@@ -515,7 +521,7 @@ const VOX = (() => {
       d[y * W2 + x] = rgba(v, v, Math.min(255, v + 20));
     }
     sky.x.putImageData(sky.im, 0, 0);
-    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = VOXSMOOTH === 2;
     ctx.drawImage(sky.c, 0, 0, W2 * f, H2 * f);
   }
 
@@ -536,8 +542,9 @@ const VOX = (() => {
     // 木・生き物の画素の絵は、画面の上にじかに、寄り具合に合わせて途切れなく大きく描く（v030。2026-10-13 ユーザー「ある所を境に急に大きさが変わる」）。
     //   前は板の画素の整数倍（1→2→3 倍）でとんでいた。地形の板をいったん画面に広げ、その上に絵、そのあと雲・太陽と月・ホタル・足もとの輪を2枚目として重ねる
     if (!drawBackdrop(ctx, t)) drawSky(ctx, t);
-    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = VOXSMOOTH === 2;                   // なめらか（試験）: 地形の板をぼかして広げる
     ctx.drawImage(buf, 0, 0, buf.width * V.bs, buf.height * V.bs);
+    ctx.imageSmoothingEnabled = false;
     const board = bctx; bctx = pen(ctx);
     const k = Math.max(1, V.s / V.bs / 3.2);                       // 寄るほど画素の絵も大きく（小数のまま）
     for (const it of sceneItems()) {
@@ -653,7 +660,9 @@ const VOX = (() => {
     }
     for (const cl of W.clouds) drawCloud(cl, t);
     drawBodies(t);
+    ctx.imageSmoothingEnabled = VOXSMOOTH === 2;
     ctx.drawImage(buf, 0, 0, buf.width * V.bs, buf.height * V.bs);
+    ctx.imageSmoothingEnabled = false;
     return true;
   }
   // 板の座標（画素）で描く命令を、画面の上にじかに描く筆。四角のはしを画面の画素で丸めるので、小数の倍率でも画素の大きさがそろう
@@ -675,6 +684,6 @@ const VOX = (() => {
     }
   }
 
-  return { label: 'ボクセル', icon, drawsSel: true, quant: true, bs: cw => PRINT ? Math.max(2, Math.round(cw / 800)) : Math.max(2, Math.round(cw / 400)), draw, hover: 'rgba(255,250,230,0.85)' };
+  return { label: 'ボクセル', icon, drawsSel: true, quant: true, bs: cw => PRINT || VOXSMOOTH ? Math.max(1, Math.round(cw / 800)) : Math.max(2, Math.round(cw / 400)), draw, hover: 'rgba(255,250,230,0.85)' };
 })();
 STYLES.voxel = VOX;

@@ -228,7 +228,8 @@ function openSettings(back, focus) {
     { label: TX('文字　', 'Font: ') + (fontName === 'dot' ? TX('ドット', 'Pixel') : TX('明朝', 'Serif')), fn: () => { setFont(fontName === 'dot' ? 'serif' : 'dot'); again(2)(); } },
     { label: TX('背景　', 'Background: ') + (bi >= 0 ? BACK_CHOICES[bi][1] : TX('ほか', 'Other')), fn: () => { setBack(BACK_CHOICES[(bi + 1) % BACK_CHOICES.length][0]); again(3)(); } },
     { label: TX('数の印　', 'Population marks: ') + on(tallyOn), fn: () => { setTally(!tallyOn); again(4)(); } },
-    ...(G.started ? [{ label: TX('ファイル', 'File'), fn: () => openFilePanel(() => openSettings(back, 5)) }] : []),
+    { label: TX('ボクセル（試験）　', 'Voxels (test): ') + [TX('荒い', 'Coarse'), TX('細かい', 'Fine'), TX('なめらか', 'Smooth')][VOXSMOOTH], fn: () => { setVoxSmooth((VOXSMOOTH + 1) % 3); again(5)(); } },
+    ...(G.started ? [{ label: TX('ファイル', 'File'), fn: () => openFilePanel(() => openSettings(back, 6)) }] : []),
     { label: back ? TX('もどる', 'Back') : TX('とじる', 'Close'), main: true, fn: () => { if (back) back(); } },
   ]);
   $('panel').classList.add('menu', 'world', 'settings');   // 設定のあいだは、世界をうすくしない（背景を選びやすく。css）
