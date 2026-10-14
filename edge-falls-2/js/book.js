@@ -495,8 +495,6 @@ const PRINTS = [
   ['mat', TX('羊皮紙の台紙', 'Parchment mount'), TX('観察帳と同じ紙に、墨の二重線', 'The same paper as the Field Notes, with double ink lines')],
   ['abyss', TX('深淵の額', 'Abyss frame'), TX('夜空の色の台紙に、金の二重線', 'A night-sky mount with double gold lines')],
   ['photo', TX('古い写真', 'Old photo'), TX('セピアに焼いて、羊皮紙の台紙に', 'Printed in sepia on a parchment mount')],
-  ['stone', TX('石板', 'Stone tablet'), TX('欠けたふちの石に、絵をはめこんで題を彫る', 'Set into a chipped stone, with the title carved in')],
-  ['etch', TX('銅版画', 'Etching'), TX('これまでの版画（銅版画の画風で描き直す）', 'The original print (redrawn in an etching style)')],
 ];
 const printFont = px => `${px}px ${fontName === 'dot' ? '"DotGothic16",' : ''}"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif`;
 function printWords() {
@@ -524,33 +522,8 @@ function seenCanvas() {
   }
   return out;
 }
-// 銅版画（これまでの版画。くらべるために残す）
-function etchCanvas() {
-  const W0 = 1400, H0 = 1000, out = document.createElement('canvas'); out.width = W0; out.height = H0;
-  const o = out.getContext('2d');
-  const keep = { style: styleName, back: backName, cw: V.cw, ch: V.ch, zoom: V.zoom, panX: V.panX, panY: V.panY, sel: G.sel };
-  try {
-    styleName = 'etch'; backName = 'auto'; buf = null; G.sel = null;
-    V.zoom = 1; V.panX = 0; V.panY = 0;
-    layout(W0, H0 - 120);
-    const t = performance.now() / 1000;
-    for (let k = 0; k < 3; k++) { V.dirty = true; o.clearRect(0, 0, W0, H0); drawWorld(o, t, null); }
-    o.fillStyle = '#efe3c4'; o.fillRect(0, H0 - 120, W0, 120);
-    o.strokeStyle = '#3a2a1c'; o.lineWidth = 3; o.strokeRect(14, 14, W0 - 28, H0 - 28); o.lineWidth = 1; o.strokeRect(24, 24, W0 - 48, H0 - 48);
-    const w = printWords();
-    o.fillStyle = '#3a2a1c'; o.textAlign = 'center';
-    o.font = printFont(44); o.fillText(w.title, W0 / 2, H0 - 66);
-    o.font = printFont(22); o.fillText(w.sub, W0 / 2, H0 - 30);
-  } finally {
-    styleName = keep.style; backName = keep.back; buf = null; G.sel = keep.sel;
-    V.zoom = keep.zoom; V.panX = keep.panX; V.panY = keep.panY; layout(keep.cw, keep.ch);
-  }
-  return out;
-}
 function printCanvas(kind, seen) {
-  if (kind === 'etch') return etchCanvas();
   const src = seen || seenCanvas(), Wi = src.width, Hi = src.height, w = printWords();
-  if (kind === 'stone') return stoneCanvas(src, w);
   if (kind === 'seen') {
     const out = document.createElement('canvas'); out.width = Wi; out.height = Hi;
     const o = out.getContext('2d'); o.drawImage(src, 0, 0);
@@ -592,104 +565,6 @@ function printCanvas(kind, seen) {
   o.font = printFont(Math.round(Wi * 0.0125)); o.fillText(w.sub, OW / 2, Hi + pad + capH * 0.86);
   return out;
 }
-// 石板: 欠けたふちの灰色の石。光を当てるのは大きな形だけ（ふちの面取り・絵をはめるくぼみ・彫った字・ひび）。石らしさは色で出す（むら・うすい層・細かい粒）。
-//   面の凹凸まで光で浮かせると、昔のエンボスの絵になる（2026-10-13 ユーザー「PS 時代のグラフィックみたい」「もうちょっとマイルドに」）
-function stoneCanvas(src, w) {
-  const Wi = src.width, Hi = src.height, u = Wi / 1000, pad = Math.round(Wi * 0.075), capH = Math.round(Wi * 0.1);
-  const OW = Wi + pad * 2, OH = Hi + pad * 2 + capH, N = OW * OH;
-  const mk = () => { const c = document.createElement('canvas'); c.width = OW; c.height = OH; return [c, c.getContext('2d')]; };
-  // 石の形: 四辺をこまかくゆらし、角を欠く
-  const pts = [], m = pad * 0.12, edge = (x0, y0, x1, y1, n, seed) => {
-    for (let i = 0; i < n; i++) {
-      const f = i / n, j = i ? (hash2(seed, i) - 0.5) * u * 7 + (hash2(seed + 9, i >> 2) - 0.5) * u * 10 : 0;   // 角の点はゆらさない（とげになる）
-      const nx = y1 - y0, ny = x0 - x1, L = Math.hypot(nx, ny);
-      pts.push([x0 + (x1 - x0) * f + nx / L * j, y0 + (y1 - y0) * f + ny / L * j]);
-    }
-  };
-  const c1 = u * 34, c2 = u * 18, c3 = u * 46, c4 = u * 24;                  // 角の欠け（大きさをばらす）
-  edge(m + c1, m, OW - m - c2, m, 40, 1); pts.push([OW - m, m + c2 * 1.3]);
-  edge(OW - m, m + c2 * 1.3, OW - m, OH - m - c3, 40, 2); pts.push([OW - m - c3 * 0.8, OH - m]);
-  edge(OW - m - c3 * 0.8, OH - m, m + c4, OH - m, 40, 3); pts.push([m, OH - m - c4 * 1.2]);
-  edge(m, OH - m - c4 * 1.2, m, m + c1 * 0.7, 40, 4); pts.push([m + c1, m]);
-  const slab = x => { x.beginPath(); pts.forEach(([a, b], i) => i ? x.lineTo(a, b) : x.moveTo(a, b)); x.closePath(); };
-  // なめらかな雑音: 小さな乱数の絵を引きのばして重ねる（大きい粒から順に）
-  const noise = (octs, seed) => {
-    const [, x] = mk(); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
-    octs.forEach(([cells, a], k) => {
-      const gw = cells, gh = Math.max(2, Math.round(cells * OH / OW)), t = document.createElement('canvas'); t.width = gw; t.height = gh;
-      const tx = t.getContext('2d'), id = tx.createImageData(gw, gh);
-      for (let i = 0; i < gw * gh; i++) { const v = hash2(seed + k * 17.3, i * 1.618) * 255; id.data[i * 4] = id.data[i * 4 + 1] = id.data[i * 4 + 2] = v; id.data[i * 4 + 3] = 255; }
-      tx.putImageData(id, 0, 0); x.globalAlpha = a; x.drawImage(t, 0, 0, OW, OH);
-    });
-    return x.getImageData(0, 0, OW, OH).data;
-  };
-  const tint = noise([[5, 1], [11, 0.45], [26, 0.3]], 101);                    // 色むら（大きい）
-  const mott = noise([[18, 1], [48, 0.5], [130, 0.3]], 202);                   // 色の細かいむら（光は当てない）
-  // 彫った字の位置: 絵の下からふちまでのまん中に、題と小さな字のひとかたまり
-  const X = pad, Y = pad, r = u * 14, tp = Math.round(Wi * 0.034), sp = Math.round(Wi * 0.0165), gap = tp * 0.55;
-  const top = Y + Hi + r, bottom = OH - m - u * 12, y0 = top + (bottom - top - (tp + gap + sp)) / 2;
-  const tY = y0 + tp / 2, sY = y0 + tp + gap + sp / 2;
-  // 高さの地図（白が高い）と、くぼみにたまる影（彫った字・ひび・穴）
-  const [, hx] = mk(), [kc, kx] = mk();
-  hx.fillStyle = '#000'; hx.fillRect(0, 0, OW, OH);
-  hx.filter = `blur(${u * 9}px)`; slab(hx); hx.fillStyle = '#fff'; hx.fill();                                  // ふちは丸く落ちる
-  hx.filter = `blur(${u * 2}px)`; hx.fillStyle = '#5a5a5a'; hx.fillRect(X - r, Y - r, Wi + r * 2, Hi + r * 2);   // 絵をはめるくぼみ
-  const carve = (x, col, blur, col2, blur2) => {   // 小さな字はぼかしを少なく（読めるように）
-    x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.filter = `blur(${blur}px)`; x.fillStyle = col; x.font = printFont(tp); x.fillText(w.title, OW / 2, tY);
-    x.filter = `blur(${blur2}px)`; x.fillStyle = col2; x.font = printFont(sp); x.fillText(w.sub, OW / 2, sY);
-  };
-  carve(hx, '#8c8c8c', u * 1.1, '#a8a8a8', u * 0.55);
-  carve(kx, 'rgba(0,0,0,.55)', u * 0.4, 'rgba(0,0,0,.55)', u * 0.2);
-  hx.lineCap = kx.lineCap = 'round'; hx.lineJoin = kx.lineJoin = 'round';
-  for (let n = 0; n < 4; n++) {                                      // ひび（ふちから少し入る）
-    const side = n % 4, f = hash2(n, 31), fx = side === 2 ? (f < 0.5 ? 0.06 + f * 0.36 : 0.76 + (f - 0.5) * 0.36) : f;   // 下のひびは字をよける
-    let x = side === 1 ? OW : side === 3 ? 0 : fx * OW, y = side === 0 ? 0 : side === 2 ? OH : f * OH;
-    let ang = Math.atan2(OH / 2 - y, OW / 2 - x) + (hash2(n, 32) - 0.5);
-    const path = new Path2D(); path.moveTo(x, y);
-    for (let k = 0, len = pad * (0.7 + hash2(n, 33) * 1.1); k < 9; k++) { ang += (hash2(n, 40 + k) - 0.5) * 0.9; x += Math.cos(ang) * len / 9; y += Math.sin(ang) * len / 9; path.lineTo(x, y); }
-    hx.filter = `blur(${u * 0.8}px)`; hx.strokeStyle = 'rgba(0,0,0,.3)'; hx.lineWidth = u * 1.8; hx.stroke(path);
-    kx.filter = 'none'; kx.strokeStyle = 'rgba(0,0,0,.22)'; kx.lineWidth = u; kx.stroke(path);
-  }
-  for (let n = 0; n < 110; n++) {                                    // 小さな穴（風化）
-    const x = hash2(n, 51) * OW, y = hash2(n, 52) * OH, rr = u * (0.8 + hash2(n, 53) * hash2(n, 54) * 5);
-    kx.filter = 'none'; kx.fillStyle = 'rgba(0,0,0,.1)'; kx.beginPath(); kx.arc(x, y, rr * 0.7, 0, 7); kx.fill();
-  }
-  hx.filter = kx.filter = 'none';
-  const [, mx] = mk(); slab(mx); mx.fillStyle = '#fff'; mx.fill();
-  const H = hx.getImageData(0, 0, OW, OH).data, K = kx.getImageData(0, 0, OW, OH).data, M = mx.getImageData(0, 0, OW, OH).data;
-  // 高さ（画素の単位）: 大きな形と、ゆるいうねり
-  const h = new Float32Array(N), dep = u * 14;
-  for (let i = 0; i < N; i++) {
-    h[i] = H[i * 4] / 255 * dep + (tint[i * 4] / 255 - 0.5) * u * 3;   // 大きなうねりだけ
-  }
-  // 光: 左上から。面の向き × 光 ＋ まわりの明るさ。色は灰に、むらで少し暖かい色と冷たい色
-  const Ln = Math.hypot(-0.45, -0.55, 0.7), lx = -0.45 / Ln, ly = -0.55 / Ln, lz = 0.7 / Ln;
-  const [sc, sx] = mk(), img = sx.createImageData(OW, OH), D = img.data;
-  for (let y = 1; y < OH - 1; y++) for (let x = 1; x < OW - 1; x++) {
-    const i = y * OW + x, a = M[i * 4 + 3]; if (!a) continue;
-    const gx = (h[i + 1] - h[i - 1]) * 0.5, gy = (h[i + OW] - h[i - OW]) * 0.5, nl = Math.hypot(gx, gy, 1);
-    const dif = Math.max(0, (-gx * lx - gy * ly + lz) / nl);
-    const t = tint[i * 4] / 255 - 0.5, b = mott[i * 4] / 255 - 0.5 + Math.sin(y / (u * 11) + t * 7 + x * 0.0004) * 0.06 + (hash2(x * 0.731, y * 1.377) - 0.5) * 0.12,   // むら＋うすい層＋粒
-      low = 1 - H[i * 4] / 255, cav = 1 - K[i * 4 + 3] / 255;
-    let s = (0.64 + 0.42 * dif) * (1 - low * 0.15) * cav;
-    const g2 = hash2((x >> 1) * 1.31, (y >> 1) * 0.77);                // 鉱物の粒（暗い点と光る点）
-    if (g2 > 0.995) s *= 0.75; else if (g2 > 0.99) s *= 1.08;
-    D[i * 4] = (142 + t * 30 + b * 26) * s;
-    D[i * 4 + 1] = (134 + t * 28 + b * 24) * s;
-    D[i * 4 + 2] = (121 + t * 20 + b * 20) * s;
-    D[i * 4 + 3] = a;
-  }
-  sx.putImageData(img, 0, 0);
-  // 仕上げ: 落ち影の上に石を置き、くぼみに絵をはめる（上と左のふちの影）
-  const [out, o] = mk();
-  o.save(); o.shadowColor = 'rgba(0,0,0,.6)'; o.shadowBlur = u * 26; o.shadowOffsetY = u * 10; o.drawImage(sc, 0, 0); o.restore();
-  o.drawImage(src, X, Y);
-  o.strokeStyle = 'rgba(20,18,14,.7)'; o.lineWidth = u * 1.5; o.strokeRect(X, Y, Wi, Hi);
-  const sh = o.createLinearGradient(0, Y, 0, Y + u * 24); sh.addColorStop(0, 'rgba(0,0,0,.5)'); sh.addColorStop(1, 'rgba(0,0,0,0)'); o.fillStyle = sh; o.fillRect(X, Y, Wi, u * 24);
-  const sl = o.createLinearGradient(X, 0, X + u * 18, 0); sl.addColorStop(0, 'rgba(0,0,0,.4)'); sl.addColorStop(1, 'rgba(0,0,0,0)'); o.fillStyle = sl; o.fillRect(X, Y, u * 18, Hi);
-  return out;
-}
 function savePrint(c, kind) {
   c.toBlob(b => {
     if (!b) { toast(TX('版画をつくれなかった', 'Couldn’t make the print')); return; }
@@ -705,8 +580,8 @@ function openPrints(back) {
   const seen = seenCanvas();   // 描き直すのは一度だけ（v2）
   const made = PRINTS.map(([k]) => { try { return printCanvas(k, seen); } catch (e) { return null; } });
   const thumb = c => { const t = document.createElement('canvas'), w = 300; t.width = w; t.height = Math.round(c.height * w / c.width); const x = t.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(c, 0, 0, t.width, t.height); return t.toDataURL('image/jpeg', 0.85); };
-  const cells = PRINTS.map(([k, name, note], n) => made[n] ? `<figure class="pcard"><button type="button" class="pshot" data-pv="${n}" aria-label="${TX(`${name}を大きく見る`, `See ${name} larger`)}"><img src="${thumb(made[n])}" alt=""></button><figcaption><b>${name}</b><span>${note}</span><button type="button" class="tbtn" data-ps="${n}">${TX('のこす', 'Save')}</button></figcaption></figure>` : '').join('');
-  showPanel(TX(`<h2>世界の版画</h2><p class="small center">いま見えている世界を、一枚の絵にのこす（ためしに型をいくつか）。押すと大きく見られる。</p>`, `<h2>World Prints</h2><p class="small center">Save the world you see now as a single picture (in a few styles). Press one to see it larger.</p>`) + `<div class="prints">${cells}</div>`,
+  const cells = PRINTS.map(([k, name, note], n) => made[n] ? `<figure class="pcard"><button type="button" class="pshot" data-pv="${n}" aria-label="${TX(`${name}を大きく見る`, `See ${name} larger`)}"><img src="${thumb(made[n])}" alt=""></button><figcaption><b>${name}</b><span>${note}</span><button type="button" class="tbtn" data-ps="${n}">${TX('画像で保存', 'Save as image')}</button></figcaption></figure>` : '').join('');
+  showPanel(TX(`<h2>世界の版画</h2><p class="small center">いま見えている世界を、一枚の絵にする。型を選んで「画像で保存」。押すと大きく見られる。</p>`, `<h2>World Prints</h2><p class="small center">Turn the world you see now into a single picture. Choose a style and press “Save as image”. Press one to see it larger.</p>`) + `<div class="prints">${cells}</div>`,
     [{ label: back ? TX('もどる', 'Back') : TX('とじる', 'Close'), main: true, fn: back }]);
   $('panel').classList.add('world', 'printpanel'); G.panelBack = back || (() => { $('overlay').hidden = true; });
   const panel = $('panel');

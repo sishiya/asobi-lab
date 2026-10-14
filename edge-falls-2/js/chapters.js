@@ -284,7 +284,7 @@ function endingPanel() {
     <p class="truth"><b>What is really true:</b> the land is a round ball (the Earth). Weight always pulls toward the center of the ball, so the sea never falls off an edge. Water goes from the sea to the clouds, from the clouds to the rain, and from the rivers back to the sea. What falls away is, somewhere, turning around again.</p>
     <p class="small">Timeline of your world</p><ul class="chron">${rows}</ul>
     <p class="small">Discoveries: ${found} / ${FINDS.length}. Newest generation: ${newest}.</p>`),
-  [{ label: TX('世界の版画をのこす', 'Make a World Print'), fn: () => openPrints(endingPanel) }, { label: TX('自由な箱庭へ', 'On to the Free Garden'), main: true, fn: endEnding }]);
+  [{ label: TX('世界の版画をつくる', 'Make a World Print'), fn: () => openPrints(endingPanel) }, { label: TX('自由な箱庭へ', 'On to the Free Garden'), main: true, fn: endEnding }]);
   $('panel').classList.add('world', 'ending');
 }
 function endEnding() {

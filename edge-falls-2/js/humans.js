@@ -227,7 +227,7 @@ function roundPanel() {
     <p>Gathering around their fire, plowing their fields and watching the sky, the humans arrived at an idea: perhaps this land is really round.</p>
     <p class="truth"><b>What is really true:</b> people long ago also learned from the sky that the Earth is round. Aristotle (4th century BCE) pointed out that the Earth’s shadow on the Moon during a lunar eclipse is always round, and that the stars you can see change as you travel south. Eratosthenes (3rd century BCE) measured the size of the Earth from the different lengths of noon shadows in two cities on the same day.</p>
     <p class="small">The humans’ wisdom: ${wisdomList()}</p>`),
-  [{ label: TX('世界の版画をのこす', 'Make a World Print'), fn: () => openPrints(roundPanel) }, { label: TX('箱庭へもどる', 'Back to the garden'), main: true }]);
+  [{ label: TX('世界の版画をつくる', 'Make a World Print'), fn: () => openPrints(roundPanel) }, { label: TX('箱庭へもどる', 'Back to the garden'), main: true }]);
   $('panel').classList.add('world', 'ending');
 }
 
