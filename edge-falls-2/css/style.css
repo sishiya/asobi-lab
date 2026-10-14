@@ -407,7 +407,8 @@ body.titling.atitle .langsw{display:flex}   /* タイトルの札のときだけ
 .finds figure.fresh figcaption b::after,.years li.fresh b::after{margin-left:6px;vertical-align:2px}
 /* 消してしまう確かめ（はじめから・大地をつくりなおす。2026-10-14 ユーザー「前の世界が消えることを強調」）: 消えることを朱の字で、消すボタンも朱に */
 .panel.world .warn{text-align:center;color:#f2a98a;font-size:16px;letter-spacing:.14em;margin:6px 0 4px}
-.panel.menu .tbtn.danger{color:#f2a98a}
+.panel.menu .tbtn.danger{color:#fff;border:1px solid rgba(242,169,138,.75);background:rgba(242,169,138,.14);margin:4px 0 2px}   /* 押せることが分かるよう、白い字に朱のふちの箱（v007。2026-10-14 ユーザー） */
+.panel.menu .tbtn.danger:hover,.panel.menu .tbtn.danger:focus-visible{background:rgba(242,169,138,.26);border-color:rgba(242,169,138,1)}
 .panel.menu .tbtn.danger:hover::after,.panel.menu .tbtn.danger:focus-visible::after{background:rgba(242,169,138,.9);box-shadow:0 0 8px rgba(242,169,138,.7)}
 
 /* v2: 札の「はじめの姿」と「この子」 */
