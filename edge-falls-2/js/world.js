@@ -16,8 +16,8 @@ const SPRING_MAX = 12;           // 泉の上限は深淵の水（v011）。こ�
 const YEAR = 16;                // 1年の日数（春夏秋冬 4日ずつ）
 const SEASONS = TX(['春', '夏', '秋', '冬'], ['spring', 'summer', 'autumn', 'winter']);
 const KPL = { deer: TX('シカ', 'deer'), wolf: TX('オオカミ', 'wolves'), fish: TX('サカナ', 'fish'), bird: TX('サギ', 'herons'), human: TX('ヒト', 'humans') };   // 英語の文の中の名前（複数）
-const STOCK_MAX = { deer: 10, wolf: 4, fish: 12, bird: 3, human: 4 };   // ヒトは十の年のあと（v2。humans.js）
-const STOCK_START = { deer: 6, wolf: 3, fish: 8, bird: 2, human: 4 };   // つぼに命が来たときの数（v011）
+const STOCK_MAX = { deer: 10, wolf: 4, fish: 12, bird: 3, human: 4, seed: 40 };   // ヒトは十の年のあと（v2。humans.js）。たねも数に（v014）
+const STOCK_START = { deer: 6, wolf: 3, fish: 8, bird: 2, human: 4, seed: 40 };   // つぼに命が来たときの数（v011）
 
 const inside = new Uint8Array(N * N);
 const INS = [];
@@ -75,7 +75,7 @@ function newWorld(seed, bare) {
   W.sun = { a: rnd() * Math.PI * 2, v: 2 * Math.PI / DAY, stop: false, drag: false };
   W.moon = { a: W.sun.a + Math.PI * (0.6 + rnd() * 0.8), v: 2 * Math.PI / (DAY * 1.07), stop: false, drag: false };
   W.clouds = []; W.vapor = 0; W.outRate = 0; W.rainRate = 0;
-  W.soil = 120; W.stock = { deer: 6, wolf: 2, fish: 8, bird: 1, human: 0 };
+  W.soil = 120; W.stock = { deer: 6, wolf: 2, fish: 8, bird: 1, human: 0, seed: 0 };
   W.souls = { deer: 0, wolf: 0, fish: 0, bird: 0, human: 0 };   // 去った命（深淵を通って、少しずつつぼへ戻る。v011）
   W.knob = { winter: 1, tide: 1 };                     // 世界のきびしさ（章で少しずつ上げる。v011）
   W.flags = {};                                        // 一度だけ見つける出来事（観察の記録）
@@ -427,6 +427,16 @@ function sow(cx, cy, rad = 3) {
   }
   if (n) burst('seed', cx, cy, 5, rad * 0.9);
   return n;
+}
+
+// たねの実り（v014。2026-10-14 ユーザー「たねが無限に使えるのが気になる」→ おすすめの形で）: たねも命のつぼの中の数。
+//   夏の終わりから秋（年の 0.35〜0.8）に、1日ごと、草地の広さ 10% ごとに 1 袋がつぼにたまる（40 まで）。草を育てればたねがふえ、食べつくされた世界ではたねもへる
+function seedHarvest() {
+  if (!G.unlock || !G.unlock.seed) return 0;
+  const p = seasonPhase(); if (p < 0.35 || p > 0.8) return 0;
+  const gr = waterStats().grass, add = Math.min(STOCK_MAX.seed - W.stock.seed, Math.max(gr > 0.02 ? 1 : 0, Math.floor(gr * 10)));   // 草地が少しでもあれば 1 袋
+  if (add > 0) { W.stock.seed += add; W.flags.seedgain = 1; }
+  return add;
 }
 
 function addSpring(cx, cy) {

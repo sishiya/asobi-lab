@@ -46,7 +46,7 @@ function simulate(sec) {
     if (accHist >= DAY / 2) { accHist = 0; recordHist(waterStats()); }
     if (Math.floor(W.t / DAY) !== dayBefore) {
       W.day = Math.floor(W.t / DAY) + 1;
-      dailySafety(); dailySpecies();
+      dailySafety(); dailySpecies(); seedHarvest();
       G.needSave = true;                    // 1日ごとに書きとめる（ループの中で）
     }
     if (!(G.ch % 1)) tickChapter(h, lastStats);
@@ -115,7 +115,8 @@ function useTool(p, first) {
     if (Math.abs(m) > 0.05) burst(t, p.x, p.y, first ? 6 : 2, 2);      // 土がはねる・こぼれる（v056）
     G.did.soil = 1;
   } else if (t === 'grass') {
-    if (sow(p.x, p.y) > 0 && first) Sound.play('sow');
+    if (W.stock.seed <= 0) { if (first) { toast(TX('命のつぼに、たねがない。草が実る夏の終わりから秋に、草地からたねがたまる', 'No seeds left in the Life Jar. Seeds gather from the grassland as the grass ripens from late summer into autumn'), 5); Sound.play('no'); } }
+    else if (sow(p.x, p.y) > 0) { W.stock.seed--; syncHands(); if (first) Sound.play('sow'); }   // 1 回まくごとに 1 袋（v014）
   } else if (t === 'spring' && first) {
     const r = addSpring(p.x, p.y);
     if (r === 'max') { toast(TX('これ以上、泉はわかせられない。いらない泉に土を盛ってふさぐと、新しくわかせる', 'No more springs for now. Pile soil on a spring you don’t need to close it, and you can make a new one'), 4); Sound.play('no'); }
@@ -327,7 +328,7 @@ function frame(now) {
     if (ptr.wait > 0) { ptr.wait -= dt; if (ptr.wait <= 0) useTool(ptr.w, true); }   // 指: 1本のままなら使いはじめる
     else if (G.tool !== 'spring') {
       ptr.t += dt;
-      const every = KINDS[G.tool] ? 0.3 : 0.05;
+      const every = KINDS[G.tool] ? 0.3 : G.tool === 'grass' ? 0.15 : 0.05;   // たねは 1 秒に 7 袋ほど（v014）
       if (ptr.t >= every) { ptr.t = 0; useTool(ptr.w, false); }
     }
   }

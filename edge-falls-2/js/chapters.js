@@ -74,10 +74,10 @@ const CHAPTERS = [
   },
   {
     key: 'grass', name: TX('草', 'Grass'), title: TX('草の原', 'A grassy plain'), text: TX('草が大地の 25% をおおうようにする', 'Cover 25% of the land with grass'), goal: 25, unit: '%',
-    gives: { seed: 1 }, arrive: TX('「命のつぼ」に、草のたねが来た', 'Grass seeds came to the “Life Jar”'),
+    gives: { seed: 1 }, arrive: TX('「命のつぼ」に、草のたねが 40 袋来た。草が実る夏の終わりから秋には、草地からまたたまる', '40 bags of grass seeds came to the “Life Jar”. More gather from the grassland as it ripens from late summer into autumn'),
     prog: s => Math.round(s.grass * 100), knob: { winter: 0, tide: 0.35 },
     hint: TX('草は水のそばでよく育ち、となりへ広がる。水につかりすぎると枯れる。たねは、なぞるように広くまく。', 'Grass loves being near water and spreads to its neighbors, but too much water drowns it. Sow the seeds by sweeping your finger across the land.'),
-    gift() { let n = 0; for (const i of INS) if (W.moist[i] > 0.6 && W.w[i] < 0.2 && W.veg[i] < 0.25 && n < 400 && Math.random() < 0.3) { W.veg[i] = 0.3; n++; } return TX('風が、たねを水辺へ運んできた', 'The wind carried seeds to the water’s edge'); },
+    gift() { let n = 0; for (const i of INS) if (W.moist[i] > 0.6 && W.w[i] < 0.2 && W.veg[i] < 0.25 && n < 400 && Math.random() < 0.3) { W.veg[i] = 0.3; n++; } W.stock.seed = Math.min(STOCK_MAX.seed, W.stock.seed + 15); return TX('風が、たねを水辺へ運んできた。命のつぼにも、たねが少し', 'The wind carried seeds to the water’s edge, and a few came to the Life Jar'); },
     truth: TX('本当の地球でも、植物は水辺から陸へ広がった。陸に植物がふえてから、虫や、のちに四本足の動物が陸に上がった。', 'On the real Earth too, plants spread from the water’s edge onto land. After plants spread on land, insects, and later four-legged animals, came up onto land.'),
   },
   {
@@ -167,7 +167,7 @@ function enterChapter(n, quiet) {
   G.goal = c ? (c.rel ? Math.max(c.goal, Math.round(c.prog(waterStats()) + c.rel)) : c.goal) : 0;
   if (c) Object.assign(W.knob, c.knob);
   else W.knob = { winter: 1, tide: 1 };
-  for (const k of ['deer', 'wolf', 'fish', 'bird']) if (G.unlock[k] && !prevU[k] && !quiet) W.stock[k] = STOCK_START[k];
+  for (const k of ['deer', 'wolf', 'fish', 'bird', 'seed']) if (G.unlock[k] && !prevU[k] && !quiet) W.stock[k] = STOCK_START[k];
   if (!quiet && c) {
     yearCard(n, c, () => {
       if (c.key === 'grass') toast(JAR_TALK, 6);       // 命のつぼとは（v034。ユーザーの家族「ツボってなに？」）

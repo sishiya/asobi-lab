@@ -95,7 +95,7 @@ function applyWorld(s) {
   if (typeof s.cells.fert === 'string' && unb64(s.cells.fert).length >= INS.length) unpackCells(s.cells.fert, s.fv >= 4 ? 85 : 170, Uint8Array, W.fert);   // v2（v1 の世界にはないので 0.5 のまま）
   W.t = num(s.t, 0); W.day = num(s.day, 1); W.soil = num(s.soil, 120); W.abyss = num(s.abyss, 900);
   W.vapor = num(s.vapor, 0); W.outRate = num(s.outRate, 0);
-  for (const k of ['deer', 'wolf', 'fish', 'bird', 'human']) W.stock[k] = Math.max(0, Math.min(STOCK_MAX[k], num(s.stock && s.stock[k], 0)));
+  for (const k of ['deer', 'wolf', 'fish', 'bird', 'human', 'seed']) W.stock[k] = Math.max(0, Math.min(STOCK_MAX[k], num(s.stock && s.stock[k], k === 'seed' ? STOCK_MAX.seed : 0)));   // たね（v014）のない古い記録は、いっぱいで
   if (typeof s.cells.litter === 'string' && unb64(s.cells.litter).length >= INS.length) unpackCells(s.cells.litter, 120, Uint8Array, W.litter);
   if (typeof s.cells.farm === 'string' && unb64(s.cells.farm).length >= INS.length) unpackCells(s.cells.farm, 255, Uint8Array, W.farm);
   W.sun.a = num(s.sun.a, 0); W.sun.stop = !!s.sun.stop; W.moon.a = num(s.moon.a, 0); W.moon.stop = !!s.moon.stop;

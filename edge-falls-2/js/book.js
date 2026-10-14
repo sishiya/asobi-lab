@@ -102,9 +102,9 @@ function syncHands() {
   if (G.hand) {
     const items = G.hand === 'soil' ? [['dig', TX('土をけずる', 'Dig')], ['raise', TX('土を盛る', 'Pile up')]] : G.hand === 'water' ? [['spring', TX('泉をわかせる', 'Make a spring')]] : LIFE_SUBS.filter(([k]) => k === 'seed' || u[k]);
     fan.innerHTML = items.map(([k, label]) => {
-      const n = KINDS[k] ? `<em>${W.stock[k]}</em>` : k === 'raise' ? `<em id="soilN">${Math.floor(W.soil)}</em>` : '';
+      const n = KINDS[k] || k === 'seed' ? `<em>${W.stock[k]}</em>` : k === 'raise' ? `<em id="soilN">${Math.floor(W.soil)}</em>` : '';
       const ic = k === 'dig' ? iconURL('bagd', c => drawBag(c, 0.5, false)) : k === 'raise' ? iconURL('bagr', c => drawBag(c, 0.8, true)) : k === 'spring' ? iconURL('jar', c => drawJar(c, 0.7)) : k === 'seed' ? iconURL('seed', drawSeed) : iconURL('c' + k, c => drawCreature(c, k));
-      const cls = [KINDS[k] && W.stock[k] <= 0 ? 'empty' : '', G.did['pick_' + k] ? '' : 'new'].filter(Boolean).join(' ');
+      const cls = [(KINDS[k] || k === 'seed') && W.stock[k] <= 0 ? 'empty' : '', G.did['pick_' + k] ? '' : 'new'].filter(Boolean).join(' ');
       return `<button type="button" data-sub="${k}" aria-pressed="${G.sub[G.hand] === k}"${cls ? ` class="${cls}"` : ''}><img src="${ic}" alt="">${label}${n}</button>`;
     }).join('') +
       // しまう: 並びのいちばん右に「×」だけ（v039。2026-10-13 ユーザー「草やシカのならびの最後に馴染む色味で ×」。v034〜v038 は持っている道具の角の × 印）
