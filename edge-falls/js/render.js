@@ -506,14 +506,27 @@ function sceneItems() {
 //   2026-10-13 ユーザー「滝は水量に応じて増減させて」「パカパカ表示非表示がきりかわるのもおかしい」:
 //   W.fall は1秒ごとに段で変わるので、描く用の FV を毎コマなめらかに追わせる（となりの区分とも少しならす）。
 //   太さ・長さ・濃さ a を量で決め、少ない滝は消える前にうすくなる。奥へ回りこむ滝もうすくしてから消す。
-const FV = new Float32Array(BINS);
+//   2026-10-14 ユーザー「水がまだ端に着いていないように見えるのに滝が盛大に流れる」:
+//   濃さに、ふちの水の見え方 DV をかける。DV は区分のふちの帯（ふちから3マス内側まで）でいちばん深い水を、
+//   地面の水の色づき（render の kMix: 0.06〜0.26）と同じ物さしで 0〜1 にしたもの。FV と同じ速さでなめらかに追わせる。
+//   ふちのマスそのものは落ちる水で浅くなるので（湖の出口でも 0.12 ほど）、内側の帯で見る。
+const FV = new Float32Array(BINS), DV = new Float32Array(BINS), DMAX = new Float32Array(BINS);
+const BAND = [], BANDB = [];
+for (const i of INS) {
+  const x = i % N, y = (i / N) | 0;
+  if (Math.hypot(x - C, y - C) > RD - 3) { BAND.push(i); BANDB.push(((Math.atan2(y - C, x - C) / (2 * Math.PI) + 1) * BINS | 0) % BINS); }
+}
 let fvLast = 0;
 function updateFallVis() {
   const now = performance.now(), dt = fvLast ? Math.min(0.5, (now - fvLast) / 1000) : 1; fvLast = now;
   const k = 1 - Math.exp(-dt / 0.9);
+  DMAX.fill(0);
+  for (let n = 0; n < BAND.length; n++) { const b = BANDB[n], wd = W.w[BAND[n]]; if (wd > DMAX[b]) DMAX[b] = wd; }
   for (let b = 0; b < BINS; b++) {
     const tq = W.fall[b] * 0.6 + (W.fall[(b + 1) % BINS] + W.fall[(b + BINS - 1) % BINS]) * 0.2;
     FV[b] += (tq - FV[b]) * k;
+    const td = Math.min(1, Math.max(0, (Math.max(DMAX[b], DMAX[(b + 1) % BINS] * 0.6, DMAX[(b + BINS - 1) % BINS] * 0.6) - RIM_LIP) / 0.2));
+    DV[b] += (td - DV[b]) * k;
   }
 }
 function fallList() {
@@ -531,7 +544,9 @@ function fallList() {
     const tu = -Math.sin(a) * c - Math.cos(a) * s;
     const wid = Math.max(1, (2 * Math.PI * RD / BINS) * V.s * Math.abs(tu) * (0.2 + 0.75 * sq) + V.s * 0.5 * Math.min(1, sq * 1.5));
     const L = L0 * (0.45 + 0.55 * Math.min(1, sq));
-    out.push({ b, q, a: Math.min(1, q / 0.06) * back, top, wid, L });
+    const dv = DV[b] * DV[b] * (3 - 2 * DV[b]);
+    if (dv < 0.02) continue;
+    out.push({ b, q, a: Math.min(1, q / 0.06) * back * dv, top, wid, L });
   }
   return out;
 }

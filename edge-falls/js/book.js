@@ -35,12 +35,14 @@ function drawPot(ctx, n, glow) {
   for (let k = 0; k < dots; k++) px(ctx, 4 + (k % 3) * 3, 7 + ((k / 3) | 0) * 3, 2, 2, glow ? '#fff2b0' : '#e8d890');
 }
 // 観察帳（v038 でもどした。2026-10-13 ユーザー「最初のバージョンの観察帳がよかったかも」。v033〜v037 は巻物・博物誌・天命の書板をためした）: ひらいた本と赤いしおり
+//   2026-10-14 ユーザー「観察帳はあまり見ないので、吹き出しのようなデザイン・色味とサイズ感に」: 吹き出し（ui.js drawBubble）と同じ
+//   3色（羊皮紙色・影・墨）だけで、同じ大きさの印に。しおりも墨の色
 function drawBook(ctx) {
   ctx.clearRect(0, 0, 32, 32);
-  px(ctx, 1, 4, 7, 10, '#e9dcb8'); px(ctx, 8, 4, 7, 10, '#f4ead0'); px(ctx, 7, 4, 2, 11, '#6e4c2a');
-  px(ctx, 1, 14, 14, 1, '#6e4c2a');
-  for (let k = 0; k < 4; k++) { px(ctx, 2, 6 + k * 2, 4, 1, '#a08a64'); px(ctx, 10, 6 + k * 2, 4, 1, '#a08a64'); }
-  px(ctx, 11, 2, 2, 5, '#b04a2a');
+  px(ctx, 2, 4, 6, 8, '#e6dcc4'); px(ctx, 8, 4, 6, 8, '#e6dcc4'); px(ctx, 7, 4, 2, 9, '#b8a888');   // ひらいた頁と、とじ目
+  px(ctx, 2, 12, 12, 1, '#b8a888');                                                                   // 頁の影
+  for (let k = 0; k < 3; k++) { px(ctx, 3, 6 + k * 2, 3, 1, '#5a4636'); px(ctx, 10, 6 + k * 2, 3, 1, '#5a4636'); }   // 文字
+  px(ctx, 11, 3, 1, 3, '#5a4636');                                                                    // しおり
 }
 function drawSeed(ctx) { ctx.clearRect(0, 0, 32, 32); px(ctx, 7, 4, 2, 6, '#6aa84f'); px(ctx, 4, 5, 3, 2, '#8fcf6a'); px(ctx, 9, 3, 3, 2, '#8fcf6a'); px(ctx, 5, 10, 6, 3, '#8a6238'); }
 function drawCreature(ctx, kind) {
@@ -92,6 +94,7 @@ function syncHands() {
     b.title = G.hand === k ? TX('しまう（もう一度押す・Esc）', 'Put away (press again or Esc)') : b.dataset.t0;
   });
   $('btnBook').hidden = !G.started;
+  showNew();
   drawHands();
   // 手に持っているものの中身（扇のように上に並ぶ）。水がめは一つだけでも、ほかと同じく出す（2026-10-13 ユーザー）
   const fan = $('fan');
@@ -142,6 +145,7 @@ document.querySelectorAll('.hand').forEach(b => b.addEventListener('click', () =
   G.did.hand = 1;
 }));
 function glowHand(key) {
+  if (key === 'genes') markNew('genes');   // 遺伝子の頁がひらけた
   const h = key === 'water' ? 'water' : key === 'soil' ? 'soil' : key === 'genes' ? null : 'life';
   const el = h ? document.querySelector(`.hand[data-hand="${h}"]`) : $('btnBook');
   if (el) { el.classList.remove('glow'); void el.offsetWidth; el.classList.add('glow'); }
@@ -150,7 +154,10 @@ function glowHand(key) {
 // メニューの印（画素の巻物の三本線）
 (() => { const c = $('btnMenu').querySelector('canvas').getContext('2d'); for (let k = 0; k < 3; k++) { px(c, 3, 4 + k * 4, 10, 2, '#e6dcc4'); px(c, 3, 5 + k * 4, 10, 1, '#a08260'); } })();
 
-// ---- メニュー（Esc。2026-10-13 ユーザー「Esc で中央にメニュー。セーブ・ロード・ゲームの終了」）。開いているあいだは時を止める ----
+// ---- メニュー（Esc。2026-10-13 ユーザー「Esc で中央にメニュー」）。開いているあいだは時を止める ----
+// v067（2026-10-14 ユーザー「セーブ・ロードを一から見直して。シンプルに」）: セーブ・ロードはなくした。開くと、いまの世界を書きとめて、
+//   見出しの下に「いまの世界を書きとめた」。タイトルへ・ゲームを終えるは、書きとめてからすぐ（たずねない）。
+//   自由な箱庭のときだけ「大地をつくりなおす」（新しい自由な箱庭。たしかめる）
 let menuSpeed = null;
 function openMenu() {
   if (!G.started || COL || ENDING) return;
@@ -158,16 +165,17 @@ function openMenu() {
   if (menuSpeed === null) { menuSpeed = G.speed; setSpeed(0); }
   const resume = () => { if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } };
   G.menuOpen = true;
-  showPanel(`<p class="mtitle">${isFree() ? TX('自由な箱庭', 'Free Garden') : yearOf(Math.floor(G.ch))}${TX(`　第 ${W.day} 日`, ` · Day ${W.day}`)}</p>`, [
+  const where = G.mode === 'free' ? TX('自由な箱庭', 'Free Garden') : isFree() ? TX('十の年のあと', 'After the Ten Years') : yearOf(Math.floor(G.ch));
+  showPanel(`<p class="mtitle">${where}${TX(`　第 ${W.day} 日`, ` · Day ${W.day}`)}</p><p class="msub noted-line" id="menuNoted">${TX('書きとめている…', 'Noting down…')}</p>`, [
     { label: TX('つづける', 'Resume'), main: true, fn: closeMenu },
-    { label: TX('セーブ', 'Save'), fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'save'); } },
-    { label: TX('ロード', 'Load'), fn: () => { G.menuOpen = false; openSavePanel(() => openMenu(), 'load'); } },
     { label: TX('観察帳', 'Field Notes'), fn: () => { G.menuOpen = false; resume(); openBook(null, true); } },
     { label: TX('設定', 'Settings'), fn: () => { G.menuOpen = false; openSettings(() => openMenu()); } },
+    ...(G.mode === 'free' ? [{ label: TX('大地をつくりなおす', 'Make new land'), fn: () => { G.menuOpen = false; remakeFree(); } }] : []),
     { label: TX('タイトルへ', 'Title screen'), fn: () => { G.menuOpen = false; toTitle(); } },
     { label: TX('ゲームを終える', 'Quit'), fn: () => { G.menuOpen = false; quitGame(); } },
   ]);
   $('panel').classList.add('menu', 'world');
+  noteWorld(true).then(ok => { const el = $('menuNoted'); if (el) el.textContent = ok ? TX('いまの世界を書きとめた', 'This world is noted down') : TX('書きとめられなかった', 'Couldn’t note it down'); });
 }
 function closeMenu() {
   $('overlay').hidden = true; G.menuOpen = false;
@@ -187,26 +195,29 @@ function goBack() {
 // 札の外（何もない所）を押すと、ひとつ前へ（2026-10-13 ユーザー）
 $('overlay').addEventListener('click', e => { if (e.target === $('overlay') && goBack()) { Sound.play('click'); G.closedT = performance.now(); } });
 
-// タイトルへ（2026-10-13 ユーザー「メニューの最初からの代わりにタイトルに戻れるように」）。いまの世界は自動セーブに残す
-//   セーブしないでもどることもできる（2026-10-13 ユーザー）。そのときは自動セーブも書きかえない（前に残った所から「つづきから」）
-function toTitle() {
-  const go = async save => {
-    if (save) await saveSlot('auto');
-    G.started = false;                 // ページを閉じたときの自動セーブも、もうしない
-    menuSpeed = null; setHand(null); closeBook(); G.sel = null; updateCard(); setSpeed(1);
-    newGame(); layout(V.cw, V.ch);    // タイトルのうしろは、ひらいたときと同じ新しい大地に（2026-10-13 ユーザー「箱庭が切り替わってない」）
-    document.body.classList.remove('paused'); chapterLine('', ''); start();
-  };
-  showPanel(TX('<h2>タイトルへ</h2><p class="center">セーブすると、いまの世界を自動セーブに残す。<br>タイトルの「つづきから」で、ここにもどれる。<br>セーブしないと、前に残った所までになる。</p>', '<h2>Title screen</h2><p class="center">If you save, the current world is kept in the autosave.<br>You can come back here with “Continue” on the title screen.<br>If you don’t save, you go back to the last saved point.</p>'), [
-    { label: TX('セーブしてタイトルへ', 'Save and go to title'), main: true, fn: () => go(true) },
-    { label: TX('セーブしないでタイトルへ', 'Go to title without saving'), fn: () => go(false) },
-    { label: TX('もどる', 'Back'), fn: () => openMenu() },
+// タイトルへ（2026-10-13 ユーザー「メニューの最初からの代わりにタイトルに戻れるように」）。いまの世界を書きとめてから、すぐ（v067）
+async function toTitle() {
+  await noteWorld(true);
+  G.started = false;                 // ページを閉じたときに書きとめるのも、もうしない（タイトルのうしろは別の大地）
+  menuSpeed = null; setHand(null); closeBook(); closeLog(); G.sel = null; updateCard(); setSpeed(1);
+  newGame(); layout(V.cw, V.ch);    // タイトルのうしろは、ひらいたときと同じ新しい大地に（2026-10-13 ユーザー「箱庭が切り替わってない」）
+  document.body.classList.remove('paused'); chapterLine('', ''); clearToasts(); start();
+}
+// 自由な箱庭を新しい大地に（v067）。「もどる」を先に選んでおく
+function remakeFree() {
+  showPanel(TX(`<p class="mtitle">大地をつくりなおす</p><p class="warn">いまの箱庭は、消えてしまう</p><p class="small center">自由な箱庭（第 ${W.day} 日）は、<br>もとにはもどせない。</p>`, `<p class="mtitle">Make new land</p><p class="warn">Your current garden will be gone</p><p class="small center">This Free Garden (day ${W.day})<br>can’t be brought back.</p>`), [   // はじめからと同じ形（2026-10-14 ユーザー）
+    { label: TX('箱庭を消して、新しい大地へ', 'Erase it and start on new land'), cls: 'danger', fn: () => {
+      menuSpeed = null; setHand(null); G.sel = null; updateCard(); setSpeed(1); chapterLine('', ''); clearToasts();
+      newGame(undefined, false); layout(V.cw, V.ch); syncHands(); noteWorld(true); Sound.play('spring');
+    } },
+    { label: TX('もどる', 'Back'), main: true, fn: () => openMenu() },
   ]);
-  $('panel').classList.add('world'); G.panelBack = openMenu;
+  $('panel').classList.add('menu', 'world'); G.panelBack = openMenu;
 }
 // 設定（v016。2026-10-13 ユーザー「設定メニューを追加して」「メニューには文字フォント切り替えは必要ない。設定画面に移して」）
 //   音楽・効果音・文字・背景（v017 で観察帳のてびきから移した）。言語は v020 でタイトルの右上だけに（遊んでいるとちゅうで読み直すと、
-//   セーブのつもりがないのにページを離れるときの自動セーブが走るので）。押すとその場で切りかわる。back があれば「もどる」でそこへ（メニュー）
+//   ページを離れるときに書きとめるのが走るので）。押すとその場で切りかわる。back があれば「もどる」でそこへ（メニュー）。
+//   いちばん下に「ファイル」（ほかの端末へ持っていく。v067 でセーブの札からここへ）
 function openSettings(back, focus) {
   const on = v => v ? TX('オン', 'On') : TX('オフ', 'Off'), again = k => () => openSettings(back, k);
   const bi = BACK_CHOICES.findIndex(([k]) => k === backName);
@@ -215,20 +226,18 @@ function openSettings(back, focus) {
     { label: TX('効果音　', 'Sound effects: ') + on(Sound.get('sfx')), fn: () => { Sound.set('sfx', !Sound.get('sfx')); again(1)(); } },
     { label: TX('文字　', 'Font: ') + (fontName === 'dot' ? TX('ドット', 'Pixel') : TX('明朝', 'Serif')), fn: () => { setFont(fontName === 'dot' ? 'serif' : 'dot'); again(2)(); } },
     { label: TX('背景　', 'Background: ') + (bi >= 0 ? BACK_CHOICES[bi][1] : TX('ほか', 'Other')), fn: () => { setBack(BACK_CHOICES[(bi + 1) % BACK_CHOICES.length][0]); again(3)(); } },
+    ...(G.started ? [{ label: TX('ファイル', 'File'), fn: () => openFilePanel(() => openSettings(back, 4)) }] : []),
     { label: back ? TX('もどる', 'Back') : TX('とじる', 'Close'), main: true, fn: () => { if (back) back(); } },
   ]);
   $('panel').classList.add('menu', 'world', 'settings');   // 設定のあいだは、世界をうすくしない（背景を選びやすく。css）
   G.panelBack = back || (() => { $('overlay').hidden = true; });
   if (focus !== undefined) $('panel').querySelectorAll('.btns .tbtn')[focus]?.focus();   // 押したボタンに印を残す（上下の矢印でつづけて選べる）
 }
-function quitGame() {
-  // セーブしないで終えることもできる（2026-10-13 ユーザー）。ページを離れるときの自動セーブもしないよう、先に G.started を落とす
-  showPanel(TX('<h2>ゲームを終える</h2><p class="center">あそびラボへもどる。<br>セーブすると、つぎに開いたとき「つづきから」ここで遊べる。<br>セーブしないと、前に残った所までになる。</p>', '<h2>Quit</h2><p class="center">Go back to Asobi Lab.<br>If you save, you can pick up here with “Continue” next time.<br>If you don’t save, you go back to the last saved point.</p>'), [
-    { label: TX('セーブして終える', 'Save and quit'), main: true, fn: async () => { await saveSlot('auto'); G.started = false; location.href = '../archive.html'; } },   // 保管庫へ（v019 で入口へ移し、v028 で調整のため保管庫へもどした）
-    { label: TX('セーブしないで終える', 'Quit without saving'), fn: () => { G.started = false; location.href = '../archive.html'; } },
-    { label: TX('もどる', 'Back'), fn: () => openMenu() },
-  ]);
-  $('panel').classList.add('world'); G.panelBack = openMenu;
+// ゲームを終える: いまの世界を書きとめてから、すぐ保管庫へ（v067。たずねない）。保管庫へ（v019 で入口へ移し、v028 で調整のため保管庫へもどした）
+async function quitGame() {
+  await noteWorld(true);
+  G.started = false;
+  location.href = '../archive.html';
 }
 // 文字（2026-10-13 ユーザー「ピクセル風のフォント」「いまのフォントも雰囲気に合うので切りかえられると」）。
 //   ドット＝DotGothic16（Google Fonts、SIL Open Font License。商用も無料）、明朝＝これまでの文字。localStorage に覚える
@@ -316,10 +325,23 @@ function chapterLine(a, b, sec = 7) {
   if (toastOn()) placeToast();   // いま出ている知らせは、章のことばの下へ（v053）
 }
 
+// ---- 観察帳の未読（2026-10-14 ユーザー「観察帳にも新しい要素があったら未読マーク」）----
+//   新しいこと（見つけたこと・できた年・遺伝子の頁）が書きこまれると、観察帳の印と、その頁のタブに、吹き出しと同じ小さな光。
+//   その頁をひらくと消える。ひらいているあいだは、新しく書きこまれたもの（見つけたことの絵）にも光（freshIds。とじるか頁を変えると消える）。
+//   G.unread = { 頁: { id: 1 } }。記録に残す（save.js）
+let freshIds = {};
+function markNew(pg, id) { G.unread = G.unread || {}; (G.unread[pg] = G.unread[pg] || {})[id || '_'] = 1; showNew(); }
+function showNew() {
+  const u = G.unread || {}, has = pg => !!u[pg] && Object.keys(u[pg]).length > 0;
+  document.querySelectorAll('.tabs [data-page]').forEach(b => b.classList.toggle('new', has(b.dataset.page)));
+  $('btnBook').classList.toggle('new', Object.keys(u).some(has));
+}
+
 // ---- 観察帳 ----
 // ひらいているあいだは時を止める（2026-10-13 ユーザー）。閉じると、もとの速さへ（ひらいたまま速さを変えたら、そのまま）
 let page = 'life', bookSpeed = null, bookFromMenu = false;
 function openBook(p, fromMenu) {
+  if (p && p !== page) freshIds = {};
   if (p) page = p;
   if ($('book').hidden) {
     bookFromMenu = !!fromMenu;
@@ -332,7 +354,7 @@ function openBook(p, fromMenu) {
 }
 function closeBook() {
   if ($('book').hidden) return;
-  $('book').hidden = true; closeLightbox(); bookFromMenu = false;
+  $('book').hidden = true; closeLightbox(); bookFromMenu = false; freshIds = {};
   if (bookSpeed !== null) { if (G.speed === 0) setSpeed(bookSpeed); bookSpeed = null; }
 }
 $('btnBook').onclick = () => { Sound.unlock(); Sound.play('click'); $('btnBook').classList.remove('glow'); $('book').hidden ? openBook() : closeBook(); };
@@ -341,6 +363,7 @@ document.querySelectorAll('.tabs [data-page]').forEach(b => b.onclick = () => { 
 function renderBook() {
   if ($('book').hidden) return;
   const u = G.unlock || {};
+  if (G.unread && G.unread[page]) { Object.assign(freshIds, G.unread[page]); delete G.unread[page]; showNew(); }   // ひらいた頁は読んだことに
   if (page === 'life') drawChart();
   if (page === 'genes') { $('genesLocked').hidden = !!u.genes; $('genesBody').hidden = !u.genes; if (u.genes) { updateGenes(); drawGeneChart(); } }
   if (page === 'finds') renderFinds();
@@ -351,7 +374,7 @@ function renderBook() {
 function renderYears() {
   const rows = CHAPTERS.map((c, n) => {
     const d = G.done && G.done[n];
-    if (d) return `<li class="done"><b>${yearOf(n)}${TX('　', ': ')}${c.title}</b><span>${TX(`第 ${d.day} 日にできた`, `Done on day ${d.day}`)}</span>${d.what ? `<p>${d.what}</p>` : ''}<p>${c.truth}</p></li>`;
+    if (d) return `<li class="done${freshIds['ch' + n] ? ' fresh' : ''}"><b>${yearOf(n)}${TX('　', ': ')}${c.title}</b><span>${TX(`第 ${d.day} 日にできた`, `Done on day ${d.day}`)}</span>${d.what ? `<p>${d.what}</p>` : ''}<p>${c.truth}</p></li>`;
     if (n === Math.floor(G.ch)) return `<li class="now"><b>${yearOf(n)}${TX('　', ': ')}${c.title}</b><span>${TX('いまの年', 'This year')}</span><p>${c.text}</p>${G.helped ? `<p class="hint">${c.hint}</p>` : ''}</li>`;
     return `<li class="later"><b>${yearOf(n)}</b><span>……</span></li>`;
   }).join('');
@@ -396,6 +419,7 @@ function stepFinds(s, dt) {
     toast(TX(`見つけた　${title}　— ${text}`, `Discovery: ${title} — ${text}`), 5); Sound.play('put');
     wantSketch = id;
     $('btnBook').classList.remove('glow'); void $('btnBook').offsetWidth; $('btnBook').classList.add('glow');
+    markNew('finds', id);
     break;                              // 一度に一つずつ
   }
 }
@@ -418,12 +442,12 @@ function takeSketch(t) {
   } catch (e) { /* 残せなくても遊べる */ }
   finally { G.sel = keep.sel; V.zoom = keep.zoom; V.panX = keep.panX; V.panY = keep.panY; layout(keep.cw, keep.ch); }
 }
-function addPage() { /* 年の頁は G.done から作るので、ここでは観察帳の印だけ */ $('btnBook').classList.remove('glow'); void $('btnBook').offsetWidth; $('btnBook').classList.add('glow'); }
+function addPage(id) { /* 年の頁は G.done から作るので、ここでは観察帳の印だけ */ markNew('years', id); $('btnBook').classList.remove('glow'); void $('btnBook').offsetWidth; $('btnBook').classList.add('glow'); }
 function renderFinds() {
   const f = G.found || {};
   $('findN').textContent = TX(`${Object.keys(f).length} ／ ${FINDS.length}`, `${Object.keys(f).length} / ${FINDS.length}`);
   $('finds').innerHTML = FINDS.map(([id, title, text]) => f[id]
-    ? `<figure>${sketches[id] ? `<button type="button" class="shot" data-find="${id}" aria-label="${TX(`${title}の絵を大きく見る`, `See the picture of ${title} larger`)}"><img src="${sketches[id]}" alt=""></button>` : '<div class="blank"></div>'}<figcaption><b>${title}</b><span>${TX(`第 ${f[id].day} 日`, `Day ${f[id].day}`)}</span><p>${text}</p></figcaption></figure>`
+    ? `<figure${freshIds[id] ? ' class="fresh"' : ''}>${sketches[id] ? `<button type="button" class="shot" data-find="${id}" aria-label="${TX(`${title}の絵を大きく見る`, `See the picture of ${title} larger`)}"><img src="${sketches[id]}" alt=""></button>` : '<div class="blank"></div>'}<figcaption><b>${title}</b><span>${TX(`第 ${f[id].day} 日`, `Day ${f[id].day}`)}</span><p>${text}</p></figcaption></figure>`
     : `<figure class="unfound"><div class="blank">${TX('？', '?')}</div><figcaption><b>${TX('まだ見ていない', 'Not seen yet')}</b></figcaption></figure>`).join('');
 }
 // 見つけたことの絵を大きく（2026-10-13 ユーザー「クリックしたら世界観にマッチする枠をつけて大きく表示」）。

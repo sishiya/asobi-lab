@@ -3,8 +3,11 @@
 //   太陽と月・暦・お題・グラフの記録・見え方。木の場所（tseed）は世界の種から newWorld で作り直す。
 //   区画の値は丸めて（高さ 0.01・水 0.001・草など 256 段）バイト列 → base64、ほかの数は小数 3 けた。
 //   全体の JSON を gzip（CompressionStream があれば）して base64 にする。最大でも 100KB ほど。
-//   置き場所: localStorage の asobi-lab/edge-falls/save/{auto,slot1,slot2,slot3}。
-//     中身 { app, v, meta: {day, counts, qi, at}, z: 'gzip'|'', data }。ファイルへの書き出しも同じ形。
+//   置き場所（v067。2026-10-14 ユーザー「セーブ・ロードを一から見直して、シンプルに」）: 遊び方ごとに世界は一つ。
+//     localStorage の asobi-lab/edge-falls/save/story（十の年）と save/free（自由な箱庭）。手でセーブ・ロードはしない。
+//     1日ごと・メニューを開いたとき・タイトルへ・ゲームを終える・ページを閉じるときに、いつも自動で書きとめる。
+//     中身 { app, v, meta: {day, counts, ch, mode, at}, z: 'gzip'|'', data }。ファイルへの書き出しも同じ形。
+//     v066 までの auto・slot1〜3 は、はじめて開いたときに遊び方ごとのいちばん新しいものを移す（もとのものは消さない）。
 
 const SAVE_KEY = 'asobi-lab/edge-falls/save/';
 const SAVE_V = 3;   // 2: 雪（v008）、3: 章・見つけたこと・去った命・世界のつまみ（v011）
@@ -53,7 +56,7 @@ function snapshot() {
     stats: { born: L.born, eaten: L.eaten, fell: L.fell },
     hist: HIST,
     quest: { ch: G.ch, chT: G.chT, streak: G.streak, helped: G.helped, goal: G.goal, gbase: G.gbase, winterOk: G.winterOk, winterSeen: G.winterSeen },
-    story: { done: G.done, found: G.found, did: G.did, tipped: G.tipped, souls: W.souls, knob: W.knob, flags: W.flags },
+    story: { mode: G.mode, unread: G.unread, done: G.done, found: G.found, did: G.did, tipped: G.tipped, souls: W.souls, knob: W.knob, flags: W.flags },
     view: { yaw: V.yaw, tilt: V.tilt, zoom: V.zoom, panX: V.panX || 0, panY: V.panY || 0 },
   };
 }
@@ -62,22 +65,22 @@ const localStamp = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()
 async function encodeWorld() {
   const json = JSON.stringify(snapshot(), r3);
   const z = await gzip(json).catch(() => null);
-  const meta = { day: W.day, counts: { ...L.counts }, ch: G.ch, at: localStamp() };
+  const meta = { day: W.day, counts: { ...L.counts }, ch: G.ch, mode: G.mode, at: localStamp() };
   return z ? { app: 'edge-falls', v: SAVE_V, meta, z: 'gzip', data: b64(z) } : { app: 'edge-falls', v: SAVE_V, meta, z: '', data: json };
 }
 
 async function decodeWorld(rec) {
-  if (!rec || rec.app !== 'edge-falls' || typeof rec.data !== 'string') throw new Error(TX('果ての滝の箱庭のセーブではない', 'This is not an Edge Falls Garden save'));
-  if (rec.v > SAVE_V) throw new Error(TX('新しい版のセーブなので読めない', 'This save is from a newer version and can’t be read'));
+  if (!rec || rec.app !== 'edge-falls' || typeof rec.data !== 'string') throw new Error(TX('果ての滝の箱庭の世界ではない', 'This is not an Edge Falls Garden world'));
+  if (rec.v > SAVE_V) throw new Error(TX('新しい版の世界なので読めない', 'This world is from a newer version and can’t be read'));
   let s;
   try { s = JSON.parse(rec.z === 'gzip' ? await gunzip(unb64(rec.data)) : rec.data); }
-  catch (e) { throw new Error(TX('セーブがこわれている', 'The save is broken')); }
+  catch (e) { throw new Error(TX('記録がこわれている', 'The record is broken')); }
   // 世界をさわる前に、形を確かめる（とちゅうで失敗して世界が半分こわれないように）
   const ok = s && s.cells && ['g', 'w', 'veg', 'alg', 'moist', 'tree'].every(k => typeof s.cells[k] === 'string') &&
     s.sun && s.moon && s.quest && Array.isArray(s.animals);
-  if (!ok) throw new Error(TX('セーブの中身が足りない', 'The save is missing data'));
+  if (!ok) throw new Error(TX('記録の中身が足りない', 'The record is missing data'));
   try { for (const k of ['g', 'w']) if (unb64(s.cells[k]).length < INS.length * 2) throw 0; for (const k of ['veg', 'alg', 'moist', 'tree']) if (unb64(s.cells[k]).length < INS.length) throw 0; }
-  catch (e) { throw new Error(TX('セーブの中身が足りない', 'The save is missing data')); }
+  catch (e) { throw new Error(TX('記録の中身が足りない', 'The record is missing data')); }
   return s;
 }
 
@@ -109,16 +112,17 @@ function applyWorld(s) {
   HIST.length = 0; if (Array.isArray(s.hist)) HIST.push(...s.hist.slice(-240));
   // 章（v011）。それより前のセーブは、自由な箱庭として読む
   const st = s.story || {}, q = s.quest;
+  G.mode = st.mode === 'free' || st.mode === 'story' ? st.mode : modeOfCh(q.ch);
   if (typeof q.ch === 'number') {
     const ch = Math.max(0, Math.min(CHAPTERS.length, Math.floor(num(q.ch, 0))));
     G.done = Array.isArray(st.done) ? st.done : []; G.found = st.found && typeof st.found === 'object' ? st.found : {};
-    G.did = st.did || {}; G.tipped = st.tipped || {};
+    G.did = st.did || {}; G.tipped = st.tipped || {}; G.unread = st.unread && typeof st.unread === 'object' ? st.unread : {};
     enterChapter(ch, true);
     G.chT = num(q.chT, 0); G.streak = num(q.streak, 0); G.helped = num(q.helped, 0) | 0; if (typeof q.goal === 'number') G.goal = q.goal; if (q.gbase && typeof q.gbase === 'object') G.gbase = q.gbase; G.winterOk = !!q.winterOk; G.winterSeen = !!q.winterSeen;
     if (st.knob) W.knob = { winter: num(st.knob.winter, 1), tide: num(st.knob.tide, 1) };
     if (st.souls) for (const k of ['deer', 'wolf', 'fish', 'bird']) W.souls[k] = num(st.souls[k], 0);
     if (st.flags) W.flags = { ...st.flags };
-  } else { G.done = []; G.found = {}; G.did = {}; G.tipped = {}; enterChapter(CHAPTERS.length, true); }
+  } else { G.done = []; G.found = {}; G.did = {}; G.tipped = {}; G.unread = {}; enterChapter(CHAPTERS.length, true); }
   G.streak = num(q.streak, 0);
   G.sel = null;
   // 読みこんだら、見る向き（回した向き）だけ残して、寄り・平行移動・傾きははじめのカメラに（v034。2026-10-13 ユーザー「ロード直後にすごい寄ったカメラになってる」）
@@ -129,77 +133,100 @@ function applyWorld(s) {
   layout(V.cw, V.ch);
 }
 
-// ---- localStorage ----
-function readSlot(name) { try { const s = localStorage.getItem(SAVE_KEY + name); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
-let saving = false;
-async function saveSlot(name) {
-  if (saving) return false;
-  saving = true;
-  try { localStorage.setItem(SAVE_KEY + name, JSON.stringify(await encodeWorld())); return true; }
-  catch (e) { return false; }
-  finally { saving = false; }
-}
 async function loadRecord(rec) { applyWorld(await decodeWorld(rec)); }
-const autoSave = () => G.started && saveSlot('auto');
-document.addEventListener('visibilitychange', () => { if (document.hidden) autoSave(); });
-addEventListener('pagehide', autoSave);
 
-// ---- 画面 ----
-const KNAME = TX({ deer: 'シカ', wolf: 'オオカミ', fish: 'サカナ', bird: 'サギ' }, { deer: 'Deer', wolf: 'Wolves', fish: 'Fish', bird: 'Herons' });
-function metaText(rec) {
-  if (!rec || !rec.meta) return TX('からっぽ', 'Empty');
-  const m = rec.meta, c = m.counts || {};
-  const ch = typeof m.ch === 'number' ? (m.ch >= CHAPTERS.length ? TX('自由な箱庭・', 'Free Garden · ') : yearOf(Math.floor(m.ch)) + TX('・', ' · ')) : '';
-  return `${ch}${TX(`第 ${m.day} 日・`, `Day ${m.day} · `)}${['deer', 'wolf', 'fish', 'bird'].map(k => KNAME[k] + ' ' + (c[k] || 0)).join(TX('・', ' · '))}<br><small>${m.at || ''}</small>`;
+// ---- 置き場所（遊び方ごとに世界は一つ） ----
+const MODES = ['story', 'free'];
+const modeOfCh = ch => (typeof ch === 'number' && ch >= CHAPTERS.length ? 'free' : 'story');   // 遊び方の書いていない古い記録（十の年を終えたものも自由な箱庭に）
+const modeOf = rec => (rec && rec.meta && MODES.includes(rec.meta.mode) ? rec.meta.mode : modeOfCh(rec && rec.meta && rec.meta.ch));
+function readKey(name) { try { const s = localStorage.getItem(SAVE_KEY + name); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+const readWorld = mode => readKey(mode);
+// v066 までの自動セーブ・スロット1〜3 から、遊び方ごとにいちばん新しいものを移す（一度だけ。もとのものは消さない）
+(function migrate() {
+  try {
+    if (localStorage.getItem(SAVE_KEY + 'moved') || MODES.some(m => localStorage.getItem(SAVE_KEY + m))) return;
+    const recs = ['auto', 'slot1', 'slot2', 'slot3'].map(readKey).filter(r => r && r.app === 'edge-falls' && r.meta);
+    for (const m of MODES) {
+      const best = recs.filter(r => modeOf(r) === m).sort((a, b) => String(b.meta.at || '').localeCompare(String(a.meta.at || '')))[0];   // 同じ時刻なら自動セーブ（先に並ぶ）
+      if (best) localStorage.setItem(SAVE_KEY + m, JSON.stringify(best));
+    }
+    localStorage.setItem(SAVE_KEY + 'moved', '1');
+  } catch (e) { /* 置けなければ、そのまま */ }
+})();
+
+// 書きとめる（いまの世界を、その遊び方の置き場所へ）。quiet でなければ右下に「第 ◯ 日を書きとめた」（25 秒に一度まで。×16 でもうるさくないように）
+let savingP = null, notedShown = 0;
+async function noteWorld(quiet) {
+  if (!G.started || THUMB) return false;
+  while (savingP) await savingP;                // 書きとめている最中なら、終わってから（同時に二つ書かない）
+  let ok = false;
+  savingP = encodeWorld().then(rec => { localStorage.setItem(SAVE_KEY + G.mode, JSON.stringify(rec)); ok = true; }).catch(() => { ok = false; });
+  await savingP; savingP = null;
+  if (ok) { G.notedDay = W.day; G.notedAt = Date.now(); }
+  if (!ok) showNoted(TX('書きとめられなかった（ブラウザの保存の場所がいっぱいかもしれない）', 'Couldn’t note it down (the browser’s storage may be full)'), true);
+  else if (!quiet && Date.now() - notedShown > 25000) showNoted(TX(`第 ${W.day} 日を書きとめた`, `Day ${W.day} noted down`));
+  return ok;
+}
+function showNoted(text, bad) {
+  const el = $('noted'); if (!el) return;
+  notedShown = Date.now();
+  el.textContent = text; el.classList.toggle('bad', !!bad);
+  el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+}
+addEventListener('DOMContentLoaded', () => {
+  const el = document.createElement('div'); el.className = 'noted'; el.id = 'noted'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
+  $('corner').before(el);
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden) noteWorld(true); });
+addEventListener('pagehide', () => noteWorld(true));
+
+// どこまで遊んだか（タイトルのボタンの下・はじめからの確かめ）: 「第三の年・第 24 日」「十の年のあと・第 40 日」「第 40 日」
+function worldWhere(rec) {
+  if (!rec || !rec.meta) return '';
+  const m = rec.meta, day = TX(`第 ${m.day} 日`, `Day ${m.day}`), sep = TX('・', ' · ');
+  if (modeOf(rec) === 'free') return day;
+  if (typeof m.ch !== 'number') return day;
+  return (m.ch >= CHAPTERS.length ? TX('十の年のあと', 'After the Ten Years') : yearOf(Math.floor(m.ch))) + sep + day;
 }
 
-// mode: 'save'（スロットに残す・ファイルに書き出す）／'load'（自動セーブ・スロット・ファイルから読む）。2026-10-13 ユーザー「セーブとロードは分けて」
-// just: いまセーブしたスロット（その行を光らせて「セーブした」。音を消していても分かるように。2026-10-13 ユーザー）
-function openSavePanel(back, mode = 'save', just) {
-  const keys = mode === 'save' ? SLOTS.map((s, n) => [s, TX('スロット ', 'Slot ') + (n + 1)]) : [['auto', TX('自動セーブ', 'Autosave')], ...SLOTS.map((s, n) => [s, TX('スロット ', 'Slot ') + (n + 1)])];
-  const rows = keys.map(([k, label]) => {
-    const rec = readSlot(k);
-    return `<div class="slot${k === just ? ' just' : ''}"><div><b>${label}</b>${k === just ? `<em class="savedmark">${TX('✓ セーブした', '✓ Saved')}</em>` : ''}<p>${metaText(rec)}</p></div><div class="sbtn">` +
-      (mode === 'save' ? `<button type="button" class="tbtn" data-save="${k}">${rec ? TX('上書きする', 'Overwrite') : TX('ここに残す', 'Save here')}</button>` : rec ? `<button type="button" class="tbtn" data-load="${k}">${TX('読みこむ', 'Load')}</button>` : '') + '</div></div>';
-  }).join('');
-  const file = mode === 'save'
-    ? TX(`<div class="slot"><div><b>ファイル</b><p>ほかのブラウザへ持っていく・とっておく</p></div><div class="sbtn"><button type="button" class="tbtn" id="btnExport">書き出す</button></div></div>`, `<div class="slot"><div><b>File</b><p>Take it to another browser or keep a copy</p></div><div class="sbtn"><button type="button" class="tbtn" id="btnExport">Export</button></div></div>`)
-    : `<div class="slot"><div><b>${TX('ファイル', 'File')}</b><p>${TX('書き出したファイルから', 'From an exported file')}</p></div><div class="sbtn"><button type="button" class="tbtn" id="btnImport">${TX('ファイルを選ぶ', 'Choose a file')}</button></div></div><input type="file" id="fileImport" accept=".json,application/json" hidden>`;
-  const fromTitle = !G.started;   // タイトルの「つづきから」から開いた（v041）。いまの世界はタイトルの背景なので、自動セーブに残さない
-  showPanel(mode === 'save'
-    ? TX(`<h2>セーブ</h2><p class="small center">地形・水・草・生き物（遺伝子も）・年まで、世界をまるごと残す。<br>1日ごとと、ページを閉じるときにも自動で残る。</p>`, `<h2>Save</h2><p class="small center">Saves the whole world: land, water, grass, animals (with their genes) and the year.<br>It also saves automatically every day and when you close the page.</p>`) + `${rows}${file}`
-    : (fromTitle ? TX(`<h2>つづきから</h2><p class="small center">どの世界から遊ぶかを選ぶ。</p>`, `<h2>Continue</h2><p class="small center">Choose the world to play.</p>`)
-      : TX(`<h2>ロード</h2><p class="small center">読みこむと、いまの世界は自動セーブに残してから入れかわる。</p>`, `<h2>Load</h2><p class="small center">When you load, the current world is kept in the autosave before it is replaced.</p>`)) + `${rows}${file}`,
-  [{ label: back ? TX('もどる', 'Back') : TX('とじる', 'Close'), main: true, fn: back }]);
-  $('panel').classList.add('world'); G.panelBack = back || (() => { $('overlay').hidden = true; });
-  const panel = $('panel');
-  panel.querySelectorAll('[data-save]').forEach(b => b.onclick = async () => {
-    const ok = await saveSlot(b.dataset.save);
-    toast(ok ? TX('セーブした', 'Saved') : TX('セーブできなかった（ブラウザの保存の場所がいっぱいかもしれない）', 'Couldn’t save (the browser’s storage may be full)')); Sound.play(ok ? 'put' : 'no'); openSavePanel(back, 'save', ok ? b.dataset.save : null);
-  });
-  panel.querySelectorAll('[data-load]').forEach(b => b.onclick = async () => {
-    const rec = readSlot(b.dataset.load);
-    if (b.dataset.load !== 'auto' && !fromTitle) await saveSlot('auto');          // いまの世界は自動セーブに残してから（タイトルからは残さない）
-    try { await loadRecord(rec); $('overlay').hidden = true; G.started = true; G.menuOpen = false; if (fromTitle) { document.body.classList.remove('titling'); syncHands(); } if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } toast(TX('読みこんだ: 第 ' + W.day + ' 日', 'Loaded: day ' + W.day)); Sound.play('spring'); }
-    catch (e) { toast(TX('読みこめなかった: ', 'Couldn’t load: ') + e.message); Sound.play('no'); }
-  });
-  if ($('btnExport')) $('btnExport').onclick = async () => {
-    const rec = await encodeWorld();
-    const url = URL.createObjectURL(new Blob([JSON.stringify(rec)], { type: 'application/json' }));
-    const a = document.createElement('a'); a.href = url; a.download = `edge-falls-day${W.day}.json`; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast(TX('書き出した', 'Exported'));
-  };
-  if (!$('btnImport')) return;
-  $('btnImport').onclick = () => $('fileImport').click();
+// 世界を読みこんで遊びはじめる（タイトルから）。読めなかったら、タイトルにもどる（記録は消さない）
+async function playWorld(mode) {
+  try {
+    await loadRecord(readWorld(mode));
+    G.mode = mode; G.started = true; document.body.classList.remove('titling'); syncHands();
+    toast(TX(`第 ${W.day} 日から`, `From day ${W.day}`)); Sound.play('spring');
+  } catch (e) { toast(TX('読みこめなかった: ', 'Couldn’t open it: ') + e.message, 5); Sound.play('no'); start(); }
+}
+
+// ファイル（設定のいちばん下。ほかの端末・ブラウザへ持っていく、とっておく）
+function openFilePanel(back) {
+  showPanel(TX(`<p class="mtitle">ファイル</p><p class="small center">いまの世界をファイルにして、ほかの端末やブラウザへ持っていける。<br>読みこんだ世界は、同じ遊び方（十の年／自由な箱庭）の世界と入れかわる。</p>`,
+    `<p class="mtitle">File</p><p class="small center">Save the current world as a file to take it to another device or browser.<br>A world you open replaces your world of the same kind (Ten Years / Free Garden).</p>`), [
+    { label: TX('ファイルにする', 'Save as a file'), fn: async () => {
+      await noteWorld(true);
+      const url = URL.createObjectURL(new Blob([JSON.stringify(await encodeWorld())], { type: 'application/json' }));
+      const a = document.createElement('a'); a.href = url; a.download = `edge-falls-${G.mode}-day${W.day}.json`; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast(TX('ファイルにした', 'Saved as a file')); openFilePanel(back);
+    } },
+    { label: TX('ファイルを読みこむ', 'Open a file'), fn: () => { openFilePanel(back); $('fileImport').click(); } },
+    { label: TX('もどる', 'Back'), main: true, fn: back },
+  ]);
+  $('panel').classList.add('menu', 'world');
+  $('panel').insertAdjacentHTML('beforeend', '<input type="file" id="fileImport" accept=".json,application/json" hidden>');
+  G.panelBack = back;
   $('fileImport').onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
-    if (f.size > 5e6) { toast(TX('大きすぎるファイル', 'The file is too big')); return; }
+    if (f.size > 5e6) { toast(TX('大きすぎるファイル', 'The file is too big')); Sound.play('no'); return; }
     try {
-      const rec = JSON.parse(await f.text());
-      if (!fromTitle) await saveSlot('auto');
+      let rec; try { rec = JSON.parse(await f.text()); } catch (e2) { throw new Error(TX('果ての滝の箱庭の世界ではない', 'This is not an Edge Falls Garden world')); }
+      await decodeWorld(rec);                    // 先に確かめる（読めないファイルで、いまの世界を書きとめなおさない）
+      await noteWorld(true);                     // いまの世界は、その置き場所に書きとめてから
       await loadRecord(rec);
-      $('overlay').hidden = true; G.started = true; G.menuOpen = false; if (fromTitle) { document.body.classList.remove('titling'); syncHands(); } if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } toast(TX('読みこんだ: 第 ' + W.day + ' 日', 'Loaded: day ' + W.day)); Sound.play('spring');
-    } catch (err) { toast(TX('読みこめなかった: ', 'Couldn’t load: ') + err.message); Sound.play('no'); }
+      G.started = true; $('overlay').hidden = true; G.menuOpen = false;
+      if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; }
+      await noteWorld(true);
+      toast(TX(`読みこんだ: 第 ${W.day} 日`, `Opened: day ${W.day}`)); Sound.play('spring');
+    } catch (err) { toast(TX('読みこめなかった: ', 'Couldn’t open it: ') + (err.message || ''), 5); Sound.play('no'); }
   };
 }

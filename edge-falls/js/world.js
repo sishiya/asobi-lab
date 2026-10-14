@@ -190,6 +190,9 @@ const tideAt = i => tcx * (i % N - C) + tcy * ((i / N | 0) - C);
 
 // 水（パイプのモデル）。prep=true は、はじめになじませるとき（滝の霧・数えを省く）
 const K = 8;
+// ふちの縁（2026-10-14 ユーザー「水がまだ端に着いていないように見えるのに滝が盛大に流れる」）:
+//   ふちのマスの水は、この深さ（水を描くしきい値 0.06 と同じ）を超えた分だけ外へ落ちる。見えない薄い水は落ちない
+const RIM_LIP = 0.06;
 function stepWater(dt, prep) {
   const g = W.g, w = W.w, fL = W.fL, fR = W.fR, fU = W.fU, fD = W.fD;
   tideCoef();
@@ -199,14 +202,14 @@ function stepWater(dt, prep) {
     const q = Math.min(W.abyss, 1.3 * dt);
     w[s.i] += q; W.abyss -= q;
   }
-  // 出ていく流れ（P＝水面−潮。大地の外は、ふちの地面の高さ＝水の深さぶん落ちる）
+  // 出ていく流れ（P＝水面−潮。大地の外は、ふちの地面の高さ＋縁 RIM_LIP。縁より上の水だけ落ちる）
   const P = W.P || (W.P = new Float32Array(N * N));
   for (const i of INS) P[i] = g[i] + w[i] - tideAt(i);
   const kd = dt * K;
   for (const i of INS) {
     const wi = w[i];
     if (wi < 1e-4 || W.ice[i]) { fL[i] = fR[i] = fU[i] = fD[i] = 0; continue; }   // 凍った水は流れない
-    const H = P[i], lip = H - wi;
+    const H = P[i], lip = H - wi + RIM_LIP;
     const fr = Math.max(0.2, 1 - dt * (0.35 + 0.12 / (wi + 0.04)));
     let l = fL[i] * fr + kd * (H - (inside[i - 1] ? P[i - 1] : lip)); if (l < 0) l = 0;
     let r = fR[i] * fr + kd * (H - (inside[i + 1] ? P[i + 1] : lip)); if (r < 0) r = 0;

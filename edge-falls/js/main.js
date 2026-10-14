@@ -2,17 +2,17 @@
 // 入力・ループ・章の進み。デバッグ用に window.__ef
 const cv = $('view'), ctx = cv.getContext('2d'), field = $('field');
 const G = { speed: 1, lastSpeed: 1, tool: 'look', hand: null, sub: { soil: 'raise', water: 'spring', life: 'seed' },   /* 土ぶくろははじめ「盛る」（v044。2026-10-14 ユーザー） */ ch: 0, chT: 0, streak: 0, helped: 0,
-  done: [], found: {}, did: {}, tipped: {}, unlock: {}, started: false, sel: null };
+  done: [], found: {}, did: {}, tipped: {}, unlock: {}, started: false, sel: null, mode: 'story' };   // mode: 遊び方（'story' 十の年／'free' 自由な箱庭）。世界の置き場所も遊び方ごとに一つ（save.js）
 const THUMB = new URLSearchParams(location.search).has('thumb');
 let hover = null, ptr = null;
 let accPlant = 0, accHist = 0, accSide = 0, prevCounts = null;
 
 // story=true: 章で遊ぶ（岩と土だけの大地から）。false: 自由な箱庭（いまある大地・全部そろう）
 function newGame(seed = (Math.random() * 1e9) | 0, story = true) {
-  newWorld(seed, story); resetLife(); HIST.length = 0;
+  newWorld(seed, story); resetLife(); HIST.length = 0; G.mode = story ? 'story' : 'free';
   V.yaw = Math.PI / 2 - W.bigFall + 0.35;   // いちばん大きな滝（はじめの章は湖のくぼみ）が手前に
   V.panX = V.panY = 0;
-  G.sel = null; G.done = []; G.found = {}; G.did = {}; G.tipped = {}; MSGLOG.length = 0; clearSay();
+  G.sel = null; G.done = []; G.found = {}; G.did = {}; G.tipped = {}; G.unread = {}; MSGLOG.length = 0; clearSay();
   prevCounts = { deer: 0, wolf: 0, fish: 0, bird: 0 };
   if (story) { for (const k in W.stock) W.stock[k] = 0; enterChapter(0, true); }
   else { G.ch = CHAPTERS.length; G.unlock = unlockedAt(G.ch); W.knob = { winter: 1, tide: 1 }; for (const k in W.stock) W.stock[k] = STOCK_MAX[k]; }
@@ -47,7 +47,7 @@ function simulate(sec) {
     if (Math.floor(W.t / DAY) !== dayBefore) {
       W.day = Math.floor(W.t / DAY) + 1;
       returnSouls();
-      G.needSave = true;                    // 1日ごとに自動セーブ（ループの中で）
+      G.needSave = true;                    // 1日ごとに書きとめる（ループの中で）
     }
     if (!(G.ch % 1)) tickChapter(h, lastStats);
   }
@@ -328,7 +328,7 @@ function frame(now) {
     }
   }
   const s = checkWorld(G.started && !COL ? dt * G.speed : 0);
-  if (G.needSave && !THUMB) { G.needSave = false; autoSave(); }
+  if (G.needSave && !THUMB) { G.needSave = false; noteWorld(); }
   if (G.seasonMsg !== undefined) {
     toast(SEASON_MSG[G.seasonMsg], 4); Sound.play('spring'); G.seasonMsg = undefined;
   }
@@ -340,24 +340,36 @@ function frame(now) {
 }
 
 // はじめの画面: 世界の上に題と、ことばだけ（四角い箱を出さない）
+// v067（2026-10-14 ユーザー「セーブ・ロードを一から見直して」）: 世界は遊び方ごとに一つで、いつも自動で書きとめる。ボタンはみな同じ見た目
+//   （「つづきから」だけを目立たせない）。続きのあるボタンの下に、どこまで遊んだか（第三の年・第 24 日）を小さく。
+//   十の年の世界があるとき: つづきから／はじめから（入れかわるので確かめる）／自由な箱庭。ないとき: はじめる／自由な箱庭。
+//   自由な箱庭は、世界があればそのつづき（新しい大地はメニューの「大地をつくりなおす」から）
 function start() {
-  // つづきから: 自動セーブがあれば出し、押すとそのまま読みこむ（v049 でもどした。2026-10-14 ユーザー「ロード画面をはさまず以前の仕様に」。v041〜v048 はロードの札をはさんでいた）。
-  //   タイトルの「つづき: …」の行は v041 でやめたまま
-  const cont = readSlot('auto');
+  const story = readWorld('story'), free = readWorld('free');
   document.body.classList.add('titling');
   const go = fn => () => { document.body.classList.remove('titling'); fn(); };
+  const fresh = go(() => { if (W.t > 0 || L.list.length) newGame(); G.started = true; enterChapter(0); noteWorld(true); });
+  const freeBtn = { label: TX('自由な箱庭', 'Free Garden'), sub: free ? worldWhere(free) : '', fn: free ? () => playWorld('free') : go(() => { newGame(undefined, false); G.started = true; syncHands(); noteWorld(true); }) };
   showPanel(TX(`<h2 class="title">果ての滝の箱庭</h2>
     <p class="sub">深淵に浮かぶ、平らな大地。<br>川は、世界の果てから滝になって落ちていく。</p>
     <p class="sub">何も生まれず、何も消えない。ただ、めぐるだけ。</p>`, `<h2 class="title">Edge Falls Garden</h2>
     <p class="sub">A flat land floating over the Abyss.<br>Rivers fall from the edge of the world as waterfalls.</p>
     <p class="sub">Nothing is made, nothing is lost. It only turns.</p>`),
-    (cont ? [{ label: TX('つづきから', 'Continue'), main: true, fn: go(async () => {
-      try { await loadRecord(cont); G.started = true; toast(TX('第 ' + W.day + ' 日から', 'From day ' + W.day)); }
-      catch (e) { toast(TX('つづきを読みこめなかった: ', 'Couldn’t load the saved game: ') + e.message); G.started = true; enterChapter(0); }
-      syncHands();
-    }) }, { label: TX('はじめから', 'New game'), fn: go(() => { if (W.t > 0 || L.list.length) newGame(); G.started = true; enterChapter(0); }) }]
-      : [{ label: TX('はじめる', 'Start'), main: true, fn: go(() => { if (W.t > 0 || L.list.length) newGame(); G.started = true; enterChapter(0); }) }]).concat([{ label: TX('自由な箱庭', 'Free Garden'), fn: go(() => { newGame(undefined, false); G.started = true; syncHands(); }) }]));
-  $('panel').classList.add('titlecard'); document.body.classList.add('atitle');
+    story ? [{ label: TX('つづきから', 'Continue'), sub: worldWhere(story), main: true, fn: () => playWorld('story') },
+      { label: TX('はじめから', 'New game'), fn: () => confirmFresh(story, fresh) }, freeBtn]
+      : [{ label: TX('はじめる', 'Start'), main: true, fn: fresh }, freeBtn], 'titlecard');
+  document.body.classList.add('atitle');
+}
+// はじめから: いまの十の年の世界が消えることを、一度だけ確かめる。2026-10-14 ユーザー「注意書きがわかりづらい。もどるを下に、
+//   はじめからは別の言い方に、前の世界が消えることを強調」→ 消えることを朱の字で先に、ボタンは何が起きるかをそのまま言う。
+//   「もどる」は下だが、はじめから選ばれている（うっかり押しても消えない）
+function confirmFresh(rec, fresh) {
+  showPanel(TX(`<p class="mtitle">はじめから</p><p class="warn">いまの世界は、消えてしまう</p><p class="small center">十の年の世界（${worldWhere(rec)}）は、<br>もとにはもどせない。</p>`,
+    `<p class="mtitle">New game</p><p class="warn">Your current world will be gone</p><p class="small center">Your Ten Years world (${worldWhere(rec)})<br>can’t be brought back.</p>`), [
+    { label: TX('世界を消して、新しい大地へ', 'Erase it and start on new land'), cls: 'danger', fn: fresh },
+    { label: TX('もどる', 'Back'), main: true, fn: start },
+  ]);
+  $('panel').classList.add('menu', 'world'); G.panelBack = start;
 }
 
 // 言語はタイトルの右上だけで切りかえる（v020。2026-10-13 ユーザー）。タイトルでは G.started が false なので、読み直しても自動セーブは走らない

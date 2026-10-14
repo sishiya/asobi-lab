@@ -47,7 +47,7 @@ function toast(msg, sec = 3) {
 
 // ---- これまでの知らせ（v049。2026-10-14 ユーザー「吹き出し機能を付ける前の表示にもどしつつ、吹き出し機能自体を刷新。押したときに時間をとめ、
 //      画面大きめに。ふわっと出て見逃しがちなメッセージを見返せる。半透明系が圧迫感なくていいかも」） ----
-//   知らせはもとの、ふわっと出て消える形（toast）。左上のメニューの下の吹き出しのボタンを押すと、時が止まり、半透明の大きな札に
+//   知らせはもとの、ふわっと出て消える形（toast）。右下の観察帳の上の吹き出しのボタンを押すと、時が止まり、半透明の大きな札に
 //   これまでの知らせ（古いものが上、40 まで。開くといちばん下の新しいものへ）が出る。×・Esc・札の外・もう一度ボタン でとじると、時がもとの速さにもどる。
 //   v033〜v048 のためし（メグリ・出しっぱなしの吹き出し）はやめた
 const MSGLOG = [];
@@ -95,7 +95,7 @@ addEventListener('DOMContentLoaded', () => {
   box.className = 'msglog'; box.id = 'msglog'; box.hidden = true; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', TX('これまでの知らせ', 'Recent messages'));
   box.innerHTML = `<div class="msglogbox"><h3>${TX('これまでの知らせ', 'Recent messages')}</h3>` +
     `<button type="button" class="msglogclose" id="msglogClose" aria-label="${TX('とじる', 'Close')}">×</button><ol id="msglogList"></ol></div>`;
-  $('btnMenu').after(b);
+  $('btnBook').before(b);   // 右下に、観察帳の上（2026-10-14 ユーザー。前は左上のメニューの下）
   document.body.appendChild(box);
   b.onclick = () => { Sound.unlock(); Sound.play('click'); if (logOpen()) closeLog(); else openLog(); };
   $('msglogClose').onclick = () => { Sound.play('click'); closeLog(); };
@@ -104,18 +104,19 @@ addEventListener('DOMContentLoaded', () => {
   addEventListener('keydown', e => { if (e.key === 'Escape' && logOpen()) { closeLog(); e.stopImmediatePropagation(); e.preventDefault(); } }, true);
 });
 
-function showPanel(html, btns) {
-  $('panel').className = 'panel'; G.panelBack = null; document.body.classList.remove('atitle');   // JP／EN はタイトルの札のときだけ（start が付けなおす）   // Esc・札の外でもどる先（入れる札だけが入れる。book.js の goBack）
+function showPanel(html, btns, cls) {   // cls: 札の形（'titlecard' など）。ボタンを作る前に付ける（あとから付けると、ふつうの色から移り変わるのが一瞬見える。v067）
+  $('panel').className = 'panel' + (cls ? ' ' + cls : ''); G.panelBack = null; document.body.classList.remove('atitle');   // JP／EN はタイトルの札のときだけ（start が付けなおす）   // Esc・札の外でもどる先（入れる札だけが入れる。book.js の goBack）
   $('panel').innerHTML = html;
   const box = document.createElement('div'); box.className = 'btns';
   for (const b of btns) {
-    const el = document.createElement('button'); el.type = 'button'; el.className = 'tbtn' + (b.main ? ' main' : ''); el.textContent = b.label;
+    const el = document.createElement('button'); el.type = 'button'; el.className = 'tbtn' + (b.main ? ' main' : '') + (b.cls ? ' ' + b.cls : ''); el.textContent = b.label;
+    if (b.sub) { const s = document.createElement('small'); s.textContent = b.sub; el.appendChild(s); }   // ボタンの下の小さな行（タイトルの「第三の年・第 24 日」。v067）
     el.onclick = () => { Sound.unlock(); Sound.play('click'); $('overlay').hidden = true; b.fn && b.fn(); };
     box.appendChild(el);
   }
   $('panel').appendChild(box);
   $('overlay').hidden = false;
-  box.querySelector('.main')?.focus();
+  box.querySelector('.main')?.focus({ focusVisible: false });
 }
 
 const HIST = [];

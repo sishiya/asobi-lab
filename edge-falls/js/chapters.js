@@ -197,6 +197,7 @@ function finishChapter() {
     G.ch = CHAPTERS.length; G.unlock = unlockedAt(G.ch); W.knob = { winter: 1, tide: 1 }; syncHands();
     later(2.5, startEnding);
   }
+  noteWorld(true);   // 年ができたところも書きとめる（v067）
 }
 
 // エンディング（v017）: 殻がはがれる演出（collapse.js）はやめた（2026-10-13 ユーザー）。
@@ -239,6 +240,7 @@ function endingPanel() {
 }
 function endEnding() {
   ENDING = null; document.body.classList.remove('ending');
+  noteWorld(true);
   toast(TX('ここからは自由な箱庭。命のつぼの中身は、ぜんぶ使える', 'From here on, it’s a Free Garden. Everything in the Life Jar is yours to use'), 6);
 }
 

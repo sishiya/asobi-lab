@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
-<link rel="stylesheet" href="css/style.css?v=61">
+<link rel="stylesheet" href="css/style.css?v=67">
 </head>
 <body class="titling">
 <main class="stage" id="field">
@@ -47,7 +47,7 @@
     <button type="button" class="hand" data-hand="water" aria-pressed="false" title="水がめ（泉をわかせる・止める）。中の水は深淵の水" data-en-title="Water Jar (start and stop springs). The water inside is the Abyss's water"><canvas width="32" height="32"></canvas><span lang="ja">水</span><span lang="en">Water</span></button>
     <button type="button" class="hand" data-hand="life" aria-pressed="false" title="命のつぼ（たね・生き物を放す）" data-en-title="Life Jar (sow seeds and release animals)"><canvas width="32" height="32"></canvas><span lang="ja">命</span><span lang="en">Life</span></button>
   </div>
-  <button type="button" class="bookbtn" id="btnBook" aria-label="観察帳をひらく" title="観察帳" data-en-aria-label="Open the Field Notes" data-en-title="Field Notes"><canvas width="32" height="32"></canvas><span lang="ja">観察帳</span><span lang="en">Notes</span></button>
+  <div class="corner" id="corner"><button type="button" class="bookbtn" id="btnBook" aria-label="観察帳をひらく（B）" title="観察帳（B）" data-en-aria-label="Open the Field Notes (B)" data-en-title="Field Notes (B)"><canvas width="32" height="32"></canvas></button></div>
   <button type="button" class="restore" id="btnRestore">もとにもどす</button>
   <div class="lightbox" id="lightbox" hidden><figure class="frame"><img id="lbImg" alt=""><figcaption><b id="lbTitle"></b><span id="lbDay"></span><p id="lbText"></p></figcaption></figure><button type="button" class="lbclose" id="lbClose" aria-label="とじる" data-en-aria-label="Close">×</button></div>
 
@@ -130,11 +130,12 @@
           <li>太陽と月は、つかんで動かせる。押すと止まる。月を太陽に重ねたり、そろえたり、太陽を止めたままにしたりすると、見つけることがある。</li>
           <li>右上の<b>天の輪</b>は、外の輪が1年の季節、針が今日、中の点が太陽と月。押すと時が止まる。下の印で速さ（止める・ふつう・×4・×16）。</li>
           <li>マウス: 大地の外を左ドラッグ・右ドラッグで回す・傾ける（土や命を持ったままでも右ボタンで回せる）。中ボタン・Shift＋ドラッグで平行移動。ホイールで寄る（寄ると滝の音が聞こえる）。空をダブルクリックで真ん中へ。</li>
-          <li>スマホ: 2本指で回す（ひねる）・寄る（ひらく）・動かす。手に持ったものは、横の「しまう」でもしまえる。メニューは左上の印。</li>
+          <li>スマホ: 2本指で回す（ひねる）・寄る（ひらく）・動かす。手に持ったものは、横の「しまう」でもしまえる。メニューは左上の印。右下の吹き出しで、これまでの知らせを読み返せる。</li>
           <li>キー: Esc しまう・メニュー（ひとつ前へもどる）・1 土・2 水・3 命・B 観察帳・スペース 止める・←→↑↓ 見る向き・WASD 動かす・＋－ 寄る。</li>
           <li>観察帳をひらいているあいだは、時が止まる。</li>
           <li>お題が進まないときは、何日かたつと世界がそっと助けてくれる。時間の制限はない。十の年のあとは、自由な箱庭として続けられる（タイトルの「自由な箱庭」からも）。</li>
-          <li>Esc のメニュー: セーブ・ロード・設定（音楽・効果音・文字・背景）・タイトルへ・ゲームを終える。言語（日本語・English）はタイトルの右上で。</li>
+          <li>Esc のメニュー: 観察帳・設定（音楽・効果音・文字・背景・ファイル）・タイトルへ・ゲームを終える。言語（日本語・English）はタイトルの右上で。</li>
+          <li>世界は、いつも自動で書きとめられる（1日ごと・メニューを開いたとき・タイトルへもどるとき・ページを閉じるとき）。書きとめると右下に「書きとめた」と出る。世界は遊び方ごとに一つ（十の年と自由な箱庭）で、タイトルの「つづきから」「自由な箱庭」から続きを遊べる。ほかの端末へ持っていくときは、設定の「ファイル」から。</li>
         </ul>
         <ul class="howto" lang="en">
           <li>Press the <b>Soil Bag, Water Jar or Life Jar</b> at the bottom to hold it. Press it again, or press the empty sky outside the land, to put it away (you can pick it up again any time). For the Soil Bag and Life Jar, choose what to use from the options that appear above it (dig or pile up; seeds or animals).</li>
@@ -145,11 +146,12 @@
           <li>You can grab the Sun and Moon and move them. Press one to stop it. Try putting the Moon over the Sun, lining them up, or keeping the Sun stopped — you may discover something.</li>
           <li>The <b>Sky Dial</b> at the top right: the outer ring is the seasons of the year, the hand is today, and the inner dots are the Sun and Moon. Press it to stop time. The marks below set the speed (stop, normal, ×4, ×16).</li>
           <li>Mouse: drag outside the land with the left or right button to turn and tilt (the right button works even while holding soil or life). Middle button or Shift + drag to move. Scroll to zoom in (zoom in to hear the falls). Double-click the sky to go back to the center.</li>
-          <li>Phone: use two fingers to turn (twist), zoom (spread) and move. You can also put away what you hold with the “Put away” button next to it. The menu is the mark at the top left.</li>
+          <li>Phone: use two fingers to turn (twist), zoom (spread) and move. You can also put away what you hold with the “Put away” button next to it. The menu is the mark at the top left. The speech bubble at the bottom right shows recent messages again.</li>
           <li>Keys: Esc put away · menu (go back one step) · 1 soil · 2 water · 3 life · B Field Notes · Space stop · ←→↑↓ view · WASD move · + − zoom.</li>
           <li>Time stops while the Field Notes are open.</li>
           <li>If a goal isn’t moving forward, the world quietly helps you after a few days. There is no time limit. After the Ten Years, you can keep playing as a Free Garden (you can also start one with “Free Garden” on the title screen).</li>
-          <li>Esc menu: Save · Load · Settings (music, sound effects, font, background) · Title screen · Quit. Choose the language (日本語 / English) at the top right of the title screen.</li>
+          <li>Esc menu: Field Notes · Settings (music, sound effects, font, background, file) · Title screen · Quit. Choose the language (日本語 / English) at the top right of the title screen.</li>
+          <li>Your world is always noted down automatically (every day, when you open the menu, when you go back to the title screen, and when you close the page). When it is, “noted down” appears at the bottom right. You keep one world for each way to play (the Ten Years and the Free Garden); pick up where you left off with “Continue” or “Free Garden” on the title screen. To take a world to another device, use “File” in Settings.</li>
         </ul>
         <div class="row">
           <button type="button" class="tbtn" id="btnPrint"><span lang="ja">世界の版画をのこす</span><span lang="en">Make a World Print</span></button>
@@ -203,9 +205,9 @@
   <div class="overlay" id="overlay" hidden><div class="panel" id="panel"></div></div>
 </main>
 
-<script src="js/world.js?v=58"></script>
+<script src="js/world.js?v=67"></script>
 <script src="js/life.js?v=62"></script>
-<script src="js/render.js?v=62"></script>
+<script src="js/render.js?v=67"></script>
 <script src="js/backdrop.js?v=20"></script>
 <script src="js/style-voxel.js?v=66"></script>
 <script src="js/style-paint.js?v=20"></script>
@@ -213,12 +215,12 @@
 <script src="js/style-real.js?v=20"></script>
 <script src="js/style-cyber.js?v=20"></script>
 <script src="js/sound.js?v=20"></script>
-<script src="js/chapters.js?v=41"></script>
-<script src="js/ui.js?v=61"></script>
-<script src="js/save.js?v=45"></script>
-<script src="js/book.js?v=60"></script>
+<script src="js/chapters.js?v=67"></script>
+<script src="js/ui.js?v=67"></script>
+<script src="js/save.js?v=67"></script>
+<script src="js/book.js?v=67"></script>
 <script src="js/view.js?v=55"></script>
 <script src="js/collapse.js?v=20"></script>
-<script src="js/main.js?v=56"></script>
+<script src="js/main.js?v=67"></script>
 </body>
 </html>
