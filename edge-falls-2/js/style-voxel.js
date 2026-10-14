@@ -7,7 +7,10 @@
 //   0 荒い（これまで）・1 細かい（画素の板を倍細かく。描く画素が約4倍で重くなる）・2 なめらか（細かい＋板をぼかして広げる。木や生き物の画素の絵はそのまま）。
 //   設定の「ボクセル（試験）」で切りかえ。localStorage に覚える
 const VOXSMOOTH_KEY = 'asobi-lab/edge-falls-2/voxsmooth';
-let VOXSMOOTH = 0; try { VOXSMOOTH = Math.max(0, Math.min(2, +(localStorage.getItem(VOXSMOOTH_KEY) || 0))); } catch (e) { /* なし */ }
+//   v013: 3 中くらい（荒いと細かいのまん中の大きさ。小数の大きさなので、画素の幅がわずかにそろわないことがある）。切りかえの順は 荒い → 中くらい → 細かい → なめらか
+let VOXSMOOTH = 0; try { VOXSMOOTH = Math.max(0, Math.min(3, +(localStorage.getItem(VOXSMOOTH_KEY) || 0))); } catch (e) { /* なし */ }
+const VOX_ORDER = [0, 3, 1, 2], VOX_NAME = { 0: TX('荒い', 'Coarse'), 3: TX('中くらい', 'Medium'), 1: TX('細かい', 'Fine'), 2: TX('なめらか', 'Smooth') };
+const nextVox = () => VOX_ORDER[(VOX_ORDER.indexOf(VOXSMOOTH) + 1) % VOX_ORDER.length];
 function setVoxSmooth(n) { VOXSMOOTH = n; try { localStorage.setItem(VOXSMOOTH_KEY, String(n)); } catch (e) { /* なし */ } buf = null; layout(V.cw, V.ch); }
 const VOX = (() => {
   const STRATA = [[170, 128, 84], [142, 104, 70], [188, 152, 104], [124, 94, 70], [160, 120, 80]];
@@ -684,6 +687,6 @@ const VOX = (() => {
     }
   }
 
-  return { label: 'ボクセル', icon, drawsSel: true, quant: true, bs: cw => PRINT || VOXSMOOTH ? Math.max(1, Math.round(cw / 800)) : Math.max(2, Math.round(cw / 400)), draw, hover: 'rgba(255,250,230,0.85)' };
+  return { label: 'ボクセル', icon, drawsSel: true, quant: true, bs: cw => { const coarse = Math.max(2, Math.round(cw / 400)), fine = Math.max(1, Math.round(cw / 800)); return PRINT || VOXSMOOTH === 1 || VOXSMOOTH === 2 ? fine : VOXSMOOTH === 3 ? (coarse + fine) / 2 : coarse; }, draw, hover: 'rgba(255,250,230,0.85)' };
 })();
 STYLES.voxel = VOX;
