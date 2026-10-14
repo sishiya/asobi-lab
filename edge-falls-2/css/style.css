@@ -436,3 +436,15 @@ body.titling.atitle .langsw{display:flex}   /* タイトルの札のときだけ
 body.titling .tally,body.ending .tally,body.thumb .tally{display:none}
 @media (max-width:520px){.tally{width:66px}}
 .spname{font:inherit;font-size:18px;text-align:center;width:min(260px,80%);padding:6px 10px;border-radius:8px;border:1px solid rgba(239,227,196,.4);background:rgba(10,13,24,.6);color:var(--paper)}
+/* 年の札（v009） */
+.panel.yearcard{max-width:min(460px,92vw);text-align:center}
+.yearcard .ytitle{margin:4px 0 12px}
+.yearcard .ytitle small{display:block;font-size:14px;letter-spacing:.3em;color:#ecd9a6;margin-bottom:4px}
+.yearcard .ytitle b{display:block;font-size:clamp(26px,5vw,36px);font-weight:400;letter-spacing:.3em;text-shadow:0 0 18px rgba(222,192,124,.35)}
+.yearcard .ytitle b::before,.yearcard .ytitle b::after{content:"";display:inline-block;width:1.4em;height:1px;background:rgba(222,192,124,.7);vertical-align:middle;margin:0 .6em}
+.yearcard .yarrive{color:#ecd9a6;font-size:16px;line-height:1.7;margin:0 0 14px;padding-top:12px;border-top:1px solid rgba(222,192,124,.45)}
+.yearcard .ygoal{border:1px solid rgba(239,227,196,.25);border-radius:10px;padding:10px 14px;margin:0 0 10px;background:rgba(239,227,196,.05)}
+.yearcard .ygoal span{display:block;font-size:12px;letter-spacing:.2em;opacity:.7}
+.yearcard .ygoal b{display:block;font-size:18px;font-weight:400;letter-spacing:.12em;margin:2px 0}
+.yearcard .ygoal p{margin:0;font-size:14px;opacity:.9}
+.yearcard .ynote{font-size:12px;opacity:.6;margin:6px 0 2px}

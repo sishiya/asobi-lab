@@ -159,7 +159,7 @@ function stepLater(dt) { for (let k = LATER.length - 1; k >= 0; k--) { LATER[k].
 // 章に入る（つまみ・つぼの中身・ことば）。quiet=true は読みこんだとき
 function enterChapter(n, quiet) {
   G.ch = n; G.chT = 0; G.streak = 0; G.helped = 0; G.spots = null; G.spotT = 0; G.winterOk = false; G.winterSeen = false;
-  if (CHAPTERS[n] && CHAPTERS[n].key === 'genes' && !quiet) { G.gbase = geneBase(); G.gpick = null; later(5, () => { if (CHAPTERS[G.ch] && CHAPTERS[G.ch].key === 'genes' && !G.gpick && !ENDING) chooseGene(); }); }
+  if (CHAPTERS[n] && CHAPTERS[n].key === 'genes' && !quiet) { G.gbase = geneBase(); G.gpick = null; }
   const prevU = G.unlock || {};
   G.unlock = unlockedAt(n);
   const c = CHAPTERS[n];
@@ -169,13 +169,29 @@ function enterChapter(n, quiet) {
   else W.knob = { winter: 1, tide: 1 };
   for (const k of ['deer', 'wolf', 'fish', 'bird']) if (G.unlock[k] && !prevU[k] && !quiet) W.stock[k] = STOCK_START[k];
   if (!quiet && c) {
-    chapterLine(TX(`${yearOf(n)}　${c.name}`, `${yearOf(n)}: ${c.name}`), c.arrive);
-    if (c.key === 'grass') toast(JAR_TALK, 6);         // 命のつぼとは（v034。ユーザーの家族「ツボってなに？」）
+    yearCard(n, c, () => {
+      if (c.key === 'grass') toast(JAR_TALK, 6);       // 命のつぼとは（v034。ユーザーの家族「ツボってなに？」）
+      if (c.key === 'genes' && !G.gpick) later(0.6, () => { if (CHAPTERS[G.ch] && CHAPTERS[G.ch].key === 'genes' && !G.gpick && !ENDING) chooseGene(); });
+    });
     Sound.play('spring');
     const newKey = Object.keys(c.gives)[0];
     if (newKey) glowHand(newKey);
   }
   syncHands();
+}
+
+// 年の札（v009。2026-10-14 ユーザー「シティーズスカイラインのように、いったん時間をとめて、年が変わったときのメッセージをきちんとみせ、
+//   任意で閉じない限り先に進まないように。そのうえで時間をふつうに戻す」）: 時を止めて、年の名前・来たもの・お題を一枚の札に。
+//   「つづける」（Esc・札の外を押す でも）で閉じると、時はふつうの速さで動き出す（速くしていても ×1 にもどる。そのことも札に書く）
+function yearCard(n, c, after) {
+  logMsg(c.arrive, TX(`${yearOf(n)}　${c.name}`, `${yearOf(n)}: ${c.name}`));
+  setSpeed(0);
+  const close = () => { $('overlay').hidden = true; setSpeed(1); after && after(); };
+  showPanel(TX(`<p class="ytitle"><small>${yearOf(n)}</small><b>${c.name}</b></p><p class="yarrive">${c.arrive}</p><div class="ygoal"><span>この年のお題</span><b>${c.title}</b><p>${c.text}</p></div><p class="ynote">閉じると、時はふつうの速さで動き出す</p>`,
+    `<p class="ytitle"><small>${yearOf(n)}</small><b>${c.name}</b></p><p class="yarrive">${c.arrive}</p><div class="ygoal"><span>This year’s goal</span><b>${c.title}</b><p>${c.text}</p></div><p class="ynote">When you close this, time starts again at normal speed</p>`),
+    [{ label: n === 0 ? TX('はじめる', 'Begin') : TX('つづける', 'Continue'), main: true, fn: () => close() }], 'yearcard');
+  $('panel').classList.add('world');
+  G.panelBack = close;
 }
 
 // ヒントのはしごの 1 段目: 関係のある所がかすかに光る（2日目から6日目まで。半日ごとに選びなおす）
