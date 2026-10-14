@@ -4,16 +4,22 @@
 //        やわらかい正弦波の和音（ゆっくり息をするように大きさが揺れる）と、ときどき鳴るオルゴールのような音。高い音・強い音は使わない。
 //   環境音: 果ての滝の音（さらさら〜ごうごう）。落ちる水が多いほど大きく、低く。
 //   heaven-spheres の sound.js を下じきにした（BGM は同じ）。
-//   効果音: Sound.play(名前)。BGM と効果音はべつべつにオン・オフでき、localStorage に覚える。
+//   効果音: Sound.play(名前)。BGM と効果音はべつべつに音の大きさ（0〜5。0 は鳴らさない）を決められ、localStorage に覚える（v023）。
+//   曲（試験。v023）: 「深淵の子守歌」（これまでの BGM）・「星の水面」（ハープのような分散和音）・「霧の笛」（低い持続音と笛）。
+//     どれも同じ五音音階の中だけ。切りかえると、前の曲はゆっくり消え、次の曲がゆっくり来る。
 //   ページが見えなくなったら（タブを替える・アプリを閉じる）音を止める。
 
 const Sound = (() => {
   const KEY = 'asobi-lab/edge-falls-2/sound';
-  let pref = { bgm: true, sfx: true };
+  let pref = { bgm: true, sfx: true, bgmV: 3, sfxV: 3, track: 'lull' };
   try { Object.assign(pref, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { /* 覚えられなくても鳴らせる */ }
+  if (!pref.v) { if (pref.bgm === false) pref.bgmV = 0; if (pref.sfx === false) pref.sfxV = 0; pref.v = 2; }   // オン・オフだけだったころの「オフ」は 0 に
   let ac = null, out = null, bgmBus = null, sfxBus = null, noiseBuf = null, rev = null;
-  let pad = [], waves = null, nextNote = 0, chordIx = 0, nextChord = 0;
+  let waves = null, cur = null;
   const BGM_VOL = 0.32, SFX_VOL = 0.6;
+  const LEVEL = [0, 0.22, 0.5, 1, 1.45, 1.95];   // 3 がこれまでの大きさ
+  const lv = k => Math.max(0, Math.min(5, Math.round(pref[k + 'V']) || 0));
+  const busVol = k => (k === 'bgm' ? BGM_VOL : SFX_VOL) * LEVEL[lv(k)];
 
   // ハ長調の五音音階。基準は C3（130.81Hz）。和音はゆっくり4つを回る（Cadd9・Am7・Fmaj7 ふう・G6sus ふう、五音音階の中だけで）
   const ROOT = 130.81;
@@ -28,8 +34,8 @@ const Sound = (() => {
     if (!AC) return;
     ac = new AC();
     out = ac.createDynamicsCompressor(); out.connect(ac.destination);
-    bgmBus = ac.createGain(); bgmBus.gain.value = pref.bgm ? BGM_VOL : 0; bgmBus.connect(out);
-    sfxBus = ac.createGain(); sfxBus.gain.value = pref.sfx ? SFX_VOL : 0; sfxBus.connect(out);
+    bgmBus = ac.createGain(); bgmBus.gain.value = busVol('bgm'); bgmBus.connect(out);
+    sfxBus = ac.createGain(); sfxBus.gain.value = busVol('sfx'); sfxBus.connect(out);
     noiseBuf = ac.createBuffer(1, ac.sampleRate * 3, ac.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -40,8 +46,7 @@ const Sound = (() => {
     rev.buffer = ir;
     const rlp = ac.createBiquadFilter(); rlp.type = 'lowpass'; rlp.frequency.value = 2500;
     const rg = ac.createGain(); rg.gain.value = 0.45; rev.connect(rlp); rlp.connect(rg); rg.connect(bgmBus);
-    startPad(); startWaves();
-    nextNote = ac.currentTime + 2; nextChord = ac.currentTime + 16;
+    startWaves(); startTrack(pref.track);
   }
   addEventListener('pointerdown', unlock, { capture: true });
   addEventListener('keydown', unlock, { capture: true });
@@ -53,28 +58,136 @@ const Sound = (() => {
   addEventListener('pagehide', () => { if (ac) ac.suspend(); });
 
   function save() { try { localStorage.setItem(KEY, JSON.stringify(pref)); } catch (e) { /* なし */ } }
-  function set(kind, v) {
-    pref[kind] = v; save();
-    if (!ac) return;
-    (kind === 'bgm' ? bgmBus : sfxBus).gain.setTargetAtTime(v ? (kind === 'bgm' ? BGM_VOL : SFX_VOL) : 0, ac.currentTime, 0.4);
+  function setLevel(kind, v) {
+    pref[kind + 'V'] = Math.max(0, Math.min(5, v | 0)); pref[kind] = pref[kind + 'V'] > 0; save();
+    if (ac) (kind === 'bgm' ? bgmBus : sfxBus).gain.setTargetAtTime(busVol(kind), ac.currentTime, 0.15);
   }
+  function set(kind, v) { setLevel(kind, v ? (lv(kind) || 3) : 0); }   // 古い呼び方（オン・オフ）
 
-  // パッド: 和音の各音に正弦波を2つ（ほんの少しずらして、ゆるやかなうなり）。低い通過フィルタでさらにやわらかく
-  function startPad() {
+  // ---- 曲（v023）。どれも { g: 曲の大きさ, tick(t, paused), stop() } ----
+  function trackOut() {
+    const g = ac.createGain(); g.gain.value = 0.0001; g.connect(bgmBus);
+    g.gain.setTargetAtTime(1, ac.currentTime, 1.2);   // ゆっくり来る
+    return g;
+  }
+  function startTrack(name) {
+    if (cur) {
+      const old = cur, t = ac.currentTime;
+      old.g.gain.cancelScheduledValues(t); old.g.gain.setTargetAtTime(0.0001, t, 0.9);   // 前の曲はゆっくり消える
+      setTimeout(() => { try { old.stop(); old.g.disconnect(); } catch (e) { /* なし */ } }, 5000);
+    }
+    cur = (TRACKS[name] || TRACKS.lull).make();
+  }
+  function setTrack(name) { pref.track = TRACKS[name] ? name : 'lull'; save(); if (ac) startTrack(pref.track); }
+
+  // 深淵の子守歌（これまでの BGM）
+  //   パッド: 和音の各音に正弦波を2つ（ほんの少しずらして、ゆるやかなうなり）。低い通過フィルタでさらにやわらかく。ときどきオルゴール
+  function makeLull() {
+    const g = trackOut(), oscs = [], pad = [];
     const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 650; lp.Q.value = 0.3;
-    const g = ac.createGain(); g.gain.value = 0.07;
-    lp.connect(g); g.connect(bgmBus); g.connect(rev);
+    const pg = ac.createGain(); pg.gain.value = 0.07;
+    lp.connect(pg); pg.connect(g); pg.connect(rev);
     for (let v = 0; v < 4; v++) {
       const vg = ac.createGain(); vg.gain.value = 0.22; vg.connect(lp);
       const os = [ac.createOscillator(), ac.createOscillator()];
-      os.forEach((o, k) => { o.type = 'sine'; o.detune.value = k ? 4 : -4; o.frequency.value = st(CHORDS[0][v]); o.connect(vg); o.start(); });
+      os.forEach((o, k) => { o.type = 'sine'; o.detune.value = k ? 4 : -4; o.frequency.value = st(CHORDS[0][v]); o.connect(vg); o.start(); oscs.push(o); });
       // 息をするようにゆっくり揺れる大きさ（8〜12 秒で1回）
       const lfo = ac.createOscillator(), lg = ac.createGain();
-      lfo.frequency.value = 0.08 + v * 0.013; lg.gain.value = 0.09; lfo.connect(lg); lg.connect(vg.gain); lfo.start();
+      lfo.frequency.value = 0.08 + v * 0.013; lg.gain.value = 0.09; lfo.connect(lg); lg.connect(vg.gain); lfo.start(); oscs.push(lfo);
       pad.push({ os, vg });
     }
-    pad.lp = lp;
+    let nextNote = ac.currentTime + 2, chordIx = 0, nextChord = ac.currentTime + 16;
+    return {
+      g, stop: () => oscs.forEach(o => o.stop()),
+      tick(t, paused) {
+        if (t >= nextChord) {                    // 16 秒ごとに次の和音へ、とてもゆっくり移る
+          chordIx = (chordIx + 1) % CHORDS.length;
+          pad.forEach((p, v) => p.os.forEach(o => o.frequency.setTargetAtTime(st(CHORDS[chordIx][v]), t, 3)));
+          nextChord = t + 16;
+        }
+        if (t >= nextNote && !paused) {
+          chime(st(melodyNote()), 0.035, t, g);
+          if (Math.random() < 0.3) chime(st(melodyNote()), 0.025, t + 0.6, g);
+          nextNote = t + 3.5 + Math.random() * 4;
+        }
+      },
+    };
   }
+
+  // 星の水面: 水面に星がうつるような、ハープの分散和音。のぼって少しおりる。低い音が遠くで支える
+  const ARPS = [[-3, 4, 9, 12, 16], [0, 7, 12, 14, 16], [-5, 2, 7, 9, 14], [2, 9, 14, 16, 21]];
+  function pluck(freq, vol, t, dest) {
+    const o = ac.createOscillator(), o2 = ac.createOscillator(), f = ac.createBiquadFilter(), gg = ac.createGain(), g2 = ac.createGain();
+    o.type = 'triangle'; o2.type = 'sine'; o.frequency.value = freq; o2.frequency.value = freq * 2.003;
+    f.type = 'lowpass'; f.frequency.setValueAtTime(2400, t); f.frequency.exponentialRampToValueAtTime(600, t + 1.5);
+    g2.gain.value = 0.18;
+    gg.gain.setValueAtTime(0.0001, t); gg.gain.exponentialRampToValueAtTime(vol, t + 0.006); gg.gain.exponentialRampToValueAtTime(0.0001, t + 2.6);
+    o.connect(f); o2.connect(g2); g2.connect(f); f.connect(gg); gg.connect(dest); gg.connect(rev);
+    o.start(t); o2.start(t); o.stop(t + 2.7); o2.stop(t + 2.7);
+  }
+  function makeHarp() {
+    const g = trackOut();
+    let next = ac.currentTime + 1.5, ix = 0;
+    return {
+      g, stop() { /* 鳴っている音はひとりでに消える */ },
+      tick(t, paused) {
+        if (t < next || paused) return;
+        const a = ARPS[ix]; ix = (ix + (Math.random() < 0.7 ? 1 : 2)) % ARPS.length;
+        const step = 0.36 + Math.random() * 0.1, seq = [0, 1, 2, 3, 4, 3, 2];
+        if (Math.random() < 0.4) seq.push(4, 3);
+        seq.forEach((n, k) => pluck(st(a[n] + 12), 0.05 - k * 0.002, t + k * step + Math.random() * 0.03, g));
+        pluck(st(a[0] - 12), 0.035, t, g);       // 低い音
+        next = t + seq.length * step + 2.2 + Math.random() * 3;
+      },
+    };
+  }
+
+  // 霧の笛: 低い五度の持続音（とてもうすい）に、息のまじった笛がゆっくり歌う。となりの音へ動くことが多い
+  const FLUTE = [12, 14, 16, 19, 21, 24, 26, 28];
+  function blow(freq, t, dur, dest) {
+    const o = ac.createOscillator(), vib = ac.createOscillator(), vg = ac.createGain(), gg = ac.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    vib.frequency.value = 4.6; vg.gain.setValueAtTime(0, t); vg.gain.linearRampToValueAtTime(freq * 0.005, t + dur * 0.6);   // 音の終わりに向けて、ゆれ（ビブラート）
+    vib.connect(vg); vg.connect(o.frequency);
+    gg.gain.setValueAtTime(0.0001, t); gg.gain.exponentialRampToValueAtTime(0.045, t + 0.28); gg.gain.setTargetAtTime(0.0001, t + dur, 0.35);
+    o.connect(gg); gg.connect(dest); gg.connect(rev);
+    const s = ac.createBufferSource(), bf = ac.createBiquadFilter(), bg = ac.createGain();   // 息の音
+    s.buffer = noiseBuf; bf.type = 'bandpass'; bf.frequency.value = freq * 2; bf.Q.value = 6;
+    bg.gain.setValueAtTime(0.0001, t); bg.gain.exponentialRampToValueAtTime(0.02, t + 0.1); bg.gain.setTargetAtTime(0.0001, t + 0.35, 0.3);
+    s.connect(bf); bf.connect(bg); bg.connect(dest);
+    const end = t + dur + 2;
+    o.start(t); vib.start(t); s.start(t, Math.random()); o.stop(end); vib.stop(end); s.stop(end);
+  }
+  function makeFlute() {
+    const g = trackOut(), oscs = [];
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 400;
+    const dg = ac.createGain(); dg.gain.value = 0.05; lp.connect(dg); dg.connect(g); dg.connect(rev);
+    for (const [n, dt] of [[-12, -3], [-5, 3], [0, 0]]) {      // ド・ソ・ド の低い持続音
+      const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = st(n); o.detune.value = dt;
+      const og = ac.createGain(); og.gain.value = n === 0 ? 0.25 : 0.5; o.connect(og); og.connect(lp); o.start(); oscs.push(o);
+      const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 0.05 + oscs.length * 0.017; lg.gain.value = 0.2; lfo.connect(lg); lg.connect(og.gain); lfo.start(); oscs.push(lfo);
+    }
+    let next = ac.currentTime + 3, pos = 3;
+    return {
+      g, stop: () => oscs.forEach(o => o.stop()),
+      tick(t, paused) {
+        if (t < next || paused) return;
+        let at = t; const n = 3 + ((Math.random() * 4) | 0);
+        for (let k = 0; k < n; k++) {
+          pos = Math.max(0, Math.min(FLUTE.length - 1, pos + [-2, -1, -1, 1, 1, 2][(Math.random() * 6) | 0]));
+          const dur = k === n - 1 ? 2.2 + Math.random() : 0.8 + Math.random() * 1.2;
+          blow(st(FLUTE[pos]), at, dur, g); at += dur + 0.12;
+        }
+        if (Math.random() < 0.5) pos = 3;
+        next = at + 5 + Math.random() * 6;
+      },
+    };
+  }
+  const TRACKS = {
+    lull: { name: TX('深淵の子守歌', 'Lullaby of the Abyss'), make: makeLull },
+    harp: { name: TX('星の水面', 'Stars on the Water'), make: makeHarp },
+    flute: { name: TX('霧の笛', 'Flute in the Mist'), make: makeFlute },
+  };
 
   function startWaves() {
     const s = ac.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
@@ -99,16 +212,7 @@ const Sound = (() => {
   function update(fall, paused, near = 0) {
     if (!ac || ac.state !== 'running') return;
     const t = ac.currentTime;
-    if (t >= nextChord) {                    // 16 秒ごとに次の和音へ、とてもゆっくり移る
-      chordIx = (chordIx + 1) % CHORDS.length;
-      pad.forEach((p, v) => p.os.forEach(o => o.frequency.setTargetAtTime(st(CHORDS[chordIx][v]), t, 3)));
-      nextChord = t + 16;
-    }
-    if (t >= nextNote && !paused) {
-      chime(st(melodyNote()), 0.035, t);
-      if (Math.random() < 0.3) chime(st(melodyNote()), 0.025, t + 0.6);
-      nextNote = t + 3.5 + Math.random() * 4;
-    }
+    if (cur) cur.tick(t, paused);
     const w = paused ? 0 : near * Math.min(1, 0.15 + fall / 12);
     waves.g.gain.setTargetAtTime(w * 0.14, t, 0.8);
     waves.f.frequency.setTargetAtTime(700 - Math.min(1, fall / 15) * 350, t, 0.8);   // 低めのやわらかい水音
@@ -150,5 +254,8 @@ const Sound = (() => {
   };
   function play(name) { if (ac && ac.state === 'running' && SFX[name]) SFX[name](); }
 
-  return { play, update, set, get: k => pref[k], unlock };
+  return {
+    play, update, set, setLevel, level: lv, setTrack, track: () => pref.track, tracks: Object.keys(TRACKS),
+    trackName: k => (TRACKS[k] || TRACKS.lull).name, get: k => (k === 'bgm' || k === 'sfx' ? lv(k) > 0 : pref[k]), unlock,
+  };
 })();

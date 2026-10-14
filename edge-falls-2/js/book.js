@@ -223,18 +223,37 @@ function openSettings(back, focus) {
   const on = v => v ? TX('オン', 'On') : TX('オフ', 'Off'), again = k => () => openSettings(back, k);
   const bi = BACK_CHOICES.findIndex(([k]) => k === backName);
   showPanel(`<p class="mtitle">${TX('設定', 'Settings')}</p>`, [
-    { label: TX('音楽　', 'Music: ') + on(Sound.get('bgm')), fn: () => { Sound.set('bgm', !Sound.get('bgm')); again(0)(); } },
-    { label: TX('効果音　', 'Sound effects: ') + on(Sound.get('sfx')), fn: () => { Sound.set('sfx', !Sound.get('sfx')); again(1)(); } },
-    { label: TX('文字　', 'Font: ') + (fontName === 'dot' ? TX('ドット', 'Pixel') : TX('明朝', 'Serif')), fn: () => { setFont(fontName === 'dot' ? 'serif' : 'dot'); again(2)(); } },
-    { label: TX('背景　', 'Background: ') + (bi >= 0 ? BACK_CHOICES[bi][1] : TX('ほか', 'Other')), fn: () => { setBack(BACK_CHOICES[(bi + 1) % BACK_CHOICES.length][0]); again(3)(); } },
-    { label: TX('数の印　', 'Population marks: ') + on(tallyOn), fn: () => { setTally(!tallyOn); again(4)(); } },
-    { label: TX('ボクセル（試験）　', 'Voxels (test): ') + VOX_NAME[VOXSMOOTH], fn: () => { setVoxSmooth(nextVox()); again(5)(); } },
-    ...(G.started ? [{ label: TX('ファイル', 'File'), fn: () => openFilePanel(() => openSettings(back, 6)) }] : []),
+    { label: TX('音楽', 'Music'), vol: 'bgm' },   // 音の大きさは、光の数（0〜5）。その場で変わり、札は作り直さない（v023）
+    { label: TX('効果音', 'Sound effects'), vol: 'sfx' },
+    { label: TX('曲（試験）　', 'Tune (test): ') + Sound.trackName(Sound.track()), fn: () => { const ts = Sound.tracks; Sound.setTrack(ts[(ts.indexOf(Sound.track()) + 1) % ts.length]); again(2)(); } },
+    { label: TX('文字　', 'Font: ') + (fontName === 'dot' ? TX('ドット', 'Pixel') : TX('明朝', 'Serif')), fn: () => { setFont(fontName === 'dot' ? 'serif' : 'dot'); again(3)(); } },
+    { label: TX('背景　', 'Background: ') + (bi >= 0 ? BACK_CHOICES[bi][1] : TX('ほか', 'Other')), fn: () => { setBack(BACK_CHOICES[(bi + 1) % BACK_CHOICES.length][0]); again(4)(); } },
+    { label: TX('数の印　', 'Population marks: ') + on(tallyOn), fn: () => { setTally(!tallyOn); again(5)(); } },
+    { label: TX('ボクセル（試験）　', 'Voxels (test): ') + VOX_NAME[VOXSMOOTH], fn: () => { setVoxSmooth(nextVox()); again(6)(); } },
+    ...(G.started ? [{ label: TX('ファイル', 'File'), fn: () => openFilePanel(() => openSettings(back, 7)) }] : []),
     { label: back ? TX('もどる', 'Back') : TX('とじる', 'Close'), main: true, fn: () => { if (back) back(); } },
   ]);
+  $('panel').querySelectorAll('.btns .tbtn').forEach((el, n) => { if (n < 2) volRow(el, n ? 'sfx' : 'bgm', n ? TX('効果音', 'Sound effects') : TX('音楽', 'Music')); });
   $('panel').classList.add('menu', 'world', 'settings');   // 設定のあいだは、世界をうすくしない（背景を選びやすく。css）
   G.panelBack = back || (() => { $('overlay').hidden = true; });
   if (focus !== undefined) $('panel').querySelectorAll('.btns .tbtn')[focus]?.focus();   // 押したボタンに印を残す（上下の矢印でつづけて選べる）
+}
+// 音の大きさの行（v023）: 名前と、5 つの小さな灯り。灯りを押すとその数に（いちばん上の灯りをもう一度押すと一つへる。0 は鳴らさない）。
+//   左右の矢印でも変えられる。押しても札は作り直さない（上下の矢印でほかの行へ移れるように）
+function volRow(el, kind, name) {
+  el.classList.add('volrow'); el.textContent = '';
+  el.innerHTML = `<span class="vname">${name}</span><span class="vlights">${[1, 2, 3, 4, 5].map(i => `<i data-v="${i}"></i>`).join('')}</span>`;
+  el.setAttribute('aria-label', name);
+  const paint = () => { const v = Sound.level(kind); el.querySelectorAll('i').forEach(d => d.classList.toggle('on', +d.dataset.v <= v)); el.classList.toggle('mute', !v); el.setAttribute('aria-valuenow', v); };
+  const put = v => { Sound.setLevel(kind, v); paint(); if (kind === 'sfx') Sound.play('put'); };
+  el.setAttribute('role', 'slider'); el.setAttribute('aria-valuemin', 0); el.setAttribute('aria-valuemax', 5);
+  el.onclick = e => {
+    Sound.unlock();
+    const d = e.target.closest('i'), now = Sound.level(kind);
+    put(d ? (+d.dataset.v === now ? now - 1 : +d.dataset.v) : (now + 1) % 6);
+  };
+  el.onkeydown = e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { put(Sound.level(kind) + (e.key === 'ArrowRight' ? 1 : -1)); e.preventDefault(); } };
+  paint();
 }
 // ゲームを終える: いまの世界を書きとめてから、すぐ保管庫へ（v067。たずねない）。保管庫へ（v019 で入口へ移し、v028 で調整のため保管庫へもどした）
 async function quitGame() {

@@ -102,7 +102,7 @@ body.titling .menubtn{opacity:0;pointer-events:none}
 .speeds button[aria-pressed=true] canvas{opacity:1;transform:translateY(-3px)}
 .speeds button[aria-pressed=true] span{opacity:1}
 .speeds button[aria-pressed=true]::after{content:"";position:absolute;bottom:0;left:30%;right:30%;height:2px;border-radius:1px;background:rgba(var(--glowc),.9);box-shadow:0 0 8px rgba(var(--glowc),.8)}
-.dialtxt{margin:8px 0 0;font-size:13px;color:var(--paper);opacity:.85;text-shadow:0 1px 2px #000;white-space:nowrap;letter-spacing:.06em}
+.dialtxt{margin:10px 0 0;font-size:13px;color:var(--paper);opacity:.85;text-shadow:0 1px 2px #000;white-space:nowrap;letter-spacing:.06em}
 
 /* 章のことば（世界の上に、にじむように） */
 .line{isolation:isolate;position:absolute;left:50%;top:24%;transform:translate(-50%,-50%);text-align:center;color:var(--paper);pointer-events:none;opacity:0;transition:opacity 1.6s;width:min(640px,92%);
@@ -464,3 +464,13 @@ body.titling .tally,body.ending .tally,body.thumb .tally{display:none}
 .sprow{display:flex;align-items:center;gap:8px;margin:4px 0;flex-wrap:wrap}
 .sprow small{opacity:.75}
 .sprow .tbtn{padding:2px 8px;font-size:12px}
+/* 設定の音の大きさ（v023）: 名前と、5 つの小さな灯り。ともった数が大きさ。0 は名前もうすく */
+.panel.menu .tbtn.volrow{display:flex;align-items:center;justify-content:center;gap:14px}
+.volrow .vname{min-width:5.5em;text-align:right}
+.volrow .vlights{display:inline-flex;gap:0}
+.volrow .vlights i{width:22px;height:24px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.volrow .vlights i::before{content:"";width:7px;height:7px;border-radius:50%;border:1px solid rgba(222,192,124,.45);background:rgba(10,13,24,.4);transition:background .25s,box-shadow .25s,border-color .25s}
+.volrow .vlights i.on::before{border-color:rgba(255,226,160,.9);background:radial-gradient(circle,#fff6d8,#e2c27e 70%);box-shadow:0 0 6px rgba(255,214,140,.75),0 0 12px rgba(255,214,140,.3)}
+.volrow .vlights i:hover::before{border-color:rgba(var(--glowc),.95)}
+.volrow.mute .vname{opacity:.5}
+.panel.menu .tbtn.volrow:hover::after,.panel.menu .tbtn.volrow:focus-visible::after{left:20%;right:20%}
