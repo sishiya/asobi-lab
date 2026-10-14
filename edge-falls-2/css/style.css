@@ -110,7 +110,11 @@ body.titling .menubtn{opacity:0;pointer-events:none}
 .line::before{content:"";position:absolute;inset:-30px -40px;z-index:-1;background:radial-gradient(closest-side,rgba(6,8,16,.62),rgba(6,8,16,.35) 60%,transparent)}
 .line.on{opacity:1}
 .line b{display:block;font-size:clamp(22px,4vw,34px);font-weight:400;letter-spacing:.3em;margin-bottom:6px}
-.line span{font-size:clamp(14px,2vw,17px);letter-spacing:.05em}
+.line span{display:block;margin:10px auto 0;padding-top:10px;max-width:34em;border-top:1px solid rgba(222,192,124,.5);font-size:clamp(15px,1.8vw,20px);line-height:1.6;letter-spacing:.08em;color:#ecd9a6;text-shadow:0 1px 3px #000}
+/* 年のことば（v008。2026-10-14 ユーザー「年が変わったときの表示と知らせが近すぎる・サブテキストが知らせっぽく小さい」）:
+   見出しの両わきに金の短い線、下の文は金色の細い線で区切って、知らせ（白・下に積む）より大きく金色に。知らせとのあいだは placeToast で 30px あける */
+.line b::before,.line b::after{content:"";display:inline-block;width:1.6em;height:1px;background:rgba(222,192,124,.7);vertical-align:middle;margin:0 .7em}
+.line b{text-shadow:0 0 18px rgba(222,192,124,.35),0 1px 3px #000}
 
 /* 知らせ: 下の一行（手に持つものの上） */
 /* 知らせ: 章のことばと同じ、まん中の上あたりに（v053。前は下。2026-10-14 ユーザー「目線が散らばるので中央に」）。章のことばが出ているあいだは、そのすぐ下（ui.js の placeToast） */
@@ -328,6 +332,8 @@ body.collapsing .viewpad,body.thumb .viewpad,body.thumb .gesture{display:none!im
   .hand canvas{width:40px;height:40px}
   .toast{top:calc(30% + 64px)}
   .tmsg{font-size:13px}
+  .line span{font-size:15px}
+  .line b::before,.line b::after{width:1em;margin:0 .45em}
   .fan{bottom:88px;left:8px!important;right:52px;transform:none;flex-wrap:wrap;justify-content:center}
   .fan button{min-height:40px;font-size:12px}
   .book{top:auto;height:72%;width:100%;padding:8px}

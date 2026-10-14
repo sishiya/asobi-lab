@@ -15,7 +15,7 @@ function placeToast() {
   const t = $('toast'), l = $('line');
   t.style.top = '';
   if (!l.classList.contains('on') || !l.textContent.trim()) return;
-  const lb = l.getBoundingClientRect().bottom + 12, tt = t.getBoundingClientRect().top, fr = field.getBoundingClientRect();
+  const lb = l.getBoundingClientRect().bottom + 30, tt = t.getBoundingClientRect().top, fr = field.getBoundingClientRect();
   if (lb > tt) t.style.top = Math.round(lb - fr.top) + 'px';
 }
 const toastOn = () => !!$('toast').querySelector('.tmsg.on');
