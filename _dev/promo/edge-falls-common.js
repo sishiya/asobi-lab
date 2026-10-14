@@ -51,6 +51,13 @@ function efCards(w) {
   if (b) b.click();
   if (ov.hidden) { w.__ef.setSpeed(EF.cardSpeed); EF.cardSpeed = null; }
 }
+// 命の光（ver. 2.0）を見せる: 大地の点 (x, y) にいちばん近いシカを 3 頭、その場で去らせる（3 つで光の粒が 1 つ。cycle.js の bodyReturns）。
+//   粒は小さい（2 画素）ので、台本では何度か呼んで 2〜3 粒のぼらせる
+function efLight(w, x, y) {
+  const L = w.__ef.L, d = L.list.filter(a => a.kind === 'deer' && !a.dead).sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y));
+  const souls = w.__ef.W.souls; if (souls) souls.deer = 0;   // ちょうど 3 頭目で粒が出るように
+  for (const a of d.slice(0, 3)) w.die(a, 'old');
+}
 function efFrame(w, sim = 0) {
   efCards(w);
   const G = w.__ef.G;

@@ -29,8 +29,8 @@ const CAPS = [
     en: ['At the edge of the world, it falls away', 'The water returns to the abyss, and the spring draws from it'] },
   { a: 17.4, b: 24.0, main: '1年に1つずつ、新しい命が来る', sub: '草・シカ・オオカミ・サカナ・サギ（十の年）',
     en: ['Each year brings one new kind of life', 'Grass, deer, wolves, fish, herons (ten years)'] },
-  { a: 24.4, b: 30.6, main: '何も生まれず、何も消えない', sub: 'ただ、めぐるだけ。食べる・食べられる',
-    en: ['Nothing is created, nothing is lost', 'It only goes around. Eat and be eaten'] },
+  { a: 24.4, b: 30.6, main: '去った命は、光になって深淵をめぐる', sub: '何も生まれず、何も消えない。ただ、めぐるだけ',
+    en: ['Lives that pass away go round the abyss as light', 'Nothing is created, nothing is lost. It only goes around'] },
   { a: 31.0, b: 35.0, main: '十の年で、どんな世界になる？', sub: '水と命がめぐる世界をつくる',
     en: ['What will your world become in ten years?', 'Build a world where water and life go around'] },
 ];
@@ -52,6 +52,7 @@ const SC = [
   // めぐる世界: 湖に寄って、生き物を見る
   { a: 24.2, b: 31.0, save: 'ch8', speed: 4,
     pre: w => { Y0 = w.__ef.V.yaw; },
+    ev: [0.3, 0.8, 1.3].map(t => ({ t, run: w => { const W = w.__ef.W, C = efGet(w, 'C'), RD = efGet(w, 'RD'); efLight(w, C + W.lake.x * RD * 0.6, C + W.lake.y * RD * 0.6); } })),   // 命の光の粒が 3 つのぼる（ver. 2.0）
     view: (V, lt, w) => { const W = w.__ef.W, C = efGet(w, 'C'), RD = efGet(w, 'RD'); V.yaw = Y0 + 0.2 + lt * 0.02; V.tilt = 0.5; V.zoom = 1.9 + lt * 0.03;
       const p = w.proj(C + W.lake.x * RD * 0.6, C + W.lake.y * RD * 0.6, 0); V.panX = (V.panX || 0) + (V.cw / 2 - p.x) * 0.5; V.panY = (V.panY || 0) + (V.ch * 0.45 - p.y) * 0.5; } },
   // しめくくり: できた世界を引いて回す（エンディング・くずれる演出は見せない。RULES 8章）

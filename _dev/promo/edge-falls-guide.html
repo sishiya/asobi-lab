@@ -36,20 +36,20 @@ const CAPS = [
     en: ['The jar of life: seeds, then animals', 'Grass spreads from the water\'s edge. The jar holds only so many lives'] },
   { a: 61.2, b: 69.6, main: 'シカは草を食べて、ふえる', sub: 'おなかがいっぱいの大人が子を残す',
     en: ['Deer eat the grass and multiply', 'Well-fed adults have young'] },
-  { a: 70.4, b: 79.4, main: '季節がめぐり、冬は雪と氷', sub: '秋にふえすぎたシカは、冬に食べものが足りなくなる',
-    en: ['Seasons turn; winter brings snow and ice', 'Deer that boom in autumn run short of food in winter'] },
-  { a: 79.8, b: 87.6, main: '右上の「天の輪」で、時を止める・速める', sub: '外の輪が季節、針が今日。時間の制限はない',
-    en: ['The sky dial (top right) pauses or speeds up time', 'Outer ring: the season. Hand: today. There is no time limit'] },
-  { a: 88.4, b: 96.8, main: 'オオカミ・サカナ・サギ。食べる・食べられる', sub: 'サギは浅瀬のサカナしかとれない。深い湖はかくれ場所',
-    en: ['Wolves, fish, herons: eat and be eaten', 'Herons can only catch fish in the shallows; deep lakes are a refuge'] },
-  { a: 97.2, b: 105.6, main: '去った命は深淵を通って、つぼへ戻ってくる', sub: '絶えても、取り返しはつく',
-    en: ['Lives that leave return to the jar through the abyss', 'Even if a species dies out, it can come back'] },
-  { a: 106.4, b: 121.4, main: '生き物は遺伝子を持ち、体が変わっていく', sub: 'オオカミに追われるとシカの足が速く。いらない力は下がっていく（観察帳の遺伝子の頁）',
-    en: ['Creatures carry genes, and their bodies change', 'Chased by wolves, deer get faster; unused abilities fade (genes page of the field notebook)'] },
+  { a: 70.4, b: 79.4, main: '冬は雪と氷。太陽は止められる', sub: '止めた太陽の下は日ざしがたまって暖かい（反対がわは、凍ったまま）',
+    en: ['Winter brings snow and ice. You can stop the sun', 'Sunlight builds up under a stopped sun and warms the land (the far side stays frozen)'] },
+  { a: 79.8, b: 87.6, main: '右上の「天の輪」で、時を止める・速める', sub: '外の輪が季節、針が今日、中の点が太陽と月。時間の制限はない',
+    en: ['The sky dial (top right) pauses or speeds up time', 'Outer ring: the season. Hand: today. Inner dots: the sun and moon. No time limit'] },
+  { a: 88.4, b: 96.8, main: 'オオカミ・サカナ・サギ。食べる・食べられる', sub: 'オオカミは夜に狩る。月と太陽がそろう大潮には浅瀬が広がり、サギの漁がはかどる',
+    en: ['Wolves, fish, herons: eat and be eaten', 'Wolves hunt at night. When the moon and sun line up, spring tides widen the shallows for the herons'] },
+  { a: 97.2, b: 105.6, main: '去った命は光の粒になって、深淵へ', sub: '霧と雨にのって、命のつぼへ帰ってくる。体は土にかえり、花が咲く',
+    en: ['Lives that pass away become specks of light and fall into the abyss', 'They ride the mist and rain back to the jar of life. Bodies return to the soil, and flowers bloom'] },
+  { a: 106.4, b: 121.4, main: '遺伝子で、体の形が変わっていく', sub: '足の速いシカは足が長く。第九の年は、どのきびしさで体を変えるかを選ぶ',
+    en: ['Genes change the shape of their bodies', 'Fast deer grow long legs. In year nine, you choose which hardship will reshape them'] },
   { a: 122.4, b: 131.6, main: '第十の年は「めぐる世界」', sub: '草・シカ・オオカミ・サカナ・サギが、そろって1年つづくように',
     en: ['Year ten: a world that goes around', 'Keep grass, deer, wolves, fish and herons all alive together for a year'] },
-  { a: 132.0, b: 141.6, main: '全部を止めようとせず、少し落としてやる', sub: '時間の制限はない。十の年のあとは、自由な箱庭としても遊べる',
-    en: ["Don't try to stop everything; let a little fall away", 'There is no time limit. After the ten years, keep playing as a free sandbox'] },
+  { a: 132.0, b: 141.6, main: '全部を止めようとせず、少し落としてやる', sub: '時間の制限はない。十の年のあとにも、まだ来るものがある',
+    en: ["Don't try to stop everything; let a little fall away", 'There is no time limit. And after the ten years, something more is still to come'] },
 ];
 const lakeP = (w, f) => { const W = w.__ef.W, C = efGet(w, 'C'), RD = efGet(w, 'RD'); return { x: C + W.lake.x * RD * f, y: C + W.lake.y * RD * f }; };
 const P = {};   // 場面のはじめに決める押す所（大地の区画）
@@ -91,13 +91,17 @@ const SC = [
          ...[0, 1, 2].map(k => ({ t: 2.2 + k * 0.8, run: w => { const p = P.dr[k]; if (p) { efUse(w, 'life', 'deer', p.x, p.y, 'シカ'); efUse(w, 'life', 'deer', p.x + 1, p.y, 'シカ'); } } }))] },
   // 第五の年 冬: 冬まで進めておく。天の輪の ×16 を押す
   { a: 70.0, b: 88.0, save: 'ch4', speed: 4,
-    pre: w => { const E = w.__ef; for (let k = 0; k < 1200 && !(efGet(w, 'seasonOf()') === 3 && efGet(w, 'seasonPhase()') > 0.82); k++) { efBot(w); E.step(1); } Y0 = E.V.yaw; },
+    pre: w => { const E = w.__ef; for (let k = 0; k < 1200 && !(efGet(w, 'seasonOf()') === 3 && efGet(w, 'seasonPhase()') > 0.82); k++) { efBot(w); E.step(1); } Y0 = E.V.yaw;
+      const d = E.L.list.filter(a => a.kind === 'deer'); P.pas = d.length ? { x: d.reduce((s, a) => s + a.x, 0) / d.length, y: d.reduce((s, a) => s + a.y, 0) / d.length } : null;   // シカの群れのまん中（太陽を止める所）
+      if (P.pas) { const C = efGet(w, 'C'); Y0 = Math.PI / 2 - Math.atan2(P.pas.y - C, P.pas.x - C) + 0.35 - 0.5 + 0.3; } },   // 止める太陽が手前に来るように回しておく（newGame の「大きな滝が手前」と同じ向きの式）
     rate: lt => lt < 12.6 ? 6 : 16,
     view: (V, lt) => { V.yaw = Y0 + 0.5 - lt * 0.012; V.tilt = 0.58; V.zoom = 1.12; },
-    ev: [{ t: 12.6, run: w => clickSel(w, '.speeds [data-speed="16"]') }] },
+    ev: [{ t: 2.8, run: w => { const E = w.__ef, W = E.W, C = efGet(w, 'C'), p = P.pas; if (!p) return; W.sun.a = Math.atan2(p.y - C, p.x - C); W.sun.stop = true; efGet(w, 'Sound').play('pin'); w.toast(w.holdTalk('sun', true), 6); } },   // 太陽をシカの草地の上で止める（ver. 2.0）
+         { t: 12.6, run: w => clickSel(w, '.speeds [data-speed="16"]') }] },
   // 生き物がそろった世界: 湖に寄る
   { a: 88.0, b: 106.0, save: 'ch8', speed: 4,
     pre: w => { Y0 = w.__ef.V.yaw; },
+    ev: [8.4, 9.0, 9.6].map(t => ({ t, run: w => { const W = w.__ef.W, C = efGet(w, 'C'), RD = efGet(w, 'RD'); efLight(w, C + W.lake.x * RD * 0.6, C + W.lake.y * RD * 0.6); } })),   // 命の光の粒が 3 つのぼる（ver. 2.0）
     view: (V, lt, w) => { const W = w.__ef.W, C = efGet(w, 'C'), RD = efGet(w, 'RD'); V.yaw = Y0 + 0.2 + lt * 0.012; V.tilt = 0.5; V.zoom = 1.9 + lt * 0.02;
       const p = w.proj(C + W.lake.x * RD * 0.6, C + W.lake.y * RD * 0.6, 0); V.panX = (V.panX || 0) + (V.cw * 0.45 - p.x) * 0.5; V.panY = (V.panY || 0) + (V.ch * 0.52 - p.y) * 0.5; } },
   // 進化: 観察帳の遺伝子の頁のグラフ（ゲームの canvas）を重ねる。時を速めて
@@ -110,6 +114,7 @@ const SC = [
 ];
 // 矢印: 押す所は場面の中で決まるので、毎コマ画面の位置に直す（{ t, at: w => css の点 }）
 const START = w => { const b = w.document.getElementById('overlay').hidden ? null : [...w.document.querySelectorAll('#panel button')].find(e => /はじめ/.test(e.textContent)); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
+const SUN = w => { const p = efGet(w, 'bodyPos')(w.__ef.W.sun); return { x: p.x, y: p.y }; };   // 空の太陽の画面の位置（render.js の bodyPos）
 const H = sel => w => efHandPos(w, sel), B = f => w => { const p = f(); return p ? efScreen(w, p.x, p.y) : null; };
 const CURK = [
   { t: 13.6, at: START }, { t: 15.0, at: START, click: true },
@@ -120,6 +125,7 @@ const CURK = [
   { t: 53.2, at: B(() => P.sd && P.sd[0]), click: true }, { t: 54.2, at: B(() => P.sd && P.sd[1]), click: true }, { t: 55.2, at: B(() => P.sd && P.sd[2]), click: true }, { t: 56.4, at: B(() => P.sd && P.sd[2]), hide: true },
   { t: 61.8, at: H('#fan [data-sub="deer"]'), click: true },
   { t: 63.2, at: B(() => P.dr && P.dr[0]), click: true }, { t: 64.0, at: B(() => P.dr && P.dr[1]), click: true }, { t: 64.8, at: B(() => P.dr && P.dr[2]), click: true }, { t: 66.0, at: B(() => P.dr && P.dr[2]), hide: true },
+  { t: 71.4, at: SUN }, { t: 72.8, at: SUN, click: true }, { t: 74.2, at: SUN, hide: true },   // 太陽を押して止める（ver. 2.0）
   { t: 81.0, at: H('.dialbtn') }, { t: 82.6, at: H('.speeds [data-speed="16"]'), click: true }, { t: 84.0, at: H('.speeds [data-speed="16"]'), hide: true },
 ];
 let lastPos = {};
@@ -137,7 +143,7 @@ promoStart({
   music: MUSIC,
   ready: w => !!LION.api && efReady(w),
   setup() { MUSIC.cues.push(...lionSetup({ caps: CAPS.map(c => ({ ...c, main: c.main || c.sub })), cur: [], exp: EXP, end: END, bye: END - 5.8 })); return null; },
-  subs: () => guideSubs(END, NAME, 'Falls at the Edge of the World', CAPS, 'Play in your browser (PC or phone). On-screen text is in Japanese for now'),
+  subs: () => guideSubs(END, NAME, 'Falls at the Edge of the World', CAPS, 'Play in your browser (PC or phone), in Japanese or English'),
   async renderAt(t, w) { await efScenes(w, SC, t); },
   drawSource(g, w, OW, OH) {
     g.fillStyle = '#000'; g.fillRect(0, 0, OW, OH);
