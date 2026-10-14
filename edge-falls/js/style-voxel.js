@@ -425,21 +425,19 @@ const VOX = (() => {
     drawFalls(t);
     bctx.putImageData(img, 0, 0);
     // 泉
-    //   v059（2026-10-14 ユーザー「泉の場所が目立たなすぎる」）: 小さな噴き上がり。足もとに水たまり、まん中に 3 画素の水柱、しぶきが左右へ弧をえがいて落ちる。止めた泉は灰色の石
+    //   v065（2026-10-14 ユーザー「最初のバージョンも結構すき。目立たなすぎるだけ」）: 最初の形（水色の線と、湧き上がる粒）にもどし、少し目立たせる。
+    //   線は 3 → 5 画素（まん中 3 画素は明るく）、まっすぐ上がる粒は 1 画素高く（うすれながら）。その場所の明るさ（夜・かげ）をかける（v063）。止めた泉は灰色の石。
+    //   v059〜v064 は小さな噴き上がり（水たまり・水柱・左右のしぶき）をためした
     for (const sp of W.springs) {
       const p = pb(sp.i % N, sp.i / N | 0, Zq[sp.i]), X = Math.round(p.x), Y = Math.round(p.y);
-      // 光: その場所の明るさ（夜・かげは暗く）をかける（v064 で一段明るく 0.45 → 0.55）。色も白に近づけすぎない（v063。2026-10-14 ユーザー「泉の主張をもう少し押さえて。雰囲気を壊さないように」）
       const lk = 0.55 + 0.5 * Math.min(1, LUM[sp.i] ?? 1), c = (r, g, b, a = 1) => `rgba(${r * lk | 0},${g * lk | 0},${b * lk | 0},${a})`;
       if (!sp.on) { bctx.fillStyle = c(92, 92, 92); bctx.fillRect(X - 1, Y - 1, 3, 2); bctx.fillStyle = c(124, 124, 124); bctx.fillRect(X - 1, Y - 1, 2, 1); continue; }
-      bctx.fillStyle = c(106, 156, 200, 0.9); bctx.fillRect(X - 2, Y, 5, 1);                         // 水たまり
-      bctx.fillStyle = c(150, 196, 228, 0.9); bctx.fillRect(X - 1, Y - 1, 3, 1);
-      const sw = Math.sin(t * 5 + sp.i) > 0.6 ? 1 : 0;                                              // 水柱（ときどき少しゆれる。v064 で 1 画素ひくく）
-      bctx.fillStyle = c(186, 222, 244, 0.85); bctx.fillRect(X, Y - 3, 1, 2); bctx.fillRect(X + sw, Y - 4, 1, 1);
-      for (let s = 0; s < 2; s++) {                                                                 // しぶき: 左右に弧
-        const f = (t * 1.4 + s * 0.5 + (sp.i % 7) * 0.13) % 1, dir = s ? 1 : -1;
-        const dx = Math.round(dir * (1 + f * 2.5)), dy = Math.round(-4 + 6 * f * f - 1.5 * f);
-        bctx.fillStyle = c(196, 228, 246, 0.75 - f * 0.45); bctx.fillRect(X + dx, Y + dy, 1, 1);
-      }
+      bctx.fillStyle = c(120, 172, 210); bctx.fillRect(X - 2, Y - 1, 5, 1);
+      bctx.fillStyle = c(143, 196, 226); bctx.fillRect(X - 1, Y - 1, 3, 1);
+      const k = Math.floor(t * 6 + sp.i) % 5;
+      bctx.fillStyle = c(178, 218, 240, 0.85 - k * 0.12); bctx.fillRect(X, Y - 2 - k, 1, 1);                 // まっすぐ上がる粒
+      const k2 = k % 4;
+      bctx.fillStyle = c(178, 218, 240, 0.75); bctx.fillRect(X + (k2 % 2 ? 1 : -1), Y - 1 - (k2 >> 1), 1, 1);  // 左右にこぼれる粒（最初と同じ）
     }
     // 木・生き物の画素の絵は、画面の上にじかに、寄り具合に合わせて途切れなく大きく描く（v030。2026-10-13 ユーザー「ある所を境に急に大きさが変わる」）。
     //   前は板の画素の整数倍（1→2→3 倍）でとんでいた。地形の板をいったん画面に広げ、その上に絵、そのあと雲・太陽と月・ホタル・足もとの輪を2枚目として重ねる
