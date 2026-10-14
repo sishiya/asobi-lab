@@ -26,7 +26,7 @@ function dropToast(el) {
   setTimeout(() => {                                                 // それから高さをちぢめる（下のものが、ふわっと上へ）
     el.style.height = el.offsetHeight + 'px'; void el.offsetHeight;
     el.classList.add('fold'); el.style.height = '0px';
-    setTimeout(() => el.remove(), 480);
+    setTimeout(() => el.remove(), 640);
   }, 420);
 }
 function clearToasts() { for (const el of [...$('toast').children]) dropToast(el); }

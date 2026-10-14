@@ -117,7 +117,7 @@ body.titling .menubtn{opacity:0;pointer-events:none}
 .tmsg{text-align:center;text-shadow:0 1px 3px #000,0 0 14px rgba(0,0,0,.8);background:radial-gradient(closest-side,rgba(6,8,16,.62),rgba(6,8,16,.3) 65%,transparent);padding:8px 34px;font-size:clamp(14px,1.45vw,19px);line-height:1.5;
   opacity:0;transform:translateY(6px);transition:opacity .45s ease,transform .45s ease;overflow:hidden}
 .tmsg.on{opacity:1;transform:none}
-.tmsg.fold{transition:height .45s ease,padding .45s ease;padding-top:0;padding-bottom:0}
+.tmsg.fold{transition:height .6s cubic-bezier(.45,0,.25,1),padding .6s cubic-bezier(.45,0,.25,1);padding-top:0;padding-bottom:0}   /* 下のものがよるとき、はじめはゆっくり（v061） */
 #view{transition:filter .5s}
 body.paused #view{filter:saturate(.35) brightness(.82) sepia(.18)}
 .stage::after{content:"時が止まっている";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .5s;
