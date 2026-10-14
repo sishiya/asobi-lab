@@ -170,7 +170,7 @@ function openMenu() {
     { label: TX('つづける', 'Resume'), main: true, fn: closeMenu },
     // 観察帳は右下の印・B キーからひらく（v024。2026-10-15 ユーザー「ESC メニューから観察帳を外して」）
     { label: TX('設定', 'Settings'), fn: () => { G.menuOpen = false; openSettings(() => openMenu()); } },
-    ...(G.mode === 'free' ? [{ label: TX('大地をつくりなおす', 'Make new land'), fn: () => { G.menuOpen = false; remakeFree(); } }] : []),
+    { label: TX('大地をつくりなおす', 'Make new land'), fn: () => { G.menuOpen = false; remakeFree(); } },   // 十の年でも（v025。2026-10-15 ユーザー）
     { label: TX('タイトルへ', 'Title screen'), fn: () => { G.menuOpen = false; toTitle(); } },
     { label: TX('ゲームを終える', 'Quit'), fn: () => { G.menuOpen = false; quitGame(); } },
   ]);
@@ -203,12 +203,18 @@ async function toTitle() {
   newGame(); layout(V.cw, V.ch);    // タイトルのうしろは、ひらいたときと同じ新しい大地に（2026-10-13 ユーザー「箱庭が切り替わってない」）
   document.body.classList.remove('paused'); chapterLine('', ''); clearToasts(); start();
 }
-// 自由な箱庭を新しい大地に（v067）。「もどる」を先に選んでおく
+// 大地をつくりなおす（v067 は自由な箱庭だけ。v025 で十の年も。2026-10-15 ユーザー「通常モードにも」）。「もどる」を先に選んでおく。
+//   十の年は第一の年から、岩と土だけの新しい大地で。自由な箱庭は、全部そろった新しい大地で（もう一つの世界には さわらない）
 function remakeFree() {
-  showPanel(TX(`<p class="mtitle">大地をつくりなおす</p><p class="warn">いまの箱庭は、消えてしまう</p><p class="small center">自由な箱庭（第 ${W.day} 日）は、<br>もとにはもどせない。</p>`, `<p class="mtitle">Make new land</p><p class="warn">Your current garden will be gone</p><p class="small center">This Free Garden (day ${W.day})<br>can’t be brought back.</p>`), [   // はじめからと同じ形（2026-10-14 ユーザー）
-    { label: TX('箱庭を消して、新しい大地へ', 'Erase it and start on new land'), cls: 'danger', fn: () => {
+  const free = G.mode === 'free';
+  const yr = isFree() ? TX('十の年のあと', 'after the Ten Years') : yearOf(Math.floor(G.ch));
+  const where = free ? TX(`自由な箱庭（第 ${W.day} 日）`, `This Free Garden (day ${W.day})`) : TX(`十の年の世界（${yr}・第 ${W.day} 日）`, `Your Ten Years world (${yr}, day ${W.day})`);
+  showPanel(TX(`<p class="mtitle">大地をつくりなおす</p><p class="warn">${free ? 'いまの箱庭' : 'いまの世界'}は、消えてしまう</p><p class="small center">${where}は、<br>もとにはもどせない。${free ? '' : '<br>第一の年から、新しい大地で。'}</p>`, `<p class="mtitle">Make new land</p><p class="warn">Your current ${free ? 'garden' : 'world'} will be gone</p><p class="small center">${where}<br>can’t be brought back.${free ? '' : '<br>You start again from the First Year on new land.'}</p>`), [   // はじめからと同じ形（2026-10-14 ユーザー）
+    { label: free ? TX('箱庭を消して、新しい大地へ', 'Erase it and start on new land') : TX('世界を消して、新しい大地へ', 'Erase it and start on new land'), cls: 'danger', fn: () => {
       menuSpeed = null; setHand(null); G.sel = null; updateCard(); setSpeed(1); chapterLine('', ''); clearToasts();
-      newGame(undefined, false); layout(V.cw, V.ch); syncHands(); noteWorld(true); Sound.play('spring');
+      newGame(undefined, !free); layout(V.cw, V.ch); syncHands();
+      if (!free) enterChapter(0);   // 第一の年の札（タイトルの「はじめる」と同じ）
+      noteWorld(true); Sound.play('spring');
     } },
     { label: TX('もどる', 'Back'), main: true, fn: () => openMenu() },
   ]);
