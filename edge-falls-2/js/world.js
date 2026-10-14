@@ -290,7 +290,7 @@ function stepPlants(dt) {
       const tg = tempGrow(W.T[i]);
       const lt = W.litter[i], grow = m[i] * L[i] * tg * (0.03 * v[i] * (1 - v[i]) + 0.0012 * nb) * fertGrow(i) / (1 + 2.5 * lt);   // 肥えた土ほどよく育つ（v2）。枯れ草が積もると芽が出にくい（v006）
       const wither = (m[i] < 0.12 ? 0.012 : 0) + (W.T[i] < -2 ? 0.0015 : 0) + (W.T[i] > 35 ? 0.006 : 0);   // 乾くと、凍えると、焼けると枯れる
-      const age = 0.0025 * (0.3 + 0.7 * tg);  // 草の入れかわり（v006）: 古い草は少しずつ枯れて枯れ草になり、また育つ（寒いと休む）
+      const age = 0.0035 * (0.3 + 0.7 * tg) * v[i];  // 草の入れかわり（v006）: 古い草は少しずつ枯れて枯れ草になり、また育つ（寒いと休む）。v016: 茂った草ほど早く（芽ばえたばかりのまばらな草は広がりやすい）
       const dead = (wither + age) * v[i] * dt, dec = 0.003 * lt * (0.4 + 0.6 * m[i]) * Math.max(0.2, tg) * dt;
       v[i] = Math.min(1, Math.max(0, v[i] + grow * dt - dead));
       W.litter[i] = Math.max(0, lt + dead - dec);
@@ -433,8 +433,8 @@ function sow(cx, cy, rad = 3) {
 //   夏の終わりから秋（年の 0.35〜0.8）に、1日ごと、草地の広さ 10% ごとに 1 袋がつぼにたまる（40 まで）。草を育てればたねがふえ、食べつくされた世界ではたねもへる
 function seedHarvest() {
   if (!G.unlock || !G.unlock.seed) return 0;
-  const p = seasonPhase(); if (p < 0.35 || p > 0.8) return 0;
-  const gr = waterStats().grass, add = Math.min(STOCK_MAX.seed - W.stock.seed, Math.max(gr > 0.02 ? 1 : 0, Math.floor(gr * 10)));   // 草地が少しでもあれば 1 袋
+  const p = seasonPhase(); if (p < 0.3 || p > 0.8) return 0;
+  const gr = waterStats().grass, add = Math.min(STOCK_MAX.seed - W.stock.seed, Math.max(gr > 0.02 ? 2 : 0, Math.floor(gr * 20)));   // v016: 草地 5% ごとに 1 袋（少なくとも 2）   // 草地が少しでもあれば 1 袋
   if (add > 0) { W.stock.seed += add; W.flags.seedgain = 1; }
   return add;
 }
