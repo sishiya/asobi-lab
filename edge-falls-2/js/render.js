@@ -159,6 +159,7 @@ function cellColors() {
       r += (r0 - r) * kVeg; gg += (g0 - gg) * kVeg; b += (b0 - b) * kVeg;
       // 花（v2: 肥えた土には多い）
       if (v > 0.5 && HASH[i] > (W.fert && W.fert[i] > 1.15 ? 0.94 : 0.972) && win < 0.3) { if (HASH[i] > 0.986) { r = 246; gg = 222; b = 92; } else { r = 240; gg = 236; b = 236; } }
+      if (W.litter && W.litter[i] > 0.25) { kAut = Math.min(0.55, (W.litter[i] - 0.25) * 0.6) * kVeg; r += (176 - r) * kAut; gg += (158 - gg) * kAut; b += (104 - b) * kAut; }   // 枯れ草が積もると、くすんだわら色（v006）
       if (aut > 0) { kAut = aut * 0.55 * kVeg; r += (196 - r) * kAut; gg += (158 - gg) * kAut; b += (70 - b) * kAut; }   // 秋は黄色く
       if (win > 0) { kWin = win * 0.5 * kVeg; r += (164 - r) * kWin; gg += (150 - gg) * kWin; b += (108 - b) * kWin; }   // 冬は枯れ草色
     }
@@ -511,7 +512,10 @@ function sceneItems() {
     const p = proj(x, y, surfAt(x, y));
     if (!hidden(p)) items.push({ type: 'tree', i, t, p, conifer: W.g[i] > 8.5, hi: HASH[i] });
   }
-  if (typeof hutSpots === 'function') hutSpots().forEach((h, k) => { const p = proj(h.x, h.y, surfAt(h.x, h.y)); if (!hidden(p)) items.push({ type: 'hut', x: h.x, y: h.y, p, fire: k === 0 && knows('fire') }); });   // ヒトの家（v2）
+  if (typeof hutSpots === 'function') {   // ヒトの家（組みかけも）と村の火（v2）
+    for (const h of hutSpots()) { const p = proj(h.x, h.y, surfAt(h.x, h.y)); if (!hidden(p)) items.push({ type: 'hut', x: h.x, y: h.y, p, b: h.b }); }
+    if (W.village && knows('fire')) { const p = proj(W.village.x, W.village.y, surfAt(W.village.x, W.village.y)); if (!hidden(p)) items.push({ type: 'fire', x: W.village.x, y: W.village.y, p }); }
+  }
   items.sort((m, n) => m.p.v - n.p.v);
   return items;
 }

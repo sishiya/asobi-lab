@@ -7,7 +7,7 @@
 //     どれも「得」と「損」があり、世界のきびしさ（オオカミ・流れ・干上がり・飢え）で、生き残りやすいものが増える。
 
 const KINDS = {   // 時間は秒（1日＝60 秒、1年＝16 日＝960 秒。寿命は1年より長く）。eMax・cost・speed は遺伝子で上下する（traits）
-  deer: { name: TX('シカ', 'Deer'), eMax: 10, cost: 0.08, speed: 2.0, adult: 75, repE: 0.8, cd: 80, life: 1500, cap: 75, childE: 0.35 },
+  deer: { name: TX('シカ', 'Deer'), eMax: 10, cost: 0.08, speed: 2.0, adult: 75, repE: 0.8, cd: 80, life: 1500, cap: 55, childE: 0.35 },   // v006: 上限 75 → 55（2026-10-14 ユーザー「シカ多くなりすぎるかも」）
   wolf: { name: TX('オオカミ', 'Wolf'), eMax: 16, cost: 0.05, speed: 2.4, adult: 110, repE: 0.8, cd: 150, life: 2000, cap: 16, childE: 0.37 },
   bird: { name: TX('サギ', 'Heron'), eMax: 12, cost: 0.05, speed: 0.6, adult: 150, repE: 0.8, cd: 200, life: 2000, cap: 14, childE: 0.35 },
   fish: { name: TX('サカナ', 'Fish'), eMax: 6, cost: 0.05, speed: 1.4, adult: 50, repE: 0.77, cd: 40, life: 1000, cap: 140, childE: 0.33 },
@@ -95,6 +95,7 @@ function climateMul(a, t) {
   const rest = t < 5 ? 0.5 : t < 10 ? 0.75 : 1;   // 冬はじっとして、使う力をへらす（本当のシカも冬は代謝を下げる）
   return rest * (1 + Math.max(0, 5 - t) * 0.06 * (1.5 - 1.2 * s)) + Math.max(0, t - 30) * 0.04 * (0.5 + s);   // v2: 寒さで体の大きさの差がはっきり出るように
 }
+const FISH_MIN = 0.28;   // サカナが入れるいちばん浅い水（地面の色に水がはっきり出るのが 0.26 ほど。v006）
 const deepAt = j => W.ice[j] ? 0 : W.w[j];   // 凍った水の上は歩ける
 const onDisk = (x, y) => (x - C) ** 2 + (y - C) ** 2 < (RD - 0.6) ** 2;
 
@@ -173,7 +174,7 @@ function stepAnimal(a, dt) {
   if (hush) W.flags.hush = 1;
 
   if (a.kind === 'fish') {
-    if (w < 0.1) {                       // 水がない: 深い方へはねる
+    if (w < FISH_MIN * 0.6) {           // 水がない（ほとんど陸）: 深い方へはねる
       a.wet += dt;
       if (a.wet > T.dryMax) { die(a, 'dry'); return; }
       a.dir = pickDir(a, j => W.w[j], 8, 1.5); sp = 1.2;
@@ -186,8 +187,8 @@ function stepAnimal(a, dt) {
       // 食べものをさがす。泳ぐ力の強いサカナは、食べものを運んでくる流れも好む
       const likeFlow = (a.g.strength - 0.45) * 0.5;
       const heron = nearest(a, 'bird', 3, b => !b.fly);
-      if (heron) a.dir = pickDir(a, (j, x, y) => W.w[j] > 0.15 ? Math.min(W.w[j], 3) + Math.hypot(x - heron.x, y - heron.y) * 0.5 : -9, 8, 2);   // サギが来たら深い方へ
-      else if (a.e < T.eMax * 0.85) a.dir = pickDir(a, j => W.w[j] > 0.15 ? W.alg[j] + Math.min(W.w[j], 2) * 0.1 + likeFlow * Math.min(2, (W.fL[j] + W.fR[j] + W.fU[j] + W.fD[j]) / (W.w[j] + 0.15)) : -1, 5, 2);
+      if (heron) a.dir = pickDir(a, (j, x, y) => W.w[j] > FISH_MIN ? Math.min(W.w[j], 3) + Math.hypot(x - heron.x, y - heron.y) * 0.5 : -9, 8, 2);   // サギが来たら深い方へ
+      else if (a.e < T.eMax * 0.85) a.dir = pickDir(a, j => W.w[j] > FISH_MIN ? W.alg[j] + Math.min(W.w[j], 2) * 0.1 + likeFlow * Math.min(2, (W.fL[j] + W.fR[j] + W.fU[j] + W.fD[j]) / (W.w[j] + 0.15)) : -1, 5, 2);
       else { a.wander -= dt; if (a.wander < 0) { a.dir += (Math.random() - 0.5) * 2; a.wander = 1 + Math.random() * 2; } }
       const take = Math.max(0, Math.min(W.alg[i] - 0.06, 0.1 * T.eat * dt));   // 根もとは残る
       W.alg[i] -= take; a.e = Math.min(T.eMax, a.e + take * 8);
@@ -222,7 +223,7 @@ function stepAnimal(a, dt) {
         else if (a.e < T.eMax * 0.8) { a.dir = pickDir(a, j => W.veg[j] + avoid(j), 6, 2.5 + (swimmer ? 2 : 0)); sp *= W.veg[i] > 0.4 ? 0.3 : night ? 0.6 : 1; }
         else { a.wander -= dt; if (a.wander < 0) { a.dir = pickDir(a, j => avoid(j) + Math.random() * 0.5, 4, 2); a.wander = 1.5 + Math.random() * 3; } sp *= night ? 0.25 : 0.5; }
         const take = Math.max(0, Math.min(W.veg[i] - 0.05, 0.7 * W.veg[i] * W.veg[i] * dt * (night ? 0.4 : 1)));   // 短い草からは少ししか食べられない（食べつくしにくい）。夜はあまり食べない
-        if (a.e < T.eMax) { W.veg[i] -= take; a.e = Math.min(T.eMax, a.e + take * 5); if (W.fert) W.fert[i] = Math.min(1.5, W.fert[i] + take * 0.12); }   // 食べた草の一部は、ふんになって土へ（v2）
+        if (a.e < T.eMax) { W.veg[i] -= take; a.e = Math.min(T.eMax, a.e + take * 5); if (W.fert) { const tr = Math.min(W.litter[i], take * 2 + 0.01 * dt); W.litter[i] -= tr; W.fert[i] = Math.min(3, W.fert[i] + take * 0.32 + tr * 0.4); } }   // 草の肥えの多くは ふんで土へ。枯れ草も食べ、ふみつけて早く土にもどす（v006）   // 食べた草の多くは、ふんになって土へ（v2）
       } else {
         a.rest -= dt;
         // 腹がへったら1頭にねらいを決めて、つかまえるか、あきらめるまで追う（群れの中で相手を替えない）
@@ -250,8 +251,8 @@ function stepAnimal(a, dt) {
     // ふちの外へ: 流されていたら滝から落ちる。歩いていたら止まる
     if (carried && W.w[i] > 0.05 && (vx * (a.x - C) + vy * (a.y - C)) > 0) { a.x = nx; a.y = ny; die(a, 'fall'); return; }
     a.dir += Math.PI * (0.6 + Math.random() * 0.8); nx = a.x; ny = a.y;
-  } else if (a.kind === 'fish' && W.w[ni] < 0.1 && W.w[i] >= 0.1) {
-    a.dir += Math.PI * (0.5 + Math.random()); nx = a.x; ny = a.y;   // サカナは水から出ない
+  } else if (a.kind === 'fish' && W.w[ni] < FISH_MIN && W.w[ni] < W.w[i]) {
+    a.dir += Math.PI * (0.5 + Math.random()); nx = a.x; ny = a.y;   // サカナは水から出ない。うすすぎる水（見た目は陸）へも入らない（v006。2026-10-14 ユーザー「陸を泳いでいるように見える」）
   }
   if (Math.abs(vx) > 0.05) a.flip = vx > 0 ? 1 : -1;
   a.x = nx; a.y = ny;
@@ -263,7 +264,7 @@ function stepAnimal(a, dt) {
 
 // 混みあうと子を残さない（v029。2026-10-13 ユーザー「シカが大量発生してしっちゃかめっちゃか」・スマホが熱くなる）。
 //   まわり（半径 r）に同じ種類が n より多いと、子を残さずに少し待つ。数が上限（cap）に近いほども生まれにくい
-const CROWD = { deer: [7, 5], wolf: [10, 4], fish: [5, 6], bird: [10, 3], human: [6, 8] };
+const CROWD = { deer: [7, 4], wolf: [10, 4], fish: [5, 6], bird: [10, 3], human: [6, 8] };
 function crowded(a) {
   const [r, n] = CROWD[a.kind];
   let c = 0;
@@ -378,7 +379,7 @@ function release(kind, x, y) {
   if (W.stock[kind] <= 0) return 'empty';
   const i = cellOf(x, y);
   if (!inside[i]) return 'no';
-  if (kind !== 'bird' && (kind === 'fish' ? W.w[i] < 0.2 : W.w[i] > 0.3)) return kind === 'fish' ? 'needwater' : 'needland';
+  if (kind !== 'bird' && (kind === 'fish' ? W.w[i] < FISH_MIN + 0.1 : W.w[i] > 0.3)) return kind === 'fish' ? 'needwater' : 'needland';
   const a = spawn(kind, x, y, undefined, jarGenes(kind));
   if (!a) return 'cap';
   a.e = a.tr.eMax * 0.7;

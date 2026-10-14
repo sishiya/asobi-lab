@@ -39,11 +39,16 @@ function pickMove() {
   const g = geneStats(p.kind), b = (G.gbase || {})[p.kind];
   return Math.max(0, g[p.gene] - (b && b[p.gene] !== undefined ? b[p.gene] : 0.5));
 }
-function chooseGene(after) {
+// again: 選びなおし（v006。2026-10-14 ユーザー「第九、条件の変更できるように」）。お題の札を押すといつでも。選びなおすと、そのときの平均から数えなおす
+function chooseGene(after, again) {
   const was = G.speed; setSpeed(0);
-  showPanel(TX('<p class="mtitle">どのきびしさで、体を変える？</p><p class="small center">選んだ遺伝子の平均を、いまより 0.06 上げる</p>', '<p class="mtitle">Which hardship will change their bodies?</p><p class="small center">Raise the average of the chosen gene by 0.06 from now</p>'),
-    Object.entries(GPICK).map(([id, p], n) => ({ label: p.label, sub: p.sub, main: n === 0, fn: () => { G.gpick = id; G.gbase = geneBase(); setSpeed(was || 1); toast(TX(`「${p.label}」を選んだ。${p.sub}`, `You chose “${p.label}”. ${p.sub}`), 7); after && after(); } })));
+  const cur = gpickOf();
+  showPanel(again ? TX(`<p class="mtitle">きびしさを選びなおす</p><p class="small center">いまは「${cur.label}」。選びなおすと、いまの平均から数えなおす</p>`, `<p class="mtitle">Choose the hardship again</p><p class="small center">Now: “${cur.label}”. If you change it, counting starts again from the current average</p>`)
+    : TX('<p class="mtitle">どのきびしさで、体を変える？</p><p class="small center">選んだ遺伝子の平均を、いまより 0.06 上げる（あとで選びなおせる）</p>', '<p class="mtitle">Which hardship will change their bodies?</p><p class="small center">Raise the average of the chosen gene by 0.06 from now (you can change it later)</p>'),
+    [...Object.entries(GPICK).filter(([id]) => !again || id !== G.gpick).map(([id, p], n) => ({ label: p.label, sub: p.sub, main: !again && n === 0, fn: () => { G.gpick = id; G.gbase = geneBase(); G.helped = Math.min(G.helped, 1); G.chT = Math.min(G.chT, DAY * 4); setSpeed(was || 1); toast(TX(`「${p.label}」を選んだ。${p.sub}`, `You chose “${p.label}”. ${p.sub}`), 7); after && after(); } })),
+     ...(again ? [{ label: TX('このまま', 'Keep it'), main: true, fn: () => setSpeed(was || 1) }] : [])]);
   $('panel').classList.add('menu', 'world');
+  if (again) G.panelBack = () => { $('overlay').hidden = true; setSpeed(was || 1); };
 }
 const springDays = () => {   // 冬の章: 次の春まで何日
   const p = seasonPhase(), left = (1 - p) % 1;
@@ -280,14 +285,14 @@ function questLine(s) {
   if (!G.started || COL) { el.hidden = true; return; }
   el.hidden = false;
   if (isFree()) { $('qTitle').textContent = TX('自由な箱庭', 'Free Garden'); $('qText').textContent = ''; $('qBar').style.width = '0'; el.classList.add('free'); return; }
-  el.classList.remove('free', 'ask');
+  el.classList.remove('free', 'ask', 'pick');
   const c = CHAPTERS[Math.floor(G.ch)];
   if (G.ch % 1) { $('qTitle').textContent = yearOf(Math.floor(G.ch)); $('qText').textContent = c.title + TX(' — できた', ' — done'); $('qBar').style.width = '100%'; return; }
   const v = c.prog(s), fmt = c.show || (x => x);
   $('qTitle').textContent = TX(`${yearOf(G.ch)}　${c.title}`, `${yearOf(G.ch)}: ${c.title}`);
   if (c.key === 'genes') {   // 進化の章（v2）: 選んだ遺伝子の名前と、平均の動き
     const p = gpickOf();
-    el.classList.toggle('ask', !p);
+    el.classList.toggle('ask', !p); el.classList.add('pick');
     if (!p) { $('qText').textContent = TX('どのきびしさで体を変えるか、選ぶ（お題の札を押す）', 'Choose which hardship will change their bodies (press the goal)'); $('qBar').style.width = '0'; return; }
     const name = GENES[p.kind].find(([k]) => k === p.gene)[1], g = geneStats(p.kind)[p.gene], b = ((G.gbase || {})[p.kind] || {})[p.gene] ?? 0.5;
     $('qText').textContent = L.counts[p.kind] < 8 ? TX(`${KINDS[p.kind].name}を 8 匹以上に（いま ${L.counts[p.kind]}）`, `Get 8 or more ${KPL[p.kind]} (now ${L.counts[p.kind]})`)
@@ -308,4 +313,4 @@ function tallyNeed(s) {
   return null;
 }
 // 進化の章で、まだ選んでいないとき: お題の札を押すと、選ぶ札（v2）
-document.getElementById('quest').addEventListener('click', () => { const c = CHAPTERS[G.ch]; if (c && c.key === 'genes' && !G.gpick && G.started && !ENDING) { Sound.play('click'); chooseGene(); } });
+document.getElementById('quest').addEventListener('click', () => { const c = CHAPTERS[G.ch]; if (c && c.key === 'genes' && G.started && !ENDING && !(G.ch % 1)) { Sound.play('click'); chooseGene(null, !!gpickOf()); } });   // 選んだあとも、押すと選びなおせる（v006）

@@ -146,7 +146,7 @@ const TALLY_KEY = 'asobi-lab/edge-falls-2/tally';
 let tallyOn = true; try { tallyOn = localStorage.getItem(TALLY_KEY) !== '0'; } catch (e) { /* なし */ }
 function setTally(v) { tallyOn = v; try { localStorage.setItem(TALLY_KEY, v ? '1' : '0'); } catch (e) { /* なし */ } updateTally(lastStats); }
 const TALLY = [   // [種類, ちょうどの下, ちょうどの上, 棒いっぱいの数]
-  ['grass', 15, 65, 80], ['deer', 10, 50, 75], ['wolf', 3, 10, 16], ['fish', 15, 90, 140], ['bird', 3, 10, 14], ['human', 4, 12, 14]];
+  ['grass', 15, 65, 80], ['deer', 10, 40, 55], ['wolf', 3, 10, 16], ['fish', 15, 90, 140], ['bird', 3, 10, 14], ['human', 4, 12, 14]];
 function updateTally(s) {
   const el = $('tally'); if (!el) return;
   const u = G.unlock || {}, rows = TALLY.filter(([k]) => k === 'grass' ? u.seed : u[k]);

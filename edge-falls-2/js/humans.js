@@ -20,7 +20,7 @@ const WISDOM = [
 ];
 const HUMAN_COL = { h: [58, 40, 30], f: [214, 168, 128], t: [188, 128, 64], T: [150, 98, 48], l: [74, 58, 44] };
 
-function resetHumans() { W.village = null; W.farm = new Float32Array(N * N); W.wisdom = {}; W.wisP = 0; W.hSeasons = 0; W.hSeason = -1; W.wisT = 0; W.canal = null; W.dammed = 0; }
+function resetHumans() { W.huts = []; W.village = null; W.farm = new Float32Array(N * N); W.wisdom = {}; W.wisP = 0; W.hSeasons = 0; W.hSeason = -1; W.wisT = 0; W.canal = null; W.dammed = 0; }
 const humanCount = () => L.counts.human || 0;
 const knows = k => !!(W.wisdom && W.wisdom[k]);
 
@@ -108,6 +108,7 @@ function seekFood(a, dt) {
 // 仕事: 畑をひらく → 水路を掘る → 堤をつくる
 function doWork(a, dt) {
   const V0 = W.village, F = W.farm;
+  if (buildHut(a)) return true;   // まず家（v006）
   if (knows('farm')) {
     let n = 0; for (let y = Math.round(V0.y) - 7; y <= V0.y + 7; y++) for (let x = Math.round(V0.x) - 7; x <= V0.x + 7; x++) { const j = y * N + x; if (inside[j] && F[j] > 0) n++; }
     if (n < humanCount() * 5 && n < 60) {
@@ -230,10 +231,47 @@ function roundPanel() {
   $('panel').classList.add('world', 'ending');
 }
 
-// 村の家（ヒト 3 人に 1 軒。村のまわりの決まった所）と、夜の火
-function hutSpots() {
-  if (!W.village) return [];
-  const n = Math.min(5, Math.ceil(humanCount() / 3)), out = [];
-  for (let k = 0; k < n; k++) { const an = k * 2.4 + 0.6, r = k ? 2.2 + (k % 2) * 0.8 : 0.9; out.push({ x: W.village.x + Math.cos(an) * r, y: W.village.y + Math.sin(an) * r }); }
-  return out;
+// 家（v2 の v006。2026-10-14 ユーザー「人は木を伐採し家を建築するとかはどう？（突然家が現れると違和感ある）」）:
+//   ヒト 3 人に 1 軒（5 軒まで）。手のあいたヒトが、村の近くの木を切って運び（a.wood）、家の場所で組む（h.b 0 → 1。4 本で建つ）。
+//   木がなければ、土と草で（時間がかかる）。組みかけの家は柱 → 骨組み → 屋根と、だんだん家の形になる。切った木はなくなる（森がへる）
+function hutPlace(k) {
+  const V0 = W.village;
+  for (let t = 0; t < 12; t++) {
+    const an = k * 2.4 + 0.6 + t * 0.5, r = (k ? 2.2 + (k % 2) * 0.8 : 1.2) + t * 0.3, x = V0.x + Math.cos(an) * r, y = V0.y + Math.sin(an) * r, j = cellOf(x, y);
+    if (inside[j] && W.w[j] < 0.06 && !(W.farm && W.farm[j] > 0)) return { x, y, b: 0 };
+  }
+  return null;
 }
+function hutTarget() {
+  const need = Math.min(5, Math.ceil(humanCount() / 3));
+  let h = W.huts.find(h => h.b < 1);
+  if (!h && W.huts.length < need) { h = hutPlace(W.huts.length); if (h) W.huts.push(h); }
+  return h || null;
+}
+function findTree() {
+  const V0 = W.village; let best = -1, bd = 15 * 15;
+  for (const i of INS) { if (W.tree[i] < 0.4) continue; const d = (i % N - V0.x) ** 2 + ((i / N | 0) - V0.y) ** 2; if (d < bd) { bd = d; best = i; } }
+  return best;
+}
+function buildHut(a) {
+  const h = hutTarget(); if (!h) return false;
+  if (!a.wood) {
+    if (a.tree === undefined || a.tree < 0 || W.tree[a.tree] < 0.3) a.tree = findTree();
+    if (a.tree >= 0) {
+      const tx = a.tree % N, ty = a.tree / N | 0; a.dir = Math.atan2(ty - a.y, tx - a.x);
+      if ((tx - a.x) ** 2 + (ty - a.y) ** 2 < 1.2) {             // 木を切る（倒れた所に木くず）
+        W.tree[a.tree] = 0; a.wood = 1; a.tree = undefined; a.work = 1.5; W.flags.chop = 1;
+        burst('dig', tx, ty, 6, 1);
+      }
+    } else { a.wood = 1; a.work = 4; }                           // 木がない: 土と草で（時間がかかる）
+    return true;
+  }
+  a.dir = Math.atan2(h.y - a.y, h.x - a.x);
+  if ((h.x - a.x) ** 2 + (h.y - a.y) ** 2 < 1.4) {
+    h.b = Math.min(1, h.b + 0.25); a.wood = 0; a.work = 1.5; burst('raise', h.x, h.y, 3, 0.8);
+    if (h.b >= 1) { W.flags.hut = 1; if (!W.flags.hutmsg) { W.flags.hutmsg = 1; if (!(typeof THUMB !== 'undefined' && THUMB)) toast(TX('ヒトが木を切って運び、はじめての家を建てた', 'The humans cut and carried trees, and built their first house'), 6); } }
+  }
+  return true;
+}
+// 描くもの（render.js の sceneItems）: 家（組みかけもふくむ）と、村のまんなかの火
+function hutSpots() { return W.village ? W.huts : []; }

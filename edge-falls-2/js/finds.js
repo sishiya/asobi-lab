@@ -19,6 +19,7 @@ const FINDS = [
   ['follow', TX('光を追って', 'Following the light'), TX('命の光の粒を押して、そのゆくえを追った。', 'You pressed a speck of the light of life and followed where it went.'), () => W.flags.follow],
   ['isolated', TX('隔てられた群れ', 'A group cut off'), TX('同じ種の群れが、水や陸で二つに隔てられた。まじわらないまま時がたつと……', 'A group of one species was cut in two by water or land. If time passes without them mixing...'), () => W.flags.isolated],
   ['species', TX('新しい種', 'A new species'), TX('隔てられた群れが、別の種に分かれた。もう、もとの種とは子を残さない。', 'The group that was cut off split into a separate species. It no longer has young with the original species.'), () => W.flags.species],
+  ['litter', TX('枯れ草の原', 'A field of dead grass'), TX('食べる者のいない草地に、枯れ草が積もった。新しい芽が出にくく、草はまばらになっていく。', 'Dead grass piled up where nothing grazes. New shoots struggle, and the grass thins out.'), () => { let n = 0, l = 0; for (const i of INS) if (W.veg[i] > 0.22) { n++; l += W.litter[i]; } return n > 300 && l / n > 0.35; }],
   ['bloom', TX('土にかえる', 'Back to the soil'), TX('生き物が去った所の土が肥えて、花が咲いた。', 'Where an animal passed away, the soil grew rich and flowers bloomed.'), () => W.flags.bloom && INS.some(i => W.fert[i] > 0.95 && W.veg[i] > 0.5)],
   ['mistlife', TX('霧にのる命', 'Lives on the mist'), TX('深淵の命の光が、滝のしぶきの霧にのって、雲へのぼった。', 'A light of life from the Abyss rose with the mist of the falls into a cloud.'), () => W.flags.mistlife],
   ['rainlife', TX('雨とおりる命', 'Lives come down with the rain'), TX('雲にのった命の光が、雨といっしょに大地へおりて、命のつぼへ帰った。', 'A light of life riding a cloud came down with the rain and went home to the Life Jar.'), () => W.flags.rainlife],
@@ -35,6 +36,7 @@ const FINDS = [
   ['scorch', TX('焼けた大地', 'Scorched land'), TX('止めた太陽の真下が、暑さで乾いてひび割れた。', 'Under the stopped Sun, the land dried out and cracked in the heat.'), () => W.sun.stop && W.Tavg !== undefined && INS.some(i => W.T[i] > 34)],
   // ヒトの知恵（v2。humans.js）
   ...WISDOM.map(([k, name, text]) => ['w_' + k, TX('知恵　', 'Wisdom: ') + name, text, () => knows(k)]),
+  ['hut', TX('ヒトの家', 'A human house'), TX('ヒトが木を切って運び、家を建てた。村のまわりの森がへっていく。', 'The humans cut and carried trees and built a house. The woods around the village shrink.'), () => W.flags.hut],
   ['village', TX('ヒトの村', 'A human village'), TX('ヒトが、村をつくって暮らしはじめた。', 'The humans built a village and began to live there.'), () => W.flags.village],
   // 体が変わる（v2。遺伝子の平均が はじめ 0.5 から動いた）
   ['longlegs', TX('長い足', 'Long legs'), TX('シカの足が長くなってきた。遅いシカほど、オオカミにつかまったから。', 'The deer’s legs are getting longer, because the slower deer were caught by wolves.'), () => geneStats('deer').speed > 0.6 && L.counts.deer >= 8],

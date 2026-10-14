@@ -64,7 +64,8 @@ function newWorld(seed, bare) {
   W.sown = A();                         // まいたたね（v045）: 少しずつ草になる（stepPlants）
   W.T = A(); W.snow = A(); W.ice = new Uint8Array(N * N);   // 気温・雪・氷
   W.sunk = A().fill(0.6);               // たまった日ざし（v2。止めた太陽の下は暑く、反対がわは冷えていく）
-  W.fert = A().fill(0.5); W.abyssFert = 60;   // 土の肥え（v2。死んだ体・ふん → 土 → 草。水が運び、滝から深淵へ、泉からもどる）
+  W.fert = A().fill(0.5); W.abyssFert = 60;
+  W.litter = A();                        // 枯れ草（v006）: 古い草は枯れ草になって地表に積もり、新しい芽をふさぐ。ゆっくりくさって土の肥えに   // 土の肥え（v2。死んだ体・ふん → 土 → 草。水が運び、滝から深淵へ、泉からもどる）
   W.rs = RS; W.sunAmp = 1;
   for (const i of INS) W.tseed[i] = rnd();
   W.fall = new Float32Array(BINS);       // 滝の量（なめらかにしたもの。描く用）
@@ -287,10 +288,17 @@ function stepPlants(dt) {
       if (inside[i - 1]) nb += v[i - 1]; if (inside[i + 1]) nb += v[i + 1];
       if (inside[i - N]) nb += v[i - N]; if (inside[i + N]) nb += v[i + N];
       const tg = tempGrow(W.T[i]);
-      const grow = m[i] * L[i] * tg * (0.03 * v[i] * (1 - v[i]) + 0.0012 * nb) * fertGrow(i);   // 肥えた土ほどよく育つ（v2）
+      const lt = W.litter[i], grow = m[i] * L[i] * tg * (0.03 * v[i] * (1 - v[i]) + 0.0012 * nb) * fertGrow(i) / (1 + 2.5 * lt);   // 肥えた土ほどよく育つ（v2）。枯れ草が積もると芽が出にくい（v006）
       const wither = (m[i] < 0.12 ? 0.012 : 0) + (W.T[i] < -2 ? 0.0015 : 0) + (W.T[i] > 35 ? 0.006 : 0);   // 乾くと、凍えると、焼けると枯れる
-      v[i] = Math.min(1, Math.max(0, v[i] + (grow - wither * v[i]) * dt));
-      W.fert[i] = Math.min(1.5, Math.max(0, W.fert[i] + (wither * v[i] * 0.3 - Math.max(0, grow) * 0.04) * dt));   // 育つ草は肥えを使い、枯れた草は土にかえる（v2）
+      const age = 0.0025 * (0.3 + 0.7 * tg);  // 草の入れかわり（v006）: 古い草は少しずつ枯れて枯れ草になり、また育つ（寒いと休む）
+      const dead = (wither + age) * v[i] * dt, dec = 0.003 * lt * (0.4 + 0.6 * m[i]) * Math.max(0.2, tg) * dt;
+      v[i] = Math.min(1, Math.max(0, v[i] + grow * dt - dead));
+      W.litter[i] = Math.max(0, lt + dead - dec);
+      // 肥え（v006。2026-10-14 ユーザー「メンテしないと草が減っていくバランスに」「適切なバランスなら維持」）:
+      //   肥えは消えない: 育つ草は肥えを体にとりこみ（草 1 につき 0.4）、枯れると枯れ草に、枯れ草がくさると土にもどる（ゆっくり。半分になるのに 4 日ほど）。
+      //   だから食べる者がいないと、肥えは枯れ草にためこまれ、枯れ草が芽をふさいで、草はだんだんまばらでわら色になる。
+      //   シカがほどよく食べると、枯れ草も食べて・ふみつけて（life.js）、ふんで早く土にもどり、草地は青いまま保たれる。食べすぎれば、草はなくなる
+      W.fert[i] = Math.min(3, Math.max(0, W.fert[i] + dec * 0.4 - Math.max(0, grow) * 0.4 * dt));
     }
     if (W.tseed[i] < 0.07) {          // 木: 草が茂って乾いた所で育ち、草がなくなるか水につかると枯れる
       const tr = W.tree;
@@ -415,6 +423,7 @@ function sow(cx, cy, rad = 3) {
     const i = y * N + x; if (x < 0 || y < 0 || x >= N || y >= N || !inside[i]) continue;
     if (Math.hypot(x - cx, y - cy) > rad || W.w[i] > 0.3) continue;
     if (W.veg[i] + W.sown[i] < 0.25) { W.sown[i] = 0.25 - W.veg[i]; n++; }
+    W.litter[i] *= 0.5;   // たねをまくときに枯れ草をかきわける（v006）
   }
   if (n) burst('seed', cx, cy, 5, rad * 0.9);
   return n;

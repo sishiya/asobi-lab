@@ -202,6 +202,9 @@ const VOX = (() => {
     bird: [['....hkk', '....n..', '...n...', '.bbbb..', 'bBBbb..', '..l....', '..l....'], ['....hkk', '....n..', '....n..', '.bbbb..', 'bBBbb..', '..l....', '..l....']],
     human: [['.hh.', '.ff.', 'tTTt', 'fTTf', '.TT.', '.l.l'], ['.hh.', '.ff.', 'tTTt', 'fTTf', '.TT.', '.ll.']],   // ヒト（v2）
     hut: ['...R...', '..RRR..', '.RRrRR.', 'RRRRRRR', '.WWdWW.', '.WWdWW.'],
+    hut1: ['.......', '.......', '.......', '.......', '.T...T.', '.T...T.'],                 // 組みかけ: 柱
+    hut2: ['.......', '.......', '.T...T.', 'TTTTTTT', '.TW.WT.', '.T...T.'],                 // 骨組みと壁の少し
+    hut3: ['...R...', '..R.R..', '.R...R.', 'RRRRRRR', '.WWdWW.', '.WWdWW.'],                 // 屋根のふち
     birdFly: [['ww.....ww', '.wwbbbww.', '...bbbhkk'], ['.........', '..bbbbhkk', '.wwbbbww.', 'ww.....ww']],
     tree: ['..LLL..', '.LLGLL.', 'LLGLLLL', 'LLLLLDL', '.LDLLD.', '...T...', '...T...'],
     pine: ['...L...', '..LGL..', '.LLLLL.', '..LGL..', '.LLLDL.', 'LLLLLDL', '...T...'],
@@ -213,11 +216,12 @@ const VOX = (() => {
     wolf: { e: [74, 76, 84], h: [154, 156, 164], d: [42, 42, 48], b: [139, 141, 148], B: [109, 111, 120], t: [125, 127, 136], l: [61, 63, 70] },
     fish: { t: [217, 122, 48], f: [239, 154, 74], e: [42, 26, 16] },
     human: { h: [58, 40, 30], f: [214, 168, 128], t: [188, 128, 64], T: [162, 106, 52], l: [74, 58, 44] },
-    hut: { R: [184, 154, 90], r: [212, 182, 112], W: [138, 106, 68], d: [52, 36, 24] },
+    hut: { R: [184, 154, 90], r: [212, 182, 112], W: [138, 106, 68], d: [52, 36, 24], T: [112, 80, 48] },
     bird: { h: [242, 242, 236], k: [232, 192, 64], n: [216, 216, 212], b: [154, 164, 174], B: [124, 134, 144], l: [106, 90, 64], w: [200, 208, 216] },
     tree: { L: [90, 160, 67], G: [143, 208, 106], D: [63, 122, 52], T: [107, 74, 42] },
     pine: { L: [63, 127, 74], G: [106, 168, 106], D: [45, 94, 56], T: [107, 74, 42] },
     treeSpring: { L: [104, 172, 76], G: [244, 178, 204], D: [74, 136, 60], T: [107, 74, 42] },
+    treeYoung: { L: [138, 196, 98], G: [190, 228, 140], D: [100, 158, 78], T: [107, 74, 42] },
     treeAutumn: { L: [214, 128, 46], G: [242, 194, 72], D: [176, 70, 40], T: [107, 74, 42] },
     bare: { T: [100, 70, 38], t: [142, 110, 60], u: [112, 84, 44], S: [236, 240, 248] },   // 枯れ枝は茶色に（灰色だと palAt の青みで紫に見えた）
     pineWinter: { L: [58, 112, 72], G: [236, 242, 248], D: [44, 88, 56], T: [107, 74, 42] },
@@ -261,6 +265,35 @@ const VOX = (() => {
     return (formCache[key] = rows);
   }
   const sizeK = a => a.kind === 'human' ? 1 : a.kind === 'bird' ? 0.85 + 0.3 * a.g.size : 0.8 + 0.42 * a.g.size;
+  // 木の季節（v006。2026-10-14 ユーザー「季節ごとの木の変化にアニメーションを。ぱっと切り替わりすぎないように」）:
+  //   木ごとに半日ほどずらした暦（q）で、色をゆっくりまぜる（夏の緑 → 秋に少しずつ紅葉、春は若葉 → 緑、花の木は花 → 緑）。
+  //   冬にはだかになるときは、その木から葉が散る（粒）。針葉樹は気温で少しずつ雪をかぶる
+  const BARE = new Uint8Array(N * N); let bareInit = false;
+  const sm = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+  function treeLook(it) {
+    if (it.conifer) return { spr: 'pine', a: 'pine', b: 'pineWinter', t: sm((3 - W.T[it.i]) / 5) };
+    const q = (seasonPhase() + (it.hi - 0.5) * 0.06 + 1) % 1, bare = q >= 0.77 || q < 0.02;
+    if (bare !== !!BARE[it.i]) { if (bare && bareInit && !PRINT) leafFall(it); BARE[it.i] = bare ? 1 : 0; }
+    if (bare) return { spr: 'bare', a: 'bare', b: 'bare', t: 0 };
+    if (q < 0.25) return it.hi > 0.55 ? { spr: 'tree', a: 'treeSpring', b: 'tree', t: sm((q - 0.14) / 0.1) } : { spr: 'tree', a: 'treeYoung', b: 'tree', t: sm((q - 0.03) / 0.12) };
+    if (q < 0.5) return { spr: 'tree', a: 'tree', b: 'tree', t: 0 };
+    return { spr: 'tree', a: 'tree', b: 'treeAutumn', t: sm((q - 0.5) / 0.2) };
+  }
+  function leafFall(it) {
+    const x = it.i % N, y = it.i / N | 0, now = performance.now();
+    if (PFX.length > 150) return;
+    for (let n = 0; n < 5; n++) PFX.push({ x: x + (Math.random() - 0.5) * 0.8, y: y + (Math.random() - 0.5) * 0.8, vx: (Math.random() - 0.5) * 0.8, vy: (Math.random() - 0.5) * 0.8, vz: 0, h0: 2.2 + Math.random() * 1.6, g: 1.6, t0: now + n * 180, col: ['#d6802e', '#e8b040', '#b04a28'][n % 3] });
+  }
+  function palMix(a, b, t, L) {
+    const tq = Math.round(t * 6) / 6;
+    if (tq <= 0 || a === b) return palAt(a, L);
+    if (tq >= 1) return palAt(b, L);
+    const q = Math.round(L * 10), key = a + '>' + b + tq + ':' + q;
+    if (cache[key]) return cache[key];
+    const A = PAL[a], B = PAL[b], o = {};
+    for (const ch in A) { const ca = A[ch], cb = B[ch] || ca; const r = mix(ca[0], cb[0], tq), g = mix(ca[1], cb[1], tq), bl = mix(ca[2], cb[2], tq); o[ch] = `rgb(${r * q / 10 | 0},${g * q / 10 | 0},${Math.min(255, bl * (q / 10 + 0.1)) | 0})`; }
+    return (cache[key] = o);
+  }
   function sprite(rows, pal, cx, by, k, flip) {
     const w = rows[0].length, h = rows.length;
     const x0 = Math.round(cx - w * k / 2), y0 = Math.round(by) - h * k;
@@ -513,22 +546,24 @@ const VOX = (() => {
         const w = 5 * k, sy = it.drop ? it.ground.y / V.bs : by;
         bctx.fillStyle = 'rgba(10,14,8,0.28)'; bctx.fillRect(Math.round(bx - w / 2), Math.round(sy) - k, w, k);
       }
-      if (it.type === 'hut') {                                        // ヒトの家と、夜の火（v2）
-        sprite(SPR.hut, palAt('hut', lumAt(it.x, it.y)), bx, by, k * 1.2, false);
-        if (it.fire && LUM[NEAR[Math.round(it.y) * N + Math.round(it.x)]] < 0.55) {
-          const fl = Math.floor(t * 9) % 3;
-          bctx.fillStyle = 'rgba(255,200,90,0.25)'; bctx.fillRect(Math.round(bx + 5 * k) - 2 * k, Math.round(by) - 3 * k, 4 * k, 3 * k);
-          bctx.fillStyle = fl ? '#ffb040' : '#ffe080'; bctx.fillRect(Math.round(bx + 5 * k), Math.round(by) - (1 + fl % 2) * k, k, (1 + fl % 2) * k);
-        }
+      if (it.type === 'hut') {                                        // ヒトの家（組みかけは柱 → 骨組み → 屋根のふち → 家。v006）
+        const sp = it.b >= 1 ? SPR.hut : it.b >= 0.75 ? SPR.hut3 : it.b >= 0.5 ? SPR.hut2 : it.b > 0 ? SPR.hut1 : null;
+        if (sp) sprite(sp, palAt('hut', lumAt(it.x, it.y)), bx, by, k * 1.2, false);
+        continue;
+      }
+      if (it.type === 'fire') {                                       // 村のまんなかの火（石のかこい。夜は明るく）
+        const night = LUM[NEAR[Math.round(it.y) * N + Math.round(it.x)]] < 0.55, fl = Math.floor(t * 9) % 3;
+        bctx.fillStyle = '#6a6460'; bctx.fillRect(Math.round(bx) - 2 * k, Math.round(by) - k, 5 * k, k);
+        if (night) { bctx.fillStyle = 'rgba(255,200,90,0.22)'; bctx.fillRect(Math.round(bx) - 3 * k, Math.round(by) - 4 * k, 7 * k, 4 * k); }
+        bctx.fillStyle = fl ? '#ffb040' : '#ffe080'; bctx.fillRect(Math.round(bx), Math.round(by) - (2 + fl % 2) * k, k, (1 + fl % 2) * k);
+        bctx.fillStyle = '#ff8030'; bctx.fillRect(Math.round(bx) - (fl === 1 ? k : 0), Math.round(by) - 2 * k, 2 * k, k);
         continue;
       }
       if (it.type === 'tree') {
         const L = lumAt(it.i % N, it.i / N | 0);
-        const se = seasonOf(), cold = W.T[it.i] < 2;
+        const lk = treeLook(it);
         if (it.t < 0.4) sprite(SPR.sap, palAt('tree', L), bx, by, k, false);
-        else if (it.conifer) sprite(SPR.pine, palAt(se === 3 || cold ? 'pineWinter' : 'pine', L), bx, by, k, it.hi > 0.5);
-        else if (se === 3) sprite(SPR.bare, palAt('bare', L), bx, by, k, it.hi > 0.5);                  // 冬ははだか
-        else sprite(SPR.tree, palAt(se === 2 ? 'treeAutumn' : se === 0 && it.hi > 0.55 ? 'treeSpring' : 'tree', L), bx, by, k, it.hi > 0.5);
+        else sprite(SPR[lk.spr], palMix(lk.a, lk.b, lk.t, L), bx, by, k, it.hi > 0.5);
       } else {
         const a = it.a, fl = (Math.cos(a.dir) * Math.cos(V.yaw) - Math.sin(a.dir) * Math.sin(V.yaw)) < 0;
         const fr = Math.floor(a.phase * 6) % 2;
@@ -551,7 +586,7 @@ const VOX = (() => {
       sprite(SPR[f.kind][0], palAt(f.kind, 1), p.x, p.y, k, Math.floor(f.t * 4) % 2 === 0);
       bctx.globalAlpha = 1;
     }
-    bctx = board;
+    bctx = board; bareInit = true;
     bctx.clearRect(0, 0, buf.width, buf.height);
     // 夜の草むらにホタル
     if (!fire) { fire = []; for (let n = 0; n < 60; n++) fire.push(INS[Math.floor(hash2(n, 77) * INS.length)]); }

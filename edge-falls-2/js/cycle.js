@@ -16,8 +16,8 @@ function bodyReturns(a, how) {
   const i = cellOf(a.x, a.y);
   if (how === 'fall' || !inside[i]) W.abyssFert += 0.6;            // 滝から落ちた体は、深淵の肥えに
   else {                                                            // その場の土（水の中なら水草の肥え）に
-    W.fert[i] = Math.min(1.5, W.fert[i] + 0.35);
-    for (const d of NB4) if (inside[i + d]) W.fert[i + d] = Math.min(1.5, W.fert[i + d] + 0.12);
+    W.fert[i] = Math.min(3, W.fert[i] + 0.35);
+    for (const d of NB4) if (inside[i + d]) W.fert[i + d] = Math.min(3, W.fert[i + d] + 0.12);
     if (how !== 'eaten' && how !== 'caught' && W.w[i] < 0.1) W.flags.bloom = 1;
   }
   W.souls[a.kind] += 1 / 3;
@@ -45,15 +45,16 @@ function stepFert(dt) {
     const give = (j, fl) => { if (fl <= 0) return; if (inside[j]) FT[j] += fl * q; else W.abyssFert += fl * q; };
     give(i - 1, W.fL[i]); give(i + 1, W.fR[i]); give(i - N, W.fU[i]); give(i + N, W.fD[i]);
   }
-  for (const i of INS) if (FT[i]) f[i] = Math.min(1.5, f[i] + FT[i]);
+  for (const i of INS) if (FT[i]) f[i] = Math.min(3, f[i] + FT[i]);
   for (const s of W.springs) {                                       // 泉は深淵の肥えもくみ上げる
     if (!s.on) continue;
-    const q = Math.min(W.abyssFert, 0.05 * dt);
-    W.abyssFert -= q; f[s.i] = Math.min(1.5, f[s.i] + q);
+    const q = Math.max(0, Math.min(W.abyssFert, 0.05 * dt, 3 - f[s.i]));   // あふれた分を消さない（v006）
+    W.abyssFert -= q; f[s.i] += q;
   }
 }
 // 草が育つ・枯れるときの肥え（world.js の stepPlants から）
-const fertGrow = i => 0.7 + 0.6 * Math.min(1, W.fert[i]);
+// v006: 肥えの効きを強く（やせた土ではほとんど育たない）。0.5 で 1.1 倍、0.6 より上で 1.3 倍、0 で 0.08 倍
+const fertGrow = i => 0.08 + 1.22 * Math.min(1, W.fert[i] / 0.6);
 
 // 光の粒・深淵の命（毎ステップ。world.js の stepSky のあと）
 function stepMotes(dt) {
