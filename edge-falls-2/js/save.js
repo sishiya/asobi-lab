@@ -56,7 +56,7 @@ function snapshot() {
     stats: { born: L.born, eaten: L.eaten, fell: L.fell },
     hist: HIST,
     quest: { ch: G.ch, chT: G.chT, streak: G.streak, helped: G.helped, goal: G.goal, gbase: G.gbase, gpick: G.gpick, winterOk: G.winterOk, winterSeen: G.winterSeen },
-    story: { mode: G.mode, unread: G.unread, done: G.done, found: G.found, did: G.did, tipped: G.tipped, souls: W.souls, lives: livesForSave(), abyssFert: W.abyssFert, species: W.species, sepDays: W.sepDays, humans: { huts: W.huts, village: W.village, wisdom: W.wisdom, wisP: W.wisT, seasons: W.hSeasons, season: W.hSeason, dammed: W.dammed }, knob: W.knob, flags: W.flags },
+    story: { mode: G.mode, unread: G.unread, done: G.done, found: G.found, did: G.did, tipped: G.tipped, souls: W.souls, lives: livesForSave(), genes: genesForSave(), abyssFert: W.abyssFert, species: W.species, sepDays: W.sepDays, humans: { huts: W.huts, village: W.village, wisdom: W.wisdom, wisP: W.wisT, seasons: W.hSeasons, season: W.hSeason, dammed: W.dammed }, knob: W.knob, flags: W.flags },
     view: { yaw: V.yaw, tilt: V.tilt, zoom: V.zoom, panX: V.panX || 0, panY: V.panY || 0 },
   };
 }
@@ -126,6 +126,7 @@ function applyWorld(s) {
     if (st.knob) W.knob = { winter: num(st.knob.winter, 1), tide: num(st.knob.tide, 1) };
     if (st.souls) for (const k of ['deer', 'wolf', 'fish', 'bird', 'human']) W.souls[k] = num(st.souls[k], 0);
     resetCycle(); if (st.lives) for (const k of ['deer', 'wolf', 'fish', 'bird', 'human']) W.abyssLives[k] = Math.max(0, num(st.lives[k], 0) | 0);
+    if (st.genes) genesFromSave(st.genes, num);   // 深淵とつぼの命の型（v022。ない記録は、型なし）
     W.abyssFert = num(st.abyssFert, 60);
     if (Array.isArray(st.species)) W.species = st.species.filter(r => r && SP_KINDS.includes(r.kind) && typeof r.id === 'number').map(r => ({ kind: r.kind, id: r.id | 0, name: String(r.name || '').slice(0, 14), day: num(r.day, 1), from: num(r.from, 0) })); if (st.sepDays && typeof st.sepDays === 'object') W.sepDays = { ...st.sepDays };
     const hu = st.humans; if (hu) { W.village = hu.village && typeof hu.village.x === 'number' ? { x: hu.village.x, y: hu.village.y } : null; W.wisdom = hu.wisdom && typeof hu.wisdom === 'object' ? { ...hu.wisdom } : {}; W.wisT = num(hu.wisP, 0); W.hSeasons = num(hu.seasons, 0) | 0; W.hSeason = num(hu.season, -1) | 0; W.dammed = hu.dammed ? 1 : 0; W.huts = Array.isArray(hu.huts) ? hu.huts.slice(0, 5).map(h => ({ x: num(h.x, C), y: num(h.y, C), b: Math.max(0, Math.min(1, num(h.b, 1))) })) : []; }

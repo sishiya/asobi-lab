@@ -366,12 +366,13 @@ function geneStats(kind) {
   return out;
 }
 
-// 命のつぼから来る命の遺伝子（v2）: いま大地にいる同じ種類の平均に近い（いなければ、はじめの 0.5 のまわり）。
-//   進化した群れに、つぼから「はじめの姿」がまざって、もとにもどってしまわないように
+// 命のつぼから来る命の遺伝子（v022。PLAN 5章の 3「C」）: 深淵から帰ってきた命は、去った生き物の型を受けついでいる（cycle.js）。
+//   型のない命（はじめのつぼ・年の贈りもの）は、はじめの 0.5 のまわり。v2 のはじめは「いまの群れの平均」だった
 function jarGenes(kind) {
-  const st = geneStats(kind);
-  if (st.n < 3) return newGenes(kind);
-  const g = {}; for (const [k] of GENES[kind]) g[k] = clamp01(st[k] + (Math.random() - 0.5) * 0.12);
+  const q = W.jarGenes && W.jarGenes[kind], src = q && q.length ? q.shift() : null;
+  if (!src) return newGenes(kind);
+  W.flags.inherit = 1;
+  const g = {}; for (const [k] of GENES[kind]) g[k] = clamp01((typeof src[k] === 'number' ? src[k] : 0.5) + (Math.random() - 0.5) * 0.08);
   return g;
 }
 // 道具: 生き物を放す（命のつぼから）

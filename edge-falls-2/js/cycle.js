@@ -6,10 +6,17 @@
 //      深淵の命は、滝のしぶきの霧にのって雲になり（雲が命を運ぶ）、雨といっしょに大地へおりて、命のつぼへ帰る。泉からも、ときどき帰る。
 //      だから滝をぜんぶ止めると、命はなかなか帰ってこない（全部を止めると、世界はよどむ）。
 //   粒は世界の時計で動く（止めると止まる）。記録には、とちゅうの粒も深淵の数として残す（save.js）。
+//   3) 命の型（v022。PLAN 5章の 3「C」。2026-10-15 ユーザー）: 粒は去った生き物の遺伝子を持っていて、深淵に落ちると W.abyssGenes にとける。
+//      つぼへ帰る命は、深淵にとけた型を一つ受けつぐ（W.jarGenes）。放すとその型で生まれる。型のない命（はじめのつぼ・年の贈りもの）は「はじめの姿」。
 
 const KINDS4 = ['deer', 'wolf', 'fish', 'bird', 'human'];
 const MOTES = [];                       // 光の粒 {k, s: 'rise'|'drift'|'fall'|'down', x, y, z, t, vx, vy}
-function resetCycle() { MOTES.length = 0; W.abyssLives = { deer: 0, wolf: 0, fish: 0, bird: 0, human: 0 }; }
+const GENE_POOL = 40;                   // 深淵にとけておく型は、種類ごとに 40 まで（古いものからとける）
+function resetCycle() {
+  MOTES.length = 0; W.abyssLives = { deer: 0, wolf: 0, fish: 0, bird: 0, human: 0 };
+  W.abyssGenes = { deer: [], wolf: [], fish: [], bird: [], human: [] }; W.jarGenes = { deer: [], wolf: [], fish: [], bird: [], human: [] };
+}
+function geneToAbyss(k, g) { if (!g) return; const p = W.abyssGenes[k]; p.push(g); if (p.length > GENE_POOL) p.shift(); }
 
 // 生き物が去った（life.js の die から）
 function bodyReturns(a, how) {
@@ -23,9 +30,9 @@ function bodyReturns(a, how) {
   W.souls[a.kind] += 1 / 3;
   if (W.souls[a.kind] >= 1) {
     W.souls[a.kind] -= 1;
-    const z = heightAt(a.x, a.y, true);
-    if (how === 'fall' || !inside[i]) MOTES.push({ k: a.kind, s: 'fall', x: a.x, y: a.y, z, t: 0, vx: 0, vy: 0 });
-    else MOTES.push({ k: a.kind, s: 'rise', x: a.x, y: a.y, z, t: 0, vx: 0, vy: 0 });
+    const z = heightAt(a.x, a.y, true), g = a.g && GENES[a.kind].length ? { ...a.g } : null;   // 粒は、この子の型を持っていく（v022）
+    if (how === 'fall' || !inside[i]) MOTES.push({ k: a.kind, s: 'fall', x: a.x, y: a.y, z, t: 0, vx: 0, vy: 0, g });
+    else MOTES.push({ k: a.kind, s: 'rise', x: a.x, y: a.y, z, t: 0, vx: 0, vy: 0, g });
   }
 }
 
@@ -70,7 +77,7 @@ function stepMotes(dt) {
     } else if (m.s === 'fall') {                                     // 深淵へ落ちていく
       const r = Math.hypot(m.x - C, m.y - C) || 1;
       m.x += (m.x - C) / r * 0.8 * dt; m.y += (m.y - C) / r * 0.8 * dt; m.z -= (6 + m.t * 10) * dt;
-      if (m.t > 2.4) { W.abyssLives[m.k]++; m.end = 'abyss'; MOTES.splice(n, 1); }
+      if (m.t > 2.4) { W.abyssLives[m.k]++; geneToAbyss(m.k, m.g); m.end = 'abyss'; MOTES.splice(n, 1); }
     } else if (m.s === 'down') {                                     // 雨・泉から、命のつぼへ
       m.z += (m.up ? 3 : -5) * dt;
       if (m.t > 1.4) { m.end = homeLife(m.k) ? 'home' : 'abyss'; MOTES.splice(n, 1); }
@@ -107,7 +114,12 @@ function cloudGone(cl) {   // 雲が消えた: のせていた命は、そこで
 }
 // 命のつぼへ。つぼがいっぱいなら深淵へもどる
 function homeLife(k) {
-  if (W.stock[k] < STOCK_MAX[k] && (!G.unlock || G.unlock[k])) { W.stock[k]++; W.flags.ret = 1; if (typeof glowHand === 'function') glowHand('deer'); return true; }
+  if (W.stock[k] < STOCK_MAX[k] && (!G.unlock || G.unlock[k])) {
+    W.stock[k]++; W.flags.ret = 1; if (typeof glowHand === 'function') glowHand('deer');
+    const p = W.abyssGenes[k];                       // 深淵にとけた型を一つ受けつぐ（v022）
+    if (p.length) { W.jarGenes[k].push(p.splice((Math.random() * p.length) | 0, 1)[0]); }
+    return true;
+  }
   W.abyssLives[k]++; return false;
 }
 // いなくなった種類は、深淵とつぼに何もなくても、1日に1つは帰る（取り返しがつかないことは起きない。v011 と同じ）
@@ -144,5 +156,19 @@ function stepFollow(dt) {
   }
   const p = proj(m.x, m.y, m.z), k = Math.min(1, dt * 3);
   V.panX = (V.panX || 0) + (V.cw / 2 - p.x) * k; V.panY = (V.panY || 0) + (V.ch * 0.45 - p.y) * k; layout(V.cw, V.ch);
+}
+// 記録用の命の型（v022）: [種類ごとに、深淵の型の並び・つぼの型の並び]。とちゅうの粒の型は深淵に入れておく
+function genesForSave() {
+  const out = {};
+  for (const k of KINDS4) {
+    const ab = W.abyssGenes[k].slice();
+    for (const m of MOTES) if (m.k === k && m.g) ab.push(m.g);
+    out[k] = { a: ab.slice(-GENE_POOL).map(g => GENES[k].map(([n]) => g[n])), j: W.jarGenes[k].slice(0, STOCK_MAX[k]).map(g => GENES[k].map(([n]) => g[n])) };
+  }
+  return out;
+}
+function genesFromSave(s, num) {
+  const read = (k, rows) => (Array.isArray(rows) ? rows : []).filter(Array.isArray).map(r => { const g = {}; GENES[k].forEach(([n], i) => { g[n] = clamp01(num(r[i], 0.5)); }); return g; });
+  for (const k of KINDS4) if (s[k]) { W.abyssGenes[k] = read(k, s[k].a).slice(-GENE_POOL); W.jarGenes[k] = read(k, s[k].j).slice(0, W.stock[k]); }
 }
 const abyssLifeCount = () => KINDS4.reduce((a, k) => a + W.abyssLives[k], 0);

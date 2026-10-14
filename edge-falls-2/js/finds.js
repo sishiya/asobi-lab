@@ -24,6 +24,7 @@ const FINDS = [
   ['bloom', TX('土にかえる', 'Back to the soil'), TX('生き物が去った所の土が肥えて、花が咲いた。', 'Where an animal passed away, the soil grew rich and flowers bloomed.'), () => W.flags.bloom && INS.some(i => W.fert[i] > 0.95 && W.veg[i] > 0.5)],
   ['mistlife', TX('霧にのる命', 'Lives on the mist'), TX('深淵の命の光が、滝のしぶきの霧にのって、雲へのぼった。', 'A light of life from the Abyss rose with the mist of the falls into a cloud.'), () => W.flags.mistlife],
   ['rainlife', TX('雨とおりる命', 'Lives come down with the rain'), TX('雲にのった命の光が、雨といっしょに大地へおりて、命のつぼへ帰った。', 'A light of life riding a cloud came down with the rain and went home to the Life Jar.'), () => W.flags.rainlife],
+  ['inherit', TX('受けつがれた姿', 'A shape handed down'), TX('つぼから放した命は、深淵にとけた、去った生き物の姿を受けついでいた（これは作りごと。本当の生き物は、親からしか遺伝子を受けつがない）。', 'The life released from the jar carried the shape of an animal that had passed away into the Abyss. (This is made up. Real living things get their genes only from their parents.)'), () => W.flags.inherit],   // v022
   ['gen10', TX('十代目', 'Tenth generation'), TX('第 10 世代の子が生まれた。', 'A young of the 10th generation was born.'), () => W.flags.gen10],
   // 太陽と月の遊び（v020）
   ['bigtide', TX('大潮', 'Spring tide'), TX('月と太陽が同じ向きにそろうと、潮がいちばん大きく寄った。', 'When the Moon and Sun lined up on the same side, the tide pulled the hardest.'), s => (W.knob ? W.knob.tide : 1) >= 0.5 && s.wet > 0.03 && Math.abs(sunMoonGap()) < 0.2],
