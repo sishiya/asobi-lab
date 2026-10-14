@@ -164,12 +164,11 @@ function openMenu() {
   if (!G.started || COL || ENDING) return;
   closeBook();
   if (menuSpeed === null) { menuSpeed = G.speed; setSpeed(0); }
-  const resume = () => { if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } };
   G.menuOpen = true;
   const where = G.mode === 'free' ? TX('自由な箱庭', 'Free Garden') : isFree() ? TX('十の年のあと', 'After the Ten Years') : yearOf(Math.floor(G.ch));
   showPanel(`<p class="mtitle">${where}${TX(`　第 ${W.day} 日`, ` · Day ${W.day}`)}</p><p class="msub noted-line" id="menuNoted">${TX('書きとめている…', 'Noting down…')}</p>`, [
     { label: TX('つづける', 'Resume'), main: true, fn: closeMenu },
-    { label: TX('観察帳', 'Field Notes'), fn: () => { G.menuOpen = false; resume(); openBook(null, true); } },
+    // 観察帳は右下の印・B キーからひらく（v024。2026-10-15 ユーザー「ESC メニューから観察帳を外して」）
     { label: TX('設定', 'Settings'), fn: () => { G.menuOpen = false; openSettings(() => openMenu()); } },
     ...(G.mode === 'free' ? [{ label: TX('大地をつくりなおす', 'Make new land'), fn: () => { G.menuOpen = false; remakeFree(); } }] : []),
     { label: TX('タイトルへ', 'Title screen'), fn: () => { G.menuOpen = false; toTitle(); } },
