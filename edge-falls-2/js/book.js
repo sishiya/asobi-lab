@@ -391,6 +391,8 @@ function renderYears() {
 const SKETCH_KEY = 'asobi-lab/edge-falls-2/sketch';
 let sketches = {}; try { sketches = JSON.parse(localStorage.getItem(SKETCH_KEY) || '{}'); } catch (e) { sketches = {}; }
 let accFind = 0, wantSketch = null;
+// 知らせを出す「見つけたこと」（大きな出来事・遊びの手がかりになるもの）。のこりは静かに観察帳へ
+const FIND_LOUD = new Set(['fall', 'abyss', 'born', 'bigtide', 'eclipse', 'stillsun', 'longlegs', 'bigbody', 'bigfish', 'longbeak', 'species', 'litter', 'follow']);
 function stepFinds(s, dt) {
   if (!G.started || COL || THUMB) return;
   G.sunStill = W.sun.stop ? (G.sunStill || 0) + dt : 0;   // 太陽を止めていた時間
@@ -401,7 +403,10 @@ function stepFinds(s, dt) {
   for (const [id, title, text, test] of FINDS) {
     if (G.found[id] || !test(s)) continue;
     G.found[id] = { day: W.day };
-    if (!id.startsWith('w_')) { toast(TX(`見つけた　${title}　— ${text}`, `Discovery: ${title} — ${text}`), 5); Sound.play('put'); }   // ヒトの知恵は知らせを出したので、ここでは書きとめるだけ（v2）
+    // 知らせを出すのは大きな出来事だけ（v017。2026-10-14 気になること 2「知らせが多い」）。ほかは観察帳に書きとめて、観察帳の印が光るだけ。
+    //   知らせを出すものも、前の知らせから世界の半日はあける（あいだに見つけたものは静かに書きとめる）
+    const loud = FIND_LOUD.has(id) && W.t - (G.findT || -1e9) > DAY / 2;
+    if (loud) { G.findT = W.t; toast(TX(`見つけた　${title}　— ${text}`, `Discovery: ${title} — ${text}`), 5); Sound.play('put'); }
     wantSketch = id;
     $('btnBook').classList.remove('glow'); void $('btnBook').offsetWidth; $('btnBook').classList.add('glow');
     markNew('finds', id);

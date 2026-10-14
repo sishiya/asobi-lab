@@ -6,9 +6,9 @@
 // ボクセルの細かさ（試験。v010。2026-10-14 ユーザー「ジャギーを和らげる処理を試験的に切り替えられるように。荒いのが味かもしれないので、まず見てみたい」）:
 //   0 荒い（これまで）・1 細かい（画素の板を倍細かく。描く画素が約4倍で重くなる）・2 なめらか（細かい＋板をぼかして広げる。木や生き物の画素の絵はそのまま）。
 //   設定の「ボクセル（試験）」で切りかえ。localStorage に覚える
-const VOXSMOOTH_KEY = 'asobi-lab/edge-falls-2/voxsmooth2';   // v014: はじめは「中くらい」（2026-10-14 ユーザー）。置き場所の名前を変えて、前に選んだものをいったんもどす
+const VOXSMOOTH_KEY = 'asobi-lab/edge-falls-2/voxsmooth3';   // v017: はじめは「荒い」にもどした（2026-10-14 ユーザー。v014 は中くらい）。置き場所の名前を変えて、前に選んだものをいったんもどす
 //   v013: 3 中くらい（荒いと細かいのまん中の大きさ。小数の大きさなので、画素の幅がわずかにそろわないことがある）。切りかえの順は 荒い → 中くらい → 細かい → なめらか
-let VOXSMOOTH = 3; try { const v = localStorage.getItem(VOXSMOOTH_KEY); if (v !== null) VOXSMOOTH = Math.max(0, Math.min(3, +v || 0)); } catch (e) { /* なし */ }
+let VOXSMOOTH = 0; try { const v = localStorage.getItem(VOXSMOOTH_KEY); if (v !== null) VOXSMOOTH = Math.max(0, Math.min(3, +v || 0)); } catch (e) { /* なし */ }
 const VOX_ORDER = [0, 3, 1, 2], VOX_NAME = { 0: TX('荒い', 'Coarse'), 3: TX('中くらい', 'Medium'), 1: TX('細かい', 'Fine'), 2: TX('なめらか', 'Smooth') };
 const nextVox = () => VOX_ORDER[(VOX_ORDER.indexOf(VOXSMOOTH) + 1) % VOX_ORDER.length];
 function setVoxSmooth(n) { VOXSMOOTH = n; try { localStorage.setItem(VOXSMOOTH_KEY, String(n)); } catch (e) { /* なし */ } buf = null; layout(V.cw, V.ch); }

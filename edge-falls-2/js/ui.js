@@ -134,7 +134,7 @@ function updateSide(s) {
   $('soilBar').style.width = Math.min(100, W.soil / 300 * 100) + '%';
   $('nSpring').textContent = W.springs.length;
   questLine(s); drawDial(); drawHands(); updateTally(s);
-  const sl = speciesList(); $('spList').hidden = !sl; if (sl) $('spList').textContent = TX('分かれた種: ', 'New species: ') + sl;
+  renderSpecies();
   if (!$('fan').hidden) { const sig = ['deer', 'wolf', 'fish', 'bird', 'human'].map(k => W.stock[k]).join(); if (sig !== G.fanSig) { G.fanSig = sig; syncHands(); } }
   renderBook(); updateCard();
 }

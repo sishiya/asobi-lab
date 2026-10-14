@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
-<link rel="stylesheet" href="css/style.css?v=16">
+<link rel="stylesheet" href="css/style.css?v=17">
 </head>
 <body class="titling">
 <main class="stage" id="field">
@@ -107,8 +107,8 @@
         <p class="note" lang="en">Soil is never lost or made either. You can pile up only as much as you dig.</p>
         <h3><span lang="ja">命のつぼ</span><span lang="en">Life Jar</span></h3>
         <p class="note" id="stockTxt"></p>
-        <p class="note" lang="ja">去った命は深淵へ落ち、少しずつつぼへ戻ってくる。春にも一つずつ。</p>
-        <p class="note" lang="en">Lives that pass away fall into the Abyss and slowly come back to the jar. One more of each also comes every spring.</p>
+        <p class="note" lang="ja">去った命は光になって深淵へ落ち、霧と雨・泉を通って、少しずつつぼへ戻ってくる。</p>
+        <p class="note" lang="en">Lives that pass away fall into the Abyss as light and slowly come back to the jar through mist, rain and springs.</p>
       </section>
 
       <section class="page" data-page="finds" hidden>
@@ -127,7 +127,7 @@
           <li>下の<b>土ぶくろ・水がめ・命のつぼ</b>を押すと、手に持つ。もう一度押すか、大地の外（何もない空）を押すと、しまう（また押せば何度でも持てる）。土ぶくろと命のつぼは、上に出る中身から選ぶ（けずる・盛る／たね・生き物）。</li>
           <li>土ぶくろ: 削った土はふくろへ入り、盛るとへる（からっぽになると盛れない）。ふちを盛ると、水がせき止められて湖になる。泉の上を盛ると、泉がふさがる。</li>
           <li>水がめ: 大地を押すと泉がわく。泉を押すと止める／またわかせる。深淵の水が底をつくと、泉はわかない（水がめの中の水が深淵の水）。</li>
-          <li>命のつぼ: たねをまく・生き物を放す（サカナは水の中へ）。つぼの命は、去った命が戻ってくるのと、春ごとにふえる。たねは 1 回まくごとに 1 袋へり、草が実る夏の終わりから秋に、草地の広さに応じてたまる。</li>
+          <li>命のつぼ: たねをまく・生き物を放す（サカナは水の中へ）。つぼの命は、去った命が深淵から戻ってくる（何もない所からはふえない）。たねは 1 回まくごとに 1 袋へり、草が実る夏の終わりから秋に、草地の広さに応じてたまる。</li>
           <li>手をあけて生き物を押すと、その1匹の札が出る（遺伝子・おなか）。</li>
           <li>太陽と月は、つかんで動かせる。押すと止まる。止めた太陽の真下は日ざしがたまって暑く乾き（光の輪が出る）、反対がわは夜のまま冷えていく。止めた月のほうへは水が寄ったまま（青い輪）。新月と満月のころは潮が大きい（大潮。天の輪の下に波の印）。</li>
           <li>生き物には昼と夜がある。シカは昼に食べて夜は休み、オオカミは夜に狩る。サギは大潮の引き潮でよくとり、サカナは満月のころに卵を産む。</li>
@@ -148,7 +148,7 @@
           <li>Press the <b>Soil Bag, Water Jar or Life Jar</b> at the bottom to hold it. Press it again, or press the empty sky outside the land, to put it away (you can pick it up again any time). For the Soil Bag and Life Jar, choose what to use from the options that appear above it (dig or pile up; seeds or animals).</li>
           <li>Soil Bag: soil you dig goes into the bag, and piling it up uses it (when the bag is empty, you can’t pile up). Pile up the edge to hold back water and make a lake. Pile soil on a spring to block it.</li>
           <li>Water Jar: press the land to make a spring. Press a spring to stop it or start it again. When the water in the Abyss runs out, no springs will flow (the water in the jar is the Abyss’s water).</li>
-          <li>Life Jar: sow seeds or release animals (fish go into the water). The jar fills up again as lives that passed away come back, and a little more every spring. Each sowing uses one bag of seeds; seeds gather from the grassland, by how much of it there is, as the grass ripens from late summer into autumn.</li>
+          <li>Life Jar: sow seeds or release animals (fish go into the water). The jar fills up again as lives that passed away come back from the Abyss (nothing comes from nowhere). Each sowing uses one bag of seeds; seeds gather from the grassland, by how much of it there is, as the grass ripens from late summer into autumn.</li>
           <li>With empty hands, press an animal to see its card (genes, hunger).</li>
           <li>You can grab the Sun and Moon and move them. Press one to stop it. Under a stopped Sun, sunlight builds up and the land gets hot and dry (a ring of light appears); the far side stays in night and grows cold. Water stays pulled toward a stopped Moon (a blue ring). Tides are biggest around the new and full moon (spring tides; a wave mark under the Sky Dial).</li>
           <li>Animals have day and night. Deer eat by day and rest at night; wolves hunt at night. Herons catch more at the low water of spring tides, and fish lay eggs around the full moon.</li>
@@ -227,26 +227,26 @@
   <div class="overlay" id="overlay" hidden><div class="panel" id="panel"></div></div>
 </main>
 
-<script src="js/world.js?v=16"></script>
-<script src="js/life.js?v=16"></script>
-<script src="js/render.js?v=16"></script>
-<script src="js/cycle.js?v=16"></script>
-<script src="js/humans.js?v=16"></script>
-<script src="js/species.js?v=16"></script>
-<script src="js/backdrop.js?v=16"></script>
-<script src="js/style-voxel.js?v=16"></script>
-<script src="js/style-paint.js?v=16"></script>
-<script src="js/style-etch.js?v=16"></script>
-<script src="js/style-real.js?v=16"></script>
-<script src="js/style-cyber.js?v=16"></script>
-<script src="js/sound.js?v=16"></script>
-<script src="js/chapters.js?v=16"></script>
-<script src="js/ui.js?v=16"></script>
-<script src="js/save.js?v=16"></script>
-<script src="js/finds.js?v=16"></script>
-<script src="js/book.js?v=16"></script>
-<script src="js/view.js?v=16"></script>
-<script src="js/collapse.js?v=16"></script>
-<script src="js/main.js?v=16"></script>
+<script src="js/world.js?v=17"></script>
+<script src="js/life.js?v=17"></script>
+<script src="js/render.js?v=17"></script>
+<script src="js/cycle.js?v=17"></script>
+<script src="js/humans.js?v=17"></script>
+<script src="js/species.js?v=17"></script>
+<script src="js/backdrop.js?v=17"></script>
+<script src="js/style-voxel.js?v=17"></script>
+<script src="js/style-paint.js?v=17"></script>
+<script src="js/style-etch.js?v=17"></script>
+<script src="js/style-real.js?v=17"></script>
+<script src="js/style-cyber.js?v=17"></script>
+<script src="js/sound.js?v=17"></script>
+<script src="js/chapters.js?v=17"></script>
+<script src="js/ui.js?v=17"></script>
+<script src="js/save.js?v=17"></script>
+<script src="js/finds.js?v=17"></script>
+<script src="js/book.js?v=17"></script>
+<script src="js/view.js?v=17"></script>
+<script src="js/collapse.js?v=17"></script>
+<script src="js/main.js?v=17"></script>
 </body>
 </html>

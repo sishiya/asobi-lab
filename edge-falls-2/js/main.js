@@ -39,7 +39,7 @@ function simulate(sec) {
     if (accPlant >= 0.25) {
       stepMoist(accPlant); stepPlants(accPlant); stepFert(accPlant); stepFarm(accPlant); stepWisdom(accPlant); updateLight(); stepClimate(accPlant); accPlant = 0;
       const se = seasonOf();
-      if (G.season !== undefined && se !== G.season) { G.seasonMsg = se; if (se === 0) springGift(); }   // 季節が変わった（知らせはループで）
+      if (G.season !== undefined && se !== G.season) G.seasonMsg = se;   // 季節が変わった（知らせはループで）。春の命の贈りもの（springGift）は v017 でやめた（何も生まれない世界なので。命は深淵から帰る）
       G.season = se;
     }
     accHist += h;
@@ -55,9 +55,6 @@ function simulate(sec) {
 let lastStats = null;
 
 // 去った命がつぼへ戻るのは、v2 から cycle.js（光の粒が深淵から霧・雲・雨・泉を通って）。いなくなった種類の安全は dailySafety
-function springGift() {
-  for (const k of ['deer', 'wolf', 'fish', 'bird', 'human']) if (G.unlock[k]) W.stock[k] = Math.min(STOCK_MAX[k], W.stock[k] + 1);
-}
 
 function checkWorld(dt) {
   const s = waterStats(); lastStats = s;
@@ -74,8 +71,8 @@ function checkWorld(dt) {
   return s;
 }
 
-const SEASON_MSG = TX(['春になった。雪がとけ、草がまた伸びはじめる。命のつぼにも命が一つずつ', '夏になった。太陽の道が内がわへ', '秋になった。草の伸びがおそくなる', '冬になった。太陽の道が外がわへ'],
-  ['Spring is here. The snow melts and the grass starts to grow again. One more of each life comes to the Life Jar', 'It’s summer. The Sun’s path moves inward', 'It’s autumn. The grass grows more slowly', 'Winter is here. The Sun’s path moves outward']);
+const SEASON_MSG = TX(['春になった。雪がとけ、草がまた伸びはじめる', '夏になった。太陽の道が内がわへ', '秋になった。草の伸びがおそくなる', '冬になった。太陽の道が外がわへ'],
+  ['Spring is here. The snow melts and the grass starts to grow again', 'It’s summer. The Sun’s path moves inward', 'It’s autumn. The grass grows more slowly', 'Winter is here. The Sun’s path moves outward']);
 // 一度だけ出す説明（v034。2026-10-13 ユーザーの家族「深淵ってなに？」「ツボってなに？」）
 const ABYSS_TALK = TX('深淵は、この大地の下に広がる暗い海。滝から落ちた水はそこにたまり、また泉からわいてくる。水はめぐっている', 'The Abyss is the dark sea under this land. Water that falls off the edge collects there, then wells up again from the springs. Water goes round and round.');
 const JAR_TALK = TX('命のつぼには、この世界の命が入っている。去った命も、深淵をめぐって、ここへ帰ってくる', 'The Life Jar holds the lives of this world. Lives that pass away go round through the Abyss and come back here.');

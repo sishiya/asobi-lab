@@ -67,7 +67,9 @@ function newSpecies(kind, group) {
   W.flags.species = 1;
   if (typeof THUMB !== 'undefined' && THUMB) return;
   Sound.play('win');
-  later(0.5, () => nameSpecies(kind, id));
+  // 名前の札で遊びを止めない（v017。気になること 5）: 知らせだけ。名前は観察帳の「いのち」の頁でいつでも変えられる
+  toast(TX(`新しい種「${name}」が生まれた。${KINDS[kind].name}の群れが長く隔てられて分かれた。名前は観察帳の「いのち」の頁で変えられる`, `A new species, “${name}”, was born: a group of ${KPL[kind]} split off after being cut off for a long time. You can rename it on the “Life” page of the Field Notes`), 8);
+  if (typeof markNew === 'function') markNew('life', 'sp' + kind + id);
 }
 // おすすめの名前: いちばん強く出た遺伝子と、住んでいる所から
 function suggestName(kind, m, group) {
@@ -81,14 +83,23 @@ function suggestName(kind, m, group) {
   if (used.has(name)) name = (kind === 'deer' ? (hi > 8 ? TX('ヤマ', 'Mountain ') : TX('ハマ', 'Shore ')) : TX('ミズウミ', 'Lake ')) + name;
   return name;
 }
-function nameSpecies(kind, id) {
+function nameSpecies(kind, id, back) {
   const r = W.species.find(s => s.kind === kind && s.id === id); if (!r) return;
   const was = G.speed; setSpeed(0);
-  showPanel(TX(`<p class="mtitle">新しい種</p><p class="small center">${KINDS[kind].name}の群れが、長く隔てられて、別の種に分かれた。もう、もとの${KINDS[kind].name}とは子を残さない。名前をつける。</p>`,
+  showPanel(back ? TX(`<p class="mtitle">種の名前</p><p class="small center">${r.name}（${KINDS[kind].name}から分かれた種・第 ${r.day} 日）</p>`, `<p class="mtitle">Species name</p><p class="small center">${r.name} (split from ${KPL[kind]}, day ${r.day})</p>`) + `<p class="center"><input id="spName" class="spname" maxlength="14" value="${r.name.replace(/"/g, '')}" aria-label="${TX('種の名前', 'Species name')}"></p>` : TX(`<p class="mtitle">新しい種</p><p class="small center">${KINDS[kind].name}の群れが、長く隔てられて、別の種に分かれた。もう、もとの${KINDS[kind].name}とは子を残さない。名前をつける。</p>`,
     `<p class="mtitle">A new species</p><p class="small center">A group of ${KPL[kind]} was cut off for a long time and split into a separate species. It no longer has young with the original ${KPL[kind]}. Give it a name.</p>`) +
     `<p class="center"><input id="spName" class="spname" maxlength="14" value="${r.name.replace(/"/g, '')}" aria-label="${TX('種の名前', 'Species name')}"></p>`,
-    [{ label: TX('この名前にする', 'Use this name'), main: true, fn: () => { const v = ($('spName') && $('spName').value || '').trim(); if (v) r.name = v.slice(0, 14); setSpeed(was || 1); toast(TX(`新しい種「${r.name}」。観察帳と札に書きとめた`, `New species “${r.name}”. Noted in the Field Notes and on the cards`), 6); } }]);
-  $('panel').classList.add('menu', 'world'); G.panelBack = () => { $('overlay').hidden = true; setSpeed(was || 1); };
+    [{ label: TX('この名前にする', 'Use this name'), main: true, fn: () => { const v = ($('spName') && $('spName').value || '').trim(); if (v) r.name = v.slice(0, 14); setSpeed(was || 1); toast(TX(`種の名前を「${r.name}」にした`, `Named the species “${r.name}”`), 4); back && back(); } }]);
+  $('panel').classList.add('menu', 'world'); G.panelBack = () => { $('overlay').hidden = true; setSpeed(was || 1); back && back(); };
   const inp = $('spName'); if (inp) { inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') $('panel').querySelector('.tbtn.main').click(); }); }
+}
+// 観察帳の「いのち」の頁: 分かれた種と、名前を変えるボタン
+function renderSpecies() {
+  const el = $('spList'); if (!el) return;
+  const list = W.species || [];
+  el.hidden = !list.length; if (!list.length) return;
+  const sig = list.map(s => s.kind + s.id + s.name).join('|'); if (el.dataset.sig === sig) return; el.dataset.sig = sig;
+  el.innerHTML = TX('分かれた種', 'New species') + '<br>' + list.map(s => `<span class="sprow">${s.name.replace(/</g, '')}<small>${TX(`（${KINDS[s.kind].name}から・第 ${s.day} 日）`, ` (from ${KPL[s.kind]}, day ${s.day})`)}</small><button type="button" class="tbtn" data-spk="${s.kind}" data-spi="${s.id}">${TX('名前を変える', 'Rename')}</button></span>`).join('');
+  el.querySelectorAll('[data-spk]').forEach(b => b.onclick = () => { Sound.play('click'); closeBook(); nameSpecies(b.dataset.spk, +b.dataset.spi, () => openBook('life')); });
 }
 const speciesList = () => (W.species || []).map(s => TX(`${s.name}（${KINDS[s.kind].name}から・第 ${s.day} 日）`, `${s.name} (from ${KPL[s.kind]}, day ${s.day})`)).join(TX('・', ' · '));

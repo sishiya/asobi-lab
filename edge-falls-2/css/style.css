@@ -448,3 +448,6 @@ body.titling .tally,body.ending .tally,body.thumb .tally{display:none}
 .yearcard .ygoal b{display:block;font-size:18px;font-weight:400;letter-spacing:.12em;margin:2px 0}
 .yearcard .ygoal p{margin:0;font-size:14px;opacity:.9}
 .yearcard .ynote{font-size:12px;opacity:.6;margin:6px 0 2px}
+.sprow{display:flex;align-items:center;gap:8px;margin:4px 0;flex-wrap:wrap}
+.sprow small{opacity:.75}
+.sprow .tbtn{padding:2px 8px;font-size:12px}
