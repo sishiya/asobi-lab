@@ -208,7 +208,7 @@ async function efEnter(w, s) {
   d.getElementById('overlay').hidden = true;
   if (s.save) { await w.loadRecord(await efLoadSave(s.save)); E.G.started = true; }
   else { E.newGame(s.seed || 3); E.G.started = !s.title; if (!s.title) w.enterChapter(0, true); }
-  if (s.title) { try { w.localStorage.removeItem('asobi-lab/edge-falls/save/auto'); } catch (e) { /* なし */ } E.G.started = false; w.start(); }   // 前の場面の自動セーブで「つづきから」が出ないように
+  if (s.title) { try { for (const k of ['auto', 'story', 'free']) w.localStorage.removeItem('asobi-lab/edge-falls/save/' + k); } catch (e) { /* なし */ } /* v067 から世界の置き場所は story・free */ E.G.started = false; w.start(); }   // 前の場面の自動セーブで「つづきから」が出ないように
   else d.body.classList.remove('titling');
   for (const id of ['toast', 'line']) d.getElementById(id).classList.remove('on');
   w.closeBook && w.closeBook();

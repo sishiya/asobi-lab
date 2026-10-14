@@ -233,11 +233,11 @@ function openSettings(back, focus) {
   G.panelBack = back || (() => { $('overlay').hidden = true; });
   if (focus !== undefined) $('panel').querySelectorAll('.btns .tbtn')[focus]?.focus();   // 押したボタンに印を残す（上下の矢印でつづけて選べる）
 }
-// ゲームを終える: いまの世界を書きとめてから、すぐ保管庫へ（v067。たずねない）。保管庫へ（v019 で入口へ移し、v028 で調整のため保管庫へもどした）
+// ゲームを終える: いまの世界を書きとめてから、すぐあそびラボの入口へ（v067。たずねない）。v019 で入口へ、v028 で調整のため保管庫へ、v068 でまた入口へ
 async function quitGame() {
   await noteWorld(true);
   G.started = false;
-  location.href = '../archive.html';
+  location.href = TX('../', '../?lang=en');
 }
 // 文字（2026-10-13 ユーザー「ピクセル風のフォント」「いまのフォントも雰囲気に合うので切りかえられると」）。
 //   ドット＝DotGothic16（Google Fonts、SIL Open Font License。商用も無料）、明朝＝これまでの文字。localStorage に覚える
