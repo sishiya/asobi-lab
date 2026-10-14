@@ -86,6 +86,7 @@ async function decodeWorld(rec) {
 
 function applyWorld(s) {
   const num = (v, d) => (typeof v === 'number' && isFinite(v) ? v : d);
+  LATER.length = 0; if (ENDING) { ENDING = null; document.body.classList.remove('ending'); }   // 前の世界の「少しあとで」を持ちこさない（v018）
   newWorld(num(s.seed, 1) | 0);                       // 区画の入れ物と木の場所を作り直してから、上書き
   for (const k of ['fL', 'fR', 'fU', 'fD']) W[k].fill(0);
   unpackCells(s.cells.g, 100, Int16Array, W.g); unpackCells(s.cells.w, 1000, Uint16Array, W.w);

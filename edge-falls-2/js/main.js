@@ -10,6 +10,8 @@ let accPlant = 0, accHist = 0, accSide = 0, prevCounts = null;
 // story=true: 章で遊ぶ（岩と土だけの大地から）。false: 自由な箱庭（いまある大地・全部そろう）
 function newGame(seed = (Math.random() * 1e9) | 0, story = true) {
   newWorld(seed, story); resetLife(); HIST.length = 0; G.mode = story ? 'story' : 'free';
+  if (ENDING) { ENDING = null; document.body.classList.remove('ending'); }   // エンディングのとちゅうで新しい世界にしたとき（v018）
+  LATER.length = 0;   // 前の世界で「少しあとで」と決めていたこと（次の年・エンディング）を持ちこさない（v018）
   V.yaw = Math.PI / 2 - W.bigFall + 0.35;   // いちばん大きな滝（はじめの章は湖のくぼみ）が手前に
   V.panX = V.panY = 0;
   G.sel = null; G.done = []; G.found = {}; G.did = {}; G.tipped = {}; G.unread = {}; MSGLOG.length = 0; clearSay();

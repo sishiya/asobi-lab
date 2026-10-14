@@ -50,6 +50,7 @@ function chooseGene(after, again) {
   $('panel').classList.add('menu', 'world');
   if (again) G.panelBack = () => { $('overlay').hidden = true; setSpeed(was || 1); };
 }
+const winterDays = () => Math.ceil(((0.75 - seasonPhase() + 1) % 1) * YEAR);   // 冬まで何日（v018）
 const springDays = () => {   // 冬の章: 次の春まで何日
   const p = seasonPhase(), left = (1 - p) % 1;
   return Math.ceil(left * YEAR);
@@ -89,7 +90,7 @@ const CHAPTERS = [
     truth: TX('食べる者がいないと、シカはふえすぎて草や若い木を食べつくすことがある。日本の各地でも、シカがふえて森の下草がなくなる問題が起きている。', 'With nothing to eat them, deer can grow too many and eat all the grass and young trees. In many parts of Japan, deer have increased so much that forests are losing their undergrowth.'),
   },
   {
-    key: 'winter', name: TX('冬', 'Winter'), title: TX('冬をこす', 'Through the winter'), text: TX('シカ 10 頭以上で、冬をこして春をむかえる', 'Get through the winter to spring with 10 or more deer'), goal: 1, unit: '',
+    key: 'winter', name: TX('冬', 'Winter'), title: TX('冬をこす', 'Through the winter'), get text() { return seasonOf() === 3 ? TX('シカ 10 頭以上で、冬をこして春をむかえる', 'Get through the winter to spring with 10 or more deer') : TX(`冬まで あと ${winterDays()} 日。冬の草をたくわえ、シカ 10 頭以上で春をむかえる`, `${winterDays()} days until winter. Store up grass for winter, and reach spring with 10 or more deer`); }, goal: 1, unit: '',
     gives: {}, arrive: TX('季節がはっきりしてきた。この冬は、きびしくなる', 'The seasons are getting clearer. This winter will be harsh'),
     prog: () => G.winterOk ? 1 : 0, show: () => L.counts.deer >= 10 ? TX(`春まで ${springDays()} 日`, `${springDays()} days until spring`) : TX('シカが 10 頭より少ない', 'Fewer than 10 deer'), knob: { winter: 1, tide: 0.35 },
     hint: TX('冬は草が育たない。秋にシカが増えすぎると、冬に食べものが足りなくなる。太陽をシカの草地の上で止めると、日ざしがたまってそこだけ暖かい（そのかわり反対がわは凍る）。', 'Grass doesn’t grow in winter. Too many deer in autumn means too little food in winter. Stop the Sun over the deer’s grassland and the sunlight builds up to keep just that place warm (but the far side freezes).'),
@@ -314,6 +315,17 @@ function questLine(s) {
     $('qText').textContent = L.counts[p.kind] < 8 ? TX(`${KINDS[p.kind].name}を 8 匹以上に（いま ${L.counts[p.kind]}）`, `Get 8 or more ${KPL[p.kind]} (now ${L.counts[p.kind]})`)
       : TX(`${KINDS[p.kind].name}の${name}の平均 ${b.toFixed(2)} → ${g.toFixed(2)}（目標 ${(b + 0.06).toFixed(2)}）`, `${KINDS[p.kind].name} ${name.toLowerCase()} average ${b.toFixed(2)} → ${g.toFixed(2)} (goal ${(b + 0.06).toFixed(2)})`);
     $('qBar').style.width = Math.min(100, v / G.goal * 100) + '%'; return;
+  }
+  if (c.key === 'winter') {   // 冬の年（v018。気になること 4「冬が来るまで待つだけ」）: 冬までは、冬にそなえる（草 20%・シカ 10）を見せ、そろったら時を速めて待てると言う
+    const gr = Math.round(s.grass * 100), d = L.counts.deer, ready = gr >= 20 && d >= 10;
+    if (!G.winterSeen && seasonOf() !== 3) {
+      $('qText').textContent = ready ? TX(`そなえはできた。冬まで あと ${winterDays()} 日（天の輪の下の ›› で時を速めて待てる）`, `Ready for winter. ${winterDays()} days to go (speed up time with ›› under the Sky Dial)`)
+        : TX(`冬まで あと ${winterDays()} 日。冬にそなえる（草 ${gr}% ／ 20%・シカ ${d} ／ 10）`, `${winterDays()} days until winter. Prepare (grass ${gr}% / 20%, deer ${d} / 10)`);
+      if (ready && !G.tipped.wwait && G.speed === 1) { G.tipped.wwait = 1; toast(TX('冬へのそなえができた。冬が来るまで、天の輪の下の ›› で時を速めて待てる', 'You are ready for winter. Until it comes, you can speed up time with ›› under the Sky Dial'), 6); }
+      $('qBar').style.width = Math.min(45, (Math.min(1, gr / 20) + Math.min(1, d / 10)) * 22.5) + '%'; return;
+    }
+    $('qText').textContent = TX(`冬をこす。春まで あと ${springDays()} 日（シカ ${d} ／ 10）`, `Get through the winter. ${springDays()} days until spring (deer ${d} / 10)`);
+    $('qBar').style.width = (50 + 50 * Math.min(1, 1 - springDays() / (YEAR / 4 + 0.01))) * (d >= 10 ? 1 : 0.6) + '%'; return;
   }
   $('qText').textContent = c.key === 'winter' ? TX(`${c.text}（${fmt(v)}）`, `${c.text} (${fmt(v)})`) : TX(`${c.text}（${fmt(v)}${c.unit} ／ ${fmt(G.goal)}${c.unit}）`, `${c.text} (${fmt(v)}${c.unit} / ${fmt(G.goal)}${c.unit})`);
   $('qBar').style.width = Math.min(100, c.key === 'winter' ? (G.winterSeen ? 60 : L.counts.deer >= 10 ? 25 : 0) : v / G.goal * 100) + '%';

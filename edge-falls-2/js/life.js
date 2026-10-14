@@ -7,7 +7,7 @@
 //     どれも「得」と「損」があり、世界のきびしさ（オオカミ・流れ・干上がり・飢え）で、生き残りやすいものが増える。
 
 const KINDS = {   // 時間は秒（1日＝60 秒、1年＝16 日＝960 秒。寿命は1年より長く）。eMax・cost・speed は遺伝子で上下する（traits）
-  deer: { name: TX('シカ', 'Deer'), eMax: 10, cost: 0.08, speed: 2.0, adult: 75, repE: 0.8, cd: 80, life: 1500, cap: 55, childE: 0.35 },   // v006: 上限 75 → 55（2026-10-14 ユーザー「シカ多くなりすぎるかも」）
+  deer: { name: TX('シカ', 'Deer'), eMax: 10, cost: 0.08, speed: 2.0, adult: 75, repE: 0.8, cd: 80, life: 1500, cap: 45, childE: 0.35 },   // v006: 上限 75 → 55（2026-10-14 ユーザー「シカ多くなりすぎるかも」）。v018: テストプレイで日数の4割が上限に張りついていたので 45 に
   wolf: { name: TX('オオカミ', 'Wolf'), eMax: 16, cost: 0.05, speed: 2.4, adult: 110, repE: 0.8, cd: 150, life: 2000, cap: 16, childE: 0.37 },
   bird: { name: TX('サギ', 'Heron'), eMax: 12, cost: 0.05, speed: 0.6, adult: 150, repE: 0.8, cd: 200, life: 2000, cap: 14, childE: 0.35 },
   fish: { name: TX('サカナ', 'Fish'), eMax: 6, cost: 0.05, speed: 1.4, adult: 50, repE: 0.77, cd: 40, life: 1000, cap: 90, childE: 0.33 },   // v011: 上限 140 → 90（2026-10-14 ユーザー「魚ちょっと増えすぎる」）

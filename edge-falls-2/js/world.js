@@ -17,7 +17,7 @@ const YEAR = 16;                // 1年の日数（春夏秋冬 4日ずつ）
 const SEASONS = TX(['春', '夏', '秋', '冬'], ['spring', 'summer', 'autumn', 'winter']);
 const KPL = { deer: TX('シカ', 'deer'), wolf: TX('オオカミ', 'wolves'), fish: TX('サカナ', 'fish'), bird: TX('サギ', 'herons'), human: TX('ヒト', 'humans') };   // 英語の文の中の名前（複数）
 const STOCK_MAX = { deer: 10, wolf: 4, fish: 12, bird: 3, human: 4, seed: 40 };   // ヒトは十の年のあと（v2。humans.js）。たねも数に（v014）
-const STOCK_START = { deer: 6, wolf: 3, fish: 8, bird: 2, human: 4, seed: 40 };   // つぼに命が来たときの数（v011）
+const STOCK_START = { deer: 6, wolf: 3, fish: 8, bird: 3, human: 4, seed: 40 };   // v018: サギははじめから 3 羽（お題が 3 羽以上なので。春の贈りものをやめて、2 羽だと待つしかなかった）   // つぼに命が来たときの数（v011）
 
 const inside = new Uint8Array(N * N);
 const INS = [];
