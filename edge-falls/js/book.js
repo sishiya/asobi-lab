@@ -50,12 +50,13 @@ function drawCreature(ctx, kind) {
   if (kind === 'deer') { px(ctx, 4, 7, 7, 3, '#c08040'); px(ctx, 10, 4, 3, 3, '#c08040'); px(ctx, 11, 2, 1, 2, '#6e4c2a'); px(ctx, 13, 1, 1, 3, '#6e4c2a'); px(ctx, 4, 10, 1, 3, '#8a5a2a'); px(ctx, 9, 10, 1, 3, '#8a5a2a'); }
   else if (kind === 'wolf') { px(ctx, 3, 7, 8, 3, '#7d8597'); px(ctx, 10, 5, 4, 3, '#7d8597'); px(ctx, 10, 4, 1, 1, '#5a6070'); px(ctx, 12, 4, 1, 1, '#5a6070'); px(ctx, 1, 6, 2, 1, '#7d8597'); px(ctx, 4, 10, 1, 3, '#5a6070'); px(ctx, 9, 10, 1, 3, '#5a6070'); }
   else if (kind === 'fish') { px(ctx, 4, 6, 7, 4, '#ef9a4a'); px(ctx, 2, 5, 2, 6, '#d8803a'); px(ctx, 9, 7, 1, 1, '#3a2418'); }
+  else if (kind === 'human') { px(ctx, 7, 2, 3, 3, '#d6a880'); px(ctx, 7, 1, 3, 1, '#3a281e'); px(ctx, 6, 5, 5, 5, '#bc8040'); px(ctx, 5, 6, 1, 3, '#d6a880'); px(ctx, 11, 6, 1, 3, '#d6a880'); px(ctx, 7, 10, 1, 4, '#4a3a2c'); px(ctx, 9, 10, 1, 4, '#4a3a2c'); }
   else if (kind === 'bird') { px(ctx, 6, 6, 4, 4, '#9ab4cc'); px(ctx, 9, 2, 2, 4, '#9ab4cc'); px(ctx, 11, 3, 3, 1, '#e8b040'); px(ctx, 7, 10, 1, 4, '#5a6070'); px(ctx, 9, 10, 1, 4, '#5a6070'); }
 }
 const iconURL = (() => { const cache = {}; return (key, fn) => { if (!cache[key]) { const c = document.createElement('canvas'); c.width = c.height = 32; fn(c.getContext('2d')); cache[key] = c.toDataURL(); } return cache[key]; }; })();
 
 // ---- 手に持つもの ----
-const LIFE_SUBS = [['seed', TX('たね', 'Seeds')], ['deer', TX('シカ', 'Deer')], ['wolf', TX('オオカミ', 'Wolf')], ['fish', TX('サカナ', 'Fish')], ['bird', TX('サギ', 'Heron')]];
+const LIFE_SUBS = [['seed', TX('たね', 'Seeds')], ['deer', TX('シカ', 'Deer')], ['wolf', TX('オオカミ', 'Wolf')], ['fish', TX('サカナ', 'Fish')], ['bird', TX('サギ', 'Heron')], ['human', TX('ヒト', 'Human')]];
 function toolOf() {
   if (G.hand === 'soil') return G.sub.soil;
   if (G.hand === 'water') return G.sub.water;
@@ -101,9 +102,9 @@ function syncHands() {
   if (G.hand) {
     const items = G.hand === 'soil' ? [['dig', TX('土をけずる', 'Dig')], ['raise', TX('土を盛る', 'Pile up')]] : G.hand === 'water' ? [['spring', TX('泉をわかせる', 'Make a spring')]] : LIFE_SUBS.filter(([k]) => k === 'seed' || u[k]);
     fan.innerHTML = items.map(([k, label]) => {
-      const n = KINDS[k] ? `<em>${W.stock[k]}</em>` : k === 'raise' ? `<em id="soilN">${Math.floor(W.soil)}</em>` : '';
+      const n = KINDS[k] || k === 'seed' ? `<em>${W.stock[k]}</em>` : k === 'raise' ? `<em id="soilN">${Math.floor(W.soil)}</em>` : '';
       const ic = k === 'dig' ? iconURL('bagd', c => drawBag(c, 0.5, false)) : k === 'raise' ? iconURL('bagr', c => drawBag(c, 0.8, true)) : k === 'spring' ? iconURL('jar', c => drawJar(c, 0.7)) : k === 'seed' ? iconURL('seed', drawSeed) : iconURL('c' + k, c => drawCreature(c, k));
-      const cls = [KINDS[k] && W.stock[k] <= 0 ? 'empty' : '', G.did['pick_' + k] ? '' : 'new'].filter(Boolean).join(' ');
+      const cls = [(KINDS[k] || k === 'seed') && W.stock[k] <= 0 ? 'empty' : '', G.did['pick_' + k] ? '' : 'new'].filter(Boolean).join(' ');
       return `<button type="button" data-sub="${k}" aria-pressed="${G.sub[G.hand] === k}"${cls ? ` class="${cls}"` : ''}><img src="${ic}" alt="">${label}${n}</button>`;
     }).join('') +
       // しまう: 並びのいちばん右に「×」だけ（v039。2026-10-13 ユーザー「草やシカのならびの最後に馴染む色味で ×」。v034〜v038 は持っている道具の角の × 印）
@@ -127,7 +128,7 @@ function drawMeters() {   // 量の線（ゲージ）は v040 でやめた（ユ
 const SOIL_FULL = 300;
 function drawHands() {
   drawMeters();
-  const lifeN = ['deer', 'wolf', 'fish', 'bird'].reduce((s, k) => s + ((G.unlock || {})[k] ? W.stock[k] : 0), 0);
+  const lifeN = ['deer', 'wolf', 'fish', 'bird', 'human'].reduce((s, k) => s + ((G.unlock || {})[k] ? W.stock[k] : 0), 0);
   const sig = [Math.round(W.soil / 15), Math.round(W.abyss / 60), lifeN, G.sub.soil].join();
   if (sig === handSig) return; handSig = sig;
   for (const b of document.querySelectorAll('.hand')) {
@@ -163,14 +164,13 @@ function openMenu() {
   if (!G.started || COL || ENDING) return;
   closeBook();
   if (menuSpeed === null) { menuSpeed = G.speed; setSpeed(0); }
-  const resume = () => { if (menuSpeed !== null) { setSpeed(menuSpeed); menuSpeed = null; } };
   G.menuOpen = true;
   const where = G.mode === 'free' ? TX('自由な箱庭', 'Free Garden') : isFree() ? TX('十の年のあと', 'After the Ten Years') : yearOf(Math.floor(G.ch));
   showPanel(`<p class="mtitle">${where}${TX(`　第 ${W.day} 日`, ` · Day ${W.day}`)}</p><p class="msub noted-line" id="menuNoted">${TX('書きとめている…', 'Noting down…')}</p>`, [
     { label: TX('つづける', 'Resume'), main: true, fn: closeMenu },
-    { label: TX('観察帳', 'Field Notes'), fn: () => { G.menuOpen = false; resume(); openBook(null, true); } },
+    // 観察帳は右下の印・B キーからひらく（v024。2026-10-15 ユーザー「ESC メニューから観察帳を外して」）
     { label: TX('設定', 'Settings'), fn: () => { G.menuOpen = false; openSettings(() => openMenu()); } },
-    ...(G.mode === 'free' ? [{ label: TX('大地をつくりなおす', 'Make new land'), fn: () => { G.menuOpen = false; remakeFree(); } }] : []),
+    { label: TX('大地をつくりなおす', 'Make new land'), fn: () => { G.menuOpen = false; remakeFree(); } },   // 十の年でも（v025。2026-10-15 ユーザー）
     { label: TX('タイトルへ', 'Title screen'), fn: () => { G.menuOpen = false; toTitle(); } },
     { label: TX('ゲームを終える', 'Quit'), fn: () => { G.menuOpen = false; quitGame(); } },
   ]);
@@ -203,12 +203,18 @@ async function toTitle() {
   newGame(); layout(V.cw, V.ch);    // タイトルのうしろは、ひらいたときと同じ新しい大地に（2026-10-13 ユーザー「箱庭が切り替わってない」）
   document.body.classList.remove('paused'); chapterLine('', ''); clearToasts(); start();
 }
-// 自由な箱庭を新しい大地に（v067）。「もどる」を先に選んでおく
+// 大地をつくりなおす（v067 は自由な箱庭だけ。v025 で十の年も。2026-10-15 ユーザー「通常モードにも」）。「もどる」を先に選んでおく。
+//   十の年は第一の年から、岩と土だけの新しい大地で。自由な箱庭は、全部そろった新しい大地で（もう一つの世界には さわらない）
 function remakeFree() {
-  showPanel(TX(`<p class="mtitle">大地をつくりなおす</p><p class="warn">いまの箱庭は、消えてしまう</p><p class="small center">自由な箱庭（第 ${W.day} 日）は、<br>もとにはもどせない。</p>`, `<p class="mtitle">Make new land</p><p class="warn">Your current garden will be gone</p><p class="small center">This Free Garden (day ${W.day})<br>can’t be brought back.</p>`), [   // はじめからと同じ形（2026-10-14 ユーザー）
-    { label: TX('箱庭を消して、新しい大地へ', 'Erase it and start on new land'), cls: 'danger', fn: () => {
+  const free = G.mode === 'free';
+  const yr = isFree() ? TX('十の年のあと', 'after the Ten Years') : yearOf(Math.floor(G.ch));
+  const where = free ? TX(`自由な箱庭（第 ${W.day} 日）`, `This Free Garden (day ${W.day})`) : TX(`十の年の世界（${yr}・第 ${W.day} 日）`, `Your Ten Years world (${yr}, day ${W.day})`);
+  showPanel(TX(`<p class="mtitle">大地をつくりなおす</p><p class="warn">${free ? 'いまの箱庭' : 'いまの世界'}は、消えてしまう</p><p class="small center">${where}は、<br>もとにはもどせない。${free ? '' : '<br>第一の年から、新しい大地で。'}</p>`, `<p class="mtitle">Make new land</p><p class="warn">Your current ${free ? 'garden' : 'world'} will be gone</p><p class="small center">${where}<br>can’t be brought back.${free ? '' : '<br>You start again from the First Year on new land.'}</p>`), [   // はじめからと同じ形（2026-10-14 ユーザー）
+    { label: free ? TX('箱庭を消して、新しい大地へ', 'Erase it and start on new land') : TX('世界を消して、新しい大地へ', 'Erase it and start on new land'), cls: 'danger', fn: () => {
       menuSpeed = null; setHand(null); G.sel = null; updateCard(); setSpeed(1); chapterLine('', ''); clearToasts();
-      newGame(undefined, false); layout(V.cw, V.ch); syncHands(); noteWorld(true); Sound.play('spring');
+      newGame(undefined, !free); layout(V.cw, V.ch); syncHands();
+      if (!free) enterChapter(0);   // 第一の年の札（タイトルの「はじめる」と同じ）
+      noteWorld(true); Sound.play('spring');
     } },
     { label: TX('もどる', 'Back'), main: true, fn: () => openMenu() },
   ]);
@@ -222,18 +228,39 @@ function openSettings(back, focus) {
   const on = v => v ? TX('オン', 'On') : TX('オフ', 'Off'), again = k => () => openSettings(back, k);
   const bi = BACK_CHOICES.findIndex(([k]) => k === backName);
   showPanel(`<p class="mtitle">${TX('設定', 'Settings')}</p>`, [
-    { label: TX('音楽　', 'Music: ') + on(Sound.get('bgm')), fn: () => { Sound.set('bgm', !Sound.get('bgm')); again(0)(); } },
-    { label: TX('効果音　', 'Sound effects: ') + on(Sound.get('sfx')), fn: () => { Sound.set('sfx', !Sound.get('sfx')); again(1)(); } },
-    { label: TX('文字　', 'Font: ') + (fontName === 'dot' ? TX('ドット', 'Pixel') : TX('明朝', 'Serif')), fn: () => { setFont(fontName === 'dot' ? 'serif' : 'dot'); again(2)(); } },
-    { label: TX('背景　', 'Background: ') + (bi >= 0 ? BACK_CHOICES[bi][1] : TX('ほか', 'Other')), fn: () => { setBack(BACK_CHOICES[(bi + 1) % BACK_CHOICES.length][0]); again(3)(); } },
-    ...(G.started ? [{ label: TX('ファイル', 'File'), fn: () => openFilePanel(() => openSettings(back, 4)) }] : []),
+    { label: TX('音楽', 'Music'), vol: 'bgm' },   // 音の大きさは、光の数（0〜5）。その場で変わり、札は作り直さない（v023）
+    { label: TX('効果音', 'Sound effects'), vol: 'sfx' },
+    { label: TX('曲（試験）　', 'Tune (test): ') + Sound.trackName(Sound.track()), fn: () => { const ts = Sound.tracks; Sound.setTrack(ts[(ts.indexOf(Sound.track()) + 1) % ts.length]); again(2)(); } },
+    { label: TX('文字　', 'Font: ') + (fontName === 'dot' ? TX('ドット', 'Pixel') : TX('明朝', 'Serif')), fn: () => { setFont(fontName === 'dot' ? 'serif' : 'dot'); again(3)(); } },
+    { label: TX('背景　', 'Background: ') + (bi >= 0 ? BACK_CHOICES[bi][1] : TX('ほか', 'Other')), fn: () => { setBack(BACK_CHOICES[(bi + 1) % BACK_CHOICES.length][0]); again(4)(); } },
+    { label: TX('数の印　', 'Population marks: ') + on(tallyOn), fn: () => { setTally(!tallyOn); again(5)(); } },
+    { label: TX('ボクセル（試験）　', 'Voxels (test): ') + VOX_NAME[VOXSMOOTH], fn: () => { setVoxSmooth(nextVox()); again(6)(); } },
+    ...(G.started ? [{ label: TX('ファイル', 'File'), fn: () => openFilePanel(() => openSettings(back, 7)) }] : []),
     { label: back ? TX('もどる', 'Back') : TX('とじる', 'Close'), main: true, fn: () => { if (back) back(); } },
   ]);
+  $('panel').querySelectorAll('.btns .tbtn').forEach((el, n) => { if (n < 2) volRow(el, n ? 'sfx' : 'bgm', n ? TX('効果音', 'Sound effects') : TX('音楽', 'Music')); });
   $('panel').classList.add('menu', 'world', 'settings');   // 設定のあいだは、世界をうすくしない（背景を選びやすく。css）
   G.panelBack = back || (() => { $('overlay').hidden = true; });
   if (focus !== undefined) $('panel').querySelectorAll('.btns .tbtn')[focus]?.focus();   // 押したボタンに印を残す（上下の矢印でつづけて選べる）
 }
-// ゲームを終える: いまの世界を書きとめてから、すぐあそびラボの入口へ（v067。たずねない）。v019 で入口へ、v028 で調整のため保管庫へ、v068 でまた入口へ
+// 音の大きさの行（v023）: 名前と、5 つの小さな灯り。灯りを押すとその数に（いちばん上の灯りをもう一度押すと一つへる。0 は鳴らさない）。
+//   左右の矢印でも変えられる。押しても札は作り直さない（上下の矢印でほかの行へ移れるように）
+function volRow(el, kind, name) {
+  el.classList.add('volrow'); el.textContent = '';
+  el.innerHTML = `<span class="vname">${name}</span><span class="vlights">${[1, 2, 3, 4, 5].map(i => `<i data-v="${i}"></i>`).join('')}</span>`;
+  el.setAttribute('aria-label', name);
+  const paint = () => { const v = Sound.level(kind); el.querySelectorAll('i').forEach(d => d.classList.toggle('on', +d.dataset.v <= v)); el.classList.toggle('mute', !v); el.setAttribute('aria-valuenow', v); };
+  const put = v => { Sound.setLevel(kind, v); paint(); if (kind === 'sfx') Sound.play('put'); };
+  el.setAttribute('role', 'slider'); el.setAttribute('aria-valuemin', 0); el.setAttribute('aria-valuemax', 5);
+  el.onclick = e => {
+    Sound.unlock();
+    const d = e.target.closest('i'), now = Sound.level(kind);
+    put(d ? (+d.dataset.v === now ? now - 1 : +d.dataset.v) : (now + 1) % 6);
+  };
+  el.onkeydown = e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { put(Sound.level(kind) + (e.key === 'ArrowRight' ? 1 : -1)); e.preventDefault(); } };
+  paint();
+}
+// ゲームを終える: いまの世界を書きとめてから、すぐ入口へ（v067。たずねない）。v069 で 2 を 1 にまとめ、入口にもどした
 async function quitGame() {
   await noteWorld(true);
   G.started = false;
@@ -294,7 +321,10 @@ function drawDial() {
   P(cx - 4, cy - 1, 9, 2, '#8ea070'); P(cx - 3, cy - 2, 7, 1, '#a4b484'); P(cx - 3, cy + 1, 7, 1, '#7a6048'); P(cx - 1, cy + 2, 3, 1, '#5e4836'); P(cx + 3, cy + 2, 1, 2, '#9cb8cc');
   // 太陽と月（見ている向きに合わせて回る）
   const at = (a, r) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
-  const [mx, my] = at(W.moon.a - V.yaw - Math.PI / 2, r4 * 0.68); P(mx - 1, my - 1, 2, 2, '#d8dce0');
+  const [mx, my] = at(W.moon.a - V.yaw - Math.PI / 2, r4 * 0.68);                       // 月は満ち欠けの形で（v2。3×3 の右・左が欠ける）
+  const lit = moonPhase().lit, wax = moonPhase().ph < Math.PI;
+  P(mx - 1, my - 1, 3, 3, '#3a4460'); if (lit > 0.15) P(mx - 1 + (lit < 0.6 ? (wax ? 2 : 0) : lit < 0.9 ? (wax ? 1 : 0) : 0), my - 1, lit < 0.6 ? 1 : lit < 0.9 ? 2 : 3, 3, '#e4e8ee');
+  if (springTide()) { for (let k = -2; k <= 2; k++) P(cx + k, cy + 5 + ((k & 1) ? 1 : 0), 1, 1, '#9cc4e8'); }   // 大潮: 大地の下に波の印
   const [sx, sy] = at(W.sun.a - V.yaw - Math.PI / 2, r4 * 0.68 * (W.rs / RS)); P(sx - 1, sy - 1, 3, 3, '#e8c870'); P(sx, sy, 1, 1, '#f6e6b0');
   // 針（今日）
   const na = -Math.PI / 2 + p * Math.PI * 2;
@@ -369,7 +399,7 @@ function renderBook() {
   if (page === 'finds') renderFinds();
   if (page === 'years') renderYears();
   document.querySelectorAll('.legend [data-k]').forEach(el => { el.hidden = !u[el.dataset.k]; });
-  $('stockTxt').textContent = ['deer', 'wolf', 'fish', 'bird'].filter(k => u[k]).map(k => KINDS[k].name + ' ' + W.stock[k]).join(TX('・', ' · ')) || TX('まだからっぽ', 'Still empty');
+  $('stockTxt').textContent = ['deer', 'wolf', 'fish', 'bird', 'human'].filter(k => u[k]).map(k => KINDS[k].name + ' ' + W.stock[k]).join(TX('・', ' · ')) || TX('まだからっぽ', 'Still empty');
 }
 function renderYears() {
   const rows = CHAPTERS.map((c, n) => {
@@ -381,31 +411,12 @@ function renderYears() {
   $('years').innerHTML = rows + (isFree() ? TX('<li class="done"><b>そして</b><span>十の年がめぐった</span><p>ここからは自由な箱庭。</p></li>', '<li class="done"><b>And then</b><span>The Ten Years have turned</span><p>From here on, it’s a Free Garden.</p></li>') : '');
 }
 
-// ---- 見つけたこと（観察の記録） ----
-const FINDS = [
-  ['fall', TX('果ての滝', 'The Edge Falls'), TX('水が、世界の果てから落ちていった。', 'Water fell from the edge of the world.'), s => s.out > 0.3],
-  ['mist', TX('霧の雲', 'Mist clouds'), TX('滝のしぶきが、のぼって雲になった。', 'Spray from the falls rose and became clouds.'), () => W.flags.mist],
-  ['mrain', TX('山の雨', 'Mountain rain'), TX('山にぶつかった雲が、雨をふらせた。', 'Clouds hit a mountain and it rained.'), () => W.flags.mrain],
-  ['abyss', TX('深淵の底', 'The bottom of the Abyss'), TX('深淵の水が、底をつきかけた。泉が細くなる。', 'The Abyss almost ran out of water. The springs grow weak.'), () => W.abyss < 60 && W.springs.length > 0],
-  ['green', TX('緑の原', 'Green plain'), TX('草が、大地の一割をおおった。', 'Grass covered a tenth of the land.'), s => s.grass > 0.1],
-  ['tree', TX('はじめての木', 'The first tree'), TX('草の茂った乾いた所に、木が育った。', 'A tree grew in a dry, grassy place.'), () => G.maxTree > 0.7],
-  ['born', TX('はじめての子', 'The first young'), TX('大地で、はじめて子が生まれた。', 'The first young was born on the land.'), () => L.born > 0],
-  ['snow', TX('初雪', 'First snow'), TX('寒い山に、雪がつもった。', 'Snow piled up on a cold mountain.'), () => G.snowy],
-  ['ice', TX('氷', 'Ice'), TX('水が凍った。凍った水は流れない。', 'Water froze. Frozen water doesn’t flow.'), () => G.icy],
-  ['swim', TX('泳ぐシカ', 'Swimming deer'), TX('シカが、深い水を泳ぎわたった。', 'A deer swam across deep water.'), () => W.flags.swim],
-  ['giveup', TX('逃げきった', 'Got away'), TX('オオカミが、シカを追いきれなかった。', 'A wolf couldn’t catch the deer it chased.'), () => W.flags.giveup],
-  ['fallen', TX('果てへ', 'Over the edge'), TX('流された生き物が、滝から落ちていった。', 'An animal was carried away and fell off the falls.'), () => L.fell > 0],
-  ['catch', TX('サギの漁', 'The heron’s catch'), TX('サギが、浅瀬でサカナをとった。', 'A heron caught a fish in the shallows.'), () => L.why['fish:caught'] > 0],
-  ['return', TX('帰ってきた命', 'Lives come back'), TX('去った命が、深淵からつぼへ戻ってきた。', 'Lives that passed away came back from the Abyss to the jar.'), () => W.flags.ret],
-  ['gen10', TX('十代目', 'Tenth generation'), TX('第 10 世代の子が生まれた。', 'A young of the 10th generation was born.'), () => W.flags.gen10],
-  // 太陽と月の遊び（v020）
-  ['bigtide', TX('大潮', 'Spring tide'), TX('月と太陽が同じ向きにそろうと、潮がいちばん大きく寄った。', 'When the Moon and Sun lined up on the same side, the tide pulled the hardest.'), s => (W.knob ? W.knob.tide : 1) >= 0.5 && s.wet > 0.03 && Math.abs(sunMoonGap()) < 0.2],
-  ['eclipse', TX('日食', 'Eclipse'), TX('月が太陽に重なって、昼の大地が暗くなった。', 'The Moon covered the Sun, and the land grew dark in the daytime.'), () => eclipseK() > 0.6],
-  ['stillsun', TX('止まった昼', 'The Sun stands still'), TX('太陽を止めたまま一日がすぎた。昼の所はずっと昼、夜の所はずっと夜。', 'A whole day passed with the Sun stopped. Day stayed day, and night stayed night.'), () => G.sunStill > DAY],
-];
+// ---- 見つけたこと（観察の記録） ---- 一覧の FINDS は finds.js（v2 で book.js が 60KB をこえたので分けた）
 const SKETCH_KEY = 'asobi-lab/edge-falls/sketch';
 let sketches = {}; try { sketches = JSON.parse(localStorage.getItem(SKETCH_KEY) || '{}'); } catch (e) { sketches = {}; }
 let accFind = 0, wantSketch = null;
+// 知らせを出す「見つけたこと」（大きな出来事・遊びの手がかりになるもの）。のこりは静かに観察帳へ
+const FIND_LOUD = new Set(['fall', 'abyss', 'born', 'bigtide', 'eclipse', 'stillsun', 'longlegs', 'bigbody', 'bigfish', 'longbeak', 'species', 'litter', 'follow']);
 function stepFinds(s, dt) {
   if (!G.started || COL || THUMB) return;
   G.sunStill = W.sun.stop ? (G.sunStill || 0) + dt : 0;   // 太陽を止めていた時間
@@ -416,7 +427,10 @@ function stepFinds(s, dt) {
   for (const [id, title, text, test] of FINDS) {
     if (G.found[id] || !test(s)) continue;
     G.found[id] = { day: W.day };
-    toast(TX(`見つけた　${title}　— ${text}`, `Discovery: ${title} — ${text}`), 5); Sound.play('put');
+    // 知らせを出すのは大きな出来事だけ（v017。2026-10-14 気になること 2「知らせが多い」）。ほかは観察帳に書きとめて、観察帳の印が光るだけ。
+    //   知らせを出すものも、前の知らせから世界の半日はあける（あいだに見つけたものは静かに書きとめる）
+    const loud = FIND_LOUD.has(id) && W.t - (G.findT || -1e9) > DAY / 2;
+    if (loud) { G.findT = W.t; toast(TX(`見つけた　${title}　— ${text}`, `Discovery: ${title} — ${text}`), 5); Sound.play('put'); }
     wantSketch = id;
     $('btnBook').classList.remove('glow'); void $('btnBook').offsetWidth; $('btnBook').classList.add('glow');
     markNew('finds', id);
@@ -477,9 +491,10 @@ addEventListener('keydown', e => {
 const TIPS = [
   ['rotate', () => !touchy() && G.chT > DAY * 0.4, TX('大地の外をドラッグすると、回して見られる。ホイールで寄る。左のボタンでも', 'Drag outside the land to turn it, and scroll to zoom. The buttons on the left work too')],
   ['speed', () => G.ch >= 1 && G.chT > DAY * 0.3, TX('右上の天の輪を押すと、時が止まる。下の ›› で速くなる', 'Press the Sky Dial at the top right to stop time. The ›› marks below make it go faster')],
-  ['sun', () => G.ch >= 2 && G.chT > DAY * 1.5, TX('太陽は、つかんで動かせる。止めたところはよく育つが、乾いて暑くなる。反対がわは夜のまま', 'You can grab the Sun and move it. Where you stop it, plants grow well, but it gets dry and hot. The other side stays in night')],
+  ['sun', () => G.ch >= 2 && G.chT > DAY * 1.5, TX('太陽は、つかんで動かせる。押すと止まる。止めた真下は日ざしがたまって暖かく、長く止めると乾いて焼ける。反対がわは夜のまま冷える', 'You can grab the Sun and move it. Press it to stop it. Right under a stopped Sun, sunlight builds up and warms the land; stop it too long and it dries and scorches. The far side stays in night and cools')],
+  ['wsun', () => CHAPTERS[G.ch] && CHAPTERS[G.ch].key === 'winter' && seasonOf() === 3, TX('冬が来た。太陽をシカの草地の上で止めると、そこだけ暖かい', 'Winter is here. Stop the Sun over the deer’s grassland to keep just that place warm')],
   ['book', () => G.ch >= 3 && G.chT > DAY, TX('右下の観察帳に、いきものの移り変わりが書いてある', 'The Field Notes at the bottom right show how life is changing')],
-  ['moon', () => G.ch >= 7 && G.chT > DAY, TX('月を寄せると、潮で水がそちらへ寄る。浅瀬が動き、ふちから水があふれる', 'Bring the Moon closer and the tide pulls the water toward it. The shallows move, and water spills over the edge')],
+  ['moon', () => G.ch >= 6 && G.chT > DAY, TX('月を寄せると、潮で水がそちらへ寄る。新月と満月のころは潮が大きく（大潮。天の輪の下に波の印）、サカナは満月に卵を産む', 'Bring the Moon closer and the tide pulls the water toward it. Around the new and full moon the tides are big (spring tides; a wave mark under the Sky Dial), and fish lay eggs at the full moon')],
 ];
 let accTip = 0;
 function stepTips(dt) {
@@ -509,8 +524,6 @@ const PRINTS = [
   ['mat', TX('羊皮紙の台紙', 'Parchment mount'), TX('観察帳と同じ紙に、墨の二重線', 'The same paper as the Field Notes, with double ink lines')],
   ['abyss', TX('深淵の額', 'Abyss frame'), TX('夜空の色の台紙に、金の二重線', 'A night-sky mount with double gold lines')],
   ['photo', TX('古い写真', 'Old photo'), TX('セピアに焼いて、羊皮紙の台紙に', 'Printed in sepia on a parchment mount')],
-  ['stone', TX('石板', 'Stone tablet'), TX('欠けたふちの石に、絵をはめこんで題を彫る', 'Set into a chipped stone, with the title carved in')],
-  ['etch', TX('銅版画', 'Etching'), TX('これまでの版画（銅版画の画風で描き直す）', 'The original print (redrawn in an etching style)')],
 ];
 const printFont = px => `${px}px ${fontName === 'dot' ? '"DotGothic16",' : ''}"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif`;
 function printWords() {
@@ -519,40 +532,27 @@ function printWords() {
   return TX({ title: '果ての滝の箱庭', sub: `${isFree() ? '自由な箱庭・' : ''}${yr} 年目の${SEASONS[seasonOf()]}・第 ${W.day} 日　見つけたこと ${nf} ／ ${FINDS.length}　あそびラボ` },
     { title: 'Edge Falls Garden', sub: `${isFree() ? 'Free Garden · ' : ''}Year ${yr}, ${SEASONS[seasonOf()]} · Day ${W.day}   Discoveries ${nf} / ${FINDS.length}   Asobi Lab` });
 }
-// 見たままの絵（整数倍で 1600 画素ほどの幅に）
+// 見たままの絵（v2）: 画面を写さず、版画のために大きなキャンバス（幅 2400）へ、いまの向き・寄り・平行移動のまま一度だけ描き直す。
+//   画素の板も細かくする（PRINT。粒は残して線をくっきり）。遊ぶための印（止めた印・選んだ輪・足もとの輪・泉の印・道すじ）は描かない。重いのは押した一瞬だけ
 function seenCanvas() {
-  const k = Math.max(1, Math.round(1600 / cv.width)), c = document.createElement('canvas');
-  c.width = cv.width * k; c.height = cv.height * k;
-  const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(cv, 0, 0, c.width, c.height);
-  return c;
-}
-// 銅版画（これまでの版画。くらべるために残す）
-function etchCanvas() {
-  const W0 = 1400, H0 = 1000, out = document.createElement('canvas'); out.width = W0; out.height = H0;
-  const o = out.getContext('2d');
-  const keep = { style: styleName, back: backName, cw: V.cw, ch: V.ch, zoom: V.zoom, panX: V.panX, panY: V.panY, sel: G.sel };
+  const W0 = 2400, H0 = Math.round(W0 * V.ch / Math.max(1, V.cw)), out = document.createElement('canvas'); out.width = W0; out.height = H0;
+  const o = out.getContext('2d'), k = W0 / Math.max(1, V.cw);
+  const keep = { cw: V.cw, ch: V.ch, panX: V.panX, panY: V.panY, sel: G.sel };
   try {
-    styleName = 'etch'; backName = 'auto'; buf = null; G.sel = null;
-    V.zoom = 1; V.panX = 0; V.panY = 0;
-    layout(W0, H0 - 120);
+    PRINT = true; buf = null; G.sel = null;
+    V.panX = (V.panX || 0) * k; V.panY = (V.panY || 0) * k;
+    layout(W0, H0);
     const t = performance.now() / 1000;
-    for (let k = 0; k < 3; k++) { V.dirty = true; o.clearRect(0, 0, W0, H0); drawWorld(o, t, null); }
-    o.fillStyle = '#efe3c4'; o.fillRect(0, H0 - 120, W0, 120);
-    o.strokeStyle = '#3a2a1c'; o.lineWidth = 3; o.strokeRect(14, 14, W0 - 28, H0 - 28); o.lineWidth = 1; o.strokeRect(24, 24, W0 - 48, H0 - 48);
-    const w = printWords();
-    o.fillStyle = '#3a2a1c'; o.textAlign = 'center';
-    o.font = printFont(44); o.fillText(w.title, W0 / 2, H0 - 66);
-    o.font = printFont(22); o.fillText(w.sub, W0 / 2, H0 - 30);
+    o.fillStyle = '#05070e'; o.fillRect(0, 0, W0, H0);
+    V.dirty = true; drawWorld(o, t, null);
   } finally {
-    styleName = keep.style; backName = keep.back; buf = null; G.sel = keep.sel;
-    V.zoom = keep.zoom; V.panX = keep.panX; V.panY = keep.panY; layout(keep.cw, keep.ch);
+    PRINT = false; buf = null; G.sel = keep.sel;
+    V.panX = keep.panX; V.panY = keep.panY; layout(keep.cw, keep.ch);
   }
   return out;
 }
-function printCanvas(kind) {
-  if (kind === 'etch') return etchCanvas();
-  const src = seenCanvas(), Wi = src.width, Hi = src.height, w = printWords();
-  if (kind === 'stone') return stoneCanvas(src, w);
+function printCanvas(kind, seen) {
+  const src = seen || seenCanvas(), Wi = src.width, Hi = src.height, w = printWords();
   if (kind === 'seen') {
     const out = document.createElement('canvas'); out.width = Wi; out.height = Hi;
     const o = out.getContext('2d'); o.drawImage(src, 0, 0);
@@ -594,104 +594,6 @@ function printCanvas(kind) {
   o.font = printFont(Math.round(Wi * 0.0125)); o.fillText(w.sub, OW / 2, Hi + pad + capH * 0.86);
   return out;
 }
-// 石板: 欠けたふちの灰色の石。光を当てるのは大きな形だけ（ふちの面取り・絵をはめるくぼみ・彫った字・ひび）。石らしさは色で出す（むら・うすい層・細かい粒）。
-//   面の凹凸まで光で浮かせると、昔のエンボスの絵になる（2026-10-13 ユーザー「PS 時代のグラフィックみたい」「もうちょっとマイルドに」）
-function stoneCanvas(src, w) {
-  const Wi = src.width, Hi = src.height, u = Wi / 1000, pad = Math.round(Wi * 0.075), capH = Math.round(Wi * 0.1);
-  const OW = Wi + pad * 2, OH = Hi + pad * 2 + capH, N = OW * OH;
-  const mk = () => { const c = document.createElement('canvas'); c.width = OW; c.height = OH; return [c, c.getContext('2d')]; };
-  // 石の形: 四辺をこまかくゆらし、角を欠く
-  const pts = [], m = pad * 0.12, edge = (x0, y0, x1, y1, n, seed) => {
-    for (let i = 0; i < n; i++) {
-      const f = i / n, j = i ? (hash2(seed, i) - 0.5) * u * 7 + (hash2(seed + 9, i >> 2) - 0.5) * u * 10 : 0;   // 角の点はゆらさない（とげになる）
-      const nx = y1 - y0, ny = x0 - x1, L = Math.hypot(nx, ny);
-      pts.push([x0 + (x1 - x0) * f + nx / L * j, y0 + (y1 - y0) * f + ny / L * j]);
-    }
-  };
-  const c1 = u * 34, c2 = u * 18, c3 = u * 46, c4 = u * 24;                  // 角の欠け（大きさをばらす）
-  edge(m + c1, m, OW - m - c2, m, 40, 1); pts.push([OW - m, m + c2 * 1.3]);
-  edge(OW - m, m + c2 * 1.3, OW - m, OH - m - c3, 40, 2); pts.push([OW - m - c3 * 0.8, OH - m]);
-  edge(OW - m - c3 * 0.8, OH - m, m + c4, OH - m, 40, 3); pts.push([m, OH - m - c4 * 1.2]);
-  edge(m, OH - m - c4 * 1.2, m, m + c1 * 0.7, 40, 4); pts.push([m + c1, m]);
-  const slab = x => { x.beginPath(); pts.forEach(([a, b], i) => i ? x.lineTo(a, b) : x.moveTo(a, b)); x.closePath(); };
-  // なめらかな雑音: 小さな乱数の絵を引きのばして重ねる（大きい粒から順に）
-  const noise = (octs, seed) => {
-    const [, x] = mk(); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
-    octs.forEach(([cells, a], k) => {
-      const gw = cells, gh = Math.max(2, Math.round(cells * OH / OW)), t = document.createElement('canvas'); t.width = gw; t.height = gh;
-      const tx = t.getContext('2d'), id = tx.createImageData(gw, gh);
-      for (let i = 0; i < gw * gh; i++) { const v = hash2(seed + k * 17.3, i * 1.618) * 255; id.data[i * 4] = id.data[i * 4 + 1] = id.data[i * 4 + 2] = v; id.data[i * 4 + 3] = 255; }
-      tx.putImageData(id, 0, 0); x.globalAlpha = a; x.drawImage(t, 0, 0, OW, OH);
-    });
-    return x.getImageData(0, 0, OW, OH).data;
-  };
-  const tint = noise([[5, 1], [11, 0.45], [26, 0.3]], 101);                    // 色むら（大きい）
-  const mott = noise([[18, 1], [48, 0.5], [130, 0.3]], 202);                   // 色の細かいむら（光は当てない）
-  // 彫った字の位置: 絵の下からふちまでのまん中に、題と小さな字のひとかたまり
-  const X = pad, Y = pad, r = u * 14, tp = Math.round(Wi * 0.034), sp = Math.round(Wi * 0.0165), gap = tp * 0.55;
-  const top = Y + Hi + r, bottom = OH - m - u * 12, y0 = top + (bottom - top - (tp + gap + sp)) / 2;
-  const tY = y0 + tp / 2, sY = y0 + tp + gap + sp / 2;
-  // 高さの地図（白が高い）と、くぼみにたまる影（彫った字・ひび・穴）
-  const [, hx] = mk(), [kc, kx] = mk();
-  hx.fillStyle = '#000'; hx.fillRect(0, 0, OW, OH);
-  hx.filter = `blur(${u * 9}px)`; slab(hx); hx.fillStyle = '#fff'; hx.fill();                                  // ふちは丸く落ちる
-  hx.filter = `blur(${u * 2}px)`; hx.fillStyle = '#5a5a5a'; hx.fillRect(X - r, Y - r, Wi + r * 2, Hi + r * 2);   // 絵をはめるくぼみ
-  const carve = (x, col, blur, col2, blur2) => {   // 小さな字はぼかしを少なく（読めるように）
-    x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.filter = `blur(${blur}px)`; x.fillStyle = col; x.font = printFont(tp); x.fillText(w.title, OW / 2, tY);
-    x.filter = `blur(${blur2}px)`; x.fillStyle = col2; x.font = printFont(sp); x.fillText(w.sub, OW / 2, sY);
-  };
-  carve(hx, '#8c8c8c', u * 1.1, '#a8a8a8', u * 0.55);
-  carve(kx, 'rgba(0,0,0,.55)', u * 0.4, 'rgba(0,0,0,.55)', u * 0.2);
-  hx.lineCap = kx.lineCap = 'round'; hx.lineJoin = kx.lineJoin = 'round';
-  for (let n = 0; n < 4; n++) {                                      // ひび（ふちから少し入る）
-    const side = n % 4, f = hash2(n, 31), fx = side === 2 ? (f < 0.5 ? 0.06 + f * 0.36 : 0.76 + (f - 0.5) * 0.36) : f;   // 下のひびは字をよける
-    let x = side === 1 ? OW : side === 3 ? 0 : fx * OW, y = side === 0 ? 0 : side === 2 ? OH : f * OH;
-    let ang = Math.atan2(OH / 2 - y, OW / 2 - x) + (hash2(n, 32) - 0.5);
-    const path = new Path2D(); path.moveTo(x, y);
-    for (let k = 0, len = pad * (0.7 + hash2(n, 33) * 1.1); k < 9; k++) { ang += (hash2(n, 40 + k) - 0.5) * 0.9; x += Math.cos(ang) * len / 9; y += Math.sin(ang) * len / 9; path.lineTo(x, y); }
-    hx.filter = `blur(${u * 0.8}px)`; hx.strokeStyle = 'rgba(0,0,0,.3)'; hx.lineWidth = u * 1.8; hx.stroke(path);
-    kx.filter = 'none'; kx.strokeStyle = 'rgba(0,0,0,.22)'; kx.lineWidth = u; kx.stroke(path);
-  }
-  for (let n = 0; n < 110; n++) {                                    // 小さな穴（風化）
-    const x = hash2(n, 51) * OW, y = hash2(n, 52) * OH, rr = u * (0.8 + hash2(n, 53) * hash2(n, 54) * 5);
-    kx.filter = 'none'; kx.fillStyle = 'rgba(0,0,0,.1)'; kx.beginPath(); kx.arc(x, y, rr * 0.7, 0, 7); kx.fill();
-  }
-  hx.filter = kx.filter = 'none';
-  const [, mx] = mk(); slab(mx); mx.fillStyle = '#fff'; mx.fill();
-  const H = hx.getImageData(0, 0, OW, OH).data, K = kx.getImageData(0, 0, OW, OH).data, M = mx.getImageData(0, 0, OW, OH).data;
-  // 高さ（画素の単位）: 大きな形と、ゆるいうねり
-  const h = new Float32Array(N), dep = u * 14;
-  for (let i = 0; i < N; i++) {
-    h[i] = H[i * 4] / 255 * dep + (tint[i * 4] / 255 - 0.5) * u * 3;   // 大きなうねりだけ
-  }
-  // 光: 左上から。面の向き × 光 ＋ まわりの明るさ。色は灰に、むらで少し暖かい色と冷たい色
-  const Ln = Math.hypot(-0.45, -0.55, 0.7), lx = -0.45 / Ln, ly = -0.55 / Ln, lz = 0.7 / Ln;
-  const [sc, sx] = mk(), img = sx.createImageData(OW, OH), D = img.data;
-  for (let y = 1; y < OH - 1; y++) for (let x = 1; x < OW - 1; x++) {
-    const i = y * OW + x, a = M[i * 4 + 3]; if (!a) continue;
-    const gx = (h[i + 1] - h[i - 1]) * 0.5, gy = (h[i + OW] - h[i - OW]) * 0.5, nl = Math.hypot(gx, gy, 1);
-    const dif = Math.max(0, (-gx * lx - gy * ly + lz) / nl);
-    const t = tint[i * 4] / 255 - 0.5, b = mott[i * 4] / 255 - 0.5 + Math.sin(y / (u * 11) + t * 7 + x * 0.0004) * 0.06 + (hash2(x * 0.731, y * 1.377) - 0.5) * 0.12,   // むら＋うすい層＋粒
-      low = 1 - H[i * 4] / 255, cav = 1 - K[i * 4 + 3] / 255;
-    let s = (0.64 + 0.42 * dif) * (1 - low * 0.15) * cav;
-    const g2 = hash2((x >> 1) * 1.31, (y >> 1) * 0.77);                // 鉱物の粒（暗い点と光る点）
-    if (g2 > 0.995) s *= 0.75; else if (g2 > 0.99) s *= 1.08;
-    D[i * 4] = (142 + t * 30 + b * 26) * s;
-    D[i * 4 + 1] = (134 + t * 28 + b * 24) * s;
-    D[i * 4 + 2] = (121 + t * 20 + b * 20) * s;
-    D[i * 4 + 3] = a;
-  }
-  sx.putImageData(img, 0, 0);
-  // 仕上げ: 落ち影の上に石を置き、くぼみに絵をはめる（上と左のふちの影）
-  const [out, o] = mk();
-  o.save(); o.shadowColor = 'rgba(0,0,0,.6)'; o.shadowBlur = u * 26; o.shadowOffsetY = u * 10; o.drawImage(sc, 0, 0); o.restore();
-  o.drawImage(src, X, Y);
-  o.strokeStyle = 'rgba(20,18,14,.7)'; o.lineWidth = u * 1.5; o.strokeRect(X, Y, Wi, Hi);
-  const sh = o.createLinearGradient(0, Y, 0, Y + u * 24); sh.addColorStop(0, 'rgba(0,0,0,.5)'); sh.addColorStop(1, 'rgba(0,0,0,0)'); o.fillStyle = sh; o.fillRect(X, Y, Wi, u * 24);
-  const sl = o.createLinearGradient(X, 0, X + u * 18, 0); sl.addColorStop(0, 'rgba(0,0,0,.4)'); sl.addColorStop(1, 'rgba(0,0,0,0)'); o.fillStyle = sl; o.fillRect(X, Y, u * 18, Hi);
-  return out;
-}
 function savePrint(c, kind) {
   c.toBlob(b => {
     if (!b) { toast(TX('版画をつくれなかった', 'Couldn’t make the print')); return; }
@@ -704,13 +606,15 @@ function savePrint(c, kind) {
 function makePrint(kind = 'seen') { savePrint(printCanvas(kind), kind); }
 // 型を見くらべる札（試作）。back があれば「もどる」でそこへ（エンディングの札）
 function openPrints(back) {
-  const made = PRINTS.map(([k]) => { try { return printCanvas(k); } catch (e) { return null; } });
+  const seen = seenCanvas();   // 描き直すのは一度だけ（v2）
+  const made = PRINTS.map(([k]) => { try { return printCanvas(k, seen); } catch (e) { return null; } });
   const thumb = c => { const t = document.createElement('canvas'), w = 300; t.width = w; t.height = Math.round(c.height * w / c.width); const x = t.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(c, 0, 0, t.width, t.height); return t.toDataURL('image/jpeg', 0.85); };
-  const cells = PRINTS.map(([k, name, note], n) => made[n] ? `<figure class="pcard"><button type="button" class="pshot" data-pv="${n}" aria-label="${TX(`${name}を大きく見る`, `See ${name} larger`)}"><img src="${thumb(made[n])}" alt=""></button><figcaption><b>${name}</b><span>${note}</span><button type="button" class="tbtn" data-ps="${n}">${TX('のこす', 'Save')}</button></figcaption></figure>` : '').join('');
-  showPanel(TX(`<h2>世界の版画</h2><p class="small center">いま見えている世界を、一枚の絵にのこす（ためしに型をいくつか）。押すと大きく見られる。</p>`, `<h2>World Prints</h2><p class="small center">Save the world you see now as a single picture (in a few styles). Press one to see it larger.</p>`) + `<div class="prints">${cells}</div>`,
+  const cells = PRINTS.map(([k, name, note], n) => made[n] ? `<figure class="pcard"><button type="button" class="pshot" data-pv="${n}" aria-label="${TX(`${name}を大きく見る`, `See ${name} larger`)}"><img src="${thumb(made[n])}" alt=""></button><figcaption><b>${name}</b><span>${note}</span><button type="button" class="tbtn" data-ps="${n}">${TX('画像で保存', 'Save as image')}</button></figcaption></figure>` : '').join('');
+  showPanel(TX(`<h2>世界の版画</h2><p class="small center">いま見えている世界を、一枚の絵にする。型を選んで「画像で保存」。押すと大きく見られる。</p>`, `<h2>World Prints</h2><p class="small center">Turn the world you see now into a single picture. Choose a style and press “Save as image”. Press one to see it larger.</p>`) + `<div class="prints">${cells}</div>`,
     [{ label: back ? TX('もどる', 'Back') : TX('とじる', 'Close'), main: true, fn: back }]);
   $('panel').classList.add('world', 'printpanel'); G.panelBack = back || (() => { $('overlay').hidden = true; });
   const panel = $('panel');
+  panel.querySelector('.tbtn.main')?.focus({ preventScroll: true }); panel.scrollTop = 0;   // 開いたときは一番上（型の一覧）から（PLAYTEST #18）
   panel.querySelectorAll('[data-ps]').forEach(b => b.onclick = () => savePrint(made[+b.dataset.ps], PRINTS[+b.dataset.ps][0]));
   panel.querySelectorAll('[data-pv]').forEach(b => b.onclick = () => {
     const n = +b.dataset.pv; Sound.play('click');

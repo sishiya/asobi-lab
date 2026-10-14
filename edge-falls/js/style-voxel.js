@@ -3,6 +3,15 @@
 //   格子を1区画ずつたどり（DDA）、柱の横の面と上の面を塗る。生き物・木・太陽と月は画素の絵、雲は箱。
 //   ぜんぶを低い解像度の板に描いて、ぼかさずに広げる（画素がそろって見える）。
 
+// ボクセルの細かさ（試験。v010。2026-10-14 ユーザー「ジャギーを和らげる処理を試験的に切り替えられるように。荒いのが味かもしれないので、まず見てみたい」）:
+//   0 荒い（これまで）・1 細かい（画素の板を倍細かく。描く画素が約4倍で重くなる）・2 なめらか（細かい＋板をぼかして広げる。木や生き物の画素の絵はそのまま）。
+//   設定の「ボクセル（試験）」で切りかえ。localStorage に覚える
+const VOXSMOOTH_KEY = 'asobi-lab/edge-falls/voxsmooth3';   // v017: はじめは「荒い」にもどした（2026-10-14 ユーザー。v014 は中くらい）。置き場所の名前を変えて、前に選んだものをいったんもどす
+//   v013: 3 中くらい（荒いと細かいのまん中の大きさ。小数の大きさなので、画素の幅がわずかにそろわないことがある）。切りかえの順は 荒い → 中くらい → 細かい → なめらか
+let VOXSMOOTH = 0; try { const v = localStorage.getItem(VOXSMOOTH_KEY); if (v !== null) VOXSMOOTH = Math.max(0, Math.min(3, +v || 0)); } catch (e) { /* なし */ }
+const VOX_ORDER = [0, 3, 1, 2], VOX_NAME = { 0: TX('荒い', 'Coarse'), 3: TX('中くらい', 'Medium'), 1: TX('細かい', 'Fine'), 2: TX('なめらか', 'Smooth') };
+const nextVox = () => VOX_ORDER[(VOX_ORDER.indexOf(VOXSMOOTH) + 1) % VOX_ORDER.length];
+function setVoxSmooth(n) { VOXSMOOTH = n; try { localStorage.setItem(VOXSMOOTH_KEY, String(n)); } catch (e) { /* なし */ } buf = null; layout(V.cw, V.ch); }
 const VOX = (() => {
   const STRATA = [[170, 128, 84], [142, 104, 70], [188, 152, 104], [124, 94, 70], [160, 120, 80]];
   const OUT = [0, 0, 0];
@@ -200,6 +209,11 @@ const VOX = (() => {
     wolf: [['.....e..', '....hhh.', 'tbbbbhhd', 'tBBBBB..', '.l...l..'], ['.....e..', '....hhh.', 'tbbbbhhd', 'tBBBBB..', '..l.l...']],
     fish: [['t.ff.', 'tfffe', 't.ff.'], ['..ff.', 'tfffe', '..ff.']],
     bird: [['....hkk', '....n..', '...n...', '.bbbb..', 'bBBbb..', '..l....', '..l....'], ['....hkk', '....n..', '....n..', '.bbbb..', 'bBBbb..', '..l....', '..l....']],
+    human: [['.hh.', '.ff.', 'tTTt', 'fTTf', '.TT.', '.l.l'], ['.hh.', '.ff.', 'tTTt', 'fTTf', '.TT.', '.ll.']],   // ヒト（v2）
+    hut: ['...R...', '..RRR..', '.RRrRR.', 'RRRRRRR', '.WWdWW.', '.WWdWW.'],
+    hut1: ['.......', '.......', '.......', '.......', '.T...T.', '.T...T.'],                 // 組みかけ: 柱
+    hut2: ['.......', '.......', '.T...T.', 'TTTTTTT', '.TW.WT.', '.T...T.'],                 // 骨組みと壁の少し
+    hut3: ['...R...', '..R.R..', '.R...R.', 'RRRRRRR', '.WWdWW.', '.WWdWW.'],                 // 屋根のふち
     birdFly: [['ww.....ww', '.wwbbbww.', '...bbbhkk'], ['.........', '..bbbbhkk', '.wwbbbww.', 'ww.....ww']],
     tree: ['..LLL..', '.LLGLL.', 'LLGLLLL', 'LLLLLDL', '.LDLLD.', '...T...', '...T...'],
     pine: ['...L...', '..LGL..', '.LLLLL.', '..LGL..', '.LLLDL.', 'LLLLLDL', '...T...'],
@@ -210,10 +224,13 @@ const VOX = (() => {
     deer: { a: [232, 220, 192], h: [176, 122, 68], d: [58, 36, 20], b: [168, 116, 63], B: [138, 92, 48], w: [242, 234, 216], l: [90, 58, 28] },
     wolf: { e: [74, 76, 84], h: [154, 156, 164], d: [42, 42, 48], b: [139, 141, 148], B: [109, 111, 120], t: [125, 127, 136], l: [61, 63, 70] },
     fish: { t: [217, 122, 48], f: [239, 154, 74], e: [42, 26, 16] },
+    human: { h: [58, 40, 30], f: [214, 168, 128], t: [188, 128, 64], T: [162, 106, 52], l: [74, 58, 44] },
+    hut: { R: [184, 154, 90], r: [212, 182, 112], W: [138, 106, 68], d: [52, 36, 24], T: [112, 80, 48] },
     bird: { h: [242, 242, 236], k: [232, 192, 64], n: [216, 216, 212], b: [154, 164, 174], B: [124, 134, 144], l: [106, 90, 64], w: [200, 208, 216] },
     tree: { L: [90, 160, 67], G: [143, 208, 106], D: [63, 122, 52], T: [107, 74, 42] },
     pine: { L: [63, 127, 74], G: [106, 168, 106], D: [45, 94, 56], T: [107, 74, 42] },
     treeSpring: { L: [104, 172, 76], G: [244, 178, 204], D: [74, 136, 60], T: [107, 74, 42] },
+    treeYoung: { L: [138, 196, 98], G: [190, 228, 140], D: [100, 158, 78], T: [107, 74, 42] },
     treeAutumn: { L: [214, 128, 46], G: [242, 194, 72], D: [176, 70, 40], T: [107, 74, 42] },
     bare: { T: [100, 70, 38], t: [142, 110, 60], u: [112, 84, 44], S: [236, 240, 248] },   // 枯れ枝は茶色に（灰色だと palAt の青みで紫に見えた）
     pineWinter: { L: [58, 112, 72], G: [236, 242, 248], D: [44, 88, 56], T: [107, 74, 42] },
@@ -228,17 +245,62 @@ const VOX = (() => {
   }
   // 遺伝子で色を変えた色見本（5段に丸めて覚えておく）
   //   シカ: 泳ぐ力→青みがかった灰色、大きさ→こい茶。オオカミ: 速さ→砂色、大きさ→こい灰。サカナ: 泳ぐ力→赤
-  const TINT = { deer: [['swim', [112, 132, 150], 'bBh'], ['size', [96, 60, 30], 'bB']], wolf: [['speed', [196, 176, 132], 'bBht'], ['size', [70, 70, 78], 'bB']], fish: [['strength', [214, 64, 44], 'ft']], bird: [['size', [90, 98, 110], 'bBw'], ['beak', [240, 150, 40], 'k']] };
+  const TINT = { human: [], deer: [['swim', [112, 132, 150], 'bBh'], ['size', [96, 60, 30], 'bB']], wolf: [['speed', [196, 176, 132], 'bBht'], ['size', [70, 70, 78], 'bB']], fish: [['strength', [214, 64, 44], 'ft']], bird: [['size', [90, 98, 110], 'bBw'], ['beak', [240, 150, 40], 'k']] };
   function palGene(a, L) {
     const q = Math.round(L * 10), parts = TINT[a.kind].map(([g]) => Math.round(Math.max(0, a.g[g] - 0.35) / 0.65 * 4));
-    const key = a.kind + q + ':' + parts.join(',');
+    const sp = a.sp || 0, key = a.kind + q + ':' + parts.join(',') + ':' + sp;
     if (cache[key]) return cache[key];
     const base = PAL[a.kind], o = {};
     for (const ch in base) {
       let [r, g, b] = base[ch];
       TINT[a.kind].forEach(([, col, chars], n) => { if (chars.includes(ch)) { const t = parts[n] / 4 * 0.75; r = mix(r, col[0], t); g = mix(g, col[1], t); b = mix(b, col[2], t); } });
+      if (sp && SP_TINT[sp] && 'bBhftw'.includes(ch)) { const c = SP_TINT[sp]; r = mix(r, c[0], 0.4); g = mix(g, c[1], 0.4); b = mix(b, c[2], 0.4); }   // 種ごとの色（v2）
       o[ch] = `rgb(${r * q / 10 | 0},${g * q / 10 | 0},${Math.min(255, b * (q / 10 + 0.1)) | 0})`;
     }
+    return (cache[key] = o);
+  }
+  // 遺伝子で形を変えた画素の絵（v2。進化を目に見えるように）: あしの速いシカ・オオカミは足が1段長く、
+  //   くちばしの長いサギはくちばしが1画素長く（短いと1画素短く）。体の大きさは描く倍率（sizeK）で
+  const formCache = {};
+  function geneRows(kind, fr, g) {
+    if (kind === 'birdFly' || !g) return kind === 'birdFly' ? SPR.birdFly[fr] : SPR[kind][fr];
+    const long = (kind === 'deer' || kind === 'wolf') && g.speed > 0.6, beak = kind === 'bird' ? (g.beak > 0.6 ? 1 : g.beak < 0.4 ? -1 : 0) : 0;
+    const key = kind + fr + (long ? 'L' : '') + beak;
+    if (formCache[key]) return formCache[key];
+    let rows = SPR[kind][fr].slice();
+    if (long) rows.splice(rows.length - 1, 0, rows[rows.length - 1]);
+    if (beak === 1) { rows = rows.map(r => r + '.'); rows[0] = rows[0].replace('hkk.', 'hkkk'); }
+    if (beak === -1) rows[0] = rows[0].replace('hkk', 'hk.');
+    return (formCache[key] = rows);
+  }
+  const sizeK = a => a.kind === 'human' ? 1 : a.kind === 'bird' ? 0.85 + 0.3 * a.g.size : 0.8 + 0.42 * a.g.size;
+  // 木の季節（v006。2026-10-14 ユーザー「季節ごとの木の変化にアニメーションを。ぱっと切り替わりすぎないように」）:
+  //   木ごとに半日ほどずらした暦（q）で、色をゆっくりまぜる（夏の緑 → 秋に少しずつ紅葉、春は若葉 → 緑、花の木は花 → 緑）。
+  //   冬にはだかになるときは、その木から葉が散る（粒）。針葉樹は気温で少しずつ雪をかぶる
+  const BARE = new Uint8Array(N * N); let bareInit = false;
+  const sm = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+  function treeLook(it) {
+    if (it.conifer) return { spr: 'pine', a: 'pine', b: 'pineWinter', t: sm((3 - W.T[it.i]) / 5) };
+    const q = (seasonPhase() + (it.hi - 0.5) * 0.06 + 1) % 1, bare = q >= 0.77 || q < 0.02;
+    if (bare !== !!BARE[it.i]) { if (bare && bareInit && !PRINT) leafFall(it); BARE[it.i] = bare ? 1 : 0; }
+    if (bare) return { spr: 'bare', a: 'bare', b: 'bare', t: 0 };
+    if (q < 0.25) return it.hi > 0.55 ? { spr: 'tree', a: 'treeSpring', b: 'tree', t: sm((q - 0.14) / 0.1) } : { spr: 'tree', a: 'treeYoung', b: 'tree', t: sm((q - 0.03) / 0.12) };
+    if (q < 0.5) return { spr: 'tree', a: 'tree', b: 'tree', t: 0 };
+    return { spr: 'tree', a: 'tree', b: 'treeAutumn', t: sm((q - 0.5) / 0.2) };
+  }
+  function leafFall(it) {
+    const x = it.i % N, y = it.i / N | 0, now = performance.now();
+    if (PFX.length > 150) return;
+    for (let n = 0; n < 5; n++) PFX.push({ x: x + (Math.random() - 0.5) * 0.8, y: y + (Math.random() - 0.5) * 0.8, vx: (Math.random() - 0.5) * 0.8, vy: (Math.random() - 0.5) * 0.8, vz: 0, h0: 2.2 + Math.random() * 1.6, g: 1.6, t0: now + n * 180, col: ['#d6802e', '#e8b040', '#b04a28'][n % 3] });
+  }
+  function palMix(a, b, t, L) {
+    const tq = Math.round(t * 6) / 6;
+    if (tq <= 0 || a === b) return palAt(a, L);
+    if (tq >= 1) return palAt(b, L);
+    const q = Math.round(L * 10), key = a + '>' + b + tq + ':' + q;
+    if (cache[key]) return cache[key];
+    const A = PAL[a], B = PAL[b], o = {};
+    for (const ch in A) { const ca = A[ch], cb = B[ch] || ca; const r = mix(ca[0], cb[0], tq), g = mix(ca[1], cb[1], tq), bl = mix(ca[2], cb[2], tq); o[ch] = `rgb(${r * q / 10 | 0},${g * q / 10 | 0},${Math.min(255, bl * (q / 10 + 0.1)) | 0})`; }
     return (cache[key] = o);
   }
   function sprite(rows, pal, cx, by, k, flip) {
@@ -305,14 +367,14 @@ const VOX = (() => {
     const bs = V.bs;
     // 道すじ（点線）
     bctx.fillStyle = 'rgba(240,228,190,0.35)';
-    for (const R of [RS, W.rs]) for (let k = 0; k < 96; k += 2) { const a = k / 96 * Math.PI * 2; const p = pb(C + R * Math.cos(a), C + R * Math.sin(a), HS); bctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); }   // 月の道と、季節で変わる太陽の道
+    if (!PRINT) for (const R of [RS, W.rs]) for (let k = 0; k < 96; k += 2) { const a = k / 96 * Math.PI * 2; const p = pb(C + R * Math.cos(a), C + R * Math.sin(a), HS); bctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); }   // 月の道と、季節で変わる太陽の道
     for (const [key, b] of [['sun', W.sun], ['moon', W.moon]]) {
       const p = bodyPos(b), R = Math.max(4, Math.round(V.s * (key === 'sun' ? 1.9 : 1.5) / bs));
       const cx = p.x / bs, cy = p.y / bs;
       // 地へおろした線
       const OR = bodyR(b), g = pb(C + OR * Math.cos(b.a), C + OR * Math.sin(b.a), surfAt(C + OR * Math.cos(b.a), C + OR * Math.sin(b.a)));
       bctx.fillStyle = key === 'sun' ? 'rgba(255,220,120,0.35)' : 'rgba(210,220,255,0.25)';
-      for (let y = Math.round(cy + R + 2); y < g.y; y += 3) bctx.fillRect(Math.round(cx), y, 1, 1);
+      if (!PRINT) for (let y = Math.round(cy + R + 2); y < g.y; y += 3) bctx.fillRect(Math.round(cx), y, 1, 1);
       if (key === 'sun') {
         const ra = t * 0.4;
         pixDisk(cx, cy, R, (x, y, d) => {
@@ -333,8 +395,56 @@ const VOX = (() => {
           return d > R - 1 ? '#aab3c8' : (hash2(x + 9, y + 3) > 0.85 ? '#cfd5e2' : '#eef1f7');
         });
       }
-      if (b.stop) { bctx.fillStyle = '#f4ead0'; bctx.fillRect(Math.round(cx + R), Math.round(cy - R - 4), 5, 5); bctx.fillStyle = '#3a2a1c'; bctx.fillRect(Math.round(cx + R) + 1, Math.round(cy - R - 3), 1, 3); bctx.fillRect(Math.round(cx + R) + 3, Math.round(cy - R - 3), 1, 3); }
+      if ((b.stop || b.drag) && !PRINT) drawHold(key, b, g, cx, cy, R, t);       // 止めた・つかんでいる: 地面への効き目をすぐ見せる（v2）
+      if (b.stop && !PRINT) { bctx.fillStyle = '#f4ead0'; bctx.fillRect(Math.round(cx + R), Math.round(cy - R - 4), 5, 5); bctx.fillStyle = '#3a2a1c'; bctx.fillRect(Math.round(cx + R) + 1, Math.round(cy - R - 3), 1, 3); bctx.fillRect(Math.round(cx + R) + 3, Math.round(cy - R - 3), 1, 3); }
       bodyHit[key] = { x: p.x, y: p.y, r: R * bs, v: p.v };
+    }
+  }
+
+  // 命の光（v2。cycle.js）: 光の粒（あたたかい白）、命をのせた雲の中の光、深淵にたまった命（大地の下の暗がりに、ゆっくりただよう光）
+  const LIFECOL = { human: [255, 228, 200], deer: [255, 236, 190], wolf: [226, 232, 255], fish: [255, 214, 170], bird: [236, 246, 255] };
+  function glowPx(x, y, col, a) {
+    x = Math.round(x); y = Math.round(y);
+    const c = `${col[0]},${col[1]},${col[2]}`;
+    bctx.fillStyle = `rgba(${c},${a * 0.18})`; bctx.fillRect(x - 2, y - 1, 6, 4); bctx.fillRect(x - 1, y - 2, 4, 6);   // やわらかな光のかさ
+    bctx.fillStyle = `rgba(${c},${a * 0.45})`; bctx.fillRect(x - 1, y, 4, 2); bctx.fillRect(x, y - 1, 2, 4);
+    bctx.fillStyle = `rgba(255,255,250,${a})`; bctx.fillRect(x, y, 2, 2);
+  }
+  function drawLives(t) {
+    const BW = buf.width, BH = buf.height;
+    for (const m of MOTES) {
+      const p = pb(m.x, m.y, m.z), a = m.s === 'fall' ? Math.max(0, 1 - m.t / 2.4) : m.s === 'down' ? Math.min(1, 0.3 + m.t) : 0.9;
+      glowPx(p.x, p.y + Math.sin(t * 3 + m.x) * 0.5, LIFECOL[m.k], a * (0.75 + 0.25 * Math.sin(t * 6 + m.y)));
+    }
+    for (const cl of W.clouds) if (cl.lives && cl.lives.length) { const p = pb(cl.x, cl.y, cloudZ(cl) + 0.8); glowPx(p.x, p.y, [255, 240, 200], 0.55 + 0.25 * Math.sin(t * 2 + cl.seed)); }
+    const n = Math.min(16, abyssLifeCount());
+    for (let q = 0; q < n; q++) {
+      const an = hash2(q, 5) * 6.283 + t * 0.05 * (q % 2 ? 1 : -1), r = RD * (0.85 + 0.6 * hash2(q, 9)), dz = 18 + 46 * hash2(q, 13) + Math.sin(t * 0.7 + q) * 3;
+      const p = pb(C + Math.cos(an) * r, C + Math.sin(an) * r, -dz), X = Math.round(p.x), Y = Math.round(p.y);
+      if (X < 1 || Y < 1 || X >= BW - 1 || Y >= BH - 1 || (d32[Y * BW + X] >>> 24)) continue;   // 岩の根のうしろは描かない
+      glowPx(X, Y, [255, 236, 200], 0.35 + 0.25 * Math.sin(t * 1.3 + q * 2));
+    }
+  }
+
+  // 止めた太陽・月の効き目（v2。PLAYTEST #17「止める意味が伝わらない」）: 止めた・つかんだその場で、地面に印を出す。
+  //   太陽: 地面まで光の柱がおり、真下に暖かい光の輪がゆっくり広がる（そこは日ざしがたまって暑く乾く）。
+  //   月: 真下の地面へ向かって、水を引きよせる青い輪がちぢんでいく（潮）。大潮のときは輪が二重
+  function drawHold(key, b, g, cx, cy, R, t) {
+    const OR = bodyR(b), gx = C + OR * Math.cos(b.a), gy = C + OR * Math.sin(b.a), gz = surfAt(gx, gy);
+    if (key === 'sun') {
+      for (let y = Math.round(cy + R + 2); y < g.y; y++) { bctx.fillStyle = `rgba(255,226,140,${0.18 + 0.12 * Math.sin(t * 3 + y * 0.4)})`; bctx.fillRect(Math.round(cx) - 1, y, 3, 1); }
+      for (let n = 0; n < 2; n++) {
+        const ph = ((t * 0.35 + n * 0.5) % 1), r = 2 + ph * 9, a = 0.85 * (1 - ph), m = Math.max(40, Math.round(r * V.s / V.bs * 7));
+        bctx.fillStyle = `rgba(255,222,130,${a})`;
+        for (let q = 0; q < m; q++) { const an = q / m * 6.283, x = gx + Math.cos(an) * r, y = gy + Math.sin(an) * r, p = pb(x, y, surfAt(x, y) + 0.4); bctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); }
+      }
+    } else {
+      const rings = springTide() ? 2 : 1;
+      for (let n = 0; n < rings; n++) {
+        const ph = ((t * 0.3 + n * 0.5) % 1), r = 12 - ph * 10, a = 0.9 * (0.35 + 0.65 * ph), m = Math.max(48, Math.round(r * V.s / V.bs * 7));
+        bctx.fillStyle = `rgba(196,232,255,${a})`;
+        for (let q = 0; q < m; q++) { const an = q / m * 6.283, x = gx + Math.cos(an) * r, y = gy + Math.sin(an) * r; if ((x - C) ** 2 + (y - C) ** 2 > (RD - 1) ** 2) continue; const p = pb(x, y, surfAt(x, y) + 0.4); bctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); }
+      }
     }
   }
 
@@ -414,7 +524,7 @@ const VOX = (() => {
       d[y * W2 + x] = rgba(v, v, Math.min(255, v + 20));
     }
     sky.x.putImageData(sky.im, 0, 0);
-    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = VOXSMOOTH === 2;
     ctx.drawImage(sky.c, 0, 0, W2 * f, H2 * f);
   }
 
@@ -426,7 +536,7 @@ const VOX = (() => {
     bctx.putImageData(img, 0, 0);
     // 泉
     //   v066 で最初の形（v058 まで）にもどした（2026-10-14 ユーザー「最初の案に戻して」）。v059〜v065 は噴き上がり・光・線を広くする などをためした
-    for (const sp of W.springs) {
+    if (!PRINT) for (const sp of W.springs) {
       const p = pb(sp.i % N, sp.i / N | 0, Zq[sp.i]);
       bctx.fillStyle = sp.on ? '#8fc4e2' : '#6a6a6a';
       bctx.fillRect(Math.round(p.x) - 1, Math.round(p.y) - 1, 3, 1);
@@ -435,8 +545,9 @@ const VOX = (() => {
     // 木・生き物の画素の絵は、画面の上にじかに、寄り具合に合わせて途切れなく大きく描く（v030。2026-10-13 ユーザー「ある所を境に急に大きさが変わる」）。
     //   前は板の画素の整数倍（1→2→3 倍）でとんでいた。地形の板をいったん画面に広げ、その上に絵、そのあと雲・太陽と月・ホタル・足もとの輪を2枚目として重ねる
     if (!drawBackdrop(ctx, t)) drawSky(ctx, t);
-    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = VOXSMOOTH === 2;                   // なめらか（試験）: 地形の板をぼかして広げる
     ctx.drawImage(buf, 0, 0, buf.width * V.bs, buf.height * V.bs);
+    ctx.imageSmoothingEnabled = false;
     const board = bctx; bctx = pen(ctx);
     const k = Math.max(1, V.s / V.bs / 3.2);                       // 寄るほど画素の絵も大きく（小数のまま）
     for (const it of sceneItems()) {
@@ -445,21 +556,32 @@ const VOX = (() => {
         const w = 5 * k, sy = it.drop ? it.ground.y / V.bs : by;
         bctx.fillStyle = 'rgba(10,14,8,0.28)'; bctx.fillRect(Math.round(bx - w / 2), Math.round(sy) - k, w, k);
       }
+      if (it.type === 'hut') {                                        // ヒトの家（組みかけは柱 → 骨組み → 屋根のふち → 家。v006）
+        const sp = it.b >= 1 ? SPR.hut : it.b >= 0.75 ? SPR.hut3 : it.b >= 0.5 ? SPR.hut2 : it.b > 0 ? SPR.hut1 : null;
+        if (sp) sprite(sp, palAt('hut', lumAt(it.x, it.y)), bx, by, k * 1.2, false);
+        continue;
+      }
+      if (it.type === 'fire') {                                       // 村のまんなかの火（石のかこい。夜は明るく）
+        const night = LUM[NEAR[Math.round(it.y) * N + Math.round(it.x)]] < 0.55, fl = Math.floor(t * 9) % 3;
+        bctx.fillStyle = '#6a6460'; bctx.fillRect(Math.round(bx) - 2 * k, Math.round(by) - k, 5 * k, k);
+        if (night) { bctx.fillStyle = 'rgba(255,200,90,0.22)'; bctx.fillRect(Math.round(bx) - 3 * k, Math.round(by) - 4 * k, 7 * k, 4 * k); }
+        bctx.fillStyle = fl ? '#ffb040' : '#ffe080'; bctx.fillRect(Math.round(bx), Math.round(by) - (2 + fl % 2) * k, k, (1 + fl % 2) * k);
+        bctx.fillStyle = '#ff8030'; bctx.fillRect(Math.round(bx) - (fl === 1 ? k : 0), Math.round(by) - 2 * k, 2 * k, k);
+        continue;
+      }
       if (it.type === 'tree') {
         const L = lumAt(it.i % N, it.i / N | 0);
-        const se = seasonOf(), cold = W.T[it.i] < 2;
+        const lk = treeLook(it);
         if (it.t < 0.4) sprite(SPR.sap, palAt('tree', L), bx, by, k, false);
-        else if (it.conifer) sprite(SPR.pine, palAt(se === 3 || cold ? 'pineWinter' : 'pine', L), bx, by, k, it.hi > 0.5);
-        else if (se === 3) sprite(SPR.bare, palAt('bare', L), bx, by, k, it.hi > 0.5);                  // 冬ははだか
-        else sprite(SPR.tree, palAt(se === 2 ? 'treeAutumn' : se === 0 && it.hi > 0.55 ? 'treeSpring' : 'tree', L), bx, by, k, it.hi > 0.5);
+        else sprite(SPR[lk.spr], palMix(lk.a, lk.b, lk.t, L), bx, by, k, it.hi > 0.5);
       } else {
         const a = it.a, fl = (Math.cos(a.dir) * Math.cos(V.yaw) - Math.sin(a.dir) * Math.sin(V.yaw)) < 0;
         const fr = Math.floor(a.phase * 6) % 2;
         if (a.kind === 'bird' && a.alt > 0.5) {                      // とんでいるサギ: 地面に影
           const gx = it.ground.x / V.bs, gy = it.ground.y / V.bs;
           bctx.fillStyle = 'rgba(10,14,8,0.25)'; bctx.fillRect(Math.round(gx - 3 * k), Math.round(gy) - k, 6 * k, k);
-          sprite(SPR.birdFly[Math.floor(a.phase * 5) % 2], palGene(a, 1), bx, by, k, fl);
-        } else sprite(SPR[a.kind][fr], palGene(a, Math.max(0.55, lumAt(a.x, a.y))), bx, by + (a.kind === 'fish' ? 1 : 0), k, fl);
+          sprite(SPR.birdFly[Math.floor(a.phase * 5) % 2], palGene(a, 1), bx, by, k * sizeK(a), fl);
+        } else sprite(geneRows(a.kind, fr, a.g), palGene(a, Math.max(0.55, lumAt(a.x, a.y))), bx, by + (a.kind === 'fish' ? 1 : 0), k * sizeK(a), fl);
         if (typeof G !== 'undefined' && G.sel === a) {               // 選んだ1匹: 黄色い角かっこ
           const x0 = Math.round(bx) - 5 * k, x1 = Math.round(bx) + 4 * k, y0 = Math.round(by) - 8 * k, y1 = Math.round(by) + k;
           bctx.fillStyle = '#ffe066';
@@ -468,13 +590,13 @@ const VOX = (() => {
       }
     }
     for (const f of L.fx) {
-      if (f.type === 'born' || f.type === 'puff') continue;
+      if (f.type !== 'fall') continue;
       const p = pb(f.x, f.y, f.z);
       bctx.globalAlpha = Math.max(0, 1 - f.t / 2.5);
       sprite(SPR[f.kind][0], palAt(f.kind, 1), p.x, p.y, k, Math.floor(f.t * 4) % 2 === 0);
       bctx.globalAlpha = 1;
     }
-    bctx = board;
+    bctx = board; bareInit = true;
     bctx.clearRect(0, 0, buf.width, buf.height);
     // 夜の草むらにホタル
     if (!fire) { fire = []; for (let n = 0; n < 60; n++) fire.push(INS[Math.floor(hash2(n, 77) * INS.length)]); }
@@ -508,6 +630,7 @@ const VOX = (() => {
       } else bctx.fillRect(X, Y, 1, 1);
     }
     bctx.globalAlpha = 1;
+    drawLives(t);
     for (const f of L.fx) {
       const p = pb(f.x, f.y, f.z);
       if (f.type === 'born') {                                        // 子が生まれた: 小さなきらめき
@@ -517,6 +640,12 @@ const VOX = (() => {
         if (f.t > 0.3) { bctx.fillRect(x - 3, y + 2, 1, 1); bctx.fillRect(x + 3, y + 1, 1, 1); }
         continue;
       }
+      if (f.type === 'spawn') {                                       // 満月の産卵: 水面に小さな光の輪（v2）
+        const r = 1 + f.t * 2.5, a = 0.75 * (1 - f.t / 1.2);
+        bctx.fillStyle = `rgba(214,236,255,${a})`;
+        for (let q = 0; q < 8; q++) bctx.fillRect(Math.round(p.x + Math.cos(q * 0.785) * r), Math.round(p.y - 0.5 + Math.sin(q * 0.785) * r * 0.5), 1, 1);
+        continue;
+      }
       if (f.type === 'puff') {
         bctx.fillStyle = `rgba(235,235,225,${0.7 * (1 - f.t / 1.2)})`;
         const r = Math.round(1 + f.t * 3);
@@ -524,7 +653,7 @@ const VOX = (() => {
       }
     }
     // 足もとの印（画素の輪）
-    if (hover) {
+    if (hover && !PRINT) {
       bctx.fillStyle = hover.color || '#fff';
       const n = Math.max(16, Math.round(hover.r * V.s / V.bs * 5));
       for (let q = 0; q < n; q++) {
@@ -534,7 +663,9 @@ const VOX = (() => {
     }
     for (const cl of W.clouds) drawCloud(cl, t);
     drawBodies(t);
+    ctx.imageSmoothingEnabled = VOXSMOOTH === 2;
     ctx.drawImage(buf, 0, 0, buf.width * V.bs, buf.height * V.bs);
+    ctx.imageSmoothingEnabled = false;
     return true;
   }
   // 板の座標（画素）で描く命令を、画面の上にじかに描く筆。四角のはしを画面の画素で丸めるので、小数の倍率でも画素の大きさがそろう
@@ -546,6 +677,16 @@ const VOX = (() => {
     } };
   function pen(ctx) { PEN.c = ctx; PEN.fillStyle = '#000'; PEN.globalAlpha = 1; return PEN; }
 
-  return { label: 'ボクセル', drawsSel: true, quant: true, bs: cw => Math.max(2, Math.round(cw / 400)), draw, hover: 'rgba(255,250,230,0.85)' };
+  // 札の絵（v2）: 生き物を 2D の ctx に k 倍で描く。ghost=true は「はじめの姿」の影（うすい色）
+  function icon(c, a, cx, by, k, ghost) {
+    const rows = geneRows(a.kind, 0, a.g), pal = ghost ? null : palGene(a, 1), kk = k * sizeK(a), w = rows[0].length, h = rows.length;
+    const x0 = Math.round(cx - w * kk / 2), y0 = Math.round(by - h * kk);
+    for (let r = 0; r < h; r++) for (let q = 0; q < w; q++) {
+      const ch = rows[r][q]; if (ch === '.') continue;
+      c.fillStyle = ghost ? 'rgba(96,72,48,0.3)' : pal[ch]; c.fillRect(x0 + q * kk, y0 + r * kk, Math.ceil(kk), Math.ceil(kk));
+    }
+  }
+
+  return { label: 'ボクセル', icon, drawsSel: true, quant: true, bs: cw => { const coarse = Math.max(2, Math.round(cw / 400)), fine = Math.max(1, Math.round(cw / 800)); return PRINT || VOXSMOOTH === 1 || VOXSMOOTH === 2 ? fine : VOXSMOOTH === 3 ? (coarse + fine) / 2 : coarse; }, draw, hover: 'rgba(255,250,230,0.85)' };
 })();
 STYLES.voxel = VOX;

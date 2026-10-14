@@ -15,9 +15,9 @@ const BINS = 96;                // 滝の向きの区分
 const SPRING_MAX = 12;           // 泉の上限は深淵の水（v011）。これは重さとセーブのためだけ
 const YEAR = 16;                // 1年の日数（春夏秋冬 4日ずつ）
 const SEASONS = TX(['春', '夏', '秋', '冬'], ['spring', 'summer', 'autumn', 'winter']);
-const KPL = { deer: TX('シカ', 'deer'), wolf: TX('オオカミ', 'wolves'), fish: TX('サカナ', 'fish'), bird: TX('サギ', 'herons'), human: TX('ヒト', 'humans') };   // 英語の文の中の名前（複数）
-const STOCK_MAX = { deer: 10, wolf: 4, fish: 12, bird: 3, human: 4, seed: 40 };   // ヒトは十の年のあと（v2。humans.js）。たねも数に（v014）
-const STOCK_START = { deer: 6, wolf: 3, fish: 8, bird: 3, human: 4, seed: 40 };   // v018: サギははじめから 3 羽（お題が 3 羽以上なので。春の贈りものをやめて、2 羽だと待つしかなかった）   // つぼに命が来たときの数（v011）
+const KPL = { deer: TX('シカ', 'deer'), wolf: TX('オオカミ', 'wolves'), fish: TX('サカナ', 'fish'), bird: TX('サギ', 'herons') };   // 英語の文の中の名前（複数）
+const STOCK_MAX = { deer: 10, wolf: 4, fish: 12, bird: 3 };
+const STOCK_START = { deer: 6, wolf: 3, fish: 8, bird: 2 };   // つぼに命が来たときの数（v011）
 
 const inside = new Uint8Array(N * N);
 const INS = [];
@@ -63,9 +63,6 @@ function newWorld(seed, bare) {
   W.tree = A(); W.tseed = A();          // 木（草がよく茂る所に、ゆっくり育つ）
   W.sown = A();                         // まいたたね（v045）: 少しずつ草になる（stepPlants）
   W.T = A(); W.snow = A(); W.ice = new Uint8Array(N * N);   // 気温・雪・氷
-  W.sunk = A().fill(0.6);               // たまった日ざし（v2。止めた太陽の下は暑く、反対がわは冷えていく）
-  W.fert = A().fill(0.5); W.abyssFert = 60;
-  W.litter = A();                        // 枯れ草（v006）: 古い草は枯れ草になって地表に積もり、新しい芽をふさぐ。ゆっくりくさって土の肥えに   // 土の肥え（v2。死んだ体・ふん → 土 → 草。水が運び、滝から深淵へ、泉からもどる）
   W.rs = RS; W.sunAmp = 1;
   for (const i of INS) W.tseed[i] = rnd();
   W.fall = new Float32Array(BINS);       // 滝の量（なめらかにしたもの。描く用）
@@ -75,11 +72,10 @@ function newWorld(seed, bare) {
   W.sun = { a: rnd() * Math.PI * 2, v: 2 * Math.PI / DAY, stop: false, drag: false };
   W.moon = { a: W.sun.a + Math.PI * (0.6 + rnd() * 0.8), v: 2 * Math.PI / (DAY * 1.07), stop: false, drag: false };
   W.clouds = []; W.vapor = 0; W.outRate = 0; W.rainRate = 0;
-  W.soil = 120; W.stock = { deer: 6, wolf: 2, fish: 8, bird: 1, human: 0, seed: 0 };
-  W.souls = { deer: 0, wolf: 0, fish: 0, bird: 0, human: 0 };   // 去った命（深淵を通って、少しずつつぼへ戻る。v011）
+  W.soil = 120; W.stock = { deer: 6, wolf: 2, fish: 8, bird: 1 };
+  W.souls = { deer: 0, wolf: 0, fish: 0, bird: 0 };   // 去った命（深淵を通って、少しずつつぼへ戻る。v011）
   W.knob = { winter: 1, tide: 1 };                     // 世界のきびしさ（章で少しずつ上げる。v011）
   W.flags = {};                                        // 一度だけ見つける出来事（観察の記録）
-  resetCycle(); resetHumans(); resetSpecies();                         // 深淵の命・光の粒（v2。cycle.js）、ヒトの村・畑・知恵（humans.js）
   W.events = [];
 
   // 地形: ゆるい丸屋根（ふちへ向かって低い）＋ノイズ＋山2つ＋湖のくぼみ＋ふちの岩
@@ -154,11 +150,10 @@ function stepClimate(dt, now) {
   const p = seasonPhase(), wm = warmth(p), Tb = baseTemp(p);
   W.rs = RD * (0.75 - 0.3 * wm); W.sunAmp = 0.78 + 0.22 * wm;
   const T = W.T, w = W.w, sn = W.snow, ice = W.ice;
-  const k = now ? 1 : 1 - Math.exp(-dt / 8), ks = now ? 0 : 1 - Math.exp(-dt / 25), SK = W.sunk;
+  const k = now ? 1 : 1 - Math.exp(-dt / 8);
   let sum = 0;
   for (const i of INS) {
-    SK[i] += (W.light[i] - SK[i]) * ks;   // 日ざしがたまる（25 秒でならす）。太陽が回っていれば大地の平均と同じくらい、止めると真下は 1・反対がわは 0 へ（v2）
-    const target = Tb + 9 * (W.light[i] - 0.5) + 14 * (SK[i] - (W.lavg || 0.6)) - 0.55 * Math.max(0, W.g[i] - 4);
+    const target = Tb + 9 * (W.light[i] - 0.5) - 0.55 * Math.max(0, W.g[i] - 4);
     T[i] += (target - T[i]) * k; sum += T[i];
     if (sn[i] > 0 && T[i] > 1) { const m = Math.min(sn[i], 0.004 * (T[i] - 1) * dt); sn[i] -= m; w[i] += m; }
     if (w[i] > 0.03 && T[i] < -1) ice[i] = 1; else if (T[i] > 0.5 || w[i] <= 0.03) ice[i] = 0;
@@ -173,12 +168,10 @@ const moonGround = () => ({ x: C + RS * Math.cos(W.moon.a), y: C + RS * Math.sin
 
 function updateLight() {
   const s = sunGround(), ek = 1 - 0.72 * eclipseK();
-  let sum = 0;
   for (const i of INS) {
     const d = Math.hypot(i % N - s.x, (i / N | 0) - s.y);
-    sum += W.light[i] = Math.min(1, Math.max(0.06, (1.25 - d / (1.25 * RD)) * W.sunAmp * ek));
+    W.light[i] = Math.min(1, Math.max(0.06, (1.25 - d / (1.25 * RD)) * W.sunAmp * ek));
   }
-  W.lavg = sum / INS.length;   // 大地全体の日ざしの平均（たまった日ざしの物さし。v2）
 }
 // 太陽と月の遊び（v020。2026-10-13 ユーザー「太陽と月をつかった遊びを入れる」）
 //   月と太陽の向きの差（-π〜π）。0 に近いと同じ側にそろう（潮はもとから月＋少し太陽なので、そろうと大きくなる＝大潮）
@@ -186,17 +179,12 @@ const sunMoonGap = () => Math.atan2(Math.sin(W.moon.a - W.sun.a), Math.cos(W.moo
 // 日食: 月が太陽にぴったり重なると、昼が暗くなる（ほうっておいても半月に一度ほど。月をつかんで重ねることもできる）
 const eclipseK = () => Math.max(0, 1 - Math.abs(sunMoonGap()) / 0.06);
 
-// 潮: 月のほうへ水が寄る。強さは月と太陽の向きで変わる（v2）: そろう（新月）か向かい合う（満月）と大潮、直角だと小潮。
-//   本当の潮も新月と満月に大潮になる（月と太陽の引く力が重なる）。ふちで ±0.6〜1.25
-const tideStr = () => 0.6 + 0.65 * Math.cos(sunMoonGap()) ** 2;
-const springTide = () => tideStr() > 1.12;
-const fullMoon = () => Math.abs(sunMoonGap()) > Math.PI - 0.8;      // 満月（月が太陽の向かいがわ）
-const isNight = i => W.light[i] < 0.38;                              // 太陽から遠い所が夜
+// 潮: 月（と少し太陽）のほうへ水が寄る。ふちで ±0.9 ほど
 let tcx = 0, tcy = 0;
 function tideCoef() {
-  const k = (W.knob ? W.knob.tide : 1) * tideStr();   // はじめの章は潮がおだやか（v011）
-  tcx = k * Math.cos(W.moon.a) / RD;
-  tcy = k * Math.sin(W.moon.a) / RD;
+  const k = W.knob ? W.knob.tide : 1;   // はじめの章は潮がおだやか（v011）
+  tcx = k * (0.9 * Math.cos(W.moon.a) + 0.35 * Math.cos(W.sun.a)) / RD;
+  tcy = k * (0.9 * Math.sin(W.moon.a) + 0.35 * Math.sin(W.sun.a)) / RD;
 }
 const tideAt = i => tcx * (i % N - C) + tcy * ((i / N | 0) - C);
 
@@ -272,7 +260,7 @@ function stepMoist(dt) {
     if (inside[i + 1] && m[i + 1] > nb) nb = m[i + 1];
     if (inside[i - N] && m[i - N] > nb) nb = m[i - N];
     if (inside[i + N] && m[i + N] > nb) nb = m[i + N];
-    m[i] = Math.max(W.T[i] > 30 ? m[i] * keep ** (1 + (W.T[i] - 30) * 0.4) : m[i] * keep, nb * 0.86);   // 暑い所は早く乾く（v2）
+    m[i] = Math.max(m[i] * keep, nb * 0.86);
   }
 }
 
@@ -288,24 +276,16 @@ function stepPlants(dt) {
       if (inside[i - 1]) nb += v[i - 1]; if (inside[i + 1]) nb += v[i + 1];
       if (inside[i - N]) nb += v[i - N]; if (inside[i + N]) nb += v[i + N];
       const tg = tempGrow(W.T[i]);
-      const lt = W.litter[i], grow = m[i] * L[i] * tg * (0.03 * v[i] * (1 - v[i]) + 0.0012 * nb) * fertGrow(i) / (1 + 2.5 * lt);   // 肥えた土ほどよく育つ（v2）。枯れ草が積もると芽が出にくい（v006）
-      const wither = (m[i] < 0.12 ? 0.012 : 0) + (W.T[i] < -2 ? 0.0015 : 0) + (W.T[i] > 35 ? 0.006 : 0);   // 乾くと、凍えると、焼けると枯れる
-      const age = 0.0035 * (0.3 + 0.7 * tg) * v[i];  // 草の入れかわり（v006）: 古い草は少しずつ枯れて枯れ草になり、また育つ（寒いと休む）。v016: 茂った草ほど早く（芽ばえたばかりのまばらな草は広がりやすい）
-      const dead = (wither + age) * v[i] * dt, dec = 0.003 * lt * (0.4 + 0.6 * m[i]) * Math.max(0.2, tg) * dt;
-      v[i] = Math.min(1, Math.max(0, v[i] + grow * dt - dead));
-      W.litter[i] = Math.max(0, lt + dead - dec);
-      // 肥え（v006。2026-10-14 ユーザー「メンテしないと草が減っていくバランスに」「適切なバランスなら維持」）:
-      //   肥えは消えない: 育つ草は肥えを体にとりこみ（草 1 につき 0.4）、枯れると枯れ草に、枯れ草がくさると土にもどる（ゆっくり。半分になるのに 4 日ほど）。
-      //   だから食べる者がいないと、肥えは枯れ草にためこまれ、枯れ草が芽をふさいで、草はだんだんまばらでわら色になる。
-      //   シカがほどよく食べると、枯れ草も食べて・ふみつけて（life.js）、ふんで早く土にもどり、草地は青いまま保たれる。食べすぎれば、草はなくなる
-      W.fert[i] = Math.min(3, Math.max(0, W.fert[i] + dec * 0.4 - Math.max(0, grow) * 0.4 * dt));
+      const grow = m[i] * L[i] * tg * (0.03 * v[i] * (1 - v[i]) + 0.0012 * nb);
+      const wither = (m[i] < 0.12 ? 0.012 : 0) + (W.T[i] < -2 ? 0.0015 : 0);   // 乾くと、凍えると枯れる
+      v[i] = Math.min(1, Math.max(0, v[i] + (grow - wither * v[i]) * dt));
     }
     if (W.tseed[i] < 0.07) {          // 木: 草が茂って乾いた所で育ち、草がなくなるか水につかると枯れる
       const tr = W.tree;
       if (v[i] > 0.6 && w[i] < 0.05 && W.g[i] < 13) tr[i] = Math.min(1, tr[i] + 0.004 * tempGrow(W.T[i]) * dt);
       else if (v[i] < 0.15 || w[i] > 0.3) tr[i] = Math.max(0, tr[i] - 0.02 * dt);
     }
-    if (w[i] > 0.08) a[i] = Math.min(1, a[i] + (0.035 * L[i] * Math.max(0.15, tempGrow(W.T[i] + 4)) * (a[i] * (1 - a[i]) + 0.01)) * fertGrow(i) * dt);   // 水の中は少し暖かい。水草も肥えで育つ（v2）
+    if (w[i] > 0.08) a[i] = Math.min(1, a[i] + (0.035 * L[i] * Math.max(0.15, tempGrow(W.T[i] + 4)) * (a[i] * (1 - a[i]) + 0.01)) * dt);   // 水の中は少し暖かい
     else a[i] = Math.max(0, a[i] - 0.3 * dt);
   }
 }
@@ -315,10 +295,9 @@ function spawnCloud(x, y, water) {
   if (W.clouds.length >= 24) {        // いっぱいなら近い雲に足す
     let best = null, bd = 1e9;
     for (const c of W.clouds) { const d = (c.x - x) ** 2 + (c.y - y) ** 2; if (d < bd) { bd = d; best = c; } }
-    best.water += water; return best;
+    best.water += water; return;
   }
-  const cl = { x, y, water, age: 0, seed: Math.random() * 100, rain: 0 };
-  W.clouds.push(cl); return cl;
+  W.clouds.push({ x, y, water, age: 0, seed: Math.random() * 100, rain: 0 });
 }
 function stepSky(dt) {
   // 霧（1秒ぶんずつ）
@@ -331,8 +310,7 @@ function stepSky(dt) {
       W.mist[b] += W.fallNow[b] * 0.3; W.fallNow[b] = 0;
       if (W.mist[b] > 8) {
         const an = (b + 0.5) / BINS * 2 * Math.PI;
-        const cl = spawnCloud(C + Math.cos(an) * (RD - 2), C + Math.sin(an) * (RD - 2), W.mist[b]); W.mist[b] = 0; W.flags.mist = 1;
-        mistCarries(cl);                                     // 深淵の命が、霧にのって雲へ（v2）
+        spawnCloud(C + Math.cos(an) * (RD - 2), C + Math.sin(an) * (RD - 2), W.mist[b]); W.mist[b] = 0; W.flags.mist = 1;
       }
     }
     if (W.vapor > 5) {             // 太陽の下あたりで雲になる
@@ -356,7 +334,6 @@ function stepSky(dt) {
     const q = Math.min(c.water, rate * dt);
     c.water -= q; c.rain = rate; rain += q;
     if (gh > 9 && q > 0.002) W.flags.mrain = 1;
-    rainCarries(c, dt, inside[ci] && q > 0.0005 * dt);   // のせた命が雨といっしょにおりる（v2）
     // 3×3 にふらせる（大地の外へふったら深淵へ）
     const per = q / 9;
     for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
@@ -364,7 +341,7 @@ function stepSky(dt) {
       if (cx + ox * 2 >= 0 && cx + ox * 2 < N && cy + oy * 2 >= 0 && cy + oy * 2 < N && inside[j]) { if (W.T[j] < 0) W.snow[j] += per; else w[j] += per; m[j] = 1; }   // 寒い所は雪
       else W.abyss += per;
     }
-    if (c.water < 0.25) { W.abyss += c.water; cloudGone(c); W.clouds.splice(k, 1); }
+    if (c.water < 0.25) { W.abyss += c.water; W.clouds.splice(k, 1); }
   }
   W.rainRate = W.rainRate * 0.95 + rain / Math.max(dt, 1e-3) * 0.05;
 }
@@ -423,20 +400,9 @@ function sow(cx, cy, rad = 3) {
     const i = y * N + x; if (x < 0 || y < 0 || x >= N || y >= N || !inside[i]) continue;
     if (Math.hypot(x - cx, y - cy) > rad || W.w[i] > 0.3) continue;
     if (W.veg[i] + W.sown[i] < 0.25) { W.sown[i] = 0.25 - W.veg[i]; n++; }
-    W.litter[i] *= 0.5;   // たねをまくときに枯れ草をかきわける（v006）
   }
   if (n) burst('seed', cx, cy, 5, rad * 0.9);
   return n;
-}
-
-// たねの実り（v014。2026-10-14 ユーザー「たねが無限に使えるのが気になる」→ おすすめの形で）: たねも命のつぼの中の数。
-//   夏の終わりから秋（年の 0.35〜0.8）に、1日ごと、草地の広さ 10% ごとに 1 袋がつぼにたまる（40 まで）。草を育てればたねがふえ、食べつくされた世界ではたねもへる
-function seedHarvest() {
-  if (!G.unlock || !G.unlock.seed) return 0;
-  const p = seasonPhase(); if (p < 0.3 || p > 0.8) return 0;
-  const gr = waterStats().grass, add = Math.min(STOCK_MAX.seed - W.stock.seed, Math.max(gr > 0.02 ? 2 : 0, Math.floor(gr * 20)));   // v016: 草地 5% ごとに 1 袋（少なくとも 2）   // 草地が少しでもあれば 1 袋
-  if (add > 0) { W.stock.seed += add; W.flags.seedgain = 1; }
-  return add;
 }
 
 function addSpring(cx, cy) {

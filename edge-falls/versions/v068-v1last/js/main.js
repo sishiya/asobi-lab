@@ -10,8 +10,6 @@ let accPlant = 0, accHist = 0, accSide = 0, prevCounts = null;
 // story=true: 章で遊ぶ（岩と土だけの大地から）。false: 自由な箱庭（いまある大地・全部そろう）
 function newGame(seed = (Math.random() * 1e9) | 0, story = true) {
   newWorld(seed, story); resetLife(); HIST.length = 0; G.mode = story ? 'story' : 'free';
-  if (ENDING) { ENDING = null; document.body.classList.remove('ending'); }   // エンディングのとちゅうで新しい世界にしたとき（v018）
-  LATER.length = 0;   // 前の世界で「少しあとで」と決めていたこと（次の年・エンディング）を持ちこさない（v018）
   V.yaw = Math.PI / 2 - W.bigFall + 0.35;   // いちばん大きな滝（はじめの章は湖のくぼみ）が手前に
   V.panX = V.panY = 0;
   G.sel = null; G.done = []; G.found = {}; G.did = {}; G.tipped = {}; G.unread = {}; MSGLOG.length = 0; clearSay();
@@ -36,19 +34,19 @@ function simulate(sec) {
     const h = Math.min(0.05, sec); sec -= h;
     const dayBefore = Math.floor(W.t / DAY);
     W.t += h;
-    stepHeavens(h); stepWater(h, false); stepEvap(h); stepSky(h); stepMotes(h); stepLife(h);
+    stepHeavens(h); stepWater(h, false); stepEvap(h); stepSky(h); stepLife(h);
     accPlant += h;
     if (accPlant >= 0.25) {
-      stepMoist(accPlant); stepPlants(accPlant); stepFert(accPlant); stepFarm(accPlant); stepWisdom(accPlant); updateLight(); stepClimate(accPlant); accPlant = 0;
+      stepMoist(accPlant); stepPlants(accPlant); updateLight(); stepClimate(accPlant); accPlant = 0;
       const se = seasonOf();
-      if (G.season !== undefined && se !== G.season) G.seasonMsg = se;   // 季節が変わった（知らせはループで）。春の命の贈りもの（springGift）は v017 でやめた（何も生まれない世界なので。命は深淵から帰る）
+      if (G.season !== undefined && se !== G.season) { G.seasonMsg = se; if (se === 0) springGift(); }   // 季節が変わった（知らせはループで）
       G.season = se;
     }
     accHist += h;
     if (accHist >= DAY / 2) { accHist = 0; recordHist(waterStats()); }
     if (Math.floor(W.t / DAY) !== dayBefore) {
       W.day = Math.floor(W.t / DAY) + 1;
-      dailySafety(); dailySpecies(); seedHarvest();
+      returnSouls();
       G.needSave = true;                    // 1日ごとに書きとめる（ループの中で）
     }
     if (!(G.ch % 1)) tickChapter(h, lastStats);
@@ -56,12 +54,26 @@ function simulate(sec) {
 }
 let lastStats = null;
 
-// 去った命がつぼへ戻るのは、v2 から cycle.js（光の粒が深淵から霧・雲・雨・泉を通って）。いなくなった種類の安全は dailySafety
+// 去った命が深淵からつぼへ戻る（1日ごと。v011）。いなくなった種類は、少なくとも1つ戻る（取り返しがつかないことは起きない）
+function returnSouls() {
+  let back = 0;
+  for (const k of ['deer', 'wolf', 'fish', 'bird']) {
+    if (!G.unlock[k]) { W.souls[k] = 0; continue; }
+    let n = Math.floor(W.souls[k]); W.souls[k] -= n;
+    if (L.counts[k] === 0 && W.stock[k] === 0 && n === 0) n = 1;
+    const room = STOCK_MAX[k] - W.stock[k], add = Math.min(room, n);
+    if (add > 0) { W.stock[k] += add; back += add; }
+  }
+  if (back) { W.flags.ret = 1; glowHand('deer'); }
+}
+function springGift() {
+  for (const k of ['deer', 'wolf', 'fish', 'bird']) if (G.unlock[k]) W.stock[k] = Math.min(STOCK_MAX[k], W.stock[k] + 1);
+}
 
 function checkWorld(dt) {
   const s = waterStats(); lastStats = s;
   // いなくなった知らせ（責めない）
-  for (const k of ['deer', 'wolf', 'fish', 'bird', 'human']) {
+  for (const k of ['deer', 'wolf', 'fish', 'bird']) {
     if (prevCounts[k] > 0 && L.counts[k] === 0) { toast(TX(KINDS[k].name + 'が いなくなった。命は深淵をめぐって、いつか命のつぼへ帰ってくる', `The ${KPL[k]} are gone. Their lives go round through the Abyss and come back to the Life Jar someday`), 5); Sound.play('extinct'); }
     prevCounts[k] = L.counts[k];
   }
@@ -73,19 +85,16 @@ function checkWorld(dt) {
   return s;
 }
 
-const SEASON_MSG = TX(['春になった。雪がとけ、草がまた伸びはじめる', '夏になった。太陽の道が内がわへ', '秋になった。草の伸びがおそくなる', '冬になった。太陽の道が外がわへ'],
-  ['Spring is here. The snow melts and the grass starts to grow again', 'It’s summer. The Sun’s path moves inward', 'It’s autumn. The grass grows more slowly', 'Winter is here. The Sun’s path moves outward']);
+const SEASON_MSG = TX(['春になった。雪がとけ、草がまた伸びはじめる。命のつぼにも命が一つずつ', '夏になった。太陽の道が内がわへ', '秋になった。草の伸びがおそくなる', '冬になった。太陽の道が外がわへ'],
+  ['Spring is here. The snow melts and the grass starts to grow again. One more of each life comes to the Life Jar', 'It’s summer. The Sun’s path moves inward', 'It’s autumn. The grass grows more slowly', 'Winter is here. The Sun’s path moves outward']);
 // 一度だけ出す説明（v034。2026-10-13 ユーザーの家族「深淵ってなに？」「ツボってなに？」）
 const ABYSS_TALK = TX('深淵は、この大地の下に広がる暗い海。滝から落ちた水はそこにたまり、また泉からわいてくる。水はめぐっている', 'The Abyss is the dark sea under this land. Water that falls off the edge collects there, then wells up again from the springs. Water goes round and round.');
 const JAR_TALK = TX('命のつぼには、この世界の命が入っている。去った命も、深淵をめぐって、ここへ帰ってくる', 'The Life Jar holds the lives of this world. Lives that pass away go round through the Abyss and come back here.');
 
 // ---- 入力 ----
-const RAD = { raise: 3.2, dig: 3.2, grass: 3, spring: 1.2, deer: 1, wolf: 1, fish: 1, bird: 1, human: 1 };
-const TOOLCOL = { raise: '#ffe9b0', dig: '#e8b48a', grass: '#b8e890', spring: '#bfe6ff', deer: '#e8c49a', wolf: '#c8ccd8', fish: '#ffc890', bird: '#e0e8f0', human: '#f0d0a8' };
+const RAD = { raise: 3.2, dig: 3.2, grass: 3, spring: 1.2, deer: 1, wolf: 1, fish: 1, bird: 1 };
+const TOOLCOL = { raise: '#ffe9b0', dig: '#e8b48a', grass: '#b8e890', spring: '#bfe6ff', deer: '#e8c49a', wolf: '#c8ccd8', fish: '#ffc890', bird: '#e0e8f0' };
 
-// 指で使うとき、効く所は指の少し上（指で隠れないように。v2。PLAYTEST #3）。マウスはそのまま
-const TOUCH_UP = 46;
-const toolPick = (p, touch) => pick(p.x, p.y - (touch ? TOUCH_UP : 0));
 function local(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
 function hitBody(p) {
   for (const k of ['sun', 'moon']) { const b = bodyHit[k]; if (b && Math.hypot(p.x - b.x, p.y - b.y) < b.r + 10) return k; }
@@ -114,8 +123,7 @@ function useTool(p, first) {
     if (Math.abs(m) > 0.05) burst(t, p.x, p.y, first ? 6 : 2, 2);      // 土がはねる・こぼれる（v056）
     G.did.soil = 1;
   } else if (t === 'grass') {
-    if (W.stock.seed <= 0) { if (first) { toast(TX('命のつぼに、たねがない。草が実る夏の終わりから秋に、草地からたねがたまる', 'No seeds left in the Life Jar. Seeds gather from the grassland as the grass ripens from late summer into autumn'), 5); Sound.play('no'); } }
-    else if (sow(p.x, p.y) > 0) { W.stock.seed--; syncHands(); if (first) Sound.play('sow'); }   // 1 回まくごとに 1 袋（v014）
+    if (sow(p.x, p.y) > 0 && first) Sound.play('sow');
   } else if (t === 'spring' && first) {
     const r = addSpring(p.x, p.y);
     if (r === 'max') { toast(TX('これ以上、泉はわかせられない。いらない泉に土を盛ってふさぐと、新しくわかせる', 'No more springs for now. Pile soil on a spring you don’t need to close it, and you can make a new one'), 4); Sound.play('no'); }
@@ -129,14 +137,6 @@ function useTool(p, first) {
     if (r === 'ok') { Sound.play('put'); syncHands(); }
     else if (first && RESULT[r]) { toast(RESULT[r]); Sound.play('no'); }
   }
-}
-
-// 太陽・月を止めたときのことば（v2）: はじめの2回は、何が起きるかを1文で。そのあとは短く
-function holdTalk(body, stop) {
-  if (!stop) return TX((body === 'sun' ? '太陽' : '月') + 'がまた動き出した', (body === 'sun' ? 'The Sun' : 'The Moon') + ' is moving again');
-  const n = G.did[body + 'Stop'] = (G.did[body + 'Stop'] || 0) + 1;
-  if (body === 'sun') return n <= 2 ? TX('太陽を止めた。真下は日ざしがたまって暑く乾き、反対がわは夜のまま冷えていく。シカは昼に食べ、オオカミは夜に狩る', 'You stopped the Sun. Right under it, sunlight builds up and the land gets hot and dry; the far side stays in night and grows cold. Deer eat by day, and wolves hunt by night') : TX('太陽を止めた', 'The Sun stopped');
-  return n <= 2 ? TX('月を止めた。水は月のほうへ寄ったまま。そちらのふちから、よけいにあふれる。新月と満月のころは潮が大きい（大潮）', 'You stopped the Moon. The water stays pulled toward it, and more spills over that edge. Tides are biggest around the new and full moon (spring tides)') : TX('月を止めた', 'The Moon stopped');
 }
 
 // 指が2本: 平行移動とピンチで寄る
@@ -169,9 +169,8 @@ cv.addEventListener('pointerdown', e => {
   if (e.button === 1 || e.shiftKey) { ptr.mode = 'pan'; cv.classList.add('grabbing'); return; }
   if (e.button === 2) { ptr.mode = 'view'; ptr.right = true; cv.classList.add('grabbing'); return; }
   if (b) { ptr.mode = 'body'; ptr.body = b; W[b].drag = true; Sound.play('grab'); G.did[b] = 1; return; }
-  const w = G.tool === 'look' || COL ? null : toolPick(p, e.pointerType === 'touch');
+  const w = G.tool === 'look' || COL ? null : pick(p.x, p.y);
   // 指: すぐには使わず少し待つ（2本目の指が来たら、泉を置いたりせずに回す・寄るだけにする。2026-10-13 ユーザー）
-  if (w) { hover = { x: w.x, y: w.y, z: w.z, r: RAD[G.tool], color: TOOLCOL[G.tool] }; ptr.touch = e.pointerType === 'touch'; }
   if (w) { ptr.mode = 'tool'; ptr.w = w; if (e.pointerType === 'touch') ptr.wait = 0.12; else useTool(w, true); }
   else { ptr.mode = 'view'; cv.classList.add('grabbing'); }
 });
@@ -194,7 +193,6 @@ cv.addEventListener('pointermove', e => {
     const dx = p.x - ptr.x, dy = p.y - ptr.y;
     ptr.moved += Math.abs(dx) + Math.abs(dy); ptr.x = p.x; ptr.y = p.y;
     if (ptr.mode === 'view') {
-      if (ptr.moved > 12) G.follow = null;
       V.yaw -= dx * 0.008;                                            // 手前の地面が手の動きについてくる向き（2026-10-12 ユーザー「逆かも」）
       V.tilt = Math.max(0.32, Math.min(0.92, V.tilt + dy * 0.002));   // 下へ引くと真上から見る向きへ（2026-10-12 ユーザー「上下も逆かも」）
       layout(V.cw, V.ch);
@@ -202,10 +200,10 @@ cv.addEventListener('pointermove', e => {
     }
     else if (ptr.mode === 'pan') panBy(dx, dy);
     else if (ptr.mode === 'body') { W[ptr.body].a = bodyAngle(p); updateLight(); }
-    else if (ptr.mode === 'tool') { const w = toolPick(p, ptr.touch); if (w) ptr.w = w; }
+    else if (ptr.mode === 'tool') { const w = pick(p.x, p.y); if (w) ptr.w = w; }
   }
   if (G.tool !== 'look' && !COL && (!ptr || ptr.mode === 'tool')) {
-    const w = toolPick(p, e.pointerType === 'touch');
+    const w = pick(p.x, p.y);
     hover = w ? { x: w.x, y: w.y, z: w.z, r: RAD[G.tool], color: TOOLCOL[G.tool] } : null;
   } else hover = null;
 });
@@ -216,7 +214,7 @@ function endPtr(e) {
   if (ptr.mode === 'tool' && ptr.wait > 0 && e.type === 'pointerup') useTool(ptr.w, true);   // 指ですばやく押した
   if (ptr.mode === 'body') {
     const b = W[ptr.body]; b.drag = false;
-    if (ptr.moved < 6) { b.stop = !b.stop; Sound.play('pin'); toast(holdTalk(ptr.body, b.stop), b.stop ? 6 : 3); }
+    if (ptr.moved < 6) { b.stop = !b.stop; Sound.play('pin'); toast(TX((ptr.body === 'sun' ? '太陽' : '月') + (b.stop ? 'を止めた' : 'がまた動き出した'), (ptr.body === 'sun' ? 'The Sun ' : 'The Moon ') + (b.stop ? 'stopped' : 'is moving again'))); }
     else Sound.play('release');
   }
   else if (ptr.mode === 'view' && ptr.moved < 6 && !COL && !ptr.right) {          // 手があいているとき押した: 近くの生き物の札を出す
@@ -224,11 +222,9 @@ function endPtr(e) {
     let best = null, bd = 2.2 * 2.2;
     if (w) for (const a of L.list) { const d = (a.x - w.x) ** 2 + (a.y - w.y) ** 2; if (d < bd) { bd = d; best = a; } }
     G.sel = best; if (best) Sound.play('click'); updateCard();
-    if (!best && !G.hand) { const m = pickMote(ptr.x, ptr.y); if (m) { G.follow = m; Sound.play('click'); toast(TX('命の光を追う', 'Following the light of life'), 3); W.flags.follow = 1; } }   // 光の粒を押すと追う（v2）
     if (G.hand && !w) { setHand(null); Sound.play('release'); }   // 何もない空を押すと手放す（2026-10-13 ユーザー）
   }
   cv.classList.remove('grabbing');
-  if (ptr.touch) hover = null;   // 指をはなしたら輪を消す
   ptr = null;
 }
 cv.addEventListener('pointerup', endPtr);
@@ -321,13 +317,13 @@ function frame(now) {
   if (!(G.started && G.speed === 0 && !COL)) animT += dt * (COL || !G.started ? 1 : ANIM_RATE[G.speed] ?? 1);
   const t = animT;
   if (!V.cw) resize();
-  moveByKeys(dt); stepLater(dt); stepEnding(dt); stepFollow(dt);
+  moveByKeys(dt); stepLater(dt); stepEnding(dt);
   if (G.started && G.speed > 0 && !COL) simulateWithin(dt * G.speed);
   if (ptr && ptr.mode === 'tool') {
     if (ptr.wait > 0) { ptr.wait -= dt; if (ptr.wait <= 0) useTool(ptr.w, true); }   // 指: 1本のままなら使いはじめる
     else if (G.tool !== 'spring') {
       ptr.t += dt;
-      const every = KINDS[G.tool] ? 0.3 : G.tool === 'grass' ? 0.15 : 0.05;   // たねは 1 秒に 7 袋ほど（v014）
+      const every = KINDS[G.tool] ? 0.3 : 0.05;
       if (ptr.t >= every) { ptr.t = 0; useTool(ptr.w, false); }
     }
   }
@@ -354,11 +350,9 @@ function start() {
   const go = fn => () => { document.body.classList.remove('titling'); fn(); };
   const fresh = go(() => { if (W.t > 0 || L.list.length) newGame(); G.started = true; enterChapter(0); noteWorld(true); });
   const freeBtn = { label: TX('自由な箱庭', 'Free Garden'), sub: free ? worldWhere(free) : '', fn: free ? () => playWorld('free') : go(() => { newGame(undefined, false); G.started = true; syncHands(); noteWorld(true); }) };
-  showPanel(TX(`<h2 class="title">果ての滝の箱庭 <span class="two">2</span></h2>
-    <p class="ver">ver. 2.0 試作 — めぐる命</p>
+  showPanel(TX(`<h2 class="title">果ての滝の箱庭</h2>
     <p class="sub">深淵に浮かぶ、平らな大地。<br>川は、世界の果てから滝になって落ちていく。</p>
-    <p class="sub">何も生まれず、何も消えない。ただ、めぐるだけ。</p>`, `<h2 class="title">Edge Falls Garden <span class="two">2</span></h2>
-    <p class="ver">ver. 2.0 prototype — Lives Go Round</p>
+    <p class="sub">何も生まれず、何も消えない。ただ、めぐるだけ。</p>`, `<h2 class="title">Edge Falls Garden</h2>
     <p class="sub">A flat land floating over the Abyss.<br>Rivers fall from the edge of the world as waterfalls.</p>
     <p class="sub">Nothing is made, nothing is lost. It only turns.</p>`),
     story ? [{ label: TX('つづきから', 'Continue'), sub: worldWhere(story), main: true, fn: () => playWorld('story') },

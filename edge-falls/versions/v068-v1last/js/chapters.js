@@ -17,40 +17,6 @@ function geneMove() {
   G.gwhat = what;
   return best;
 }
-// 進化の章（v2）: 3つのきびしさから1つ選ぶ。どれも空か命のつぼの手につながる（オオカミ＝命のつぼ、寒さ＝太陽、潮＝月）
-const GPICK = {
-  'deer.speed': { kind: 'deer', gene: 'speed', label: TX('逃げ足（オオカミ）', 'Quick legs (wolves)'),
-    sub: TX('オオカミに追われると、足の速いシカが生き残る', 'When wolves chase them, the faster deer survive'),
-    hint: TX('オオカミの多い所では、足の遅いシカがつかまる。シカのむれのそばにオオカミを放す。札の「はじめの姿」とくらべると、足が長くなっていく。', 'Where there are many wolves, slow deer get caught. Release wolves near the herd. Compare with the “first form” on an animal’s card: the legs get longer.'),
-    gift() { W.stock.wolf = Math.min(STOCK_MAX.wolf, W.stock.wolf + 2); return TX('命のつぼに、オオカミが帰ってきた', 'Wolves came back to the Life Jar'); } },
-  'deer.size': { kind: 'deer', gene: 'size', label: TX('寒さに強い体（太陽）', 'Bodies for the cold (Sun)'),
-    sub: TX('寒い所では、体の大きなシカが冬をこす', 'In the cold, bigger deer get through the winter'),
-    hint: TX('大きな体は熱を逃がしにくい。太陽を止めると、反対がわは夜のまま冷える。シカをそちらの草地に。冬もきびしい。', 'A big body keeps its heat. Stop the Sun and the far side stays cold in the night. Put deer on the grass over there. Winter is hard too.'),
-    gift() { W.knob.winter = 1.35; return TX('この冬は、ひときわ寒くなる', 'This winter will be especially cold'); } },
-  'fish.size': { kind: 'fish', gene: 'size', label: TX('大きなサカナ（月）', 'Big fish (Moon)'),
-    sub: TX('大潮で浅瀬が広がると、サギにのみこまれにくい大きなサカナが生き残る', 'When spring tides widen the shallows, big fish that herons can’t swallow survive'),
-    hint: TX('サギは浅瀬で小さなサカナをとる。新月と満月のころの大潮には浅瀬が広がって、狩りがさかんになる。月を寄せたり止めたりして、サギのいる湖に潮を寄せる。', 'Herons catch small fish in the shallows. At the spring tides of the new and full moon, the shallows widen and the hunting picks up. Move or stop the Moon to pull the tide toward a lake with herons.'),
-    gift() { W.knob.tide = 1.4; W.stock.bird = Math.min(STOCK_MAX.bird, W.stock.bird + 1); return TX('潮が大きくなり、命のつぼにサギが帰ってきた', 'The tides grew bigger, and a heron came back to the Life Jar'); } },
-};
-const gpickOf = () => GPICK[G.gpick] || null;
-// えらんだ遺伝子の平均が、章に入ったときより上がった分（8 匹以上いるときだけ）
-function pickMove() {
-  const p = gpickOf(); if (!p || L.counts[p.kind] < 8) return 0;
-  const g = geneStats(p.kind), b = (G.gbase || {})[p.kind];
-  return Math.max(0, g[p.gene] - (b && b[p.gene] !== undefined ? b[p.gene] : 0.5));
-}
-// again: 選びなおし（v006。2026-10-14 ユーザー「第九、条件の変更できるように」）。お題の札を押すといつでも。選びなおすと、そのときの平均から数えなおす
-function chooseGene(after, again) {
-  const was = G.speed; setSpeed(0);
-  const cur = gpickOf();
-  showPanel(again ? TX(`<p class="mtitle">きびしさを選びなおす</p><p class="small center">いまは「${cur.label}」。選びなおすと、いまの平均から数えなおす</p>`, `<p class="mtitle">Choose the hardship again</p><p class="small center">Now: “${cur.label}”. If you change it, counting starts again from the current average</p>`)
-    : TX('<p class="mtitle">どのきびしさで、体を変える？</p><p class="small center">選んだ遺伝子の平均を、いまより 0.06 上げる（あとで選びなおせる）</p>', '<p class="mtitle">Which hardship will change their bodies?</p><p class="small center">Raise the average of the chosen gene by 0.06 from now (you can change it later)</p>'),
-    [...Object.entries(GPICK).filter(([id]) => !again || id !== G.gpick).map(([id, p], n) => ({ label: p.label, sub: p.sub, main: !again && n === 0, fn: () => { G.gpick = id; G.gbase = geneBase(); G.helped = Math.min(G.helped, 1); G.chT = Math.min(G.chT, DAY * 4); setSpeed(was || 1); toast(TX(`「${p.label}」を選んだ。${p.sub}`, `You chose “${p.label}”. ${p.sub}`), 7); after && after(); } })),
-     ...(again ? [{ label: TX('このまま', 'Keep it'), main: true, fn: () => setSpeed(was || 1) }] : [])]);
-  $('panel').classList.add('menu', 'world');
-  if (again) G.panelBack = () => { $('overlay').hidden = true; setSpeed(was || 1); };
-}
-const winterDays = () => Math.ceil(((0.75 - seasonPhase() + 1) % 1) * YEAR);   // 冬まで何日（v018）
 const springDays = () => {   // 冬の章: 次の春まで何日
   const p = seasonPhase(), left = (1 - p) % 1;
   return Math.ceil(left * YEAR);
@@ -75,10 +41,10 @@ const CHAPTERS = [
   },
   {
     key: 'grass', name: TX('草', 'Grass'), title: TX('草の原', 'A grassy plain'), text: TX('草が大地の 25% をおおうようにする', 'Cover 25% of the land with grass'), goal: 25, unit: '%',
-    gives: { seed: 1 }, arrive: TX('「命のつぼ」に、草のたねが 40 袋来た。草が実る夏の終わりから秋には、草地からまたたまる', '40 bags of grass seeds came to the “Life Jar”. More gather from the grassland as it ripens from late summer into autumn'),
+    gives: { seed: 1 }, arrive: TX('「命のつぼ」に、草のたねが来た', 'Grass seeds came to the “Life Jar”'),
     prog: s => Math.round(s.grass * 100), knob: { winter: 0, tide: 0.35 },
     hint: TX('草は水のそばでよく育ち、となりへ広がる。水につかりすぎると枯れる。たねは、なぞるように広くまく。', 'Grass loves being near water and spreads to its neighbors, but too much water drowns it. Sow the seeds by sweeping your finger across the land.'),
-    gift() { let n = 0; for (const i of INS) if (W.moist[i] > 0.6 && W.w[i] < 0.2 && W.veg[i] < 0.25 && n < 400 && Math.random() < 0.3) { W.veg[i] = 0.3; n++; } W.stock.seed = Math.min(STOCK_MAX.seed, W.stock.seed + 15); return TX('風が、たねを水辺へ運んできた。命のつぼにも、たねが少し', 'The wind carried seeds to the water’s edge, and a few came to the Life Jar'); },
+    gift() { let n = 0; for (const i of INS) if (W.moist[i] > 0.6 && W.w[i] < 0.2 && W.veg[i] < 0.25 && n < 400 && Math.random() < 0.3) { W.veg[i] = 0.3; n++; } return TX('風が、たねを水辺へ運んできた', 'The wind carried seeds to the water’s edge'); },
     truth: TX('本当の地球でも、植物は水辺から陸へ広がった。陸に植物がふえてから、虫や、のちに四本足の動物が陸に上がった。', 'On the real Earth too, plants spread from the water’s edge onto land. After plants spread on land, insects, and later four-legged animals, came up onto land.'),
   },
   {
@@ -90,10 +56,10 @@ const CHAPTERS = [
     truth: TX('食べる者がいないと、シカはふえすぎて草や若い木を食べつくすことがある。日本の各地でも、シカがふえて森の下草がなくなる問題が起きている。', 'With nothing to eat them, deer can grow too many and eat all the grass and young trees. In many parts of Japan, deer have increased so much that forests are losing their undergrowth.'),
   },
   {
-    key: 'winter', name: TX('冬', 'Winter'), title: TX('冬をこす', 'Through the winter'), get text() { return seasonOf() === 3 ? TX('シカ 10 頭以上で、冬をこして春をむかえる', 'Get through the winter to spring with 10 or more deer') : TX(`冬まで あと ${winterDays()} 日。冬の草をたくわえ、シカ 10 頭以上で春をむかえる`, `${winterDays()} days until winter. Store up grass for winter, and reach spring with 10 or more deer`); }, goal: 1, unit: '',
+    key: 'winter', name: TX('冬', 'Winter'), title: TX('冬をこす', 'Through the winter'), text: TX('シカ 10 頭以上で、冬をこして春をむかえる', 'Get through the winter to spring with 10 or more deer'), goal: 1, unit: '',
     gives: {}, arrive: TX('季節がはっきりしてきた。この冬は、きびしくなる', 'The seasons are getting clearer. This winter will be harsh'),
     prog: () => G.winterOk ? 1 : 0, show: () => L.counts.deer >= 10 ? TX(`春まで ${springDays()} 日`, `${springDays()} days until spring`) : TX('シカが 10 頭より少ない', 'Fewer than 10 deer'), knob: { winter: 1, tide: 0.35 },
-    hint: TX('冬は草が育たない。秋にシカが増えすぎると、冬に食べものが足りなくなる。太陽をシカの草地の上で止めると、日ざしがたまってそこだけ暖かい（そのかわり反対がわは凍る）。', 'Grass doesn’t grow in winter. Too many deer in autumn means too little food in winter. Stop the Sun over the deer’s grassland and the sunlight builds up to keep just that place warm (but the far side freezes).'),
+    hint: TX('冬は草が育たない。秋にシカが増えすぎると、冬に食べものが足りなくなる。低くて暖かい草地を残しておく（山の上や夜のがわは寒い）。', 'Grass doesn’t grow in winter. Too many deer in autumn means too little food in winter. Keep some low, warm grassland. Mountaintops and the night side are cold.'),
     gift() { W.knob.winter = 0.6; return TX('この冬は、少しやわらいだ', 'This winter got a little milder'); },
     truth: TX('本当のシカも、冬は動きをへらし、体の熱をむだにしないで過ごす。寒い所のなかまほど体が大きい傾向（ベルクマンの規則）も見られる。', 'Real deer also move less in winter to save their body heat. Animals of the same group also tend to be bigger in colder places (Bergmann’s rule).'),
   },
@@ -117,17 +83,17 @@ const CHAPTERS = [
     key: 'bird', name: TX('サギ', 'Herons'), title: TX('水辺の狩り', 'Hunting at the water’s edge'), text: TX('サギ 3 羽以上とサカナ 15 匹以上が、いっしょに 5 日つづく', '3 or more herons and 15 or more fish live together for 5 days'), goal: 5, unit: TX('日', ' days'),
     gives: { bird: 1 }, arrive: TX('命のつぼに、サギが来た。浅い水に立って、サカナをとる鳥', 'Herons came to the Life Jar. They are birds that stand in shallow water and catch fish'), streak: () => L.counts.bird >= 3 && L.counts.fish >= 15,
     prog: () => Math.floor(G.streak), knob: { winter: 1, tide: 1 },
-    hint: TX('サギがとれるのは浅いところのサカナだけ。新月と満月のころの大潮には浅瀬が広がって、サギがよくとる。とりすぎるときは、月を太陽と直角の向きへ（小潮）。', 'Herons can only catch fish in the shallows. At the spring tides of the new and full moon the shallows widen and herons catch plenty. If they catch too many, move the Moon to a right angle from the Sun (neap tide).'),
+    hint: TX('サギがとれるのは浅いところのサカナだけ。深い湖はサカナのかくれ場所、浅瀬はサギの狩り場。月を寄せると、潮で浅瀬が動く。', 'Herons can only catch fish in the shallows. Deep water hides the fish; the shallows are the herons’ hunting ground. Bring the Moon closer and the tide moves the shallows.'),
     gift() { W.stock.fish = Math.min(STOCK_MAX.fish, W.stock.fish + 6); W.stock.bird = Math.min(STOCK_MAX.bird, W.stock.bird + 1); return TX('命のつぼに、サカナとサギが帰ってきた', 'Fish and herons came back to the Life Jar'); },
     truth: TX('アオサギは、浅い水に何十分もじっと立って魚を待ち、くちばしで一気にとらえる。深い所の魚には届かない。', 'A grey heron can stand still in shallow water for many minutes waiting for a fish, then catch it with one quick strike of its beak. It can’t reach fish in deep water.'),
   },
   {
-    key: 'genes', name: TX('進化', 'Evolution'), title: TX('体が変わる', 'Bodies change'), text: TX('選んだきびしさで、体のつくりを変える', 'Use the hardship you chose to change how bodies are built'), goal: 6, unit: '', show: v => (v / 100).toFixed(2),
-    gives: { genes: 1 }, arrive: TX('観察帳に「遺伝子」の頁がひらいた。生き物は、親から子へ体のつくりを伝える。どのきびしさで体を変えるか、選ぶ', 'The “Genes” page opened in the Field Notes. Living things pass the shape of their bodies from parents to young. Choose which hardship will change their bodies'), knob: { winter: 1, tide: 1 },
-    prog: () => Math.round(pickMove() * 100),
-    get hint() { return (GPICK[G.gpick] || GPICK['deer.speed']).hint; },
-    gift() { return (GPICK[G.gpick] || GPICK['deer.speed']).gift(); },
-    truth: TX('生き残りやすい性質が子に伝わって積み重なり、生き物が変わっていく（自然選択。ダーウィンとウォレスが 1858 年に発表）。一匹の体が変わるのではなく、群れの中の割合が変わる。本当の進化はふつう何百〜何万世代もかかる。この箱庭ではずっと速くしている。', 'Traits that help survival are passed to young and add up, so living things change (natural selection, published by Darwin and Wallace in 1858). No single animal’s body changes; what changes is how common each trait is in the group. Real evolution usually takes hundreds to tens of thousands of generations. This garden makes it much faster.'),
+    key: 'genes', name: TX('進化', 'Evolution'), title: TX('体が変わる', 'Bodies change'), text: TX('生き物の遺伝子のどれか1つの平均を、いまより 0.08 動かす', 'Move the average of any one animal gene by 0.08 from where it is now'), goal: 8, unit: '', show: v => (v / 100).toFixed(2),
+    gives: { genes: 1 }, arrive: TX('観察帳に「遺伝子」の頁がひらいた。生き物は、親から子へ体のつくりを伝える', 'The “Genes” page opened in the Field Notes. Living things pass the shape of their bodies from parents to young'), knob: { winter: 1, tide: 1 },
+    prog: () => Math.round(geneMove() * 100),
+    hint: TX('きびしさに合ったものが生き残って子を残す。追われるシカは足が速く、流れの中のサカナは泳ぎが強くなっていく。観察帳の「遺伝子」の頁で見られる。', 'Those that fit the hard times survive and have young. Chased deer get faster; fish in currents swim stronger. You can watch it on the “Genes” page of the Field Notes.'),
+    gift() { W.stock.wolf = Math.min(STOCK_MAX.wolf, W.stock.wolf + 1); return TX('命のつぼに、オオカミが帰ってきた', 'A wolf came back to the Life Jar'); },
+    truth: TX('生き残りやすい性質が子に伝わって積み重なり、生き物が変わっていく（自然選択。ダーウィンとウォレスが 1858 年に発表）。本当の進化はふつう何百〜何万世代もかかる。この箱庭ではずっと速くしている。', 'Traits that help survival are passed to young and add up, so living things change (natural selection, published by Darwin and Wallace in 1858). Real evolution usually takes hundreds to tens of thousands of generations. This garden makes it much faster.'),
   },
   {
     key: 'cycle', name: TX('めぐる世界', 'The Turning World'), title: TX('めぐる世界', 'The Turning World'), text: TX('草・シカ・オオカミ・サカナ・サギが、そろって1年（16 日）つづく', 'Grass, deer, wolves, fish and herons all last together for one year (16 days)'), goal: 16, unit: TX('日', ' days'),
@@ -147,7 +113,7 @@ const yearOf = n => TX(YEARNAME[n] + 'の年', 'Year ' + YEAR_EN[n]);   // 「�
 function unlockedAt(n) {
   const u = {};
   for (let k = 0; k <= Math.min(n, CHAPTERS.length - 1); k++) Object.assign(u, CHAPTERS[k].gives);
-  if (n >= CHAPTERS.length) Object.assign(u, { water: 1, soil: 1, seed: 1, deer: 1, wolf: 1, fish: 1, bird: 1, genes: 1, human: 1 });   // ヒトは十の年のあと（v2）
+  if (n >= CHAPTERS.length) Object.assign(u, { water: 1, soil: 1, seed: 1, deer: 1, wolf: 1, fish: 1, bird: 1, genes: 1 });
   return u;
 }
 const isFree = () => G.ch >= CHAPTERS.length;
@@ -160,7 +126,7 @@ function stepLater(dt) { for (let k = LATER.length - 1; k >= 0; k--) { LATER[k].
 // 章に入る（つまみ・つぼの中身・ことば）。quiet=true は読みこんだとき
 function enterChapter(n, quiet) {
   G.ch = n; G.chT = 0; G.streak = 0; G.helped = 0; G.spots = null; G.spotT = 0; G.winterOk = false; G.winterSeen = false;
-  if (CHAPTERS[n] && CHAPTERS[n].key === 'genes' && !quiet) { G.gbase = geneBase(); G.gpick = null; }
+  if (CHAPTERS[n] && CHAPTERS[n].key === 'genes' && !quiet) G.gbase = geneBase();
   const prevU = G.unlock || {};
   G.unlock = unlockedAt(n);
   const c = CHAPTERS[n];
@@ -168,31 +134,15 @@ function enterChapter(n, quiet) {
   G.goal = c ? (c.rel ? Math.max(c.goal, Math.round(c.prog(waterStats()) + c.rel)) : c.goal) : 0;
   if (c) Object.assign(W.knob, c.knob);
   else W.knob = { winter: 1, tide: 1 };
-  for (const k of ['deer', 'wolf', 'fish', 'bird', 'seed']) if (G.unlock[k] && !prevU[k] && !quiet) W.stock[k] = STOCK_START[k];
+  for (const k of ['deer', 'wolf', 'fish', 'bird']) if (G.unlock[k] && !prevU[k] && !quiet) W.stock[k] = STOCK_START[k];
   if (!quiet && c) {
-    yearCard(n, c, () => {
-      if (c.key === 'grass') toast(JAR_TALK, 6);       // 命のつぼとは（v034。ユーザーの家族「ツボってなに？」）
-      if (c.key === 'genes' && !G.gpick) later(0.6, () => { if (CHAPTERS[G.ch] && CHAPTERS[G.ch].key === 'genes' && !G.gpick && !ENDING) chooseGene(); });
-    });
+    chapterLine(TX(`${yearOf(n)}　${c.name}`, `${yearOf(n)}: ${c.name}`), c.arrive);
+    if (c.key === 'grass') toast(JAR_TALK, 6);         // 命のつぼとは（v034。ユーザーの家族「ツボってなに？」）
     Sound.play('spring');
     const newKey = Object.keys(c.gives)[0];
     if (newKey) glowHand(newKey);
   }
   syncHands();
-}
-
-// 年の札（v009。2026-10-14 ユーザー「シティーズスカイラインのように、いったん時間をとめて、年が変わったときのメッセージをきちんとみせ、
-//   任意で閉じない限り先に進まないように。そのうえで時間をふつうに戻す」）: 時を止めて、年の名前・来たもの・お題を一枚の札に。
-//   「年をはじめる」（Esc・札の外を押す でも）で閉じると、時はふつうの速さで動き出す（速くしていても ×1 にもどる。札には書かない。v015）
-function yearCard(n, c, after) {
-  logMsg(c.arrive, TX(`${yearOf(n)}　${c.name}`, `${yearOf(n)}: ${c.name}`));
-  setSpeed(0);
-  const close = () => { $('overlay').hidden = true; setSpeed(1); after && after(); };
-  showPanel(TX(`<p class="ytitle"><small>${yearOf(n)}</small><b>${c.name}</b></p><p class="yarrive">${c.arrive}</p><div class="ygoal"><span>この年のお題</span><b>${c.title}</b><p>${c.text}</p></div>`,
-    `<p class="ytitle"><small>${yearOf(n)}</small><b>${c.name}</b></p><p class="yarrive">${c.arrive}</p><div class="ygoal"><span>This year’s goal</span><b>${c.title}</b><p>${c.text}</p></div>`),
-    [{ label: TX('年をはじめる', 'Begin the year'), main: true, fn: () => close() }], 'yearcard');   // v015: 「つづける」はシステムっぽいので（ユーザー）
-  $('panel').classList.add('world');
-  G.panelBack = close;
 }
 
 // ヒントのはしごの 1 段目: 関係のある所がかすかに光る（2日目から6日目まで。半日ごとに選びなおす）
@@ -236,7 +186,7 @@ function finishChapter() {
   const n = G.ch, c = CHAPTERS[n];
   G.done = G.done || [];
   G.done[n] = { day: W.day };
-  if (c.key === 'genes' && gpickOf()) G.done[n].what = gpickOf().label;
+  if (c.key === 'genes' && G.gwhat) G.done[n].what = G.gwhat;
   Sound.play('win');
   addPage('ch' + n);
   if (n + 1 < CHAPTERS.length) {
@@ -285,15 +235,13 @@ function endingPanel() {
     <p class="truth"><b>What is really true:</b> the land is a round ball (the Earth). Weight always pulls toward the center of the ball, so the sea never falls off an edge. Water goes from the sea to the clouds, from the clouds to the rain, and from the rivers back to the sea. What falls away is, somewhere, turning around again.</p>
     <p class="small">Timeline of your world</p><ul class="chron">${rows}</ul>
     <p class="small">Discoveries: ${found} / ${FINDS.length}. Newest generation: ${newest}.</p>`),
-  [{ label: TX('世界の版画をつくる', 'Make a World Print'), fn: () => openPrints(endingPanel) }, { label: TX('自由な箱庭へ', 'On to the Free Garden'), main: true, fn: endEnding }]);
+  [{ label: TX('世界の版画をのこす', 'Make a World Print'), fn: () => openPrints(endingPanel) }, { label: TX('自由な箱庭へ', 'On to the Free Garden'), main: true, fn: endEnding }]);
   $('panel').classList.add('world', 'ending');
 }
 function endEnding() {
   ENDING = null; document.body.classList.remove('ending');
   noteWorld(true);
-  if (!W.stock.human && !humanCount()) W.stock.human = STOCK_START.human;
-  toast(TX('ここからは自由な箱庭。命のつぼに、ヒトが来た。ヒトは知恵で、世界を変えていく', 'From here on, it’s a Free Garden. Humans came to the Life Jar. Humans change the world with their wisdom'), 8);
-  glowHand('human');
+  toast(TX('ここからは自由な箱庭。命のつぼの中身は、ぜんぶ使える', 'From here on, it’s a Free Garden. Everything in the Life Jar is yours to use'), 6);
 }
 
 // 章とお題の1行（上のまんなか）
@@ -302,43 +250,12 @@ function questLine(s) {
   if (!G.started || COL) { el.hidden = true; return; }
   el.hidden = false;
   if (isFree()) { $('qTitle').textContent = TX('自由な箱庭', 'Free Garden'); $('qText').textContent = ''; $('qBar').style.width = '0'; el.classList.add('free'); return; }
-  el.classList.remove('free', 'ask', 'pick');
+  el.classList.remove('free');
   const c = CHAPTERS[Math.floor(G.ch)];
+  if (c && c.key === 'genes' && G.gwhat && !(G.ch % 1)) $('quest').title = G.gwhat;
   if (G.ch % 1) { $('qTitle').textContent = yearOf(Math.floor(G.ch)); $('qText').textContent = c.title + TX(' — できた', ' — done'); $('qBar').style.width = '100%'; return; }
   const v = c.prog(s), fmt = c.show || (x => x);
   $('qTitle').textContent = TX(`${yearOf(G.ch)}　${c.title}`, `${yearOf(G.ch)}: ${c.title}`);
-  if (c.key === 'genes') {   // 進化の章（v2）: 選んだ遺伝子の名前と、平均の動き
-    const p = gpickOf();
-    el.classList.toggle('ask', !p); el.classList.add('pick');
-    if (!p) { $('qText').textContent = TX('どのきびしさで体を変えるか、選ぶ（お題の札を押す）', 'Choose which hardship will change their bodies (press the goal)'); $('qBar').style.width = '0'; return; }
-    const name = GENES[p.kind].find(([k]) => k === p.gene)[1], g = geneStats(p.kind)[p.gene], b = ((G.gbase || {})[p.kind] || {})[p.gene] ?? 0.5;
-    $('qText').textContent = L.counts[p.kind] < 8 ? TX(`${KINDS[p.kind].name}を 8 匹以上に（いま ${L.counts[p.kind]}）`, `Get 8 or more ${KPL[p.kind]} (now ${L.counts[p.kind]})`)
-      : TX(`${KINDS[p.kind].name}の${name}の平均 ${b.toFixed(2)} → ${g.toFixed(2)}（目標 ${(b + 0.06).toFixed(2)}）`, `${KINDS[p.kind].name} ${name.toLowerCase()} average ${b.toFixed(2)} → ${g.toFixed(2)} (goal ${(b + 0.06).toFixed(2)})`);
-    $('qBar').style.width = Math.min(100, v / G.goal * 100) + '%'; return;
-  }
-  if (c.key === 'winter') {   // 冬の年（v018。気になること 4「冬が来るまで待つだけ」）: 冬までは、冬にそなえる（草 20%・シカ 10）を見せ、そろったら時を速めて待てると言う
-    const gr = Math.round(s.grass * 100), d = L.counts.deer, ready = gr >= 20 && d >= 10;
-    if (!G.winterSeen && seasonOf() !== 3) {
-      $('qText').textContent = ready ? TX(`そなえはできた。冬まで あと ${winterDays()} 日（天の輪の下の ›› で時を速めて待てる）`, `Ready for winter. ${winterDays()} days to go (speed up time with ›› under the Sky Dial)`)
-        : TX(`冬まで あと ${winterDays()} 日。冬にそなえる（草 ${gr}% ／ 20%・シカ ${d} ／ 10）`, `${winterDays()} days until winter. Prepare (grass ${gr}% / 20%, deer ${d} / 10)`);
-      if (ready && !G.tipped.wwait && G.speed === 1) { G.tipped.wwait = 1; toast(TX('冬へのそなえができた。冬が来るまで、天の輪の下の ›› で時を速めて待てる', 'You are ready for winter. Until it comes, you can speed up time with ›› under the Sky Dial'), 6); }
-      $('qBar').style.width = Math.min(45, (Math.min(1, gr / 20) + Math.min(1, d / 10)) * 22.5) + '%'; return;
-    }
-    $('qText').textContent = TX(`冬をこす。春まで あと ${springDays()} 日（シカ ${d} ／ 10）`, `Get through the winter. ${springDays()} days until spring (deer ${d} / 10)`);
-    $('qBar').style.width = (50 + 50 * Math.min(1, 1 - springDays() / (YEAR / 4 + 0.01))) * (d >= 10 ? 1 : 0.6) + '%'; return;
-  }
   $('qText').textContent = c.key === 'winter' ? TX(`${c.text}（${fmt(v)}）`, `${c.text} (${fmt(v)})`) : TX(`${c.text}（${fmt(v)}${c.unit} ／ ${fmt(G.goal)}${c.unit}）`, `${c.text} (${fmt(v)}${c.unit} / ${fmt(G.goal)}${c.unit})`);
   $('qBar').style.width = Math.min(100, c.key === 'winter' ? (G.winterSeen ? 60 : L.counts.deer >= 10 ? 25 : 0) : v / G.goal * 100) + '%';
 }
-
-// めぐる世界の年（と第十の年までのつづく日数のお題）で、いまいちばん足りないもの（v2。PLAYTEST #9）。数の印が光る
-function tallyNeed(s) {
-  if (isFree() || G.ch % 1) return null;
-  const c = CHAPTERS[G.ch]; if (!c || !c.streak || c.streak(s)) return null;
-  if (c.key === 'cycle') { if (s.grass < 0.15) return 'grass'; for (const k of ['deer', 'wolf', 'fish', 'bird']) if (!L.counts[k]) return k; }
-  if (c.key === 'wolf') return L.counts.deer < 10 ? 'deer' : 'wolf';
-  if (c.key === 'bird') return L.counts.fish < 15 ? 'fish' : 'bird';
-  return null;
-}
-// 進化の章で、まだ選んでいないとき: お題の札を押すと、選ぶ札（v2）
-document.getElementById('quest').addEventListener('click', () => { const c = CHAPTERS[G.ch]; if (c && c.key === 'genes' && G.started && !ENDING && !(G.ch % 1)) { Sound.play('click'); chooseGene(null, !!gpickOf()); } });   // 選んだあとも、押すと選びなおせる（v006）

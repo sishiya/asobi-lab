@@ -3,16 +3,15 @@
 <head>
 <meta charset="utf-8">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23141b30'/><ellipse cx='32' cy='28' rx='24' ry='10' fill='%2378a85a' stroke='%23efe3c4' stroke-width='2'/><path d='M8 28v6c0 6 11 10 24 10s24-4 24-10v-6' fill='%23a8845a' stroke='%23efe3c4' stroke-width='2'/><path d='M24 40v18M32 42v20M40 40v16' stroke='%23cfe6ff' stroke-width='3' stroke-linecap='round'/><circle cx='50' cy='12' r='5' fill='%23ffd866'/></svg>">
-<script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <script>/* 言語 ja／en（まなびラボの I18N.md と同じ決め方。localStorage の manabi-lang はまなびラボ・あそびラボで共通）: ?lang= → 前に選んだもの → ブラウザの言語。この中の文は TX(日本語, 英語)（L は生き物の入れ物なので使わない） */var LANG=(function(){var q=new URLSearchParams(location.search).get('lang'),s=null;try{s=localStorage.getItem('manabi-lang');}catch(e){}var l=q==='en'||q==='ja'?q:s==='en'||s==='ja'?s:/^ja\b/i.test(navigator.language||'ja')?'ja':'en';document.documentElement.lang=l;return l;})();function TX(ja,en){return LANG==='en'?en:ja;}function setLang(l){try{localStorage.setItem('manabi-lang',l);}catch(e){}var u=new URL(location.href);u.searchParams.set('lang',l);location.href=u.href;}</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>果ての滝の箱庭 2</title>
-<meta name="description" content="深淵に浮かぶ平らな大地。川は世界の果てから滝になって落ちる。岩と土だけの大地に泉をわかせ、土を動かし、草と生き物を放して、水と命がめぐる世界をつくる箱庭ゲーム。その作り直し（ver. 2.0 試作）。">
+<title>果ての滝の箱庭</title>
+<meta name="description" content="深淵に浮かぶ平らな大地。川は世界の果てから滝になって落ちる。岩と土だけの大地に泉をわかせ、土を動かし、草と生き物を放して、水と命がめぐる世界をつくる箱庭ゲーム（試作）。">
 <meta name="theme-color" content="#141b30">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
-<link rel="stylesheet" href="css/style.css?v=25">
+<link rel="stylesheet" href="css/style.css?v=67">
 </head>
 <body class="titling">
 <main class="stage" id="field">
@@ -35,7 +34,6 @@
       <button type="button" data-speed="16" aria-pressed="false" title="16倍の速さ" data-en-title="16 times as fast"><canvas width="32" height="32"></canvas><span>×16</span></button>
     </div>
     <p class="dialtxt" id="hud"></p>
-    <div class="tally" id="tally" role="group" aria-label="生き物の数" data-en-aria-label="How many living things"></div>
   </div>
 
   <div class="line" id="line" aria-live="polite"><b id="lineA"></b><span id="lineB"></span></div>
@@ -74,7 +72,6 @@
           <span data-k="fish"><i style="background:#ef9a4a"></i><span lang="ja">サカナ</span><span lang="en">Fish</span> <b id="nFish">0</b></span>
           <span data-k="bird"><i style="background:#9ab4cc"></i><span lang="ja">サギ</span><span lang="en">Herons</span> <b id="nBird">0</b></span>
         </div>
-        <p class="note" id="spList" hidden></p>
         <p class="note" lang="ja">大地の生き物を押すと、その1匹の札が出る。</p>
         <p class="note" lang="en">Press an animal on the land to see its card.</p>
       </section>
@@ -107,8 +104,8 @@
         <p class="note" lang="en">Soil is never lost or made either. You can pile up only as much as you dig.</p>
         <h3><span lang="ja">命のつぼ</span><span lang="en">Life Jar</span></h3>
         <p class="note" id="stockTxt"></p>
-        <p class="note" lang="ja">去った命は光になって深淵へ落ち、霧と雨・泉を通って、少しずつつぼへ戻ってくる。</p>
-        <p class="note" lang="en">Lives that pass away fall into the Abyss as light and slowly come back to the jar through mist, rain and springs.</p>
+        <p class="note" lang="ja">去った命は深淵へ落ち、少しずつつぼへ戻ってくる。春にも一つずつ。</p>
+        <p class="note" lang="en">Lives that pass away fall into the Abyss and slowly come back to the jar. One more of each also comes every spring.</p>
       </section>
 
       <section class="page" data-page="finds" hidden>
@@ -127,14 +124,9 @@
           <li>下の<b>土ぶくろ・水がめ・命のつぼ</b>を押すと、手に持つ。もう一度押すか、大地の外（何もない空）を押すと、しまう（また押せば何度でも持てる）。土ぶくろと命のつぼは、上に出る中身から選ぶ（けずる・盛る／たね・生き物）。</li>
           <li>土ぶくろ: 削った土はふくろへ入り、盛るとへる（からっぽになると盛れない）。ふちを盛ると、水がせき止められて湖になる。泉の上を盛ると、泉がふさがる。</li>
           <li>水がめ: 大地を押すと泉がわく。泉を押すと止める／またわかせる。深淵の水が底をつくと、泉はわかない（水がめの中の水が深淵の水）。</li>
-          <li>命のつぼ: たねをまく・生き物を放す（サカナは水の中へ）。つぼの命は、去った命が深淵から戻ってくる（何もない所からはふえない）。たねは 1 回まくごとに 1 袋へり、草が実る夏の終わりから秋に、草地の広さに応じてたまる。</li>
+          <li>命のつぼ: たねをまく・生き物を放す（サカナは水の中へ）。つぼの命は、去った命が戻ってくるのと、春ごとにふえる。</li>
           <li>手をあけて生き物を押すと、その1匹の札が出る（遺伝子・おなか）。</li>
-          <li>太陽と月は、つかんで動かせる。押すと止まる。止めた太陽の真下は日ざしがたまって暑く乾き（光の輪が出る）、反対がわは夜のまま冷えていく。止めた月のほうへは水が寄ったまま（青い輪）。新月と満月のころは潮が大きい（大潮。天の輪の下に波の印）。</li>
-          <li>生き物には昼と夜がある。シカは昼に食べて夜は休み、オオカミは夜に狩る。サギは大潮の引き潮でよくとり、サカナは満月のころに卵を産む。</li>
-          <li>生き物の札には「はじめの姿」（命のつぼから来たころ）の影が並ぶ。遺伝子が変わると、足の長さ・体の大きさ・くちばしが変わって見える。第九の年は、どのきびしさで体を変えるかを選ぶ（オオカミ・寒さ・潮）。</li>
-          <li>去った命の体は土にかえって土を肥やし（花が咲く）、命は光の粒になって深淵へ落ちる。深淵の命は滝の霧にのって雲になり、雨といっしょにおりて命のつぼへ帰る（泉からも）。手をあけて光の粒を押すと、そのゆくえを追える。</li>
-          <li>シカやサカナの群れが、水や陸で長く隔てられると、別の種に分かれることがある（色が少し変わり、名前をつける）。別の種どうしは子を残さない。</li>
-          <li>十の年のあとは、命のつぼにヒトが来る。ヒトは村をつくり、知恵（火・狩り・漁・畑・水路・堤・暦）で世界を変えていく。</li>
+          <li>太陽と月は、つかんで動かせる。押すと止まる。月を太陽に重ねたり、そろえたり、太陽を止めたままにしたりすると、見つけることがある。</li>
           <li>右上の<b>天の輪</b>は、外の輪が1年の季節、針が今日、中の点が太陽と月。押すと時が止まる。下の印で速さ（止める・ふつう・×4・×16）。</li>
           <li>マウス: 大地の外を左ドラッグ・右ドラッグで回す・傾ける（土や命を持ったままでも右ボタンで回せる）。中ボタン・Shift＋ドラッグで平行移動。ホイールで寄る（寄ると滝の音が聞こえる）。空をダブルクリックで真ん中へ。</li>
           <li>スマホ: 2本指で回す（ひねる）・寄る（ひらく）・動かす。手に持ったものは、横の「しまう」でもしまえる。メニューは左上の印。右下の吹き出しで、これまでの知らせを読み返せる。</li>
@@ -148,14 +140,9 @@
           <li>Press the <b>Soil Bag, Water Jar or Life Jar</b> at the bottom to hold it. Press it again, or press the empty sky outside the land, to put it away (you can pick it up again any time). For the Soil Bag and Life Jar, choose what to use from the options that appear above it (dig or pile up; seeds or animals).</li>
           <li>Soil Bag: soil you dig goes into the bag, and piling it up uses it (when the bag is empty, you can’t pile up). Pile up the edge to hold back water and make a lake. Pile soil on a spring to block it.</li>
           <li>Water Jar: press the land to make a spring. Press a spring to stop it or start it again. When the water in the Abyss runs out, no springs will flow (the water in the jar is the Abyss’s water).</li>
-          <li>Life Jar: sow seeds or release animals (fish go into the water). The jar fills up again as lives that passed away come back from the Abyss (nothing comes from nowhere). Each sowing uses one bag of seeds; seeds gather from the grassland, by how much of it there is, as the grass ripens from late summer into autumn.</li>
+          <li>Life Jar: sow seeds or release animals (fish go into the water). The jar fills up again as lives that passed away come back, and a little more every spring.</li>
           <li>With empty hands, press an animal to see its card (genes, hunger).</li>
-          <li>You can grab the Sun and Moon and move them. Press one to stop it. Under a stopped Sun, sunlight builds up and the land gets hot and dry (a ring of light appears); the far side stays in night and grows cold. Water stays pulled toward a stopped Moon (a blue ring). Tides are biggest around the new and full moon (spring tides; a wave mark under the Sky Dial).</li>
-          <li>Animals have day and night. Deer eat by day and rest at night; wolves hunt at night. Herons catch more at the low water of spring tides, and fish lay eggs around the full moon.</li>
-          <li>An animal’s card shows the shadow of its “first form” (when it came from the Life Jar). As genes change, leg length, body size and beaks look different. In Year Nine, you choose which hardship will change their bodies (wolves, cold or tides).</li>
-          <li>The bodies of lives that pass away go back to the soil and enrich it (flowers bloom), and their lives fall into the Abyss as specks of light. Lives in the Abyss rise with the mist of the falls into clouds, come down with the rain, and return to the Life Jar (from springs too). With empty hands, press a speck of light to follow where it goes.</li>
-          <li>When groups of deer or fish are cut off by water or land for a long time, they may split into a new species (their color changes a little, and you name it). Different species don’t have young together.</li>
-          <li>After the Ten Years, humans come to the Life Jar. They build a village and change the world with their wisdom (fire, hunting, fishing, farming, canals, dams, the calendar).</li>
+          <li>You can grab the Sun and Moon and move them. Press one to stop it. Try putting the Moon over the Sun, lining them up, or keeping the Sun stopped — you may discover something.</li>
           <li>The <b>Sky Dial</b> at the top right: the outer ring is the seasons of the year, the hand is today, and the inner dots are the Sun and Moon. Press it to stop time. The marks below set the speed (stop, normal, ×4, ×16).</li>
           <li>Mouse: drag outside the land with the left or right button to turn and tilt (the right button works even while holding soil or life). Middle button or Shift + drag to move. Scroll to zoom in (zoom in to hear the falls). Double-click the sky to go back to the center.</li>
           <li>Phone: use two fingers to turn (twist), zoom (spread) and move. You can also put away what you hold with the “Put away” button next to it. The menu is the mark at the top left. The speech bubble at the bottom right shows recent messages again.</li>
@@ -166,16 +153,14 @@
           <li>Your world is always noted down automatically (every day, when you open the menu, when you go back to the title screen, and when you close the page). When it is, “noted down” appears at the bottom right. You keep one world for each way to play (the Ten Years and the Free Garden); pick up where you left off with “Continue” or “Free Garden” on the title screen. To take a world to another device, use “File” in Settings.</li>
         </ul>
         <div class="row">
-          <button type="button" class="tbtn" id="btnPrint"><span lang="ja">世界の版画をつくる</span><span lang="en">Make a World Print</span></button>
+          <button type="button" class="tbtn" id="btnPrint"><span lang="ja">世界の版画をのこす</span><span lang="en">Make a World Print</span></button>
         </div>
         <h3><span lang="ja">この世界のきまり</span><span lang="en">How this world works</span></h3>
         <ul class="howto" lang="ja">
           <li>大地は平らな円盤。水は低い方へ流れ、ふちを越えると滝になって深淵へ落ちる。落ちた水の多くは深淵にたまり、泉からまたわき出る。のこりはしぶきの霧になって空へのぼる。</li>
           <li>何も生まれず、何も消えない。土は削った分だけ盛れ、泉は深淵の水をくみ上げ、滝は深淵へ返す。去った命も深淵を通って、少しずつつぼへ戻ってくる。</li>
           <li>太陽は大地の下へは沈まず、上をぐるりと回る。太陽から遠い所が夜。日の当たる水は雲になり、雲は天といっしょにめぐって、山にぶつかると雨になる。</li>
-          <li>月が上を通ると、水がそちらへ寄る（潮）。月の下のふちから、水がよけいにあふれる。月と太陽がそろうとき（新月）と向かい合うとき（満月）は潮が大きく（大潮）、直角のときは小さい（小潮）。</li>
-          <li>日ざしはたまる。太陽が回っていれば大地はならされるが、止めると真下は暑くなって乾き、草も焼ける。反対がわは冷えて凍る。</li>
-          <li>肥えは消えない。育つ草は土の肥えを体にとりこみ、枯れると枯れ草に、枯れ草はゆっくりくさって土にもどる。食べる者がいないと枯れ草が積もって芽をふさぎ、草はまばらなわら色になっていく。シカがほどよく食べると、ふんと、ふみつけた枯れ草で早く土にもどり、草地は青く保たれる（食べすぎれば草はなくなる）。水は肥えを下流へ運び、滝から深淵へ。泉がくみ上げる。</li>
+          <li>月が上を通ると、水がそちらへ寄る（潮）。月の下のふちから、水がよけいにあふれる。</li>
           <li>夏は太陽の道が内がわを回って強く照らし、冬は外がわを回って弱い。山の上や夜の側は寒い。0 度より下では雨が雪になり、水は凍る（凍った水は流れず、上を歩ける）。春に雪がとける。</li>
           <li>草はうるおいと光で育つ。シカは草を、オオカミはシカを、サカナは水草を、サギは浅瀬のサカナを食べる。腹がいっぱいの大人は、暖かいとき（春〜夏）に子を残す。深い水に入ると流され、ふちまで流されると滝から落ちる。</li>
         </ul>
@@ -183,9 +168,7 @@
           <li>The land is a flat disk. Water flows downhill, and past the edge it becomes a waterfall and drops into the Abyss. Most of the fallen water collects in the Abyss and comes up again from the springs. The rest rises into the sky as mist from the spray.</li>
           <li>Nothing is made and nothing is lost. You can pile up only as much soil as you dig, springs draw up water from the Abyss, and the falls give it back. Lives that pass away also travel through the Abyss and slowly come back to the jar.</li>
           <li>The Sun never sets below the land. It circles above it. Places far from the Sun have night. Sunlit water turns into clouds, the clouds circle with the sky, and when they hit a mountain, it rains.</li>
-          <li>When the Moon passes overhead, water gathers toward it (the tide). More water spills over the edge under the Moon. When the Moon and Sun line up (new moon) or face each other (full moon), the tides are big (spring tides); at right angles they are small (neap tides).</li>
-          <li>Sunlight builds up. While the Sun circles, the land evens out, but stop it and the land right under it gets hot and dry, and the grass scorches. The far side cools and freezes.</li>
-          <li>Richness is never lost. Growing grass takes richness from the soil into its body; when it dies it becomes dead grass, which slowly rots back into the soil. With nothing grazing, dead grass piles up and smothers new shoots, so the grass turns thin and straw-colored. When deer graze moderately, their droppings and the dead grass they trample return it to the soil quickly, and the grassland stays green (graze too much and the grass is gone). Water carries richness downstream and over the falls into the Abyss, and springs draw it back up.</li>
+          <li>When the Moon passes overhead, water gathers toward it (the tide). More water spills over the edge under the Moon.</li>
           <li>In summer the Sun’s path runs on the inside and shines strongly. In winter it runs on the outside and is weak. Mountaintops and the night side are cold. Below 0 °C, rain turns to snow and water freezes (frozen water doesn’t flow, and animals can walk on it). Snow melts in spring.</li>
           <li>Grass grows with water and light. Deer eat grass, wolves eat deer, fish eat water plants, and herons eat fish in shallow water. Well-fed adults have young when it is warm (spring to summer). Animals that go into deep water get carried away, and if they are carried to the edge, they fall off the falls.</li>
         </ul>
@@ -204,9 +187,6 @@
           <p>季節は、地球の自転の軸が 23.4 度かたむいたまま太陽のまわりを回るので、太陽の高さと昼の長さが変わって起きます。平らな大地の図には「夏は太陽が内がわ、冬は外がわを回る」と描くものがありますが、本当の地球ではそうなりません。寒い所のなかまほど体が大きい傾向（ベルクマンの規則）は本当に見られます（例外もたくさんあります）。</p>
           <p>生き残りやすい性質が子に伝わって積み重なり、生き物が変わっていく考え（自然選択）は、ダーウィンとウォレスが 1858 年に発表しました。本当の進化はふつう何百〜何万世代もかかります。この箱庭では、数十世代で目に見えるように、ずっと速くしています。</p>
           <p>大地を平らな円盤と考えた人は、昔たくさんいました。古代ギリシャのホメロスの詩では、平らな大地のまわりを大きな川オケアノスが取り巻き、タレスは大地が水に浮かぶと考えました。古代メソポタミアでは、大地の下に真水の海（アプスー）があり、泉や川の水はそこから来ると考えられていました。でも、<b>世界の果てから水が落ちる滝</b>は、近ごろの絵や物語でよく描かれる姿で、昔の人がそう書き残した例はあまり知られていません。「中世の人はみな大地が平らだと信じていた」もよくある誤解で、学のある人は大地が丸いと知っていました（天動説のプトレマイオスも、大地は丸いと考えていました）。</p>
-          <p>本当の潮も、新月と満月のころに大きくなります（大潮）。月と太陽の引く力が同じ線の上で重なるからです。多くの動物には決まった活動の時間があり、オオカミは夕方から夜によく狩りをします。クサフグやサンゴのように、月の満ち欠けに合わせて卵を産む生き物も本当にいます。捕食者は、遅いもの・弱いものをつかまえやすく、これが獲物の逃げる力を進化させる力の一つになります。</p>
-          <p>同じ種の群れが、山や海で長く隔てられると、それぞれの場所に合った形に変わり、やがて出会っても子を残さない別の種になります（地理的隔離による種分化）。本当はふつう何千〜何万年もかかります。この箱庭ではずっと速くしています。</p>
-          <p>死んだ生き物やふんは、小さな生き物（分解者）に分けられて、炭素や窒素などにもどり、また植物の体になります。体をつくる物は、こうしてめぐっています（物質の循環）。でも、命が光になって雲にのり、つぼへ帰る、というのはこの箱庭の作りごとです。遺伝子は、親から子へしか伝わりません。</p>
           <p>年の頁には、年ごとの「本当は」が書きこまれていく。</p>
         </div>
         <div class="truths" lang="en">
@@ -214,12 +194,9 @@
           <p>Seasons happen because the Earth’s spin axis stays tilted 23.4 degrees as it goes around the Sun, which changes how high the Sun climbs and how long the days are. Some flat-earth maps show the Sun circling on the inside in summer and on the outside in winter, but that is not how the real Earth works. Animals of the same group really do tend to be bigger in colder places (Bergmann’s rule), though there are many exceptions.</p>
           <p>The idea that traits that help survival are passed to young and add up, so that living things change (natural selection), was published by Darwin and Wallace in 1858. Real evolution usually takes hundreds to tens of thousands of generations. In this garden it is made much faster, so you can see it in a few dozen generations.</p>
           <p>Long ago, many people thought the land was a flat disk. In the ancient Greek poems of Homer, a great river called Oceanus flows around the flat land, and Thales thought the land floated on water. In ancient Mesopotamia, people believed there was a sea of fresh water (the Abzu) under the land, and that the water of springs and rivers came from it. But <b>waterfalls pouring off the edge of the world</b> are mostly a picture from modern art and stories; few, if any, people long ago wrote about them. “Everyone in the Middle Ages believed the Earth was flat” is also a common myth. Educated people knew the Earth was round (even Ptolemy, who put the Earth at the center of the universe, thought it was round).</p>
-          <p>Real tides also grow bigger around the new and full moon (spring tides), because the pulls of the Moon and Sun line up. Many animals are active at set times of day; wolves often hunt from evening into the night. Some living things, like grass puffers and corals, really do lay eggs in time with the Moon’s phases. Predators catch slow and weak prey more easily, and this is one of the forces that makes prey evolve better ways to escape.</p>
-          <p>When groups of one species are cut off from each other by mountains or seas for a long time, each changes to fit its own place, until they become separate species that no longer have young together even if they meet (speciation by geographic isolation). In reality this usually takes thousands to tens of thousands of years. This garden makes it much faster.</p>
-          <p>Dead living things and droppings are broken down by tiny living things (decomposers) into carbon, nitrogen and more, which become parts of plants again. The stuff bodies are made of goes around like this (the cycle of matter). But lives turning into light, riding the clouds and returning to a jar is make-believe in this garden. Genes are passed only from parents to young.</p>
           <p>A “what is really true” note for each year is written on the Years page.</p>
         </div>
-        <p class="note"><span lang="ja">版: ver. 2.0 試作（2026-10-14）・あそびラボ</span><span lang="en">Version: ver. 2.0 prototype (Oct 14, 2026) · Asobi Lab</span></p>
+        <p class="note"><span lang="ja">版: 試作 v020（2026-10-13）・あそびラボ</span><span lang="en">Version: prototype v020 (Oct 13, 2026) · Asobi Lab</span></p>
       </section>
     </div>
   </div>
@@ -227,26 +204,22 @@
   <div class="overlay" id="overlay" hidden><div class="panel" id="panel"></div></div>
 </main>
 
-<script src="js/world.js?v=25"></script>
-<script src="js/life.js?v=25"></script>
-<script src="js/render.js?v=25"></script>
-<script src="js/cycle.js?v=25"></script>
-<script src="js/humans.js?v=25"></script>
-<script src="js/species.js?v=25"></script>
-<script src="js/backdrop.js?v=25"></script>
-<script src="js/style-voxel.js?v=25"></script>
-<script src="js/style-paint.js?v=25"></script>
-<script src="js/style-etch.js?v=25"></script>
-<script src="js/style-real.js?v=25"></script>
-<script src="js/style-cyber.js?v=25"></script>
-<script src="js/sound.js?v=25"></script>
-<script src="js/chapters.js?v=25"></script>
-<script src="js/ui.js?v=25"></script>
-<script src="js/save.js?v=25"></script>
-<script src="js/finds.js?v=25"></script>
-<script src="js/book.js?v=25"></script>
-<script src="js/view.js?v=25"></script>
-<script src="js/collapse.js?v=25"></script>
-<script src="js/main.js?v=25"></script>
+<script src="js/world.js?v=67"></script>
+<script src="js/life.js?v=62"></script>
+<script src="js/render.js?v=67"></script>
+<script src="js/backdrop.js?v=20"></script>
+<script src="js/style-voxel.js?v=66"></script>
+<script src="js/style-paint.js?v=20"></script>
+<script src="js/style-etch.js?v=20"></script>
+<script src="js/style-real.js?v=20"></script>
+<script src="js/style-cyber.js?v=20"></script>
+<script src="js/sound.js?v=20"></script>
+<script src="js/chapters.js?v=67"></script>
+<script src="js/ui.js?v=67"></script>
+<script src="js/save.js?v=67"></script>
+<script src="js/book.js?v=68"></script>
+<script src="js/view.js?v=55"></script>
+<script src="js/collapse.js?v=20"></script>
+<script src="js/main.js?v=67"></script>
 </body>
 </html>

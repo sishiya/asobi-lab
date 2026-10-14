@@ -8,7 +8,7 @@
 const BACKS = {};
 const gau = x => Math.exp(-x * x);
 let backName = 'dark';          // はじめは暗い宇宙（2026-10-13 ユーザー）
-const BACK_KEY = 'asobi-lab/edge-falls-2/back';
+const BACK_KEY = 'asobi-lab/edge-falls/back';
 // 設定で選べる背景（v017。2026-10-13 ユーザー「暗い宇宙、宇宙、雲の上、幻想、ルックにおまかせ（名称変更）だけ残して」）。
 //   auto＝ボクセルの画風が自分で描く画素の雲海。ほかの背景（部屋の中・手のひら・電脳）は ?back= で見られる（試し用）
 //   v020: 「宇宙」は外した（2026-10-13 ユーザー）。前に「宇宙」を選んでいた人は、暗い宇宙にもどす（覚えた値も書きかえる）。?back=space ではまだ見られる

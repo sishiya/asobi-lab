@@ -38,6 +38,8 @@ function setStyle(n) {
 }
 
 let buf = null, bctx = null, img = null, d32 = null, dep = null;
+// 版画を描いているあいだ（v2。PLAYTEST #21・#22）: 遊ぶための印（止めた印・選んだ輪・泉の印・道すじ）を描かず、画素の板を細かくする
+let PRINT = false;
 
 function layout(cw, ch) {
   V.cw = cw; V.ch = ch;
@@ -155,9 +157,17 @@ function cellColors() {
       tone = HASH[i] > 0.5 ? 1 : 0.9; kVeg = Math.min(1, v * 1.4);
       r0 = (150 - 84 * v) * tone; g0 = (188 - 56 * v) * tone; b0 = (84 - 32 * v) * tone;
       r += (r0 - r) * kVeg; gg += (g0 - gg) * kVeg; b += (b0 - b) * kVeg;
-      if (v > 0.6 && HASH[i] > 0.972 && win < 0.3) { if (HASH[i] > 0.986) { r = 246; gg = 222; b = 92; } else { r = 240; gg = 236; b = 236; } }
+      // 花（v2: 肥えた土には多い）
+      if (v > 0.5 && HASH[i] > (W.fert && W.fert[i] > 1.15 ? 0.94 : 0.972) && win < 0.3) { if (HASH[i] > 0.986) { r = 246; gg = 222; b = 92; } else { r = 240; gg = 236; b = 236; } }
+      if (W.litter && W.litter[i] > 0.25) { kAut = Math.min(0.55, (W.litter[i] - 0.25) * 0.6) * kVeg; r += (176 - r) * kAut; gg += (158 - gg) * kAut; b += (104 - b) * kAut; }   // 枯れ草が積もると、くすんだわら色（v006）
       if (aut > 0) { kAut = aut * 0.55 * kVeg; r += (196 - r) * kAut; gg += (158 - gg) * kAut; b += (70 - b) * kAut; }   // 秋は黄色く
       if (win > 0) { kWin = win * 0.5 * kVeg; r += (164 - r) * kWin; gg += (150 - gg) * kWin; b += (108 - b) * kWin; }   // 冬は枯れ草色
+    }
+    // 畑（v2。ヒト）: うねの筋（となりの列と明暗）。若いうちは緑、実ると黄金色
+    if (W.farm && W.farm[i] > 0 && w[i] <= 0.06) {
+      const fr = W.farm[i], ripe = Math.max(0, (fr - 0.5) * 2), stripe = ((i / N | 0) + (i % N)) % 2 ? 0.86 : 1;
+      r0 = 124 + 90 * ripe; g0 = 92 + 60 * Math.min(1, fr * 2) + 40 * ripe - 30 * ripe; b0 = 58 + 10 * ripe;
+      r = r0 * stripe; gg = (g0 + 30 * Math.min(1, fr * 2) * (1 - ripe)) * stripe; b = b0 * stripe;
     }
     // 水
     const wd = w[i];
@@ -179,6 +189,10 @@ function cellColors() {
     const snw = W.snow[i];
     if (snw > 0.01) { kSnow = Math.min(1, snw * 5); r += (242 - r) * kSnow; gg += (246 - gg) * kSnow; b += (252 - b) * kSnow; }
     else if (W.T[i] < 0 && wd <= 0.06) { r += (220 - r) * 0.25; gg += (226 - gg) * 0.25; b += (236 - b) * 0.25; }
+    else if (W.T[i] > 30 && wd <= 0.06) {                                 // 暑すぎる所: 日にやけて白っぽく乾き、ひびが入る（v2。止めた太陽の下）
+      kWd = Math.min(0.55, (W.T[i] - 30) * 0.07); r += (232 - r) * kWd; gg += (214 - gg) * kWd; b += (168 - b) * kWd;
+      if (W.T[i] > 33 && HASH[i] > 0.7) { r *= 0.8; gg *= 0.78; b *= 0.74; }
+    }
     // くぼみの影（まわりが高いほど暗い）
     ao = 0;
     for (let q = 0; q < 4; q++) { const j = i + NB4[q]; if (inside[j] && Zq[j] > Zq[i]) ao++; }
@@ -497,6 +511,10 @@ function sceneItems() {
     const x = i % N + (HASH[i] - 0.5) * 0.6, y = (i / N | 0) + (HASH[(i * 7) % NN] - 0.5) * 0.6;
     const p = proj(x, y, surfAt(x, y));
     if (!hidden(p)) items.push({ type: 'tree', i, t, p, conifer: W.g[i] > 8.5, hi: HASH[i] });
+  }
+  if (typeof hutSpots === 'function') {   // ヒトの家（組みかけも）と村の火（v2）
+    for (const h of hutSpots()) { const p = proj(h.x, h.y, surfAt(h.x, h.y)); if (!hidden(p)) items.push({ type: 'hut', x: h.x, y: h.y, p, b: h.b }); }
+    if (W.village && knows('fire')) { const p = proj(W.village.x, W.village.y, surfAt(W.village.x, W.village.y)); if (!hidden(p)) items.push({ type: 'fire', x: W.village.x, y: W.village.y, p }); }
   }
   items.sort((m, n) => m.p.v - n.p.v);
   return items;
