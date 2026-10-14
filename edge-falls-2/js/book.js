@@ -461,9 +461,10 @@ addEventListener('keydown', e => {
 const TIPS = [
   ['rotate', () => !touchy() && G.chT > DAY * 0.4, TX('大地の外をドラッグすると、回して見られる。ホイールで寄る。左のボタンでも', 'Drag outside the land to turn it, and scroll to zoom. The buttons on the left work too')],
   ['speed', () => G.ch >= 1 && G.chT > DAY * 0.3, TX('右上の天の輪を押すと、時が止まる。下の ›› で速くなる', 'Press the Sky Dial at the top right to stop time. The ›› marks below make it go faster')],
-  ['sun', () => G.ch >= 2 && G.chT > DAY * 1.5, TX('太陽は、つかんで動かせる。止めたところはよく育つが、乾いて暑くなる。反対がわは夜のまま', 'You can grab the Sun and move it. Where you stop it, plants grow well, but it gets dry and hot. The other side stays in night')],
+  ['sun', () => G.ch >= 2 && G.chT > DAY * 1.5, TX('太陽は、つかんで動かせる。押すと止まる。止めた真下は日ざしがたまって暖かく、長く止めると乾いて焼ける。反対がわは夜のまま冷える', 'You can grab the Sun and move it. Press it to stop it. Right under a stopped Sun, sunlight builds up and warms the land; stop it too long and it dries and scorches. The far side stays in night and cools')],
+  ['wsun', () => CHAPTERS[G.ch] && CHAPTERS[G.ch].key === 'winter' && seasonOf() === 3, TX('冬が来た。太陽をシカの草地の上で止めると、そこだけ暖かい', 'Winter is here. Stop the Sun over the deer’s grassland to keep just that place warm')],
   ['book', () => G.ch >= 3 && G.chT > DAY, TX('右下の観察帳に、いきものの移り変わりが書いてある', 'The Field Notes at the bottom right show how life is changing')],
-  ['moon', () => G.ch >= 7 && G.chT > DAY, TX('月を寄せると、潮で水がそちらへ寄る。浅瀬が動き、ふちから水があふれる', 'Bring the Moon closer and the tide pulls the water toward it. The shallows move, and water spills over the edge')],
+  ['moon', () => G.ch >= 6 && G.chT > DAY, TX('月を寄せると、潮で水がそちらへ寄る。新月と満月のころは潮が大きく（大潮。天の輪の下に波の印）、サカナは満月に卵を産む', 'Bring the Moon closer and the tide pulls the water toward it. Around the new and full moon the tides are big (spring tides; a wave mark under the Sky Dial), and fish lay eggs at the full moon')],
 ];
 let accTip = 0;
 function stepTips(dt) {
