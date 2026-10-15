@@ -3,12 +3,12 @@
 (function () {
   const Wd = window.World, D = window.Draw;
   const $ = s => document.querySelector(s);
-  const CAP0 = 10, CAP1 = 24, JUMP = 11.2;            // 袋（はじめ・土器のあと）、跳ぶ強さ（約2マス）
+  const JUMP = 11.2;                                 // 跳ぶ強さ（約2マス）。掘る・積むは数に限りなし（v004）
 
   // ---- 原始人 ----
   // P.era が「いまの年」（高さ）。跳んでいるあいだは跳んだときの年のまま（世界がちらつかない）。
   // 着地・押し上げ・跳んだ高さより下へ落ちるときだけ、足もとの高さに合わせて変わる。
-  const P = { x: 12.5, y: 0, era: 0, climb: null, vx: 0, vy: 0, dir: 1, ground: false, walk: 0, moving: false, bag: [], cap: CAP0, pushing: 0, act: 0 };
+  const P = { x: 12.5, y: 0, era: 0, climb: null, vx: 0, vy: 0, dir: 1, ground: false, walk: 0, moving: false, clay: 0, dug: 0, put: 0, pushing: 0, act: 0 };
   const HW = 0.3, HH = 1.6;                         // からだの半分の幅・背の高さ（マス）
   const G = { t: 0, started: false, paused: true, flags: {}, said: {}, minE: 0, clear: false, toastT: 0, talk: null, ev: 0, flow: 0, hover: null };
 
@@ -61,21 +61,20 @@
   function take(c, j) {
     if (!solidNow(c, j)) return false;
     if (j < Wd.ROCK || c < 0 || c >= Wd.W) { toast('固い岩。いまの道具では掘れない'); return false; }
-    if (P.bag.length >= P.cap) { toast('袋がいっぱい。積んでから掘ろう'); return false; }
     const k = Wd.key(c, j), m = Wd.mods.get(k);
     const mat = m && m.t === 'put' ? m.m : Wd.material(c, j);
     if (mat === 'stone') { toast('ピラミッドの石は、けずれない'); return false; }
     Wd.mods.set(k, { t: 'dug', e: P.era });
-    P.bag.push(mat === 'brick' ? 'soil' : mat);
+    P.dug++; if (mat === 'clay') P.clay++;
     P.act = 0.18; G.flags.dug = true;
     fx(c, j, mat, 'dig');
     return true;
   }
   function place(c, j) {
-    if (!P.bag.length) { toast('袋がからっぽ。まず掘ろう'); return false; }
     if (solidNow(c, j) || c < 0 || c >= Wd.W) return false;
-    let mat = P.bag.pop();
-    if (P.era > 11 && (mat === 'soil' || mat === 'clay' || mat === 'tell')) mat = 'brick';  // 都の時代は、積む土がれんがになる
+    if (j >= Wd.E_MAX) { toast('この先の時代は、まだできていない（試作はここまで）'); return false; }
+    const mat = P.era > 11 ? 'brick' : P.era < -6 ? 'loess' : 'soil';  // 積む物はその時代の物（都の時代はれんが）
+    P.put++;
     Wd.mods.set(Wd.key(c, j), { t: 'put', m: mat, e: P.era });
     P.act = 0.18; fx(c, j, mat, 'put');
     return true;
@@ -88,7 +87,6 @@
   }
   function digFront() { const t = frontDigCell(); if (t) take(t.c, t.j); }
   function put() { // 足もとに積んで乗る（1マス上へ＝未来へ）
-    if (!P.bag.length) { toast('袋がからっぽ。まず掘ろう'); return; }
     if (!P.ground && !inWater()) return;
     const c = Math.floor(P.x), j = Math.round(P.y);
     if (bodyHits(c + 0.5, j + 1, P.era)) { toast('頭の上がつかえて積めない'); return; }
@@ -139,12 +137,12 @@
   function npcLine(n) {
     if (n.id === 'father' || n.id === 'mother' || n.id === 'sister') return G.started ? ({ father: '……。', mother: '火の番も、まともにできないなんて。', sister: 'おにいちゃん、どこいくの？' })[n.id] : null;
     if (n.id === 'potter') {
-      if (G.flags.pot) return 'その土器、だいじにね。たくさん運べるよ。';
-      const clay = P.bag.filter(m => m === 'clay').length;
+      if (G.flags.pot) return 'その土器、だいじにね。火で焼いた土は、水にとけないんだよ。';
+      const clay = P.clay;
       if (clay >= 3) {
-        for (let i = 0; i < 3; i++) P.bag.splice(P.bag.indexOf('clay'), 1);
-        G.flags.pot = true; P.cap = CAP1; G.flags.kilnLit = G.t;
-        toast('土器の袋をもらった！ 運べる土が ' + CAP0 + ' → ' + CAP1 + ' になった');
+        P.clay -= 3;
+        G.flags.pot = true; G.flags.kilnLit = G.t;
+        toast('土器を焼いてもらった！');
         return 'ほら、焼きあがった。土は火で焼くと、こんなに固くなるんだよ。';
       }
       return '見ない顔だね。川べりの灰色の粘土を3つ持ってきておくれ。土器を焼いてあげよう。（いま ' + clay + ' つ）';
@@ -287,13 +285,13 @@
     const h = G.hover;
     if (h && G.t - h.t < 4 && inReach(h.c, h.j)) {
       if (solidNow(h.c, h.j)) D.target(h.c, h.j, 'dig');
-      else if (P.bag.length) D.target(h.c, h.j, 'put');
+      else D.target(h.c, h.j, 'put');
       return;
     }
     if (!P.ground) return;
     const f = frontDigCell(); if (f) D.target(f.c, f.j, 'dig', 'X');
     const d = footCell(); if (solidNow(d.c, d.j) && d.j >= Wd.ROCK) D.target(d.c, d.j, 'dig', '↓');
-    if (!f && P.bag.length) { const p = frontPutCell(); if (p) D.target(p.c, p.j, 'put', 'C'); }
+    if (!f) { const p = frontPutCell(); if (p) D.target(p.c, p.j, 'put', 'C'); }
   }
 
   function render(dt) {
@@ -326,7 +324,7 @@
       if (E < n.e0 || E > n.e1) continue;
       if (G.started && Math.abs(n.x - P.x) < 1.6 && Math.abs(y - P.y) < 1.2) talk = n;
     }
-    if (talk !== G.talk || P.bag.length !== G.talkBag) { G.talk = talk; G.talkText = talk ? npcLine(talk) : null; G.talkBag = P.bag.length; }  // 袋の中身が変わったら、せりふも言いなおす
+    if (talk !== G.talk || P.clay !== G.talkClay) { G.talk = talk; G.talkText = talk ? npcLine(talk) : null; G.talkClay = P.clay; }  // 粘土の数が変わったら、せりふも言いなおす
     D.person(P.x, P.y, { dir: P.dir, walk: P.walk, moving: P.moving, h: 1.6, cloth: '#7d5530', skin: '#cf9a70', hair: '#2b1b10', fur: true, wild: true,
       bag: G.flags.pot ? '#b0703f' : '#8b6a45', arm: P.climb ? -2.9 : P.act > 0 ? -1.4 : null });
     D.parts(PARTS);
@@ -338,16 +336,11 @@
   }
 
   // ---- 画面の文字 ----
-  const MATNAME = { soil: '土', loess: '黄色い土', clay: '粘土', tell: '町の土', old: '古い土', brick: 'れんが' };
-  const MATCOL = { soil: '#5f4329', loess: '#c3a873', clay: '#8a8e95', tell: '#94765a', old: '#77654f', brick: '#b0613b' };
   function hud(E) {
     const yl = Wd.yearLabel(E); if ($('#year').textContent !== yl) $('#year').textContent = yl;
     const en = Wd.eraName(E) + ' ・ 1マス ≒ ' + Math.round(Wd.perTile(E)).toLocaleString('ja-JP') + '年';
     if ($('#era').textContent !== en) $('#era').textContent = en;
-    // 袋: 数と、材料ごとの数（色の丸）
-    const cnt = {}; for (const m of P.bag) cnt[m] = (cnt[m] || 0) + 1;
-    let bag = `<b class="${P.bag.length >= P.cap ? 'full' : ''}">${P.bag.length}<small>/${P.cap}</small></b>`;
-    for (const m in cnt) bag += `<span class="chip"><i style="background:${MATCOL[m]}"></i>${MATNAME[m]} ${cnt[m]}</span>`;
+    const bag = `掘った <b>${P.dug}</b>・積んだ <b>${P.put}</b>` + (G.flags.pot || !P.clay ? '' : `・粘土 <b>${P.clay}</b>`);
     const el = $('#bag'); if (el.dataset.h !== bag) { el.innerHTML = bag; el.dataset.h = bag; }
     goalsUI();
   }

@@ -9,7 +9,7 @@
 <meta name="description" content="家出した原始人が、土を掘って過去へ、土を積んで未来へ。高さがそのまま年になる、ふしぎな横スクロール。">
 <meta name="theme-color" content="#f2e6d2" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#16120e" media="(prefers-color-scheme: dark)">
-<link rel="stylesheet" href="css/style.css?v=3">
+<link rel="stylesheet" href="css/style.css?v=4">
 </head>
 <body>
 <header class="top">
@@ -21,7 +21,7 @@
   <canvas id="view" aria-label="ゲームの画面"></canvas>
   <div class="hud-top"><div id="year">紀元前 10,000年</div><div id="era"></div></div>
   <ol id="goals" class="goals" aria-label="お題"></ol>
-  <div class="bagbox"><span>袋</span><div id="bag" class="bag"></div></div>
+  <div class="bagbox"><div id="bag" class="bag"></div></div>
   <div id="toast" class="toast" role="status"></div>
   <div id="overlay" class="overlay" hidden></div>
   <div class="pad" aria-label="操作ボタン">
@@ -36,15 +36,15 @@
   <h3>あそびかた</h3>
   <ul>
     <li>← → 歩く（1マスの段はそのままのぼる）・↑ かスペースで跳ぶ（約2マス。壁のへりに手がとどけば、そのままよじ登る）。跳んでいるあいだは年が変わらない</li>
-    <li>↓ 足もとを掘る・X 前を掘る（オレンジの枠のマス。袋に入る）</li>
-    <li>Z 袋の土を足もとに積んで乗る・C 前に積む（段をつくる・穴をうめる）</li>
+    <li>↓ 足もとを掘る・X 前を掘る（オレンジの枠のマス）。掘る・積むは何回でもできる</li>
+    <li>Z 足もとに積んで乗る・C 前に積む（段をつくる・穴をうめる）。積む物はその時代の物</li>
     <li>マウス・指: 土のマスを押すと掘る、あいたマスを押すと積む（右クリックはいつも積む）</li>
   </ul>
-  <p class="small">試作 v003（段階A: 最終氷期〜青銅器時代）。年代は本物に近い値ですが、地面の動きはゲームのためにつくったものです。</p>
+  <p class="small">試作 v004（段階A: 最終氷期〜青銅器時代）。年代は本物に近い値ですが、地面の動きはゲームのためにつくったものです。</p>
   <form method="dialog"><button class="primary">とじる</button></form>
 </dialog>
-<script src="js/world.js?v=3"></script>
-<script src="js/draw.js?v=3"></script>
-<script src="js/main.js?v=3"></script>
+<script src="js/world.js?v=4"></script>
+<script src="js/draw.js?v=4"></script>
+<script src="js/main.js?v=4"></script>
 </body>
 </html>
