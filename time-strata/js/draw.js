@@ -14,12 +14,12 @@
     for (let i = 1; i < keys.length; i++) if (e <= keys[i][0]) return mixC(hex(keys[i - 1][1]), hex(keys[i][1]), smooth(keys[i - 1][0], keys[i][0], e));
     return hex(keys[keys.length - 1][1]);
   }
-  const SKY_TOP = [[-12, '#8ea9c2'], [-5, '#7aa3c8'], [0, '#6d9bcb'], [8, '#5d9ad3'], [15, '#6c9cc4'], [25, '#5f91c0']];
-  const SKY_BOT = [[-12, '#e3eaee'], [-5, '#ece6d6'], [0, '#f2dcc0'], [8, '#e5eed9'], [15, '#f1ddb2'], [25, '#efd8b2']];
-  const FAR_HILL = [[-12, '#9aa9b6'], [0, '#8b9a8f'], [8, '#7f9a80'], [15, '#a59a7c'], [25, '#9a9479']];
-  const MID_HILL = [[-12, '#a7a68c'], [-4, '#8a9265'], [0, '#6f8452'], [8, '#5f8248'], [15, '#8f8a55'], [25, '#857f52']];
-  const MAT = { rock: '#5b5856', old: '#77654f', loess: '#c3a873', soil: '#5f4329', tell: '#94765a', clay: '#8a8e95', stone: '#d6bf95', brick: '#b0613b' };
-  const iceOf = e => 1 - smooth(-7.5, -4.5, e);      // 氷期らしさ（雪・白い山）
+  const SKY_TOP = [[-183, '#4a2216'], [-178, '#6b6470'], [-150, '#7f9cb8'], [-12, '#8ea9c2'], [-5, '#7aa3c8'], [0, '#6d9bcb'], [8, '#5d9ad3'], [15, '#6c9cc4'], [25, '#5f91c0'], [100, '#5f91c0'], [140, '#3e66a6']];
+  const SKY_BOT = [[-183, '#e0672e'], [-178, '#d9c3a8'], [-150, '#e6e2d4'], [-12, '#e3eaee'], [-5, '#ece6d6'], [0, '#f2dcc0'], [8, '#e5eed9'], [15, '#f1ddb2'], [25, '#efd8b2'], [100, '#e9dcc6'], [140, '#d8e2ee']];
+  const FAR_HILL = [[-183, '#3a1a12'], [-176, '#77706c'], [-12, '#9aa9b6'], [0, '#8b9a8f'], [8, '#7f9a80'], [15, '#a59a7c'], [25, '#9a9479']];
+  const MID_HILL = [[-183, '#2c140e'], [-176, '#6d655c'], [-140, '#6f7d55'], [-12, '#a7a68c'], [-4, '#8a9265'], [0, '#6f8452'], [8, '#5f8248'], [15, '#8f8a55'], [25, '#857f52']];
+  const MAT = { rock: '#5b5856', old: '#77654f', loess: '#c3a873', soil: '#5f4329', tell: '#94765a', clay: '#8a8e95', stone: '#d6bf95', brick: '#b0613b', magma: '#5a1f12', coal: '#3f3b38', red: '#985038', sand: '#c4a16b' };
+  const iceOf = e => (1 - smooth(-7.5, -4.5, e)) * smooth(-16, -12, e);  // 最終氷期らしさ（雪・白い山）
 
   let cv, cx, TS = 32, vw = 0, vh = 0, dpr = 1;
   const cam = { x: 12, y: 2 };
@@ -141,6 +141,7 @@
           continue;
         }
         cx.fillStyle = rgb(base, shade); cx.fillRect(x, yy, T, h);
+        if (mat === 'magma') { const f = 0.5 + 0.5 * Math.sin(performance.now() / 500 + c * 1.7 + j * 2.3); cx.fillStyle = `rgba(255,${120 + 60 * f | 0},40,${0.25 + 0.35 * f})`; cx.fillRect(x + TS * hash(c, j) * 0.6, yy + TS * 0.3, TS * 0.35, TS * 0.18); }
         if (fill === 1) {
           if (mat === 'stone') { cx.fillStyle = 'rgba(90,70,40,.35)'; cx.fillRect(x, y + TS - 2, T, 2); cx.fillRect(x + ((j & 1) ? TS * 0.5 : 0), y, 2, TS); }
           else if (mat === 'tell' && hash(c * 7, j) > 0.72) { cx.fillStyle = 'rgba(160,80,50,.7)'; cx.fillRect(x + TS * hash(c, j * 3) * 0.7, y + TS * 0.5, TS * 0.22, TS * 0.12); } // 土器のかけら
@@ -304,10 +305,20 @@
 
   // 右はしの年のものさし（上下＝時間）
   function shortYear(e) {
-    const y = Wd.yearAt(e);
+    const u = Wd.yearsAgo(e), y = 2026 - u;
+    if (u >= 1e8) return (u / 1e8).toFixed(1) + '億前';
+    if (u >= 1e5) return Math.round(u / 1e4) + '万前';
     if (y >= 1) return Math.round(y / 10) * 10 + '';
     const n = -y;
     return n >= 10000 ? '前' + (n / 10000).toFixed(1) + '万' : '前' + Math.round(n / 100) * 100;
+  }
+  // マグマの海の近く: 画面が赤く熱くなる
+  function heat(E) {
+    const a = 1 - smooth(Wd.E_DEATH, Wd.E_MAGMA + 4, E);
+    if (a <= 0) return;
+    const g = cx.createLinearGradient(0, vh, 0, 0);
+    g.addColorStop(0, `rgba(255,90,20,${0.55 * a})`); g.addColorStop(1, `rgba(255,140,40,${0.12 * a})`);
+    cx.fillStyle = g; cx.fillRect(0, 0, vw, vh);
   }
   function ruler(E) {
     const x = vw - 8;
@@ -366,6 +377,6 @@
   }
 
   window.Draw = { init, resize, follow, toCell, sky, terrain, person, mammoth, hut, house, kiln, scaffold, wheat, caveMouth, firePit, bubble, ruler, smoke,
-    snapshot, fade, flow, target, parts, settle, topOf,
+    snapshot, fade, flow, target, parts, settle, topOf, heat,
     get TS() { return TS; }, get vw() { return vw; }, get vh() { return vh; }, cam, sx, sy, ctx: () => cx, dpr: () => dpr };
 })();

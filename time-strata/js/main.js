@@ -72,7 +72,6 @@
   }
   function place(c, j) {
     if (solidNow(c, j) || c < 0 || c >= Wd.W) return false;
-    if (j >= Wd.E_MAX) { toast('この先の時代は、まだできていない（試作はここまで）'); return false; }
     const mat = P.era > 11 ? 'brick' : P.era < -6 ? 'loess' : 'soil';  // 積む物はその時代の物（都の時代はれんが）
     P.put++;
     Wd.mods.set(Wd.key(c, j), { t: 'put', m: mat, e: P.era });
@@ -204,7 +203,7 @@
     const E = P.era;
     P.act = Math.max(0, P.act - dt);
     if (P.climb) { // へりをつかんでよじ登っているところ（はじめに上へ、それから前へ）
-      const k = P.climb, t = (k.t = Math.min(1, k.t + dt / 0.38));
+      const k = P.climb, t = (k.t = Math.min(1, k.t + dt / (k.dur || 0.38)));
       P.y = Wd.mix(k.y0, k.y1, Wd.smooth(0, 0.65, t));
       P.x = Wd.mix(k.x0, k.x1, Wd.smooth(0.45, 1, t));
       P.vx = P.vy = 0;
@@ -233,8 +232,9 @@
     let nx = P.x + P.vx * dt;
     if (bodyHits(nx, P.y, E)) {
       // 1マスの段は、歩くだけでのぼる（のぼると、1マスぶん未来へ）
-      const up = Math.round(P.y) + 1;
-      if (P.ground && ax && !bodyHits(nx, up, E) && !bodyHits(P.x, up, E)) { P.y = up; P.x = nx; P.ground = false; return; }
+      // （立っているか、着地のまぎわなら。すっと上がる動きで）
+      const up = Math.round(P.y) + 1, near = P.ground || (P.vy <= 0.5 && Math.abs(P.y - Math.round(P.y)) < 0.35);
+      if (near && ax && !bodyHits(nx, up, E) && !bodyHits(P.x, up, E)) { P.climb = { t: 0, x0: P.x, y0: P.y, x1: nx + ax * 0.08, y1: up, dur: 0.13 }; P.dir = ax; return; }
       // 跳んでいてへりに手がとどけば、つかんでよじ登る
       if (!P.ground && ax && !water) { const l = ledge(ax, E); if (l) { P.climb = { t: 0, x0: P.x, y0: P.y, x1: l.c + 0.5, y1: l.j }; P.dir = ax; G.flags.climbed = true; return; } }
       nx = P.vx > 0 ? Math.floor(nx + HW) - HW - 1e-4 : Math.floor(nx - HW) + 1 + HW + 1e-4;
@@ -251,9 +251,13 @@
     P.y = ny;
     P.moving = Math.abs(P.vx) > 0.3 && P.ground;
     if (P.moving) P.walk += dt * Math.abs(P.vx) / 3;
-    if (P.y < Wd.E_MIN) { P.y = Wd.E_MIN; P.vy = 0; }
     // いまの年: 立っている・水の中ならその高さ。跳んでいるあいだは、跳んだ高さより下へ落ちたときだけ追いかける
     if (P.ground || water || P.y < P.era) P.era = P.y;
+    if (P.era < Wd.E_DEATH) { // 掘りすぎてマグマの海へ → 焼ける前に家へ戻される
+      toast('熱い！ 46億年前、マグマの海だ。焼ける前に、家の前まで戻された。', 6);
+      let c = 12; for (const d of [0, 1, -1, 2, -2, 3, -3, 4, 5, 6]) if (Wd.solid(12 + d, -1, 0) && !Wd.solid(12 + d, 0, 0) && !Wd.solid(12 + d, 1, 0)) { c = 12 + d; break; }  // 掘った穴の上はさける
+      P.x = c + 0.5; P.y = P.era = 0; P.vx = P.vy = 0; D.follow(P, 0, true); G.flags.magma = true;
+    }
     G.minE = Math.min(G.minE, P.era);
   }
 
@@ -331,6 +335,7 @@
     targets();
     if (G.talk && G.talkText) D.bubble(G.talk.x, surf(Math.floor(G.talk.x)) + G.talk.look.h + 0.2, G.talkText);
     D.flow(G.flow);
+    D.heat(E);
     D.ruler(E);
     hud(E);
   }
