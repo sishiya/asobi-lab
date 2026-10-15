@@ -1,0 +1,63 @@
+/* 掘れば昔、積めば未来。色は :root のトークン（ダークモードあり）。遊ぶ画面はキャンバスで、その上に年・お題・袋・ボタンを重ねる */
+:root{--bg:#f2e6d2;--ink:#241b14;--muted:#6f6152;--line:#d9c8ad;--card:#fffaf0;--accent:#b4532a;--glass:rgba(255,250,240,.82);color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16120e;--ink:#efe5d6;--muted:#a9998a;--line:#3a3028;--card:#211b16;--accent:#f08a54;--glass:rgba(30,24,19,.82)}}
+:root[data-theme="dark"]{--bg:#16120e;--ink:#efe5d6;--muted:#a9998a;--line:#3a3028;--card:#211b16;--accent:#f08a54;--glass:rgba(30,24,19,.82)}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;line-height:1.7;display:flex;flex-direction:column;overflow:hidden}
+.top{display:flex;align-items:center;gap:10px;padding:6px 12px;padding-top:max(6px,env(safe-area-inset-top));border-bottom:1px solid var(--line);flex:none}
+.top h1{font-size:17px;margin:0;flex:1;display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden}
+.proto{font-size:11px;font-weight:700;background:#6b625a;color:#fff;border-radius:6px;padding:0 7px;letter-spacing:.05em}
+.back{color:var(--accent);text-decoration:none;font-size:20px;padding:0 4px}
+.icon-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:16px;font-weight:700;cursor:pointer}
+.stage{position:relative;flex:1;min-height:0;overflow:hidden;background:#cfd9de}
+#view{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+.hud-top{position:absolute;top:10px;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;color:#fffaf0;text-shadow:0 1px 2px rgba(0,0,0,.55),0 0 12px rgba(0,0,0,.25)}
+#year{font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;font-size:clamp(22px,4.2vw,34px);font-weight:700;letter-spacing:.06em;font-variant-numeric:tabular-nums;line-height:1.2}
+#era{font-size:12px;opacity:.95;letter-spacing:.04em}
+
+.goals{position:absolute;top:10px;left:10px;margin:0;padding:8px 12px 8px 30px;background:var(--glass);border-radius:10px;font-size:12.5px;max-width:250px;box-shadow:0 2px 10px rgba(0,0,0,.12);backdrop-filter:blur(4px)}
+.goals li{color:var(--muted);line-height:1.6}
+.goals li.now{color:var(--ink);font-weight:700}
+.goals li.done{text-decoration:line-through;opacity:.7}
+.bagbox{position:absolute;top:10px;right:44px;display:flex;align-items:center;gap:6px;background:var(--glass);border-radius:10px;padding:6px 10px;font-size:12px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+.bag{display:flex;gap:4px}
+.bag i{width:16px;height:16px;border-radius:4px;box-shadow:inset 0 2px 0 rgba(255,255,255,.25),inset 0 -2px 0 rgba(0,0,0,.25)}
+.bag i.empty{background:transparent;border:1.5px dashed var(--muted);box-shadow:none}
+
+.toast{position:absolute;left:50%;bottom:22px;transform:translate(-50%,10px);max-width:min(560px,86%);background:rgba(36,27,20,.88);color:#fff7ea;padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+.overlay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(20,14,10,.42);padding:16px}
+.overlay[hidden]{display:none}
+.panel{background:var(--card);color:var(--ink);border-radius:16px;padding:22px 24px;max-width:460px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.35);max-height:100%;overflow:auto}
+.panel h2{margin:0 0 8px;font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;font-size:26px}
+.panel p{margin:8px 0}
+.kicker{font-size:12px;color:var(--accent);font-weight:700;letter-spacing:.12em;margin:0!important}
+.keys{margin:12px 0;padding:10px 14px 10px 28px;background:rgba(0,0,0,.05);border-radius:10px;font-size:13px}
+.keys b{display:inline-block;min-width:1.6em;text-align:center;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:0 4px;font-size:12px}
+.small{font-size:12px;color:var(--muted)}
+.primary{display:block;margin:14px auto 0;padding:10px 28px;border:0;border-radius:999px;background:var(--accent);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+.primary:hover{filter:brightness(1.08)}
+
+dialog{border:0;border-radius:16px;padding:20px 24px;max-width:520px;background:var(--card);color:var(--ink);box-shadow:0 10px 40px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+dialog h2{margin:0 0 8px;font-size:20px}
+dialog h3{font-size:15px;margin:14px 0 4px}
+dialog ul{padding-left:20px;margin:4px 0;font-size:14px}
+
+.pad{display:none;position:absolute;left:0;right:0;bottom:0;padding:10px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom));justify-content:space-between;align-items:flex-end;pointer-events:none}
+.pad button{pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;border:0;border-radius:14px;background:rgba(255,250,240,.78);color:#2b1f16;font-weight:700;font-size:14px;min-width:54px;height:50px;margin:3px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.pad button:active{background:#fff}
+.pad .big{min-width:70px;background:rgba(255,226,196,.9)}
+.pad-l,.pad-r{display:flex;flex-wrap:wrap;justify-content:flex-end;max-width:60%}
+@media (pointer:coarse){.pad{display:flex}.toast{bottom:150px}}
+@media (max-width:639px){
+  .top h1{font-size:15px}
+  .goals{font-size:11.5px;max-width:170px;padding:6px 8px 6px 24px;top:64px}
+  .bagbox{top:64px;right:30px}
+  .bag i{width:13px;height:13px}
+  .hud-top{top:6px}
+}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
