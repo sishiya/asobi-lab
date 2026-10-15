@@ -92,13 +92,24 @@
     k *= 0.94 + hash(c, j) * 0.1;
     return { base, k };
   }
+  // 地面の高さは、年が変わってもぱっと切りかえず、列ごとにすべらせる（チカチカしないように。v003）
+  const shown = new Float32Array(Wd.W).fill(NaN);
+  function settle(E, dt) {
+    const k = dt > 0 ? 1 - Math.exp(-dt * 14) : 1;
+    for (let c = 0; c < Wd.W; c++) {
+      const t = Math.floor(Wd.H(c, E));
+      shown[c] = shown[c] === shown[c] ? shown[c] + (t - shown[c]) * k : t;
+      if (Math.abs(shown[c] - t) < 0.01) shown[c] = t;
+    }
+  }
+  const topOf = c => shown[clamp(c, 0, Wd.W - 1)];
   function terrain(E) {
     const c0 = Math.max(0, Math.floor(cam.x - vw / TS / 2) - 1), c1 = Math.min(Wd.W - 1, Math.ceil(cam.x + vw / TS / 2) + 1);
     const j0 = Math.floor(cam.y - vh / TS / 2) - 1, j1 = Math.ceil(cam.y + vh / TS / 2) + 1;
     const ice = iceOf(E);
     const T = TS + 0.6;
     for (let c = c0; c <= c1; c++) {
-      const top = Math.floor(Wd.H(c, E));
+      const top = topOf(c);                 // 見せる地面の高さ（小数）
       const x = sx(c);
       // 水（川）
       if (Wd.isRiver(c)) {
@@ -112,32 +123,37 @@
           cx.fillStyle = 'rgba(255,255,255,.45)'; cx.fillRect(x, y0, T, 2);
         }
       }
+      let surfY = null;
       for (let j = j0; j <= j1; j++) {
         const m = Wd.mods.get(Wd.key(c, j));
         const y = sy(j + 1);
         if (m && m.t === 'put') { block(x, y, m.m, c, j); continue; }
-        const nat = j < Wd.ROCK || j < top;
-        if (!nat) continue;
+        const fill = j < Wd.ROCK ? 1 : clamp(top - j, 0, 1);   // このマスのうち地面の割合（てっぺんは一部だけ）
+        if (fill <= 0) continue;
         const mat = Wd.material(c, j);
         const { base, k } = cellColor(c, j, mat, E);
         const depth = Math.max(0, top - 1 - j);
         const shade = (1 - Math.min(0.42, depth * 0.045)) * k;
+        const h = T * fill, yy = y + TS - TS * fill;
         if (m && m.t === 'dug') { // 掘った穴: 奥の壁
-          cx.fillStyle = rgb(base, shade * 0.42); cx.fillRect(x, y, T, T);
-          cx.fillStyle = 'rgba(0,0,0,.18)'; cx.fillRect(x, y, T, TS * 0.18);
+          cx.fillStyle = rgb(base, shade * 0.42); cx.fillRect(x, yy, T, h);
+          cx.fillStyle = 'rgba(0,0,0,.18)'; cx.fillRect(x, yy, T, Math.min(h, TS * 0.18));
           continue;
         }
-        cx.fillStyle = rgb(base, shade); cx.fillRect(x, y, T, T);
-        if (mat === 'stone') { cx.fillStyle = 'rgba(90,70,40,.35)'; cx.fillRect(x, y + TS - 2, T, 2); cx.fillRect(x + ((j & 1) ? TS * 0.5 : 0), y, 2, TS); }
-        else if (mat === 'tell' && hash(c * 7, j) > 0.72) { cx.fillStyle = 'rgba(160,80,50,.7)'; cx.fillRect(x + TS * hash(c, j * 3) * 0.7, y + TS * 0.5, TS * 0.22, TS * 0.12); } // 土器のかけら
-        else if (hash(c, j * 5) > 0.8) { cx.fillStyle = rgb(base, shade * 0.75); cx.fillRect(x + TS * hash(j, c) * 0.8, y + TS * hash(c + 3, j) * 0.8, TS * 0.12, TS * 0.1); } // 小石
-        // 地表: 草か雪
-        if (j === top - 1 && !Wd.solid(c, j + 1, E) && mat !== 'stone') {
-          if (ice > 0.5) { cx.fillStyle = '#f1f4f6'; cx.fillRect(x, y - 2, T, TS * 0.2 + 2); }
-          else if (!Wd.isRiver(c) || top > Wd.waterLevel(E)) {
-            cx.fillStyle = E > 9 && c > 63 ? '#a28a5e' : '#6f8f3e'; cx.fillRect(x, y - 1, T, TS * 0.16 + 1);
-            if (E <= 9 || c < 64) { cx.fillStyle = '#87a84b'; for (let i = 0; i < 3; i++) cx.fillRect(x + TS * (0.15 + i * 0.3 + hash(c, i) * 0.1), y - TS * 0.12, 2, TS * 0.14); }
-          }
+        cx.fillStyle = rgb(base, shade); cx.fillRect(x, yy, T, h);
+        if (fill === 1) {
+          if (mat === 'stone') { cx.fillStyle = 'rgba(90,70,40,.35)'; cx.fillRect(x, y + TS - 2, T, 2); cx.fillRect(x + ((j & 1) ? TS * 0.5 : 0), y, 2, TS); }
+          else if (mat === 'tell' && hash(c * 7, j) > 0.72) { cx.fillStyle = 'rgba(160,80,50,.7)'; cx.fillRect(x + TS * hash(c, j * 3) * 0.7, y + TS * 0.5, TS * 0.22, TS * 0.12); } // 土器のかけら
+          else if (hash(c, j * 5) > 0.8) { cx.fillStyle = rgb(base, shade * 0.75); cx.fillRect(x + TS * hash(j, c) * 0.8, y + TS * hash(c + 3, j) * 0.8, TS * 0.12, TS * 0.1); } // 小石
+        }
+        if (j + 1 >= top && mat !== 'stone' && !Wd.mods.get(Wd.key(c, j + 1))) surfY = yy;
+      }
+      // 地表: 草か雪
+      if (surfY !== null) {
+        if (ice > 0.5) { cx.fillStyle = '#f1f4f6'; cx.fillRect(x, surfY - 2, T, TS * 0.2 + 2); }
+        else if (!Wd.isRiver(c) || top > Wd.waterLevel(E)) {
+          cx.fillStyle = E > 9 && c > 63 ? '#a28a5e' : '#6f8f3e'; cx.fillRect(x, surfY - 1, T, TS * 0.16 + 1);
+          if (E <= 9 || c < 64) { cx.fillStyle = '#87a84b'; for (let i = 0; i < 3; i++) cx.fillRect(x + TS * (0.15 + i * 0.3 + hash(c, i) * 0.1), surfY - TS * 0.12, 2, TS * 0.14); }
         }
       }
     }
@@ -322,22 +338,13 @@
     snapA = Math.max(0, snapA - dt / 0.35);
     cx.save(); cx.setTransform(1, 0, 0, 1, 0, 0); cx.globalAlpha = snapA * snapA; cx.drawImage(snap, 0, 0); cx.restore();
   }
-  // 続けて流れているとき（落ちる・押し上げられる）: 流れの向きに光の筋と、まわりを少し暗く
-  function flow(speed, dE, t) {
-    const a = clamp((speed - 2) / 10, 0, 1);
+  // 続けて流れているとき（落ちる・押し上げられる）: まわりを少しだけ暗くする（光の筋はチカチカするのでやめた。v003）
+  function flow(speed) {
+    const a = clamp((speed - 2) / 12, 0, 1);
     if (a <= 0) return;
-    const up = dE > 0;
-    cx.save();
-    const g = cx.createRadialGradient(vw / 2, vh / 2, vh * 0.25, vw / 2, vh / 2, vh * 0.85);
-    g.addColorStop(0, 'rgba(40,24,10,0)'); g.addColorStop(1, `rgba(40,24,10,${0.45 * a})`);
+    const g = cx.createRadialGradient(vw / 2, vh / 2, vh * 0.3, vw / 2, vh / 2, vh * 0.9);
+    g.addColorStop(0, 'rgba(40,24,10,0)'); g.addColorStop(1, `rgba(40,24,10,${0.28 * a})`);
     cx.fillStyle = g; cx.fillRect(0, 0, vw, vh);
-    cx.strokeStyle = up ? `rgba(255,240,200,${0.35 * a})` : `rgba(200,225,255,${0.35 * a})`; cx.lineWidth = 2;
-    for (let i = 0; i < 26; i++) {
-      const x = (hash(i, 7) * vw), len = vh * (0.06 + hash(i, 3) * 0.12);
-      const y = ((hash(i, 11) * vh + (up ? -1 : 1) * t * vh * (0.9 + hash(i, 5))) % (vh + len) + vh + len) % (vh + len) - len;
-      cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x, y + len); cx.stroke();
-    }
-    cx.restore();
   }
   // ねらいの枠（dig: 掘るマス / put: 積むマスの影）。label はキーの名前
   function target(c, j, kind, label) {
@@ -359,6 +366,6 @@
   }
 
   window.Draw = { init, resize, follow, toCell, sky, terrain, person, mammoth, hut, house, kiln, scaffold, wheat, caveMouth, firePit, bubble, ruler, smoke,
-    snapshot, fade, flow, target, parts,
+    snapshot, fade, flow, target, parts, settle, topOf,
     get TS() { return TS; }, get vw() { return vw; }, get vh() { return vh; }, cam, sx, sy, ctx: () => cx, dpr: () => dpr };
 })();

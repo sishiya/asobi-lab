@@ -8,7 +8,7 @@
   // ---- 原始人 ----
   // P.era が「いまの年」（高さ）。跳んでいるあいだは跳んだときの年のまま（世界がちらつかない）。
   // 着地・押し上げ・跳んだ高さより下へ落ちるときだけ、足もとの高さに合わせて変わる。
-  const P = { x: 12.5, y: 0, era: 0, vx: 0, vy: 0, dir: 1, ground: false, walk: 0, moving: false, bag: [], cap: CAP0, pushing: 0, act: 0 };
+  const P = { x: 12.5, y: 0, era: 0, climb: null, vx: 0, vy: 0, dir: 1, ground: false, walk: 0, moving: false, bag: [], cap: CAP0, pushing: 0, act: 0 };
   const HW = 0.3, HH = 1.6;                         // からだの半分の幅・背の高さ（マス）
   const G = { t: 0, started: false, paused: true, flags: {}, said: {}, minE: 0, clear: false, toastT: 0, talk: null, ev: 0, flow: 0, hover: null };
 
@@ -205,6 +205,14 @@
   function physics(dt) {
     const E = P.era;
     P.act = Math.max(0, P.act - dt);
+    if (P.climb) { // へりをつかんでよじ登っているところ（はじめに上へ、それから前へ）
+      const k = P.climb, t = (k.t = Math.min(1, k.t + dt / 0.38));
+      P.y = Wd.mix(k.y0, k.y1, Wd.smooth(0, 0.65, t));
+      P.x = Wd.mix(k.x0, k.x1, Wd.smooth(0.45, 1, t));
+      P.vx = P.vy = 0;
+      if (t >= 1) { P.climb = null; P.ground = true; P.era = P.y; }
+      return;
+    }
     if (bodyHits(P.x, P.y, E)) { // 時代が変わって地面が上がってきた → 押し上げられる
       P.y += Math.min(14, 6 + P.pushing * 10) * dt; P.vy = 0; P.ground = true; P.pushing += dt; P.moving = false;
       if (P.pushing > 6) { while (bodyHits(P.x, P.y, P.y) && P.y < 60) P.y += 1; }
@@ -229,6 +237,8 @@
       // 1マスの段は、歩くだけでのぼる（のぼると、1マスぶん未来へ）
       const up = Math.round(P.y) + 1;
       if (P.ground && ax && !bodyHits(nx, up, E) && !bodyHits(P.x, up, E)) { P.y = up; P.x = nx; P.ground = false; return; }
+      // 跳んでいてへりに手がとどけば、つかんでよじ登る
+      if (!P.ground && ax && !water) { const l = ledge(ax, E); if (l) { P.climb = { t: 0, x0: P.x, y0: P.y, x1: l.c + 0.5, y1: l.j }; P.dir = ax; G.flags.climbed = true; return; } }
       nx = P.vx > 0 ? Math.floor(nx + HW) - HW - 1e-4 : Math.floor(nx - HW) + 1 + HW + 1e-4;
       if (bodyHits(nx, P.y, E)) nx = P.x;
       P.vx = 0;
@@ -247,6 +257,17 @@
     // いまの年: 立っている・水の中ならその高さ。跳んでいるあいだは、跳んだ高さより下へ落ちたときだけ追いかける
     if (P.ground || water || P.y < P.era) P.era = P.y;
     G.minE = Math.min(G.minE, P.era);
+  }
+
+  // つかめるへり: 前の列で、上に体が入るすきまがあり、手のとどく高さ（足もと＋0.3〜2.3）にある地面のふち
+  function ledge(dir, E) {
+    const c = Math.floor(P.x + dir * (HW + 0.15));
+    for (let j = Math.ceil(P.y + 0.3); j <= Math.floor(P.y + 2.3); j++) {
+      if (!Wd.solid(c, j - 1, E) || Wd.solid(c, j, E) || Wd.solid(c, j + 1, E)) continue;
+      if (bodyHits(c + 0.5, j, E) || bodyHits(P.x, Math.max(P.y, j), E)) continue;  // 登った先と、真上に体が入るか
+      return { c, j };
+    }
+    return null;
   }
 
   // ---- ループ ----
@@ -278,38 +299,40 @@
   function render(dt) {
     const cx = D.ctx(), dpr = D.dpr();
     cx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // 年がいっぺんに変わったら（着地・段・積む）、前の画面を重ねて消していく（ぱっと切りかわらないように）
+    // 年の流れる速さ（落ちる・押し上げのときに画面のふちを少し暗くする）
     const E = P.era, t = G.t, dE = E - G.lastE;
-    if (Math.abs(dE) > 0.35 && G.lastE != null && dt > 0) D.snapshot();
     G.flow += ((dt > 0 ? Math.abs(dE) / dt : 0) - G.flow) * Math.min(1, dt * 8);  // 年の流れる速さ（マス/秒）
     G.lastE = E;
     D.follow(P, dt, false);
+    D.settle(E, dt);
     D.sky(E);
     D.caveMouth(E);
     D.terrain(E);
     // 時代の飾り
-    const surf = c => Math.floor(Wd.H(c, E));
-    if (E > -1.5 && E < 2.5) D.firePit(10.4, surf(10), t, G.clear);
-    if (E > 3.5 && E < 9.8) { D.hut(68, surf(68)); D.hut(75, surf(75)); D.hut(80, surf(80)); D.kiln(73.2, surf(73), t, G.flags.kilnLit && t - G.flags.kilnLit < 6); for (let c = 84; c < 97; c++) D.wheat(c, surf(c), t); }
-    if (E > 11 && E < 22) { D.house(67, surf(67), 1.4); D.house(71, surf(71), 1.1); D.house(76, surf(76), 1.6); D.house(80, surf(80), 1.0); }
-    if (E > 11.5 && E < Wd.PYR.e0) D.scaffold(86, 94, surf(90), 3);
-    if (E < -6.5) for (const m of MAM) D.mammoth(m.x, surf(Math.floor(m.x)), m.dir, t);
+    const surf = c => D.topOf(c);
+    // 年の範囲の外では、ぱっと消さずに 0.8 マスかけて薄くする
+    const vis = (a, b) => Math.min(Wd.smooth(a - 0.8, a, E), 1 - Wd.smooth(b, b + 0.8, E));
+    const show = (a, b, f) => { const v = vis(a, b); if (v <= 0.01) return; cx.globalAlpha = v; f(); cx.globalAlpha = 1; };
+    show(-1.5, 2.5, () => D.firePit(10.4, surf(10), t, G.clear));
+    show(3.5, 9.8, () => { D.hut(68, surf(68)); D.hut(75, surf(75)); D.hut(80, surf(80)); D.kiln(73.2, surf(73), t, G.flags.kilnLit && t - G.flags.kilnLit < 6); for (let c = 84; c < 97; c++) D.wheat(c, surf(c), t); });
+    show(11, 22, () => { D.house(67, surf(67), 1.4); D.house(71, surf(71), 1.1); D.house(76, surf(76), 1.6); D.house(80, surf(80), 1.0); });
+    show(11.5, Wd.PYR.e0 - 0.8, () => D.scaffold(86, 94, surf(90), 3));
+    show(-30, -7.3, () => { for (const m of MAM) D.mammoth(m.x, surf(Math.floor(m.x)), m.dir, t); });
     // 人
     let talk = null;
     for (const n of NPC) {
-      if (E < n.e0 || E > n.e1) continue;
       const y = surf(Math.floor(n.x));
-      D.person(n.x, y, Object.assign({ dir: n.x > P.x ? -1 : 1 }, n.look));
+      show(n.e0, n.e1, () => D.person(n.x, y, Object.assign({ dir: n.x > P.x ? -1 : 1 }, n.look)));
+      if (E < n.e0 || E > n.e1) continue;
       if (G.started && Math.abs(n.x - P.x) < 1.6 && Math.abs(y - P.y) < 1.2) talk = n;
     }
-    if (talk !== G.talk) { G.talk = talk; G.talkText = talk ? npcLine(talk) : null; }
+    if (talk !== G.talk || P.bag.length !== G.talkBag) { G.talk = talk; G.talkText = talk ? npcLine(talk) : null; G.talkBag = P.bag.length; }  // 袋の中身が変わったら、せりふも言いなおす
     D.person(P.x, P.y, { dir: P.dir, walk: P.walk, moving: P.moving, h: 1.6, cloth: '#7d5530', skin: '#cf9a70', hair: '#2b1b10', fur: true, wild: true,
-      bag: G.flags.pot ? '#b0703f' : '#8b6a45', arm: P.act > 0 ? -1.4 : null });
+      bag: G.flags.pot ? '#b0703f' : '#8b6a45', arm: P.climb ? -2.9 : P.act > 0 ? -1.4 : null });
     D.parts(PARTS);
     targets();
     if (G.talk && G.talkText) D.bubble(G.talk.x, surf(Math.floor(G.talk.x)) + G.talk.look.h + 0.2, G.talkText);
-    D.fade(dt);
-    D.flow(G.flow, dE, t);
+    D.flow(G.flow);
     D.ruler(E);
     hud(E);
   }
@@ -341,7 +364,7 @@
       <p>きょうは、ぼくが焚き火の番だった。<br>星を見ていたら、いつのまにか火が消えていた。</p>
       <p>「また？」「火の番も、まともにできないなんて」</p>
       <p>……もういい。こんな家、出ていってやる。</p>
-      <ul class="keys"><li><b>← →</b> 歩く　<b>↑</b> 跳ぶ（2マスまで）</li><li><b>↓</b> 足もとを掘る　<b>X</b> 前を掘る（枠のマス）</li><li><b>Z</b> 足もとに積んで乗る　<b>C</b> 前に積む</li><li>マウス: 土のマスをクリックで掘る、あいたマスをクリックで積む</li><li>スマホは下のボタンか、マスをさわる</li></ul>
+      <ul class="keys"><li><b>← →</b> 歩く　<b>↑</b> 跳ぶ（壁のへりに手がとどけば、よじ登る）</li><li><b>↓</b> 足もとを掘る　<b>X</b> 前を掘る（枠のマス）</li><li><b>Z</b> 足もとに積んで乗る　<b>C</b> 前に積む</li><li>マウス: 土のマスをクリックで掘る、あいたマスをクリックで積む</li><li>スマホは下のボタンか、マスをさわる</li></ul>
       <p class="small">下へ行くほど昔、上へ行くほど未来。画面の上に、いまの年が出る。</p>`, '飛び出す', () => { G.started = true; toast('→ で歩いて、家を出よう'); });
   }
   function finish() {
