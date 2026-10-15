@@ -30,3 +30,6 @@ node_modules/
 _dev/promo/out/
 # logs written by _dev/tools (YouTube API usage etc.)
 _dev/tools/out/
+
+# 掘れば昔、積めば未来: ユーザーの指示で公開しない（2026-10-15）。ローカルだけで作る（フォルダの中に別の Git がある）
+time-strata/
