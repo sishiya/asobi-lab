@@ -9,7 +9,7 @@
 <meta name="description" content="家出した原始人が、土を掘って過去へ、土を積んで未来へ。高さがそのまま年になる、ふしぎな横スクロール。">
 <meta name="theme-color" content="#f2e6d2" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#16120e" media="(prefers-color-scheme: dark)">
-<link rel="stylesheet" href="css/style.css?v=1">
+<link rel="stylesheet" href="css/style.css?v=2">
 </head>
 <body>
 <header class="top">
@@ -26,7 +26,7 @@
   <div id="overlay" class="overlay" hidden></div>
   <div class="pad" aria-label="操作ボタン">
     <div class="pad-l"><button type="button" id="bL" aria-label="左へ">◀</button><button type="button" id="bR" aria-label="右へ">▶</button></div>
-    <div class="pad-r"><button type="button" id="bD">掘る↓</button><button type="button" id="bF">掘る→</button><button type="button" id="bP">積む</button><button type="button" id="bJ" class="big">跳ぶ</button></div>
+    <div class="pad-r"><button type="button" id="bD">掘る↓</button><button type="button" id="bF">掘る→</button><button type="button" id="bP">積んで乗る</button><button type="button" id="bC">前に積む</button><button type="button" id="bJ" class="big">跳ぶ</button></div>
   </div>
 </main>
 <dialog id="about">
@@ -35,16 +35,16 @@
   <p>土が積もっていった場所では、昔ほど地面が低い。だから掘り進めると、ある所で「昔の地面」の上の空中に出てしまいます。土を積んで上がると、まわりも未来に変わっていきます。</p>
   <h3>あそびかた</h3>
   <ul>
-    <li>← → 歩く（1マスの段はそのままのぼる）・↑ かスペースで跳ぶ</li>
-    <li>↓ 足もとを掘る・X 前を掘る（袋に入る）</li>
-    <li>Z 袋の土を足もとに積んで乗る</li>
-    <li>画面のマスをさわる・クリックしても、掘る・積むができる</li>
+    <li>← → 歩く（1マスの段はそのままのぼる）・↑ かスペースで跳ぶ（2マスまで）。跳んでいるあいだは年が変わらない</li>
+    <li>↓ 足もとを掘る・X 前を掘る（オレンジの枠のマス。袋に入る）</li>
+    <li>Z 袋の土を足もとに積んで乗る・C 前に積む（段をつくる・穴をうめる）</li>
+    <li>マウス・指: 土のマスを押すと掘る、あいたマスを押すと積む（右クリックはいつも積む）</li>
   </ul>
-  <p class="small">試作 v001（段階A: 最終氷期〜青銅器時代）。年代は本物に近い値ですが、地面の動きはゲームのためにつくったものです。</p>
+  <p class="small">試作 v002（段階A: 最終氷期〜青銅器時代）。年代は本物に近い値ですが、地面の動きはゲームのためにつくったものです。</p>
   <form method="dialog"><button class="primary">とじる</button></form>
 </dialog>
-<script src="js/world.js?v=1"></script>
-<script src="js/draw.js?v=1"></script>
-<script src="js/main.js?v=1"></script>
+<script src="js/world.js?v=2"></script>
+<script src="js/draw.js?v=2"></script>
+<script src="js/main.js?v=2"></script>
 </body>
 </html>

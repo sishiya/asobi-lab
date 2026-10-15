@@ -308,6 +308,57 @@
     cx.textAlign = 'left';
   }
 
+  // ---- 年が変わるときの見せ方 ----
+  // いっぺんに変わったとき: 前の画面をとっておき、0.35 秒で消していく
+  let snap = null, snapA = 0;
+  function snapshot() {
+    if (!snap) snap = document.createElement('canvas');
+    snap.width = cv.width; snap.height = cv.height;
+    snap.getContext('2d').drawImage(cv, 0, 0);
+    snapA = 1;
+  }
+  function fade(dt) {
+    if (snapA <= 0 || !snap) return;
+    snapA = Math.max(0, snapA - dt / 0.35);
+    cx.save(); cx.setTransform(1, 0, 0, 1, 0, 0); cx.globalAlpha = snapA * snapA; cx.drawImage(snap, 0, 0); cx.restore();
+  }
+  // 続けて流れているとき（落ちる・押し上げられる）: 流れの向きに光の筋と、まわりを少し暗く
+  function flow(speed, dE, t) {
+    const a = clamp((speed - 2) / 10, 0, 1);
+    if (a <= 0) return;
+    const up = dE > 0;
+    cx.save();
+    const g = cx.createRadialGradient(vw / 2, vh / 2, vh * 0.25, vw / 2, vh / 2, vh * 0.85);
+    g.addColorStop(0, 'rgba(40,24,10,0)'); g.addColorStop(1, `rgba(40,24,10,${0.45 * a})`);
+    cx.fillStyle = g; cx.fillRect(0, 0, vw, vh);
+    cx.strokeStyle = up ? `rgba(255,240,200,${0.35 * a})` : `rgba(200,225,255,${0.35 * a})`; cx.lineWidth = 2;
+    for (let i = 0; i < 26; i++) {
+      const x = (hash(i, 7) * vw), len = vh * (0.06 + hash(i, 3) * 0.12);
+      const y = ((hash(i, 11) * vh + (up ? -1 : 1) * t * vh * (0.9 + hash(i, 5))) % (vh + len) + vh + len) % (vh + len) - len;
+      cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x, y + len); cx.stroke();
+    }
+    cx.restore();
+  }
+  // ねらいの枠（dig: 掘るマス / put: 積むマスの影）。label はキーの名前
+  function target(c, j, kind, label) {
+    const x = sx(c), y = sy(j + 1);
+    cx.save();
+    if (kind === 'put') { cx.fillStyle = 'rgba(255,240,210,.28)'; cx.fillRect(x + 2, y + 2, TS - 4, TS - 4); }
+    cx.strokeStyle = kind === 'dig' ? 'rgba(255,170,60,.95)' : 'rgba(255,250,235,.9)';
+    cx.lineWidth = 2; cx.setLineDash([5, 4]); cx.strokeRect(x + 1.5, y + 1.5, TS - 3, TS - 3); cx.setLineDash([]);
+    if (label) {
+      cx.font = `bold ${Math.max(10, Math.round(TS * 0.32))}px system-ui,sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+      cx.fillStyle = 'rgba(30,20,10,.55)'; cx.beginPath(); cx.arc(x + TS / 2, y + TS / 2, TS * 0.22, 0, Math.PI * 2); cx.fill();
+      cx.fillStyle = '#fff4e0'; cx.fillText(label, x + TS / 2, y + TS / 2 + 1);
+    }
+    cx.restore();
+  }
+  function parts(list) {
+    for (const q of list) { cx.fillStyle = rgb(hex(MAT[q.mat] || MAT.soil), 1.1); cx.globalAlpha = clamp(q.life * 2, 0, 1); cx.fillRect(sx(q.x) - 2, sy(q.y) - 2, 4, 4); }
+    cx.globalAlpha = 1;
+  }
+
   window.Draw = { init, resize, follow, toCell, sky, terrain, person, mammoth, hut, house, kiln, scaffold, wheat, caveMouth, firePit, bubble, ruler, smoke,
+    snapshot, fade, flow, target, parts,
     get TS() { return TS; }, get vw() { return vw; }, get vh() { return vh; }, cam, sx, sy, ctx: () => cx, dpr: () => dpr };
 })();
