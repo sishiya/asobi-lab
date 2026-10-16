@@ -27,7 +27,10 @@ if (!RES_LIST.some((c) => c.id === cfg.res)) cfg.res = 'kiwi';
 delete cfg.showRoute; delete cfg.heroSlice;
 saveCfg();
 setHero(cfg.hero); setRes(cfg.res);
-setVolumes(cfg.bgmVol, cfg.seVol);
+// 確かめ用: ?mute で開くと、音楽も効果音も鳴らさない（設定は書きかえない。テストプレイのとき）
+const MUTE = new URLSearchParams(location.search).has('mute');
+const applyVol = () => setVolumes(MUTE ? 0 : cfg.bgmVol, MUTE ? 0 : cfg.seVol);
+applyVol();
 setBgm(cfg.bgm);
 // 図版の文の「キーウィ」「巣」を、いまの住人に合わせる
 // 住人ごとに言葉を入れかえる（日本語は「キーウィ・巣・卵」、英語は kiwi・nest を入れかえる）
@@ -533,8 +536,8 @@ function closeSettings() { $('settings').hidden = true; if (settingsFrom === 'ga
 for (const b of BGM_LIST) { const o = document.createElement('option'); o.value = b.id; o.textContent = b.name; $('sBgm').appendChild(o); }
 for (const c of HERO_LIST) { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; $('sHero').appendChild(o); }
 for (const c of RES_LIST) { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; $('sRes').appendChild(o); }
-$('sBgmVol').addEventListener('input', (e) => { cfg.bgmVol = e.target.value / 100; initAudio(); startBgm(); setVolumes(cfg.bgmVol, cfg.seVol); saveCfg(); });
-$('sSeVol').addEventListener('input', (e) => { cfg.seVol = e.target.value / 100; setVolumes(cfg.bgmVol, cfg.seVol); saveCfg(); });
+$('sBgmVol').addEventListener('input', (e) => { cfg.bgmVol = e.target.value / 100; initAudio(); startBgm(); applyVol(); saveCfg(); });
+$('sSeVol').addEventListener('input', (e) => { cfg.seVol = e.target.value / 100; applyVol(); saveCfg(); });
 $('sSeVol').addEventListener('change', () => { initAudio(); se.goal(); });
 $('sBgm').addEventListener('change', (e) => { cfg.bgm = e.target.value; initAudio(); setBgm(cfg.bgm); startBgm(); saveCfg(); });
 $('sRun').addEventListener('change', (e) => { cfg.runDefault = e.target.checked; saveCfg(); });
