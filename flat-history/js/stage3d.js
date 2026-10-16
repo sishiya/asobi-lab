@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・標本台・主人公・置いた形・持っている形・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=41';
-import { radialTexture } from './look/util.js?v=41';
-import { S, drawSheet } from './sheet.js?v=41';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=41';
-import { TABLE, tableY } from './hero.js?v=41';
+import { look, kindColor } from './look/index.js?v=44';
+import { radialTexture } from './look/util.js?v=44';
+import { S, drawSheet } from './sheet.js?v=44';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=44';
+import { TABLE, tableY, groundAt } from './hero.js?v=44';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -206,6 +206,9 @@ export function createStage(canvas, L) {
     new THREE.MeshBasicMaterial({ map: radialTexture('rgba(40,25,10,.45)', 'rgba(40,25,10,0)'), transparent: true, depthWrite: false }));
   blob.rotation.x = -Math.PI / 2;
   scene.add(blob);
+  // タップの行き先の印（床に、細い輪）
+  const goRing = new THREE.Mesh(new THREE.RingGeometry(0.32, 0.42, 28), new THREE.MeshBasicMaterial({ color: '#fff3c4', transparent: true, opacity: 0.85, depthTest: false }));
+  goRing.rotation.x = -Math.PI / 2; goRing.renderOrder = 9; goRing.visible = false; scene.add(goRing);
   let env = look().makeEnv(L);
   scene.add(env);
 
@@ -403,7 +406,7 @@ export function createStage(canvas, L) {
     // 地形の上面と交わるところ（ざっと、手前から少しずつ進む）
     for (let s = 0; s < 120; s += 0.25) {
       const x = o.x + d.x * s, y = o.y + d.y * s, z = o.z + d.z * s;
-      const c = Math.floor(x), top = c < 0 ? (c >= -7 ? heroY : -1) : c < L.W ? L.tops[c] : -1;
+      const tt = -z / GAP, c = Math.floor(x), top = c < 0 ? (c >= -7 && tt >= -1 && tt <= 34 ? heroY : -1) : c < L.W ? L.tops[c] : -1;
       if (y <= Math.max(top, 0)) return { x, t: -z / GAP };
     }
     const s = (heroY - o.y) / d.y;
@@ -548,6 +551,13 @@ export function createStage(canvas, L) {
     if (blob.visible) {
       blob.position.set(h.x, v.groundY + 0.03, hz);
       blob.scale.setScalar(1 / (1 + Math.max(0, h.y - v.groundY) * 0.3));
+    }
+    // タップの行き先
+    goRing.visible = !!v.walkTo;
+    if (v.walkTo) {
+      const gy = groundAt(L, pieces, v.walkTo.x, v.walkTo.t, h.y + 3);
+      goRing.position.set(v.walkTo.x, (Number.isFinite(gy) ? gy : h.y) + 0.05, Z(v.walkTo.t));
+      goRing.scale.setScalar(1 + 0.15 * Math.sin(tm * 6));
     }
     // E のアイコン
     const gp = v.grab;

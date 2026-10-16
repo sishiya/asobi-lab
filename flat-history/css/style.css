@@ -535,3 +535,18 @@ body.touch .inset { top: 120px; left: 12px; right: auto; bottom: auto; width: mi
 :root[lang=en] .t-name-sub { letter-spacing: .12em; }
 :root[lang=en] .intro .nm { letter-spacing: .06em; }
 :root[lang=en] .bind-btn { letter-spacing: .02em; font-size: 16px; }
+
+/* かんたん操作（タップで歩く）: スティックはしまう。設定の「指での動かし方」はタッチの画面だけ */
+body.touch:not(.stickmode) .stick { display: none; }
+.touch-only { display: none; }
+body.touch .touch-only { display: block; }
+.help-touch { display: none; margin: 8px 0; padding: 8px 10px; background: rgba(244,234,211,.6); border-left: 3px solid var(--brass); font: 13px/1.7 var(--serif); }
+body.touch .help-touch { display: block; }
+:root[lang=en] body.touch .help-touch[lang=ja], :root:not([lang=en]) body.touch .help-touch[lang=en] { display: none !important; }
+/* スマホ: お知らせ（止まった・置けない理由など）は、出ているときだけ上のほうに */
+body.touch .prompt:not(:empty) { display: flex; top: 136px; bottom: auto; left: 10px; right: 110px; white-space: normal; justify-content: center; font-size: 13px; }
+@media (max-height: 520px) { body.touch .prompt:not(:empty) { top: auto; bottom: 62px; left: 25%; right: 25%; } }
+/* 設定: せまい画面でも右がはみ出さないように */
+.settings-card { width: min(520px, 100%); box-sizing: border-box; }
+.set-grid { grid-template-columns: auto minmax(0, 1fr) !important; }
+.set-grid select, .set-grid input[type=range] { width: 100%; min-width: 0; box-sizing: border-box; }

@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=41';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=41';
-import { drawSheet } from './sheet.js?v=41';
-import { createStage, misprintOf } from './stage3d.js?v=41';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=41';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=41';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=41';
+import { LEVELS } from './level.js?v=44';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=44';
+import { drawSheet } from './sheet.js?v=44';
+import { createStage, misprintOf } from './stage3d.js?v=44';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=44';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=44';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=44';
 
 const $ = (id) => document.getElementById(id);
 
@@ -16,7 +16,7 @@ try { progress = JSON.parse(localStorage.getItem('flat-history.progress') || '{}
 function saveProgress() { try { localStorage.setItem('flat-history.progress', JSON.stringify(progress)); } catch (e) { /* なし */ } }
 
 // ---- 設定（このブラウザだけに覚える） ----
-const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'minuet', showRoute: false, runDefault: true, inset: true, invX: false, invY: false, hero: 'poly', res: 'kiwi' };
+const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'minuet', showRoute: false, runDefault: true, inset: true, invX: false, invY: false, move: 'tap', hero: 'poly', res: 'kiwi' };
 let cfg = { ...DEF };
 try { cfg = { ...DEF, ...JSON.parse(localStorage.getItem('flat-history.settings2') || '{}') }; } catch (e) { cfg = { ...DEF }; }
 function saveCfg() { try { localStorage.setItem('flat-history.settings2', JSON.stringify(cfg)); } catch (e) { /* なし */ } }
@@ -38,8 +38,16 @@ const st = {
   lock: null, undo: [],
 };
 const stage = createStage($('view'), L);
-stage.onTap = (x, t) => tapAt(x, t);
+// 画面をタップ／クリック: 持っていれば置き場所を選ぶ。かんたん操作（タップで歩く）なら、そこへ歩く
+stage.onTap = (x, t) => {
+  if (!playing()) return;
+  const near = Math.hypot(x - st.hero.x, t - st.hero.t) <= 7;
+  if (st.carry && (near || !tapWalk())) tapAt(x, t);
+  else if (tapWalk()) walkTo(x, t);
+};
 stage.setInvert(!!cfg.invX, !!cfg.invY);
+// 指での動かし方: タップで歩く（スティックをしまう）／スティック
+function applyMove() { document.body.classList.toggle('stickmode', cfg.move === 'stick'); walk.to = null; }
 const inBlock = (p) => p.x0 + pieceDims(p).wx > 0;
 const blockPieces = () => st.pieces.filter(inBlock);
 
@@ -285,6 +293,30 @@ function nudge(k) {
   lockTo({ ...c, x0: c.x0 + d[0], t0: c.t0 + d[1] });
   se.click();
 }
+// ---- かんたん操作: タップした所へ歩く（スマホではこれが最初。スティックは設定で選ぶ） ----
+const tapWalk = () => isTouch && cfg.move !== 'stick';
+const walk = { to: null, best: 0, since: 0, jumped: false };
+function walkTo(x, t) {
+  walk.to = { x: Math.max(-6.8, Math.min(L.W - 0.2, x)), t: Math.max(-0.8, Math.min(L.T + 0.4, t)) };
+  walk.best = Infinity; walk.since = 0; walk.jumped = false;
+  se.click();
+}
+// 行き先へ向かう向き（着いた・進めない・この先が崖なら止まる）。戻り値 [mx, mt, 走るか]
+function walkStep(dt) {
+  const h = st.hero, w = walk.to;
+  const dx = w.x - h.x, dz = w.t - h.t, d = Math.hypot(dx, dz);
+  if (d < 0.35) { walk.to = null; return null; }
+  const ux = dx / d, uz = dz / d;
+  // この先が底なし・高すぎる崖なら、ふちで止まる
+  const ax = h.x + ux * 0.7, at = h.t + uz * 0.7, g = groundAt(L, st.pieces, ax, at, h.y + 1.2);
+  if (h.grounded && (g === -Infinity || h.y - g > 3.4)) { walk.to = null; flashPrompt(TX('この先は落ちてしまう。ここで止まった', 'You’d fall from here, so you stopped')); return null; }
+  // 段が高くて進めないときは、一度だけ跳ぶ（よじ登れる高さなら登る）。それでも進めなければあきらめる
+  if (d < walk.best - 0.05) { walk.best = d; walk.since = 0; } else walk.since += dt;
+  if (walk.since > 0.3 && !walk.jumped) { jumpQueued = true; walk.jumped = true; walk.since = 0; }
+  else if (walk.since > 0.9 && walk.jumped) { walk.to = null; flashPrompt(TX('そこへは歩いて行けない', 'You can’t walk there')); return null; }
+  const k = Math.min(1, d / 0.8);
+  return [ux * k, uz * k, d > 3];
+}
 // 画面をタップ／クリック: そこのいちばん近い受け口へ（主人公から 7 マスまで）
 function tapAt(x, t) {
   if (!playing() || !st.carry) return;
@@ -467,6 +499,7 @@ function openSettings(from) {
   $('sRun').checked = cfg.runDefault;
   $('sInset').checked = cfg.inset;
   $('sInvX').checked = !!cfg.invX; $('sInvY').checked = !!cfg.invY;
+  $('sMove').value = cfg.move || 'tap';
   $('sHero').value = cfg.hero;
   $('sRes').value = cfg.res;
   $('settings').hidden = false;
@@ -482,6 +515,9 @@ $('sSeVol').addEventListener('change', () => { initAudio(); se.goal(); });
 $('sBgm').addEventListener('change', (e) => { cfg.bgm = e.target.value; initAudio(); setBgm(cfg.bgm); startBgm(); saveCfg(); });
 $('sRoute').addEventListener('change', (e) => { cfg.showRoute = e.target.checked; saveCfg(); });
 $('sRun').addEventListener('change', (e) => { cfg.runDefault = e.target.checked; saveCfg(); });
+$('sMove').options[0].textContent = TX('タップで歩く（かんたん）', 'Tap to walk (easy)');
+$('sMove').options[1].textContent = TX('スティック', 'Stick');
+$('sMove').addEventListener('change', (e) => { cfg.move = e.target.value; saveCfg(); applyMove(); });
 $('sInvX').addEventListener('change', (e) => { cfg.invX = e.target.checked; saveCfg(); stage.setInvert(cfg.invX, cfg.invY); });
 $('sInvY').addEventListener('change', (e) => { cfg.invY = e.target.checked; saveCfg(); stage.setInvert(cfg.invX, cfg.invY); });
 $('sInset').addEventListener('change', (e) => { cfg.inset = e.target.checked; saveCfg(); applyInset(); });
@@ -523,6 +559,7 @@ function drawInset(focus, cand, ok) {
   $('insetCap').textContent = TX(focus + '秒目のページ（V でしまう）', `Page at ${focus}s (V to hide)`);
 }
 applyInset();
+applyMove();
 
 // 時間のしおり: クリック・ドラッグでその秒へ（主人公ごと）
 const tl = $('timeline');
@@ -588,9 +625,9 @@ let coachShown = null;
 // スマホでは、キーの名前をボタンの名前に言いかえる
 function touchText(t) {
   if (!isTouch || !t) return t;
-  if (LANG === 'en') return t.replace('Press W to go forward', 'Push the stick up to go forward').replace(/with E, carry it, and place it with E/, 'with “Grab”, carry it, and place it with “Place”')
+  if (LANG === 'en') return t.replace(tapWalk() ? 'Press W to go forward. ' : 'Press W to go forward', tapWalk() ? 'Tap where you want to go. ' : 'Push the stick up to go forward').replace(/with E, carry it, and place it with E/, 'with “Grab”, carry it, and place it with “Place”')
     .replace('pick it up with E', 'pick it up with “Grab”').replace(' (Enter)', '');
-  return t.replace('W で前へ', 'スティックを上へ倒して前へ').replace(/E でつかみ/g, '「つかむ」でつかみ').replace(/E で置いて/g, '「置く」で置いて')
+  return t.replace(tapWalk() ? 'W で前へ。' : 'W で前へ', tapWalk() ? '行きたい所をタップすると歩く。' : 'スティックを上へ倒して前へ').replace(/E でつかみ/g, '「つかむ」でつかみ').replace(/E で置いて/g, '「置く」で置いて')
     .replace(/E で持ち上げて/g, '「つかむ」で持ち上げて').replace(/Q で/g, '「回す」で').replace('（Enter）', '').replace(/Enter で/g, '');
 }
 function renderCoach() {
@@ -786,10 +823,14 @@ function loop(now) {
     // 画面の奥＝(x,t) で (-sin yaw, cos yaw)、画面の右＝(cos yaw, sin yaw)
     mx = r * Math.cos(yaw) - f * Math.sin(yaw);
     mt = r * Math.sin(yaw) + f * Math.cos(yaw);
+    if (f || r) walk.to = null; // キーやスティックで動いたら、タップの行き先はやめる
   }
+  let walkRun = false;
+  if (act && walk.to) { const s = walkStep(dt); if (s) { [mx, mt, walkRun] = s; } }
+  if (!act && walk.to && screen !== 'game') walk.to = null;
   const h = st.hero;
   const before = h.t;
-  const running = act && (joy.id !== null ? Math.hypot(joy.x, joy.y) > 0.8 : cfg.runDefault ? !keys.has('Shift') : keys.has('Shift'));
+  const running = act && (walk.to ? walkRun : joy.id !== null ? Math.hypot(joy.x, joy.y) > 0.8 : cfg.runDefault ? !keys.has('Shift') : keys.has('Shift'));
   if (stepHero(h, L, st.pieces, mx, mt, act && jumpQueued, act ? dt : 0, running) === 'respawn') flashPrompt(TX('底なしに落ちた。さっきの場所へもどる', 'You fell into the abyss. Back to where you were'));
   jumpQueued = false;
   st.walked += Math.abs(h.t - before);
@@ -818,7 +859,7 @@ function loop(now) {
     hero: h, walking: Math.hypot(mx, mt) > 0.05, moveX: mx, moveT: mt,
     carry: st.carry, cand, candOk: !why, revealT: st.revealT, focus, sockets: cand && !st.lock ? sockCache.list : [],
     running: running && Math.hypot(mx, mt) > 0.05, showRoute: cfg.showRoute, grab: act ? grabbable() : null,
-    groundY: groundAt(L, st.pieces, h.x, h.t, h.y), flip: flip.t === null ? null : Math.round(flip.t),
+    groundY: groundAt(L, st.pieces, h.x, h.t, h.y), walkTo: walk.to, flip: flip.t === null ? null : Math.round(flip.t),
   });
 
   if (screen === 'game') {
@@ -850,4 +891,4 @@ loadLevel(firstUnsolved());
 showScreen('title');
 requestAnimationFrame(loop);
 // 確認用
-window.__fh = { st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, nextSocket, tapAt, lockTo, socketsAround, bind, judge, rp, stage, showBindReplay, ed, openEnding, get L() { return L; } };
+window.__fh = { walkTo, get walk() { return walk; }, st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, nextSocket, tapAt, lockTo, socketsAround, bind, judge, rp, stage, showBindReplay, ed, openEnding, get L() { return L; } };
