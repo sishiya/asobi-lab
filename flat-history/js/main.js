@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
-// v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=47';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=47';
-import { drawSheet } from './sheet.js?v=47';
-import { createStage, misprintOf } from './stage3d.js?v=47';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=47';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=47';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=47';
+// v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
+import { LEVELS } from './level.js?v=48';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=48';
+import { drawSheet } from './sheet.js?v=48';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=48';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=48';
+import { makeHero, stepHero, groundAt } from './hero.js?v=48';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=48';
 
 const $ = (id) => document.getElementById(id);
 
@@ -35,37 +35,33 @@ const st = {
   lv: 0, pieces: [], nextId: 1, base: null, hist: null,
   hero: null, carry: null, revealT: 0, walked: 0,
   hintIdx: 0, solved: false, lastEnd: '', boundOnce: false, failedOnce: false,
-  lock: null, undo: [],
+  lock: null, aim: null, hoverPiece: null,
 };
 const stage = createStage($('view'), L);
-// 画面をタップ／クリック: 持っていれば置き場所を選ぶ。かんたん操作（タップで歩く）なら、そこへ歩く
-stage.onTap = (x, t) => {
+// 画面をタップ／クリック: 持っていれば、そこへ置く（指では1回目で場所を決め、ゴーストをもう一度タップで置く）。
+// 置いた形をクリックすれば持ち上げる。かんたん操作（タップで歩く）なら、地面をタップしてそこへ歩く
+stage.onTap = (x, t, pid) => {
   if (!playing()) return;
-  const near = Math.hypot(x - st.hero.x, t - st.hero.t) <= 7;
-  if (st.carry && (near || !tapWalk())) tapAt(x, t);
-  else if (tapWalk()) walkTo(x, t);
+  if (st.carry) { if (x !== null) tapAt(x, t); return; }
+  const p = pid !== null && st.pieces.find((q) => q.id === pid);
+  if (p) { pickUp(p); return; }
+  if (tapWalk() && x !== null) walkTo(x, t);
 };
+// マウスを動かす: 持っていればゴーストがついてくる。置いた形の上なら、その形が光る
+stage.onHover = (x, t, pid) => {
+  st.hoverPiece = pid;
+  if (st.carry && x !== null) { st.aim = { x, t }; st.lock = null; }
+};
+stage.onRight = () => { if (playing() && st.carry) rotate(); };
 stage.setInvert(!!cfg.invX, !!cfg.invY);
 // 指での動かし方: タップで歩く（スティックをしまう）／スティック
 function applyMove() { document.body.classList.toggle('stickmode', cfg.move === 'stick'); walk.to = null; }
-const inBlock = (p) => p.x0 + pieceDims(p).wx > 0;
-const blockPieces = () => st.pieces.filter(inBlock);
+const blockPieces = () => st.pieces;
 
 // ---- 面をはじめる ----
 function loadLevel(i) {
   st.lv = i; L = LEVELS[i];
-  st.pieces = []; st.nextId = 1; st.carry = null;
-  // 標本台に、持てる形を並べる
-  let t = 1;
-  for (const [kind, n] of Object.entries(L.stock)) {
-    for (let k = 0; k < n; k++) {
-      const p = { id: st.nextId++, kind, rot: 0, t0: t, y0: tableY(L) };
-      const d = pieceDims(p);
-      p.x0 = -7 + Math.floor((7 - d.wx) / 2);
-      st.pieces.push(p);
-      t += d.dz + 1;
-    }
-  }
+  st.pieces = []; st.nextId = 1; st.carry = null; st.aim = null; st.hoverPiece = null;
   st.base = simulate(L, []); st.hist = st.base;
   st.hero = makeHero(L);
   st.revealT = 3; st.walked = 0;
@@ -73,7 +69,8 @@ function loadLevel(i) {
   stage.setLevel(L);
   stage.setHistory(st.hist, st.pieces, 0, false);
   stage.resetCamera();
-  st.lock = null; st.undo = []; st.dirty = false;
+  st.lock = null; st.dirty = false;
+  renderPalette();
   $('lvPlate').textContent = 'Pl. ' + L.plate;
   $('lvName').textContent = L.name;
   closeAll();
@@ -86,6 +83,46 @@ function showIntro() {
   clearTimeout(showIntro.t);
   showIntro.t = setTimeout(() => { el.hidden = true; }, 2900);
 }
+
+// ---- 形のパレット: 図版で使える形と、のこりの数。えらぶと手に持ち、画面で置きたい所をクリック ----
+const left = (kind) => (L.stock[kind] || 0) - st.pieces.filter((p) => p.kind === kind).length - (st.carry && st.carry.kind === kind ? 1 : 0);
+function renderPalette() {
+  const box = $('palList');
+  box.innerHTML = '';
+  Object.keys(L.stock).forEach((kind, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'kind'; b.dataset.kind = kind;
+    const cv = document.createElement('canvas'); cv.width = 132; cv.height = 96;
+    drawPieceIcon(cv, kind);
+    b.append(cv);
+    b.insertAdjacentHTML('beforeend', `<span class="nm">${kindName(kind)}</span><span class="ct"></span><kbd class="pk">${i + 1}</kbd>`);
+    b.addEventListener('click', () => { initAudio(); startBgm(); if (playing()) choose(kind); });
+    box.appendChild(b);
+  });
+  palKey = '';
+}
+let palKey = '';
+function updatePalette() {
+  const k = Object.keys(L.stock).map((kind) => left(kind)).join(',') + '|' + (st.carry ? st.carry.kind : '');
+  if (k === palKey) return;
+  palKey = k;
+  for (const b of $('palList').children) {
+    const n = left(b.dataset.kind), sel = !!st.carry && st.carry.kind === b.dataset.kind;
+    b.querySelector('.ct').textContent = '×' + n;
+    b.classList.toggle('sel', sel);
+    b.classList.toggle('empty', n <= 0 && !sel);
+  }
+}
+// パレットの形をえらぶ（同じ形をもう一度えらぶと、やめる）
+function choose(kind) {
+  if (st.carry && st.carry.kind === kind) { cancelCarry(); return; }
+  if (left(kind) <= 0) { flashPrompt(TX('この形は、もう全部置いた（置いた形をクリックすると持ち上げられる）', 'All of these are placed (click a placed shape to pick it up)')); se.no(); return; }
+  st.carry = { kind, rot: 0 };
+  st.lock = null; walk.to = null;
+  se.pick();
+}
+// 持っている形をパレットへもどす
+function cancelCarry() { if (!st.carry) return; st.carry = null; st.lock = null; se.click(); }
 
 // ---- 画面の切りかえ ----
 let screen = 'title';
@@ -201,7 +238,7 @@ function facingAxis() {
 }
 // ---- 置き場所: 目の前のあたりで、いちばん「はまる」所（受け口）にゴーストが吸いつく ----
 // くぼみ（両がわが壁）・谷にかかる橋（両はしが支え）・となりの地面と面がそろう所ほど強く吸いつく
-const colTop = (i) => (i < -7 || i >= L.W ? -Infinity : i < 0 ? tableY(L) : L.tops[i]);
+const colTop = (i) => (i < 0 || i >= L.W ? Infinity : L.tops[i]); // 世界のはしは壁
 function fitScore(c) {
   const d = pieceDims(c), x0 = c.x0, x1 = c.x0 + d.wx;
   let s = 0;
@@ -224,7 +261,7 @@ function socketsAround(cx, ct, R = 4) {
   const all = [];
   for (let dx = -R; dx <= R; dx++) for (let dt = -R; dt <= R; dt++) {
     const c = { ...c0, x0: bx + dx, t0: bt + dt };
-    c.y0 = restHeight(L, c, tableY(L));
+    c.y0 = restHeight(L, c);
     if (canPlaceQuick(L, c, st.pieces)) continue;
     c.score = Math.hypot(dx, dt) * 0.75 - fitScore(c);
     all.push(c);
@@ -238,11 +275,11 @@ function socketsAround(cx, ct, R = 4) {
     if (list.length >= 5) break;
   }
   const base = { ...c0, x0: bx, t0: bt };
-  base.y0 = restHeight(L, base, tableY(L));
+  base.y0 = restHeight(L, base);
   sockCache = { key, list, base };
   return list;
 }
-// 持っている形を、どこに置くか。Tab・矢印・タップで決めた所（錠）は、3マス歩くまで動かない
+// 持っている形を、どこに置くか。マウスが指す所（st.aim）のそばの受け口。矢印・タップで決めた所（錠）は、マウスを動かすまで動かない
 let lastPick = '';
 function aimCenter(d) {
   const h = st.hero, f = facingAxis();
@@ -253,14 +290,14 @@ function candidate() {
   const h = st.hero;
   const d = pieceDims({ kind: st.carry.kind, rot: st.carry.rot });
   if (st.lock && (st.lock.kind !== st.carry.kind || st.lock.rot !== st.carry.rot)) st.lock = null;
-  if (st.lock && Math.hypot(h.x - st.lock.hx, h.t - st.lock.ht) > 3) st.lock = null;
   if (st.lock) {
     const c = { kind: st.carry.kind, rot: st.carry.rot, x0: st.lock.x0, t0: st.lock.t0 };
-    c.y0 = restHeight(L, c, tableY(L));
+    c.y0 = restHeight(L, c);
     return c;
   }
-  const [cx, ct] = aimCenter(d);
-  const list = socketsAround(cx, ct);
+  // マウスで指していなければ、主人公の目の前
+  const [cx, ct] = st.aim ? [st.aim.x, st.aim.t] : aimCenter(d);
+  const list = socketsAround(cx, ct, st.aim ? 2 : 4);
   if (!list.length) return { ...sockCache.base };
   // ちらつかないよう、前に選んだ所がまだ候補でほぼ同じよさなら、それのまま
   const prev = list.find((c) => c.x0 + ',' + c.t0 === lastPick);
@@ -269,19 +306,8 @@ function candidate() {
   return pick;
 }
 function lockTo(c) {
-  st.lock = { kind: c.kind, rot: c.rot, x0: c.x0, t0: c.t0, hx: st.hero.x, ht: st.hero.t };
+  st.lock = { kind: c.kind, rot: c.rot, x0: c.x0, t0: c.t0 };
   lastPick = c.x0 + ',' + c.t0;
-}
-// Tab（スマホは「次」）: 近くのほかの受け口へ
-function nextSocket() {
-  if (!st.carry) return;
-  const cur = candidate();
-  const [cx, ct] = aimCenter(pieceDims(cur));
-  const list = socketsAround(cx, ct);
-  if (!list.length) { se.no(); return; }
-  const i = list.findIndex((c) => c.x0 === cur.x0 && c.t0 === cur.t0);
-  lockTo(list[(i + 1) % list.length]);
-  se.click();
 }
 // 矢印: 1マスずつずらす（画面の上＝カメラの奥を、いちばん近い軸にそろえる）
 function nudge(k) {
@@ -317,14 +343,15 @@ function walkStep(dt) {
   const k = Math.min(1, d / 0.8);
   return [ux * k, uz * k, d > 3];
 }
-// 画面をタップ／クリック: そこのいちばん近い受け口へ（主人公から 7 マスまで）
+// 画面をタップ／クリック: そこのいちばん近い受け口に置く（遠くても置ける）。
+// 指では、1回目のタップでゴーストを動かし、ゴーストの上をもう一度タップすると置く
 function tapAt(x, t) {
   if (!playing() || !st.carry) return;
-  const h = st.hero;
-  if (Math.hypot(x - h.x, t - h.t) > 7) { flashPrompt(TX('もっと近くへ運ぼう', 'Carry it closer')); se.no(); return; }
-  const list = socketsAround(x, t, 2);
-  lockTo(list.length ? list[0] : sockCache.base);
-  se.click();
+  const before = isTouch ? candidate() : null;
+  st.aim = { x, t }; st.lock = null;
+  const c = candidate();
+  if (isTouch && !(before && before.x0 === c.x0 && before.t0 === c.t0)) { lockTo(c); se.click(); return; }
+  useE();
 }
 // 目の前（または足もと）でつかめる形
 function grabbable() {
@@ -367,16 +394,20 @@ function useE() {
     st.pieces.push(p);
     st.carry = null;
     se.place();
-    if (inBlock(p)) recompute(p.t0); else stage.setHistory(st.hist, st.pieces, null, true);
+    recompute(p.t0);
     return;
   }
   const p = grabbable();
-  if (!p) return;
+  if (p) pickUp(p);
+}
+// 置いた形を持ち上げる（ゴーストは、いまの場所から）
+function pickUp(p) {
   st.pieces = st.pieces.filter((q) => q !== p);
   st.carry = { kind: p.kind, rot: p.rot || 0 };
-  st.lock = null;
+  lockTo(p);
+  st.hoverPiece = null; walk.to = null;
   se.pick();
-  if (inBlock(p)) recompute(p.t0); else stage.setHistory(st.hist, st.pieces, null, false);
+  recompute(p.t0);
 }
 function rotate() {
   if (!st.carry) return;
@@ -413,13 +444,13 @@ const joy = { x: 0, y: 0, id: null };
   tap('tJump', () => { jumpQueued = true; });
   tap('tGrab', () => useE());
   tap('tRot', () => rotate());
-  tap('tNext', () => nextSocket());
+  tap('tCancel', () => cancelCarry());
 }
 // 案内の帯のボタン（PC）
 $('prompt').addEventListener('click', (e) => {
   const b = e.target.closest('.pbtn'); if (!b || !playing()) return;
   const a = b.dataset.act;
-  if (a === 'place' || a === 'grab') useE(); else if (a === 'rot') rotate(); else if (a === 'next') nextSocket();
+  if (a === 'place' || a === 'grab') useE(); else if (a === 'rot') rotate(); else if (a === 'cancel') cancelCarry();
 });
 function flashPrompt(m) { flashMsg = m; flashUntil = performance.now() + 1800; }
 
@@ -447,16 +478,16 @@ window.addEventListener('keydown', (e) => {
   if (!$('menu').hidden) { if (k === 'Escape') $('menu').hidden = true; return; }
   if (screen === 'select') { if (k === 'Escape') closeSelect(); return; }
   if (screen === 'title') { if (k === 'Enter') startGame(hasProgress() ? firstUnsolved() : 0); return; }
-  if (k === 'Escape') { openMenu(); return; }
+  if (k === 'Escape') { if (st.carry) cancelCarry(); else openMenu(); return; }
   keys.add(k.length === 1 ? k.toLowerCase() : k);
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Tab'].includes(k)) e.preventDefault();
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(k)) e.preventDefault();
   if (k.startsWith('Arrow') && st.carry) { nudge(k); return; }
   if (e.repeat) return;
   if (k === 'v' || k === 'V') { cfg.inset = !cfg.inset; saveCfg(); applyInset(); }
   if (k === ' ') jumpQueued = true;
   if (k === 'e' || k === 'E') useE();
   if (k === 'q' || k === 'Q') rotate();
-  if (k === 'Tab' && st.carry) nextSocket();
+  if (/^[1-9]$/.test(k)) { const kind = Object.keys(L.stock)[+k - 1]; if (kind) choose(kind); }
   if (k === 'Enter' && enterOk()) { if (st.solved) reopenResult(); else bind(); }
   if (k === 'm' || k === 'M') nextBgm();
 });
@@ -628,10 +659,10 @@ let coachShown = null;
 // スマホでは、キーの名前をボタンの名前に言いかえる
 function touchText(t) {
   if (!isTouch || !t) return t;
-  if (LANG === 'en') return t.replace(tapWalk() ? 'Press W to go forward. ' : 'Press W to go forward', tapWalk() ? 'Tap where you want to go. ' : 'Push the stick up to go forward').replace(/with E, carry it, and place it with E/, 'with “Grab”, carry it, and place it with “Place”')
-    .replace('pick it up with E', 'pick it up with “Grab”').replace(' (Enter)', '');
-  return t.replace(tapWalk() ? 'W で前へ。' : 'W で前へ', tapWalk() ? '行きたい所をタップすると歩く。' : 'スティックを上へ倒して前へ').replace(/E でつかみ/g, '「つかむ」でつかみ').replace(/E で置いて/g, '「置く」で置いて')
-    .replace(/E で持ち上げて/g, '「つかむ」で持ち上げて').replace(/Q で/g, '「回す」で').replace('（Enter）', '').replace(/Enter で/g, '');
+  if (LANG === 'en') return t.replace(tapWalk() ? 'Press W to go forward. ' : 'Press W to go forward', tapWalk() ? 'Tap where you want to go. ' : 'Push the stick up to go forward').replace('then click where you want it', 'then tap where you want it (tap the outline again to place)')
+    .replace('click the placed board', 'tap the placed board').replace(' (Enter)', '');
+  return t.replace(tapWalk() ? 'W で前へ。' : 'W で前へ', tapWalk() ? '行きたい所をタップすると歩く。' : 'スティックを上へ倒して前へ').replace('置きたい所をクリックしよう', '置きたい所をタップ。点線の形をもう一度タップで置く')
+    .replace('置いた板をクリック', '置いた板をタップ').replace(/Q で/g, '「回す」で').replace('（Enter）', '').replace(/Enter で/g, '');
 }
 function renderCoach() {
   const t = touchText(coachText());
@@ -642,12 +673,15 @@ function renderCoach() {
   setTimeout(() => { el.textContent = coachShown; el.classList.toggle('off', !coachShown); }, 220);
 }
 
+// マウスが指している、置いた形
+const hovered = () => (st.hoverPiece !== null && !st.carry ? st.pieces.find((p) => p.id === st.hoverPiece) || null : null);
 // そのとき使えるキー
 function renderPrompt(why) {
   let html = '';
   const g = grabbable();
   if (performance.now() < flashUntil) html = flashMsg;
-  else if (st.carry) html = `<button type="button" class="pbtn" data-act="place"><kbd>E</kbd> ${TX('置く', 'Place')}</button><button type="button" class="pbtn" data-act="rot"><kbd>Q</kbd> ${TX('回す', 'Rotate')}</button><button type="button" class="pbtn" data-act="next"><kbd>Tab</kbd> ${TX('となり', 'Next spot')}</button>` + (why ? `<span class="bad">${why}</span>` : '');
+  else if (st.carry) html = `<span>${TX('クリックした所に置く', 'Click to place')}</span><button type="button" class="pbtn" data-act="rot"><kbd>Q</kbd> ${TX('回す（右クリック）', 'Rotate (right-click)')}</button><button type="button" class="pbtn" data-act="cancel"><kbd>Esc</kbd> ${TX('やめる', 'Cancel')}</button>` + (why ? `<span class="bad">${why}</span>` : '');
+  else if (hovered()) html = TX(`クリックで${kindName(hovered().kind)}を持ち上げる`, `Click to pick up the ${kindName(hovered().kind)}`);
   else if (g) html = `<button type="button" class="pbtn" data-act="grab"><kbd>E</kbd> ${TX(`${kindName(g.kind)}をつかむ`, `Grab the ${kindName(g.kind)}`)}</button>`;
   else if (st.walked < 2 && st.lv === 0) html = `<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ${cfg.runDefault ? TX('走る', 'Run') : TX('歩く', 'Walk')}　<kbd>Shift</kbd> ${cfg.runDefault ? TX('歩く', 'Walk') : TX('走る', 'Run')}　<kbd>Space</kbd> ${TX('跳ぶ', 'Jump')}　${TX('ドラッグ 見回す', 'Drag: look around')}`;
   if (isTouch) html = performance.now() < flashUntil ? flashMsg : (st.carry && why ? `<span class="bad">${why}</span>` : '');
@@ -860,8 +894,8 @@ function loop(now) {
   const why = cand ? canPlace(L, cand, st.pieces) : '';
   stage.update(dt, {
     hero: h, walking: Math.hypot(mx, mt) > 0.05, moveX: mx, moveT: mt,
-    carry: st.carry, cand, candOk: !why, revealT: st.revealT, focus, sockets: cand && !st.lock ? sockCache.list : [],
-    running: running && Math.hypot(mx, mt) > 0.05, showRoute: cfg.showRoute, grab: act ? grabbable() : null,
+    cand, candOk: !why, revealT: st.revealT, focus, sockets: [],
+    running: running && Math.hypot(mx, mt) > 0.05, showRoute: cfg.showRoute, grab: act ? hovered() || grabbable() : null,
     groundY: groundAt(L, st.pieces, h.x, h.t, h.y), walkTo: walk.to, heroSlice: !!cfg.heroSlice, flip: flip.t === null ? null : Math.round(flip.t),
   });
 
@@ -871,11 +905,13 @@ function loop(now) {
     renderCoach();
     renderPrompt(why);
     drawInset(focus, cand, !why);
+    updatePalette();
+    stage.setCursor(st.carry ? 'crosshair' : act && hovered() ? 'pointer' : '');
     if (isTouch) {
       $('tGrab').textContent = st.carry ? TX('置く', 'Place') : TX('つかむ', 'Grab');
       $('tGrab').classList.toggle('dim', !st.carry && !grabbable());
       $('tRot').hidden = !st.carry;
-      $('tNext').hidden = !st.carry;
+      $('tCancel').hidden = !st.carry;
     }
     const bindHtml = st.solved ? TX('結果を<br>見る', 'See<br>result') + ' <kbd>Enter</kbd>' : TX('回答<br>する', 'Answer') + ' <kbd>Enter</kbd>';
     if ($('btnBind').innerHTML !== bindHtml) $('btnBind').innerHTML = bindHtml;
@@ -898,11 +934,10 @@ if (new URLSearchParams(location.search).has('thumb')) {
   cfg.inset = false; applyInset();
   loadLevel(0); showScreen('game');
   st.carry = { kind: 'plank', rot: 0 }; lockTo({ kind: 'plank', rot: 0, x0: 9, t0: 3 }); useE();
-  st.pieces = st.pieces.filter((p) => p.x0 >= 0);
   stage.setHistory(st.hist, st.pieces, null, false); stage.skipWave();
   Object.assign(st.hero, { x: 7.2, t: 0.6, y: 4, fx: 0.5, ft: 1 });
   st.revealT = L.T;
 }
 requestAnimationFrame(loop);
 // 確認用
-window.__fh = { walkTo, get walk() { return walk; }, st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, nextSocket, tapAt, lockTo, socketsAround, bind, judge, rp, stage, showBindReplay, ed, openEnding, get L() { return L; } };
+window.__fh = { walkTo, get walk() { return walk; }, st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, choose, cancelCarry, pickUp, tapAt, lockTo, socketsAround, bind, judge, rp, stage, showBindReplay, ed, openEnding, get L() { return L; } };

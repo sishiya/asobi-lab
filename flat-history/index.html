@@ -9,7 +9,7 @@
 <script>/* 言語 ja／en（まなびラボの I18N.md・edge-falls と同じ決め方。localStorage の manabi-lang はまなびラボ・あそびラボで共通）: ?lang= → 前に選んだもの → ブラウザの言語。js の中の文は TX(日本語, 英語) */var LANG=(function(){var q=new URLSearchParams(location.search).get('lang'),s=null;try{s=localStorage.getItem('manabi-lang');}catch(e){}var l=q==='en'||q==='ja'?q:s==='en'||s==='ja'?s:/^ja\b/i.test(navigator.language||'ja')?'ja':'en';document.documentElement.lang=l;if(l==='en')document.title='One-Second Field Guide — Keeper of the Flat World';return l;})();function TX(ja,en){return LANG==='en'?en:ja;}function setLang(l){try{localStorage.setItem('manabi-lang',l);}catch(e){}var u=new URL(location.href);u.searchParams.set('lang',l);location.href=u.href;}</script>
 <meta name="description" content="1秒ずつの2D世界が奥と手前に並んでいる。3Dの形を置くと、2D世界にはその断面が現れて、歴史が書きかわる。">
 <meta name="theme-color" content="#e2d2b0">
-<link rel="stylesheet" href="css/style.css?v=50">
+<link rel="stylesheet" href="css/style.css?v=51">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body class="menu">
@@ -31,7 +31,7 @@
       <button type="button" id="tHelp" class="act ghost"><span lang="ja">あそびかた</span><span lang="en">How to play</span></button>
       <button type="button" id="tSettings" class="act ghost"><span lang="ja">設定</span><span lang="en">Settings</span></button>
     </div>
-    <p class="t-foot"><span class="t-dev"><span lang="ja">キーボードとマウスで遊びます</span><span lang="en">Play with keyboard and mouse</span></span><span class="t-touch"><span lang="ja">指で遊べます（横向きがおすすめ）</span><span lang="en">Touch controls (landscape recommended)</span></span> ・ <span lang="ja">試作</span><span lang="en">Prototype</span> <span class="ver">v030</span> ・ <a href="../"><span lang="ja">あそびラボへ</span><span lang="en">To Asobi Lab</span></a></p>
+    <p class="t-foot"><span class="t-dev"><span lang="ja">キーボードとマウスで遊びます</span><span lang="en">Play with keyboard and mouse</span></span><span class="t-touch"><span lang="ja">指で遊べます（横向きがおすすめ）</span><span lang="en">Touch controls (landscape recommended)</span></span> ・ <span lang="ja">試作</span><span lang="en">Prototype</span> <span class="ver">v031</span> ・ <a href="../"><span lang="ja">あそびラボへ</span><span lang="en">To Asobi Lab</span></a></p>
   </div>
 </section>
 
@@ -59,6 +59,11 @@
 <div id="intro" class="intro" hidden></div>
 <div id="prompt" class="prompt hud" aria-live="polite"></div>
 
+<aside id="palette" class="palette hud" aria-label="形のパレット Shapes">
+  <p class="pal-title"><span lang="ja">形のパレット</span><span lang="en">Shapes</span></p>
+  <div id="palList" class="pal-list"></div>
+</aside>
+
 <div class="bottom hud">
   <canvas id="timeline" height="40" aria-label="時間のしおり Timeline"></canvas>
 </div>
@@ -69,7 +74,7 @@
   <div id="stick" class="stick"><div id="stickKnob" class="knob"></div></div>
   <div class="tbtns">
     <button type="button" id="tRot" class="tb" hidden><span lang="ja">回す</span><span lang="en">Rotate</span></button>
-    <button type="button" id="tNext" class="tb" hidden><span lang="ja">となり</span><span lang="en">Next</span></button>
+    <button type="button" id="tCancel" class="tb" hidden><span lang="ja">やめる</span><span lang="en">Cancel</span></button>
     <button type="button" id="tGrab" class="tb">つかむ</button>
     <button type="button" id="tJump" class="tb big"><span lang="ja">跳ぶ</span><span lang="en">Jump</span></button>
   </div>
@@ -127,7 +132,7 @@
       <button type="button" id="mRetry" class="act"><span lang="ja">この図版をはじめから</span><span lang="en">Restart this plate</span></button>
       <button type="button" id="mSelect" class="act"><span lang="ja">図版をえらぶ</span><span lang="en">Choose a plate</span></button>
     </div>
-    <p class="menu-note"><span lang="ja">この図版をはじめからにする・図版をえらぶ・タイトルへもどると、この図版で置いた形は、もとの標本台へ片づきます。</span><span lang="en">If you restart, choose a plate, or go back to the title, the shapes you placed on this plate return to the specimen table.</span></p>
+    <p class="menu-note"><span lang="ja">この図版をはじめからにする・図版をえらぶ・タイトルへもどると、この図版で置いた形は、パレットへもどります。</span><span lang="en">If you restart, choose a plate, or go back to the title, the shapes you placed on this plate go back to the palette.</span></p>
     <div class="menu-sub">
       <button type="button" id="mHelp" class="act ghost"><span lang="ja">あそびかた</span><span lang="en">How to play</span></button>
       <button type="button" id="mSettings" class="act ghost"><span lang="ja">設定</span><span lang="en">Settings</span></button>
@@ -174,15 +179,15 @@
     <h2><span lang="ja">あそびかた</span><span lang="en">How to play</span></h2>
     <p lang="ja">あなたは、この図鑑の<b>歴史係</b>。図版の一枚一枚は、<b>1秒ずつの2D世界</b>。前へ進むと未来、うしろへ進むと昔。<br>あなたは2D世界のページのあいだを歩けるけれど、住人にはさわれない。かわりに<b>3Dの形</b>を置ける。<br>住人がゴールにたどり着く歴史を作ろう。</p>
     <p lang="en">You are the <b>history keeper</b> of this field guide. Each plate is a <b>2D world, one second per page</b>. Walk forward into the future, back into the past.<br>You can walk between the pages, but you cannot touch the residents. Instead, you can place <b>3D shapes</b>.<br>Make a history where the resident reaches its goal.</p>
-    <p class="help-touch" lang="ja"><b>指で遊ぶとき</b>: 行きたい所をタップすると歩く（崖のふちでは止まる。段は自分で跳ぶ）。形の近くで「つかむ」、持ったら置きたい所をタップして「置く」。1本指のドラッグで見回し、2本指で寄る・引く。スティックで動かしたいときは設定から。</p>
-    <p class="help-touch" lang="en"><b>With touch</b>: tap where you want to go and you walk there (you stop at cliff edges and hop up steps). Near a shape, press “Grab”; while holding, tap where you want it and press “Place”. Drag with one finger to look around, pinch to zoom. You can switch to a stick in Settings.</p>
+    <p class="help-touch" lang="ja"><b>指で遊ぶとき</b>: 行きたい所をタップすると歩く（崖のふちでは止まる。段は自分で跳ぶ）。左のパレットで形をえらび、置きたい所をタップ（点線の形をもう一度タップするか「置く」で置く）。置いた形をタップすると持ち上げる。1本指のドラッグで見回し、2本指で寄る・引く。スティックで動かしたいときは設定から。</p>
+    <p class="help-touch" lang="en"><b>With touch</b>: tap where you want to go and you walk there (you stop at cliff edges and hop up steps). Pick a shape from the palette on the left and tap where you want it (tap the outline again, or press “Place”). Tap a placed shape to pick it up. Drag with one finger to look around, pinch to zoom. You can switch to a stick in Settings.</p>
     <table class="keys">
       <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td><span lang="ja">進む（見ている向きが前。<kbd>Shift</kbd> で歩く・走るを切りかえ）。1段の段差は自動でのぼる</span><span lang="en">Move (forward is where the camera looks; <kbd>Shift</kbd> switches walk/run). You climb one-step ledges by yourself</span></td></tr>
       <tr><td><kbd>Space</kbd></td><td><span lang="ja">跳ぶ（壁のふちに手がとどけば、よじ登る）</span><span lang="en">Jump (grab the top of a wall to climb up)</span></td></tr>
-      <tr><td><kbd>E</kbd></td><td><span lang="ja">つかむ ／ 置く（つかめる形は光る）</span><span lang="en">Grab / Place (shapes you can grab glow)</span></td></tr>
-      <tr><td><kbd>Q</kbd></td><td><span lang="ja">持っている形を回す</span><span lang="en">Rotate the shape you are holding</span></td></tr>
-      <tr><td><span lang="ja">持っているとき</span><span lang="en">While holding</span></td><td><span lang="ja">置き場所（点線のゴースト）は、くぼみや崖など、はまりのよい所に自分で吸いつく</span><span lang="en">The ghost outline snaps by itself to good spots such as hollows and chasms</span></td></tr>
-      <tr><td><kbd>Tab</kbd> ／ <span lang="ja">クリック</span><span lang="en">click</span></td><td><span lang="ja">となりの置き場所へ ／ クリックした所へ（<kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> で1マスずつ）</span><span lang="en">Next spot / the spot you click (<kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> move it one cell)</span></td></tr>
+      <tr><td><span lang="ja">パレット</span><span lang="en">Palette</span> ／ <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></td><td><span lang="ja">置く形をえらぶ（左のパレット。もう一度えらぶか <kbd>Esc</kbd> でやめる）</span><span lang="en">Choose a shape to place (palette on the left; choose it again or press <kbd>Esc</kbd> to cancel)</span></td></tr>
+      <tr><td><span lang="ja">クリック</span><span lang="en">Click</span></td><td><span lang="ja">えらんだ形を、マウスで指した所に置く（点線のゴーストは、くぼみや崖など、はまりのよい所に吸いつく。<kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> で1マスずつ）。置いた形をクリックすると、持ち上げて置きなおせる</span><span lang="en">Place the chosen shape where you point (the ghost outline snaps to good spots such as hollows and chasms; <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> move it one cell). Click a placed shape to pick it up again</span></td></tr>
+      <tr><td><kbd>Q</kbd> ／ <span lang="ja">右クリック</span><span lang="en">right-click</span></td><td><span lang="ja">えらんだ形を回す</span><span lang="en">Rotate the chosen shape</span></td></tr>
+      <tr><td><kbd>E</kbd></td><td><span lang="ja">足もと・目の前の形を持ち上げる ／ ゴーストの所に置く</span><span lang="en">Pick up the shape at your feet / place at the ghost</span></td></tr>
       <tr><td><kbd>V</kbd></td><td><span lang="ja">いまのページの小窓</span><span lang="en">Current page window</span></td></tr>
       <tr><td><span lang="ja">マウスのドラッグ</span><span lang="en">Mouse drag</span></td><td><span lang="ja">見回す（ホイールで寄る・引く）</span><span lang="en">Look around (wheel to zoom)</span></td></tr>
       <tr><td><kbd>Enter</kbd></td><td><span lang="ja">回答する（これでいい、と思ったら。いつでも）</span><span lang="en">Answer (whenever you think it works)</span></td></tr>
@@ -194,6 +199,6 @@
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=47"></script>
+<script type="module" src="js/main.js?v=48"></script>
 </body>
 </html>

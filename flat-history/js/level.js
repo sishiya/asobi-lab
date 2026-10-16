@@ -34,7 +34,7 @@ export const LEVELS = [
     hints: [
       { text: TX('W で前へ。前へ歩くと、未来のページへ進む', 'Press W to go forward. Walking forward takes you to future pages'), when: (c) => c.walked > 4 },
       { text: TX('キーウィは、このあとどうなる？　見に行こう', 'What happens to the kiwi after this? Go and see'), when: (c) => c.seenEnd },
-      { text: TX('標本台の板を E でつかみ、運んで、E で置いてみよう', 'Grab the board on the specimen table with E, carry it, and place it with E'), when: (c) => c.placed },
+      { text: TX('左のパレットで板をえらび、置きたい所をクリックしよう', 'Pick the board from the palette on the left, then click where you want it'), when: (c) => c.placed },
     ],
     fail: TX('まだ落ちてしまう。板のある時間と、キーウィが通る時間は重なっている？', 'It still falls. Does the time of the board overlap the time the kiwi passes?'),
   },
@@ -45,7 +45,7 @@ export const LEVELS = [
     hints: [
       { text: TX('こんどの板は、奥行きがうすい', 'This board is thin in depth'), when: (c) => c.placed },
     ],
-    fail: TX('置く時間を、少しずつずらしてみよう（E で持ち上げて、置きなおせる）', 'Try shifting the time a little (pick it up with E and place it again)'),
+    fail: TX('置く時間を、少しずつずらしてみよう（置いた板をクリックすると、持ち上げて置きなおせる）', 'Try shifting the time a little (click the placed board to pick it up and place it again)'),
   },
   {
     ...base, id: 't3', plate: 'III', name: TX('のぼる板', 'The Rising Board'), tutorial: true,

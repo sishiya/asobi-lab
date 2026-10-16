@@ -1,11 +1,11 @@
-// 3Dの舞台: ページの束（時空の大地）・標本台・主人公・置いた形・持っている形・世界線・描きかえの波・追いかけるカメラ
+// 3Dの舞台: ページの束（時空の大地）・主人公・置いた形・置き場所のゴースト・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=47';
-import { radialTexture } from './look/util.js?v=47';
-import { S, drawSheet } from './sheet.js?v=47';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=47';
-import { TABLE, tableY, groundAt } from './hero.js?v=47';
+import { look, kindColor } from './look/index.js?v=48';
+import { radialTexture } from './look/util.js?v=48';
+import { S, drawSheet } from './sheet.js?v=48';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=48';
+import { groundAt } from './hero.js?v=48';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -125,6 +125,52 @@ function stampTrail(g, L, polys) {
   g.restore();
 }
 
+// パレットの絵: 形を斜め上から見た図（半透明の面と、すけて見えるふちの線）。WebGL を使わず 2D で描く
+const iconCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
+const LIGHT = new THREE.Vector3(-0.4, 0.8, 0.5).normalize();
+export function drawPieceIcon(cv, kind, rot = 0) {
+  const g = cv.getContext('2d'), W = cv.width, H = cv.height;
+  g.clearRect(0, 0, W, H);
+  const p = { kind, rot }, d = pieceDims(p), geo = pieceGeometry(p);
+  const c = new THREE.Vector3(d.wx / 2, d.h / 2, -d.dz * GAP / 2);
+  const yaw = 0.62, pitch = 0.55;
+  iconCam.position.set(c.x + Math.sin(yaw) * Math.cos(pitch) * 50, c.y + Math.sin(pitch) * 50, c.z + Math.cos(yaw) * Math.cos(pitch) * 50);
+  iconCam.lookAt(c); iconCam.updateMatrixWorld();
+  const inv = iconCam.matrixWorldInverse, pos = geo.attributes.position, idx = geo.index;
+  const P = [];
+  for (let i = 0; i < pos.count; i++) P.push(new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(inv));
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const v of P) { x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
+  const k = Math.min((W - 10) / (x1 - x0), (H - 10) / (y1 - y0));
+  const sx = (v) => W / 2 + (v.x - (x0 + x1) / 2) * k, sy = (v) => H / 2 - (v.y - (y0 + y1) / 2) * k;
+  const base = new THREE.Color(kindColor(kind));
+  const tris = [], e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
+  const n = idx ? idx.count : pos.count, vi = (i) => (idx ? idx.getX(i) : i);
+  for (let i = 0; i < n; i += 3) {
+    const a = P[vi(i)], b = P[vi(i + 1)], q = P[vi(i + 2)];
+    const nr = e1.subVectors(b, a).cross(e2.subVectors(q, a)).normalize();
+    if (nr.z <= 0) continue; // うらの面
+    tris.push({ a, b, q, z: (a.z + b.z + q.z) / 3, l: 0.55 + 0.5 * Math.max(0, nr.dot(LIGHT)) });
+  }
+  tris.sort((u, v) => u.z - v.z);
+  for (const t of tris) {
+    const col = base.clone().multiplyScalar(t.l);
+    g.fillStyle = g.strokeStyle = '#' + col.getHexString();
+    g.lineWidth = 0.6;
+    g.beginPath(); g.moveTo(sx(t.a), sy(t.a)); g.lineTo(sx(t.b), sy(t.b)); g.lineTo(sx(t.q), sy(t.q)); g.closePath(); g.fill(); g.stroke();
+  }
+  // ふちの線（うらのふちも、うすく見せる）
+  const eg = new THREE.EdgesGeometry(geo), ep = eg.attributes.position;
+  g.strokeStyle = '#' + base.clone().multiplyScalar(0.4).getHexString(); g.lineWidth = 1.2; g.lineCap = 'round';
+  g.beginPath();
+  for (let i = 0; i < ep.count; i += 2) {
+    const a = new THREE.Vector3().fromBufferAttribute(ep, i).applyMatrix4(inv), b = new THREE.Vector3().fromBufferAttribute(ep, i + 1).applyMatrix4(inv);
+    g.moveTo(sx(a), sy(a)); g.lineTo(sx(b), sy(b));
+  }
+  g.stroke();
+  eg.dispose();
+}
+
 export function createStage(canvas, L) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -178,26 +224,6 @@ export function createStage(canvas, L) {
   new THREE.LineBasicMaterial({ color: '#a8742a' }));
   scene.add(frame);
 
-  // ---- 標本台（ブロックの左どなり） ----
-  let table = null;
-  function buildTable() {
-    if (table) scene.remove(table);
-    table = new THREE.Group();
-    const ty = tableY(L);
-    const len = (TABLE.t1 - TABLE.t0) * GAP;
-    const top = new THREE.Mesh(new THREE.BoxGeometry(TABLE.x1 - TABLE.x0, 0.4, len), new THREE.MeshStandardMaterial({ color: '#7a4e2c', roughness: 0.6 }));
-    top.position.set((TABLE.x0 + TABLE.x1) / 2, ty - 0.2, Z((TABLE.t0 + TABLE.t1) / 2));
-    const body = new THREE.Mesh(new THREE.BoxGeometry(TABLE.x1 - TABLE.x0 - 0.4, ty + 4.1, len - 0.4), new THREE.MeshStandardMaterial({ color: '#5c3a20', roughness: 0.7 }));
-    body.position.set((TABLE.x0 + TABLE.x1) / 2, (ty - 0.4 - 4.5) / 2, top.position.z);
-    const brass = new THREE.MeshStandardMaterial({ color: '#c9973d', roughness: 0.3, metalness: 0.85 });
-    const rim = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, len), brass);
-    rim.position.set(TABLE.x0 + 0.06, ty + 0.02, top.position.z);
-    const label = textSprite(globalThis.TX ? TX('標本台', 'Specimen table') : '標本台', 1.0, '#4a3320');
-    label.position.set((TABLE.x0 + TABLE.x1) / 2, ty + 0.6, Z(TABLE.t0) - 0.3);
-    table.add(top, body, rim, label);
-    scene.add(table);
-  }
-  buildTable();
 
   // ---- 主人公 ----
   let hero = look().makeHero();
@@ -237,7 +263,6 @@ export function createStage(canvas, L) {
       new THREE.LineDashedMaterial({ color: '#fff6dc', dashSize: 0.25, gapSize: 0.18, transparent: true, opacity: 0.8 }));
     m.visible = false; scene.add(m); sockMarks.push(m);
   }
-  let carried = null, carriedKey = '';
   // つかめる形の上に、ポコっと出る「つかむ手」の印（銅版画ふうの線の手）
   const eIcon = (() => {
     const cv = document.createElement('canvas'); cv.width = cv.height = 128;
@@ -378,16 +403,24 @@ export function createStage(canvas, L) {
         pinch0 = d; return;
       }
     }
-    if (!drag) return;
+    if (!drag) {
+      // マウスを動かしただけ: 指している地面と形を知らせる（パレットの形のゴーストがついてくる）
+      if (e.pointerType === 'mouse' && onHover) { const p = pickGround(e.clientX, e.clientY); onHover(p ? p.x : null, p ? p.t : null, pickPiece(e.clientX, e.clientY)); }
+      return;
+    }
     orbit.yaw -= (e.clientX - drag.x) * 0.006 * (invX ? -1 : 1);
     orbit.pitch = Math.max(0.08, Math.min(1.35, orbit.pitch + (e.clientY - drag.y) * 0.005 * (invY ? -1 : 1)));
     drag.x = e.clientX; drag.y = e.clientY;
     lastManual = performance.now() / 1000;
   });
   const endDrag = (e) => {
-    if (drag && e && e.type === 'pointerup' && e.button !== 2 && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 8 && performance.now() - drag.at < 350 && onTap) {
-      const p = pickGround(e.clientX, e.clientY);
-      if (p) onTap(p.x, p.t);
+    if (drag && e && e.type === 'pointerup' && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 8 && performance.now() - drag.at < 350) {
+      // 右クリック（その場で離す）: 持っている形を回す
+      if (e.button === 2) { if (onRight) onRight(); }
+      else if (onTap) {
+        const p = pickGround(e.clientX, e.clientY);
+        onTap(p ? p.x : null, p ? p.t : null, pickPiece(e.clientX, e.clientY));
+      }
     }
     drag = null; canvas.style.cursor = ''; if (e && touches.has(e.pointerId)) { touches.delete(e.pointerId); pinch0 = 0; } };
   canvas.addEventListener('pointerup', endDrag);
@@ -395,7 +428,7 @@ export function createStage(canvas, L) {
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); orbit.dist = Math.max(6, Math.min(60, orbit.dist * Math.pow(1.0015, e.deltaY))); }, { passive: false });
   canvas.addEventListener('dblclick', () => { Object.assign(orbit, ORBIT0); });
   // 画面の点 → 時空の大地の (x, t)。主人公の高さの床、だめなら地面の高さで探す
-  let onTap = null, heroY = 4;
+  let onTap = null, onHover = null, onRight = null, heroY = 4;
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
   function pickGround(cx, cy) {
     const r = canvas.getBoundingClientRect();
@@ -406,11 +439,24 @@ export function createStage(canvas, L) {
     // 地形の上面と交わるところ（ざっと、手前から少しずつ進む）
     for (let s = 0; s < 120; s += 0.25) {
       const x = o.x + d.x * s, y = o.y + d.y * s, z = o.z + d.z * s;
-      const tt = -z / GAP, c = Math.floor(x), top = c < 0 ? (c >= -7 && tt >= -1 && tt <= 34 ? heroY : -1) : c < L.W ? L.tops[c] : -1;
+      const c = Math.floor(x), top = c >= 0 && c < L.W ? L.tops[c] : -1;
       if (y <= Math.max(top, 0)) return { x, t: -z / GAP };
     }
     const s = (heroY - o.y) / d.y;
     return s > 0 ? { x: o.x + d.x * s, t: -(o.z + d.z * s) / GAP } : null;
+  }
+  // 画面の点にある、置いた形の id（なければ null）
+  function pickPiece(cx, cy) {
+    const r = canvas.getBoundingClientRect();
+    ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    let best = null, bd = Infinity;
+    for (const [id, o] of pieceObjs) {
+      if (!o.visible) continue;
+      const hit = ray.intersectObject(o.userData.fill, false)[0];
+      if (hit && hit.distance < bd) { bd = hit.distance; best = id; }
+    }
+    return best;
   }
   const target = new THREE.Vector3(), camPos = new THREE.Vector3();
   let visY = NaN;
@@ -451,7 +497,7 @@ export function createStage(canvas, L) {
 
   // ---- 毎フレーム ----
   function update(dt, v) {
-    const { hero: h, walking, carry, cand, candOk, revealT, focus, moveX, moveT } = v;
+    const { hero: h, walking, cand, candOk, revealT, focus, moveX, moveT } = v;
     heroY = h.y;
     const now = performance.now() / 1000;
     // 波
@@ -544,7 +590,7 @@ export function createStage(canvas, L) {
     let d = want - ud.body.rotation.y; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
     ud.body.rotation.y += d * Math.min(1, dt * 12);
     const tm = now;
-    if (ud.animate) ud.animate(dt, { speed: Math.hypot(moveX, moveT), run: !!v.running, grounded: h.grounded, vy: h.vy, carry: !!carry, landT: h.landT || 0, t: h.t });
+    if (ud.animate) ud.animate(dt, { speed: Math.hypot(moveX, moveT), run: !!v.running, grounded: h.grounded, vy: h.vy, carry: false, landT: h.landT || 0, t: h.t });
     // あなたの断面（透かし）をページに描くか（設定。ふだんは描かない）
     if (v.heroSlice) heroOverlay(h.x, visY, h.t);
     else if (heroPages.size) { for (const [t] of heroPages) if (hist) drawOne(sheets[t]); heroPages = new Map(); }
@@ -584,18 +630,6 @@ export function createStage(canvas, L) {
       eIcon.scale.setScalar(0.75 * pop * ePop);
     }
 
-    // 持っている形（頭の上に小さく）
-    const ck = carry ? carry.kind + ':' + (carry.rot ? 1 : 0) : '';
-    if (ck !== carriedKey) {
-      if (carried) scene.remove(carried);
-      carried = carry ? makePieceObj(carry, false) : null;
-      if (carried) { carried.scale.setScalar(0.22); scene.add(carried); }
-      carriedKey = ck;
-    }
-    if (carried) {
-      const dd = pieceDims(carry);
-      carried.position.set(h.x - dd.wx * 0.11, h.y + 3.1 + Math.sin(tm * 3) * 0.06, hz + dd.dz * 0.11);
-    }
     // 置き場所のゴースト（実物大）
     const gkk = cand ? cand.kind + ':' + (cand.rot ? 1 : 0) : '';
     if (gkk !== ghostKey) {
@@ -643,7 +677,6 @@ export function createStage(canvas, L) {
     trails.clear(); trailLast = new Map();
     for (const [id, o] of pieceObjs) { scene.remove(o); pieceObjs.delete(id); }
     pieces = [];
-    buildTable();
   }
 
   const camYaw = () => orbit.yaw;
@@ -661,5 +694,5 @@ export function createStage(canvas, L) {
   function skipWave() { if (waveT === null) return; for (const sh of sheets) if (sh.pending) drawOne(sh); waveT = null; }
 
   const setInvert = (x, y) => { invX = !!x; invY = !!y; };
-  return { setInvert, setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, heroPortrait, pickGround, set onTap(f) { onTap = f; }, closeBook, openBook, waving: () => waveT !== null };
+  return { setInvert, setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, heroPortrait, pickGround, set onTap(f) { onTap = f; }, set onHover(f) { onHover = f; }, set onRight(f) { onRight = f; }, setCursor: (c) => { if (!drag && canvas.style.cursor !== c) canvas.style.cursor = c; }, closeBook, openBook, waving: () => waveT !== null };
 }

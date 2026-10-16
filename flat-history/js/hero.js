@@ -1,19 +1,14 @@
 // 主人公（3Dの学芸員）の歩き方。1マスまでの段は自動でのぼる（キーウィと同じ）。時空の大地（ページの上のふちが奥行きに並んだ地形）の上を歩く。
 // 座標: x＝2D世界の横（マス）、t＝時間（秒。3Dの奥行き）、y＝高さ（マス）。
 // 主人公の体はページの間隔（1秒）より薄いので、ページのあいだを歩くかぎり2D世界とは交わらない（REDESIGN 3-1）
-import { pieceDims, sectionRects } from './sim.js?v=47';
-
-// 標本台: 2D世界のブロックの左どなり（x<0）。ここに置いた形は、ページと交わらない
-export const TABLE = { x0: -7, x1: 0, t0: -1, t1: 34 };
-export const tableY = (L) => (Number.isFinite(L.tops[0]) ? L.tops[0] : 4);
+import { pieceDims, sectionRects } from './sim.js?v=48';
 
 export const HERO = { speed: 5.2, run: 1.9, jumpV: 10.5, g: 25, step: 1.05, mantle: 1.9, coyote: 0.12, buffer: 0.14 };
 
 // (x, t) の足もとの高さ。yRef より 1 以上うえにある形の底は、床にしない（頭の上の形）
 export function groundAt(L, pieces, x, t, yRef = Infinity) {
   let g = -Infinity;
-  if (x >= TABLE.x0 && x < 0 && t >= TABLE.t0 && t <= TABLE.t1) g = tableY(L);
-  else if (x >= 0 && x < L.W && t >= -0.6 && t <= L.T + 0.6) g = L.tops[Math.floor(x)];
+  if (x >= 0 && x < L.W && t >= -0.6 && t <= L.T + 0.6) g = L.tops[Math.floor(x)];
   for (const p of pieces) {
     const d = pieceDims(p);
     if (x < p.x0 || x > p.x0 + d.wx || t < p.t0 || t > p.t0 + d.dz) continue;
@@ -35,9 +30,10 @@ function footGround(L, pieces, x, t, yRef) {
   return g;
 }
 
+// はじめは、住人の立つ所の、1秒目と2秒目のページのあいだ（v031: 標本台はやめた）
 export function makeHero(L) {
-  const y = tableY(L);
-  return { x: -3.5, t: 2, y, vy: 0, grounded: true, coyote: 0, buffer: 0, safe: { x: -3.5, t: 2, y }, mantle: 0, fx: 1, ft: 0 };
+  const x = L.start.x, t = 1.5, y = L.tops[Math.floor(x)];
+  return { x, t, y, vy: 0, grounded: true, coyote: 0, buffer: 0, safe: { x, t, y }, mantle: 0, fx: 0, ft: 1 };
 }
 
 // 1フレーム動かす。mx・mt はカメラ基準から直した、世界の向きの入力（-1〜1）
@@ -51,7 +47,7 @@ export function stepHero(h, L, pieces, mx, mt, jumpPressed, dt, running = false)
 
   // 横の移動（軸ごとに。壁ならそこで止まる、低い段はのぼる、跳んでいれば よじ登る）
   const tryMove = (nx, nt) => {
-    nx = Math.max(TABLE.x0 + 0.3, Math.min(L.W - 0.3, nx));
+    nx = Math.max(0.3, Math.min(L.W - 0.3, nx));
     nt = Math.max(-0.5, Math.min(L.T + 0.5, nt));
     const g = footGround(L, pieces, nx, nt, h.y);
     if (g - h.y <= HERO.step) { h.x = nx; h.t = nt; if (h.grounded && g > h.y) h.y = g; return; }

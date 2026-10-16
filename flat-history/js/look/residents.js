@@ -2,7 +2,7 @@
 //   kiwi: 実在の生き物（飛べない鳥キーウィ。巣穴から卵の巣へ）
 //   penguin: アデリーペンギン（小石の巣）／pillbug: ダンゴムシ（しめった石の下）／snail: カタツムリ（雨つぶの葉）
 //   flat: 低い次元の住人（『フラットランド』のような図形の生き物「サンカク」。五角形の家から家族の家へ）
-import { INK, hatch } from './ink.js?v=47';
+import { INK, hatch } from './ink.js?v=48';
 
 // 4つの光の星（彫った線の星）
 export function sparkle(g, x, y, r, a) {

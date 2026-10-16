@@ -1,5 +1,5 @@
 // 2D世界の決まったルール。置いた3Dの形は、その秒の断面（長方形）として2D世界に現れる。
-import { KINDS } from './level.js?v=47';
+import { KINDS } from './level.js?v=48';
 
 // 言語（index.html の TX(日本語, 英語)。ノードでの試験のときは日本語）
 const TX = globalThis.TX || ((ja) => ja);
@@ -225,14 +225,11 @@ export function frameAt(frames, t) {
   return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, dir: a.dir, st: a.st, stones: a.stones };
 }
 
-// 置き場所: 下にある地形（標本台もふくむ）でとまる高さ（底なしの上だけなら -Infinity）
-export function restHeight(L, cand, tableY) {
+// 置き場所: 下にある地形でとまる高さ（底なしの上だけなら -Infinity）
+export function restHeight(L, cand) {
   const d = pieceDims(cand);
   let best = -Infinity;
-  for (let c = cand.x0; c < cand.x0 + d.wx; c++) {
-    if (c < 0) { if (c >= -7) best = Math.max(best, tableY); }
-    else if (c < L.W) best = Math.max(best, L.tops[c]);
-  }
+  for (let c = cand.x0; c < cand.x0 + d.wx; c++) if (c >= 0 && c < L.W) best = Math.max(best, L.tops[c]);
   return best;
 }
 
@@ -251,11 +248,11 @@ export function overlapsWalker(L, cand, pieces) {
 export function canPlaceQuick(L, cand, pieces) {
   const d = pieceDims(cand);
   if (cand.y0 === -Infinity) return TX('下に支えがない', 'Nothing to rest on');
-  if (cand.x0 + d.wx > L.W || cand.x0 < -7) return TX('ここには置けない', 'You can’t place it here');
+  if (cand.x0 + d.wx > L.W || cand.x0 < 0) return TX('ここには置けない', 'You can’t place it here');
   const top = cand.y0 + d.h + (d.along === 'z' ? d.slope * d.dz : d.slope * d.wx);
   if (top > L.H + 0.01) return TX('空の上につき出てしまう', 'It would stick out above the sky');
-  // 2D世界（ページ）にかかる形は、0〜60秒の外へはみ出せない
-  if (cand.x0 + d.wx > 0 && (cand.t0 < 0 || cand.t0 + d.dz > L.T)) return TX('ページの外へはみ出してしまう', 'It would stick out of the pages');
+  // 0〜60秒の外へはみ出せない
+  if ((cand.t0 < 0 || cand.t0 + d.dz > L.T)) return TX('ページの外へはみ出してしまう', 'It would stick out of the pages');
   for (const p of pieces) {
     const dp = pieceDims(p);
     const a = Math.max(cand.t0, p.t0), b = Math.min(cand.t0 + d.dz, p.t0 + dp.dz);
