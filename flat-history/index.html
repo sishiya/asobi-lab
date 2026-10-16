@@ -8,7 +8,7 @@
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="description" content="1秒ずつの2D世界が奥と手前に並んでいる。3Dの形を置くと、2D世界にはその断面が現れて、歴史が書きかわる。">
 <meta name="theme-color" content="#e2d2b0">
-<link rel="stylesheet" href="css/style.css?v=21">
+<link rel="stylesheet" href="css/style.css?v=22">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body class="menu">
@@ -28,7 +28,7 @@
       <button type="button" id="tHelp" class="act ghost">あそびかた</button>
       <button type="button" id="tSettings" class="act ghost">設定</button>
     </div>
-    <p class="t-foot"><span class="t-dev">キーボードとマウスで遊びます</span><span class="t-touch">指で遊べます（横向きがおすすめ）</span> ・ 試作 <span class="ver">v014</span> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
+    <p class="t-foot"><span class="t-dev">キーボードとマウスで遊びます</span><span class="t-touch">指で遊べます（横向きがおすすめ）</span> ・ 試作 <span class="ver">v016</span> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
   </div>
 </section>
 
@@ -56,7 +56,7 @@
 <div class="bottom hud">
   <canvas id="timeline" height="40" aria-label="時間のしおり（クリックでその秒へ）"></canvas>
 </div>
-<button type="button" id="btnBind" class="bind-btn hud" aria-label="この歴史を綴じる（G）">綴じる <kbd>G</kbd></button>
+<button type="button" id="btnBind" class="bind-btn hud" aria-label="この歴史で回答する（Enter）">回答する <kbd>Enter</kbd></button>
 
 <!-- スマホ: スティックとボタン -->
 <div id="touch" class="touch-ui hud">
@@ -127,7 +127,7 @@
 
 <div id="replay" class="modal" hidden>
   <div class="modal-card replay-card">
-    <div class="rp-head"><b id="rpTitle">この歴史を綴じる</b><span class="rp-sub">住人から見た、はじめの歴史と いまの歴史</span></div>
+    <div class="rp-head"><b id="rpTitle">この歴史で回答する</b><span class="rp-sub">住人から見た、はじめの歴史と いまの歴史</span></div>
     <div class="rp-row"><div class="rp-label">はじめの歴史</div><canvas id="rpA" width="720" height="280"></canvas></div>
     <div class="rp-row"><div class="rp-label now">いまの歴史</div><canvas id="rpB" width="720" height="280"></canvas></div>
     <div class="rp-ctrl">
@@ -158,13 +158,13 @@
       <tr><td><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></td><td>形を持って止まっているとき、置き場所を1マスずつずらす</td></tr>
       <tr><td><kbd>V</kbd></td><td>右下の、いまのページの小窓</td></tr>
       <tr><td>マウスのドラッグ</td><td>見回す（ホイールで寄る・引く）</td></tr>
-      <tr><td><kbd>G</kbd></td><td>この歴史を綴じる（これでいい、と思ったら答える。いつでも）</td></tr>
+      <tr><td><kbd>Enter</kbd></td><td>回答する（これでいい、と思ったら。いつでも）</td></tr>
       <tr><td><kbd>Esc</kbd></td><td>メニュー</td></tr>
     </table>
     <div class="win-acts"><button type="button" id="helpClose" class="act primary">とじる</button></div>
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=21"></script>
+<script type="module" src="js/main.js?v=22"></script>
 </body>
 </html>

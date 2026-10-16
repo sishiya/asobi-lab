@@ -242,7 +242,7 @@ const TRACKS = [
   },
 ];
 export const BGM_LIST = TRACKS.map((tr) => ({ id: tr.id, name: tr.name }));
-let trackId = 'stroll'; // はじめは「標本室のおさんぽ」（2026-10-16 ユーザー）。選んだ曲は設定（main.js）が覚える
+let trackId = 'minuet'; // はじめは「チェンバロのメヌエット」（2026-10-16 ユーザー）。選んだ曲は設定（main.js）が覚える
 export const bgmId = () => trackId;
 
 let bgmOn = false, nextT = 0, bar = 0, timer = null, playing = null;

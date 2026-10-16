@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=21';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=21';
-import { drawSheet } from './sheet.js?v=21';
-import { createStage } from './stage3d.js?v=21';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=21';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=21';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm } from './audio.js?v=21';
+import { LEVELS } from './level.js?v=22';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=22';
+import { drawSheet } from './sheet.js?v=22';
+import { createStage } from './stage3d.js?v=22';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=22';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=22';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm } from './audio.js?v=22';
 
 const $ = (id) => document.getElementById(id);
 
@@ -16,10 +16,10 @@ try { progress = JSON.parse(localStorage.getItem('flat-history.progress') || '{}
 function saveProgress() { try { localStorage.setItem('flat-history.progress', JSON.stringify(progress)); } catch (e) { /* なし */ } }
 
 // ---- 設定（このブラウザだけに覚える） ----
-const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'stroll', showRoute: false, runDefault: true, inset: true, hero: 'poly', res: 'kiwi' };
+const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'minuet', showRoute: false, runDefault: true, inset: true, hero: 'poly', res: 'kiwi' };
 let cfg = { ...DEF };
-try { cfg = { ...DEF, ...JSON.parse(localStorage.getItem('flat-history.settings') || '{}') }; } catch (e) { cfg = { ...DEF }; }
-function saveCfg() { try { localStorage.setItem('flat-history.settings', JSON.stringify(cfg)); } catch (e) { /* なし */ } }
+try { cfg = { ...DEF, ...JSON.parse(localStorage.getItem('flat-history.settings2') || '{}') }; } catch (e) { cfg = { ...DEF }; }
+function saveCfg() { try { localStorage.setItem('flat-history.settings2', JSON.stringify(cfg)); } catch (e) { /* なし */ } }
 setHero(cfg.hero); setRes(cfg.res);
 setVolumes(cfg.bgmVol, cfg.seVol);
 setBgm(cfg.bgm);
@@ -268,8 +268,7 @@ window.addEventListener('keydown', (e) => {
   if (k === ' ') jumpQueued = true;
   if (k === 'e' || k === 'E') useE();
   if (k === 'q' || k === 'Q') rotate();
-  if (k === 'g' || k === 'G') { if (st.solved && hasNext()) goNext(); else bind(); }
-  if (k === 'Enter' && st.solved && hasNext()) goNext();
+  if (k === 'Enter') { if (st.solved && hasNext()) goNext(); else bind(); }
   if (k === 'm' || k === 'M') nextBgm();
 });
 window.addEventListener('keyup', (e) => { const k = e.key; keys.delete(k); keys.delete(k.toLowerCase()); keys.delete(k.toUpperCase()); });
@@ -346,7 +345,6 @@ function drawInset(focus) {
   insetKey = k;
   const fr = st.hist.frames[Math.round(focus / 0.1)];
   drawSheet(insetG, L, focus, fr, sectionsAt(blockPieces(), focus), { paper: true, label: focus + '秒', goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null });
-  stage.drawHeroOn(insetG, focus);
   $('insetCap').textContent = focus + '秒目のページ（V でしまう）';
 }
 applyInset();
@@ -403,7 +401,7 @@ function drawTimeline() {
 // ---- ひとことの導き ----
 function coachText() {
   if (st.solved) return hasNext() ? '正史ができた。Enter で次の図版へ' : '正史ができた';
-  if (st.lv === 0 && !st.boundOnce && !st.carry && blockPieces().length && st.hintIdx >= (L.hints || []).length) return tx('これで巣に着くと思ったら、「綴じる」（G）で答えよう');
+  if (st.lv === 0 && !st.boundOnce && !st.carry && blockPieces().length && st.hintIdx >= (L.hints || []).length) return tx('これで巣に着くと思ったら、「回答する」（Enter）で答えよう');
   const hs = L.hints || [];
   const c = { walked: st.walked, seenEnd: st.revealT >= st.base.end.t, placed: blockPieces().length > 0 };
   while (st.hintIdx < hs.length && hs[st.hintIdx].when(c)) st.hintIdx++;
@@ -433,7 +431,7 @@ function renderPrompt(why) {
   if (el.innerHTML !== html) el.innerHTML = html;
 }
 
-// ---- 綴じる（答える）: 再生して見届けてから、正史かどうかを出す ----
+// ---- 回答する: 再生して見届けてから、正史かどうかを出す ----
 const hasNext = () => st.lv + 1 < LEVELS.length;
 function goNext() { se.click(); stage.openBook(); startGame(st.lv + 1); }
 const rp = { t: 0, playing: true, speed: 4, judged: true, endT: 0, gA: $('rpA').getContext('2d'), gB: $('rpB').getContext('2d') };
@@ -441,19 +439,13 @@ function bind() {
   if (bindingNow) return;
   if (stage.waving()) stage.skipWave();
   st.boundOnce = true;
-  // 綴じる前に、主人公は近くの標本台へさがる（ページの外にいるので、綴じた歴史には映らない）
-  const h = st.hero;
-  if (h.x > -0.5) {
-    h.x = -3.5; h.t = Math.max(0, Math.min(33, h.t)); h.y = tableY(L); h.vy = 0; h.grounded = true;
-    h.fx = 1; h.ft = 0;
-  }
   se.click();
   closeAll();
   showBindReplay();
 }
 let bindingNow = false;
 function showBindReplay() {
-  $('rpTitle').textContent = 'この歴史を綴じる';
+  $('rpTitle').textContent = 'この歴史で回答する';
   $('rpResult').hidden = true;
   $('rpNext').hidden = true;
   $('rpClose').hidden = true;
@@ -474,7 +466,7 @@ function judge() {
     const prev = progress[L.id];
     progress[L.id] = { best: prev ? Math.min(prev.best, n) : n };
     saveProgress();
-    el.innerHTML = '<span class="stamp">正史</span><p>' + tx('キーウィは巣に着いた。この歴史を図版に綴じた。') + '</p>';
+    el.innerHTML = '<span class="stamp">正史</span><p>' + tx('キーウィは巣に着いた。この歴史が正史になった。') + '</p>';
     $('rpTitle').textContent = '正史ができた';
     se.goal();
   } else {
@@ -490,7 +482,7 @@ function judge() {
   $('rpClose').hidden = false;
   $('rpClose').innerHTML = ok ? 'この図版にもどる <kbd>Esc</kbd>' : '考えなおす <kbd>Esc</kbd>';
 }
-// 綴じている最中に Esc → 最後まで早送りして結果を出す
+// 回答の再生の最中に Esc → 最後まで早送りして結果を出す
 function closeReplay() { if (!rp.judged) { rp.t = rp.endT; return; } $('replay').hidden = true; stage.openBook(); }
 function togglePlay() { if (rp.t >= L.T) rp.t = 0; rp.playing = !rp.playing; $('rpPlay').textContent = rp.playing ? '❚❚' : '▶'; }
 $('rpNext').addEventListener('click', goNext);
@@ -562,9 +554,9 @@ function loop(now) {
       $('tRot').hidden = !st.carry;
       $('tNudge').hidden = !st.carry;
     }
-    const bindHtml = st.solved && hasNext() ? '次へ <kbd>Enter</kbd>' : '綴じる <kbd>G</kbd>';
+    const bindHtml = st.solved && hasNext() ? '次へ <kbd>Enter</kbd>' : '回答する <kbd>Enter</kbd>';
     if ($('btnBind').innerHTML !== bindHtml) $('btnBind').innerHTML = bindHtml;
-    // 正史かどうかは、遊ぶ人が「綴じる」（G）まで判定しない
+    // 正史かどうかは、遊ぶ人が「回答する」（Enter）まで判定しない
   }
   requestAnimationFrame(loop);
 }

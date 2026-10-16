@@ -377,3 +377,9 @@ body.touch #view { touch-action: none; }
 .replay-card .win-acts { position: static; margin: 10px 0 0; padding: 0; background: none; }
 .rp-foot { position: sticky; bottom: -22px; margin: 6px -26px -22px; padding: 8px 26px 14px; background: linear-gradient(rgba(246,236,212,0), #f6ecd4 22%); }
 .rp-foot .rp-result { margin-top: 4px; }
+
+/* 結果画面のボタン: 判と光の筋はクリックを受けない。ボタンは大きく、いちばん上に */
+.rp-result, .rp-result * { pointer-events: none; }
+.rp-foot { z-index: 3; }
+.rp-foot .win-acts { position: relative; z-index: 2; }
+.rp-foot .act, .preview-card .act.big { min-height: 44px; padding: 10px 22px; font-size: 15px; }
