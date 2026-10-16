@@ -269,3 +269,17 @@ details.more p { font-size: 13px; color: var(--sub); }
 .rp-result.ok { color: #9a6a12; }
 .rp-result.ng { color: var(--red); }
 .rp-result p { margin: 8px 0 0; font-size: 14px; color: var(--ink); }
+
+/* 正史の判: ドンと押されて、まわりに光の筋 */
+.rp-result.ok { position: relative; }
+.rp-result.ok .stamp { position: relative; animation: stampIn .55s cubic-bezier(.2, 1.6, .4, 1) both; background: rgba(255, 244, 210, .8); }
+.rp-result.ok .stamp::before {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 260px; height: 260px; margin: -130px 0 0 -130px; z-index: -1;
+  background: repeating-conic-gradient(rgba(217, 166, 58, .35) 0 6deg, transparent 6deg 18deg);
+  -webkit-mask: radial-gradient(circle, #000 20%, transparent 68%); mask: radial-gradient(circle, #000 20%, transparent 68%);
+  animation: rays 6s linear infinite, raysIn .8s ease-out both;
+}
+@keyframes stampIn { 0% { transform: scale(2.4) rotate(-12deg); opacity: 0; } 60% { opacity: 1; } 100% { transform: scale(1) rotate(-3deg); } }
+@keyframes rays { to { transform: rotate(360deg); } }
+@keyframes raysIn { from { opacity: 0; } to { opacity: 1; } }
+.rp-result.ng .stamp { animation: stampIn .45s ease-out both; }

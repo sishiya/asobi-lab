@@ -1,6 +1,6 @@
 // 見た目 案2「図鑑の銅版画と標本室」: 線で彫った博物画の大地を、飛べない鳥キーウィが歩く。標本室の石膏像
 import * as THREE from 'three';
-import { rng, canvasTexture, floorPlane, radialTexture } from './util.js?v=10';
+import { rng, canvasTexture, floorPlane, radialTexture } from './util.js?v=11';
 
 const INK = '#4a3320';
 
@@ -145,10 +145,54 @@ function drawSection(g, L, s, S, color) {
   g.strokeStyle = INK; g.lineWidth = 1.5; g.strokeRect(x + 0.75, y + 0.75, w - 1.5, h - 1.5);
 }
 
+// 4つの光の星（彫った線の星）
+function sparkle(g, x, y, r, a) {
+  g.save(); g.translate(x, y); g.rotate(a);
+  g.fillStyle = '#d9a63a'; g.strokeStyle = INK; g.lineWidth = 0.7;
+  g.beginPath();
+  for (let i = 0; i < 8; i++) { const rr = i % 2 ? r * 0.3 : r, an = i * Math.PI / 4; g.lineTo(Math.cos(an) * rr, Math.sin(an) * rr); }
+  g.closePath(); g.fill(); g.stroke();
+  g.restore();
+}
+
+// 巣に着いてから: 卵にひびが入り、ひなが顔を出す
+function drawGoalJoy(g, L, S, since) {
+  const gx = L.goal.x * S, gy = (L.H - L.tops[Math.floor(L.goal.x)]) * S;
+  const ex = gx, ey = gy - 15;
+  if (since > 0.8) {
+    g.strokeStyle = INK; g.lineWidth = 1.1;
+    g.beginPath(); g.moveTo(ex - 9, ey - 2); g.lineTo(ex - 4, ey + 2); g.lineTo(ex, ey - 3); g.lineTo(ex + 4, ey + 1); g.lineTo(ex + 9, ey - 3); g.stroke();
+  }
+  if (since > 1.8) {
+    // 割れた上のから（横に落ちている）
+    g.fillStyle = '#fbf6e8'; g.strokeStyle = INK; g.lineWidth = 1;
+    g.beginPath(); g.ellipse(ex + 17, gy - 4, 7, 4, 0.5, Math.PI, 0); g.fill(); g.stroke();
+    // ひな（ふわふわの丸い頭と、短いくちばし）
+    const bob = Math.sin(since * 6) * 1;
+    g.fillStyle = '#d8bb8f';
+    g.beginPath(); g.arc(ex, ey - 6 + bob, 6, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(74,51,32,.7)'; g.lineWidth = 0.6;
+    for (let a = -2.6; a < -0.4; a += 0.35) { g.beginPath(); g.moveTo(ex + Math.cos(a) * 4, ey - 6 + bob + Math.sin(a) * 4); g.lineTo(ex + Math.cos(a) * 7, ey - 6 + bob + Math.sin(a) * 7); g.stroke(); }
+    g.strokeStyle = INK; g.lineWidth = 1;
+    g.beginPath(); g.arc(ex, ey - 6 + bob, 6, 0, 7); g.stroke();
+    g.beginPath(); g.moveTo(ex + 5, ey - 6 + bob); g.lineTo(ex + 10, ey - 3 + bob); g.stroke();
+    g.fillStyle = INK; g.beginPath(); g.arc(ex + 2, ey - 8 + bob, 0.8, 0, 7); g.fill();
+  }
+  // 巣のまわりの光
+  const n = 5;
+  for (let i = 0; i < n; i++) {
+    const a = since * 1.5 + i * (Math.PI * 2 / n), r = 20 + Math.sin(since * 3 + i) * 4;
+    sparkle(g, ex + Math.cos(a) * r, ey - 4 + Math.sin(a) * r * 0.6, 2.5 + (i % 2) * 1.2, since * 2 + i);
+  }
+}
+
 function drawWalker(g, L, f, S, scale = 1) {
   const x = f.x * S, y = (L.H - f.y) * S;
   g.save();
-  g.translate(x, y);
+  // 巣に着いたら、ぴょんぴょん跳ねてよろこぶ
+  const joy = f.since != null;
+  const hop = joy ? Math.abs(Math.sin(f.since * 7)) * 5 : 0;
+  g.translate(x, y - hop);
   g.scale(f.dir * scale, scale);
   const ph = f.st === 'walk' ? Math.sin(f.x * 7) : 0;
   // 足（太くてじょうぶ）
@@ -169,6 +213,13 @@ function drawWalker(g, L, f, S, scale = 1) {
   g.beginPath(); g.arc(5, -13.5, 3, 0, 7); g.fill(); g.stroke();
   g.beginPath(); g.moveTo(7.5, -13.5); g.quadraticCurveTo(12, -11, 14.5, -5.5); g.stroke();
   g.fillStyle = INK; g.beginPath(); g.arc(5.8, -14.3, 0.7, 0, 7); g.fill();
+  if (joy) {
+    // うれしい目（へ の字）と、頭の上の音符
+    g.strokeStyle = INK; g.lineWidth = 0.9;
+    g.beginPath(); g.moveTo(4.8, -14); g.lineTo(5.8, -15); g.lineTo(6.8, -14); g.stroke();
+    g.fillStyle = INK; g.font = '9px Georgia, serif';
+    g.save(); g.scale(f.dir, 1); g.fillText('♪', -4 * f.dir + Math.sin(f.since * 3) * 2, -22 - (f.since * 6) % 6); g.restore();
+  }
   g.restore();
 }
 
@@ -284,5 +335,5 @@ export default {
   labelColor: 'rgba(74,51,32,.85)',
   ribbon: { line: '#5a3d22', gold: '#c9942e', dead: '#8f3b2b', old: '#a0634f' },
   light: { sky: '#fff2d8', ground: '#7a5a3a', sun: '#ffe2b5' },
-  drawTerrain, drawBackdrop, drawWalker, drawSection, makeHero, makeEnv,
+  drawTerrain, drawBackdrop, drawWalker, drawSection, drawGoalJoy, makeHero, makeEnv,
 };

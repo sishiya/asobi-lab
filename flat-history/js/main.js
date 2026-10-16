@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=10';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=10';
-import { drawSheet } from './sheet.js?v=10';
-import { createStage } from './stage3d.js?v=10';
-import { kindName } from './look/index.js?v=10';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=10';
-import { initAudio, startBgm, se, isMuted, setMuted, BGM_LIST, bgmId, setBgm } from './audio.js?v=10';
+import { LEVELS } from './level.js?v=11';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=11';
+import { drawSheet } from './sheet.js?v=11';
+import { createStage } from './stage3d.js?v=11';
+import { kindName } from './look/index.js?v=11';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=11';
+import { initAudio, startBgm, se, isMuted, setMuted, BGM_LIST, bgmId, setBgm } from './audio.js?v=11';
 
 const $ = (id) => document.getElementById(id);
 
@@ -360,6 +360,7 @@ function judge() {
     se.fall();
   }
   el.hidden = false;
+  el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   $('rpNext').hidden = !(ok && hasNext());
   $('rpClose').hidden = false;
   $('rpClose').innerHTML = ok ? 'この図版にもどる <kbd>Esc</kbd>' : '考えなおす <kbd>Esc</kbd>';
@@ -375,7 +376,7 @@ $('rpSpeed').addEventListener('change', (e) => { rp.speed = +e.target.value; });
 function drawReplay() {
   const t = rp.t, lab = t.toFixed(1) + '秒';
   drawSheet(rp.gA, L, t, frameAt(st.base.frames, t), [], { paper: true, label: lab });
-  drawSheet(rp.gB, L, t, frameAt(st.hist.frames, t), sectionsAt(blockPieces(), t), { paper: true, label: lab });
+  drawSheet(rp.gB, L, t, frameAt(st.hist.frames, t), sectionsAt(blockPieces(), t), { paper: true, label: lab, goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null });
   $('rpSeek').value = t;
   $('rpTime').textContent = t.toFixed(1) + ' 秒';
 }
@@ -436,4 +437,4 @@ loadLevel(firstUnsolved());
 showScreen('title');
 requestAnimationFrame(loop);
 // 確認用
-window.__fh = { st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, get L() { return L; } };
+window.__fh = { st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, bind, judge, rp, stage, get L() { return L; } };

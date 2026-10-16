@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・標本台・主人公・置いた形・持っている形・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=10';
-import { radialTexture } from './look/util.js?v=10';
-import { S, drawSheet } from './sheet.js?v=10';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=10';
-import { TABLE, tableY } from './hero.js?v=10';
+import { look, kindColor } from './look/index.js?v=11';
+import { radialTexture } from './look/util.js?v=11';
+import { S, drawSheet } from './sheet.js?v=11';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=11';
+import { TABLE, tableY } from './hero.js?v=11';
 
 export const GAP = 1.0;
 const Z = (t) => -t * GAP;
@@ -184,7 +184,7 @@ export function createStage(canvas, L) {
 
   function drawOne(sh) {
     const fr = hist.frames[Math.round(sh.t / DT)];
-    drawSheet(sh.g, L, sh.t, fr, sectionsAt(pieces, sh.t));
+    drawSheet(sh.g, L, sh.t, fr, sectionsAt(pieces, sh.t), { goalT: hist.end.type === 'goal' ? hist.end.t : null });
     sh.tex.needsUpdate = true;
     sh.pending = false;
   }
@@ -397,5 +397,8 @@ export function createStage(canvas, L) {
     camera.updateProjectionMatrix();
   }
 
-  return { setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, waving: () => waveT !== null };
+  // 確認用: 波を終わらせる
+  function skipWave() { if (waveT === null) return; for (const sh of sheets) if (sh.pending) drawOne(sh); waveT = null; }
+
+  return { setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, waving: () => waveT !== null };
 }
