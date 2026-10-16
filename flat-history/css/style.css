@@ -387,3 +387,11 @@ body.touch #view { touch-action: none; }
 /* スマホ: 置けない理由・知らせは、画面の上のほうに出す */
 body.touch .prompt { display: block; bottom: auto; top: 96px; }
 body.touch .prompt:empty { display: none; }
+/* 結果画面: 画面の高さにおさめる（スクロールしない）。判の光の筋は判のまわりの中だけで回す */
+.replay-card { display: flex; flex-direction: column; overflow: hidden; max-height: calc(100vh - 32px); }
+.replay-card .rp-row canvas { max-height: max(70px, calc((100vh - 420px) / 2)); }
+.rp-foot { position: static; margin: 4px 0 0; padding: 0; background: none; overflow: hidden; flex: none; }
+.rp-foot .rp-result { position: relative; overflow: hidden; padding: 10px 0 4px; }
+.rp-result.ok .stamp::before { width: 200px; height: 200px; margin: -100px 0 0 -100px; }
+.preview-card { overflow: hidden; max-height: calc(100vh - 32px); }
+.preview-card .win-acts { position: static; margin: 10px 0 0; padding: 0; background: none; }

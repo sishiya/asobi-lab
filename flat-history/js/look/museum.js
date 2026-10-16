@@ -1,7 +1,7 @@
 // 見た目「図鑑の銅版画と標本室」: 線で彫った博物画の大地と、標本室。住人と主人公は residents.js・heroes.js（設定で選ぶ）
 import * as THREE from 'three';
-import { rng, canvasTexture, floorPlane } from './util.js?v=26';
-import { INK, hatch } from './ink.js?v=26';
+import { rng, canvasTexture, floorPlane } from './util.js?v=28';
+import { INK, hatch } from './ink.js?v=28';
 
 function drawTerrain(g, L, S, res) {
   const R = rng(23);
@@ -87,8 +87,14 @@ function drawBackdrop(g, L, S, res) {
 function drawSection(g, L, s, S, color) {
   const x = s.x0 * S, y = (L.H - s.y1) * S, w = (s.x1 - s.x0) * S, h = (s.y1 - s.y0) * S;
   const kind = s.p.kind === 'plank' || s.p.kind === 'short' ? 'beam' : s.p.kind;
-  g.fillStyle = kind === 'beam' ? '#d8b483' : kind === 'lift' ? '#dcb85a' : '#f4f1e8';
+  g.fillStyle = kind === 'beam' ? '#d8b483' : kind === 'lift' ? '#dcb85a' : kind === 'slide' ? '#b9c7b0' : '#f4f1e8';
   g.fillRect(x, y, w, h);
+  if (kind === 'slide') {
+    // すべる向きの山形の線
+    g.strokeStyle = 'rgba(74,51,32,.6)'; g.lineWidth = 1;
+    const dir = Math.sign(s.vx || 1);
+    for (let xx = 8; xx < w - 4; xx += 10) { g.beginPath(); g.moveTo(x + xx, y + 4); g.lineTo(x + xx + 4 * dir, y + h / 2); g.lineTo(x + xx, y + h - 4); g.stroke(); }
+  }
   if (kind === 'beam') {
     g.strokeStyle = 'rgba(74,51,32,.65)'; g.lineWidth = 0.8;
     for (let i = 0; i < 4; i++) {
@@ -141,8 +147,8 @@ function makeEnv(L) {
 
 export default {
   id: 'museum',
-  kindNames: { beam: '長い標本の板', plank: '標本の板', short: 'うすい標本の板', lift: '真鍮のななめ板', wall: '石膏の柱' },
-  kindColors: { beam: '#c9732f', plank: '#c9732f', short: '#d9893f', lift: '#e8a91c', wall: '#e9eef2' },
+  kindNames: { beam: '長い標本の板', plank: '標本の板', short: 'うすい標本の板', lift: '真鍮のななめ板', wall: '石膏の柱', slide: '平行四辺形の板' },
+  kindColors: { beam: '#c9732f', plank: '#c9732f', short: '#d9893f', lift: '#e8a91c', wall: '#e9eef2', slide: '#4f9a86' },
   bg: 'radial-gradient(120% 90% at 30% 0%, #f5ead2 0%, #e2d2b0 50%, #b9a27c 100%)',
   fog: '#ddcca8', fogNear: 38, fogFar: 100, paper: ['#f4ead2', '#eadcbc'], paperTint: '#f8efd8',
   edge: '#b29a6c', focus: '#a8742a',

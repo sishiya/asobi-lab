@@ -1,7 +1,7 @@
 // 主人公（3Dの学芸員）の歩き方。1マスまでの段は自動でのぼる（キーウィと同じ）。時空の大地（ページの上のふちが奥行きに並んだ地形）の上を歩く。
 // 座標: x＝2D世界の横（マス）、t＝時間（秒。3Dの奥行き）、y＝高さ（マス）。
 // 主人公の体はページの間隔（1秒）より薄いので、ページのあいだを歩くかぎり2D世界とは交わらない（REDESIGN 3-1）
-import { pieceDims } from './sim.js?v=26';
+import { pieceDims, sectionRects } from './sim.js?v=28';
 
 // 標本台: 2D世界のブロックの左どなり（x<0）。ここに置いた形は、ページと交わらない
 export const TABLE = { x0: -7, x1: 0, t0: -1, t1: 34 };
@@ -17,6 +17,11 @@ export function groundAt(L, pieces, x, t, yRef = Infinity) {
   for (const p of pieces) {
     const d = pieceDims(p);
     if (x < p.x0 || x > p.x0 + d.wx || t < p.t0 || t > p.t0 + d.dz) continue;
+    if (d.vx) {
+      // すべる足場（平行四辺形）: その秒の断面の上だけが床
+      for (const r of sectionRects(p, Math.min(t, p.t0 + d.dz - 1e-3))) if (x >= r.x0 && x <= r.x1 && r.y0 <= yRef + 1.0) g = Math.max(g, r.y1);
+      continue;
+    }
     const bottom = p.y0 + d.slope * (d.along === 'z' ? t - p.t0 : x - p.x0);
     if (bottom > yRef + 1.0) continue;
     g = Math.max(g, bottom + d.h);

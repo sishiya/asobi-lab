@@ -8,6 +8,8 @@ export const KINDS = {
   short: { w: 5, h: 1, d: 4, slope: 0, desc: '奥行きが4秒ぶんしかない、うすい板' },
   lift: { w: 5, h: 1, d: 10, slope: 0.75, desc: '手前（未来）ほど高くなる、ななめの板' },
   wall: { w: 1, h: 3, d: 6, slope: 0, desc: '高さ3マス・奥行き6秒ぶんの柱' },
+  // 平行四辺形の板: 奥へ1秒進むごとに横へ shear マスずれた板。2D世界では横にすべる足場（ずれ＝速さ）。Q で向きが反対に
+  slide: { w: 4, h: 1, d: 6, slope: 0, shear: 1.5, desc: '横にずれた、平行四辺形の板' },
 };
 
 // 地形の列の高さを、[はじめの列, 終わりの列, 高さ] の並びから作る（書いていない列は 4。null は底なし）
@@ -70,18 +72,36 @@ export const LEVELS = [
     fail: '回した板は、横に長いぶん、ある時間は短い',
   },
   {
-    ...base, id: 's1', plate: 'VI', name: '崖と段',
+    // 平行四辺形の板（すべる足場）: 9マスの崖は、どの板でも届かない。のせて運べば、わたれる
+    ...base, id: 't6', plate: 'VI', name: 'はこぶ板', tutorial: true,
+    tops: tops([[10, 18, null]]), start: { x: 1.6, dir: 1 }, goal: { x: 30 },
+    stock: { slide: 1 },
+    hints: [
+      { text: 'こんどの板は、横にずれている', when: (c) => c.placed },
+    ],
+    fail: 'すべる板にのったキーウィは、どう動く？',
+  },
+  {
+    ...base, id: 's1', plate: 'VII', name: '崖と段',
     tops: tops([[12, 16, null], [19, 23, 3], [24, 35, 7]]), start: { x: 1.6, dir: 1 }, goal: { x: 32.4 },
     // 時刻の窓: 卵が光っているあいだ（28〜34秒）に着いたときだけ巣に入る。ななめ板だけでは早すぎて、柱で時刻をずらすしかない
     window: [28, 34],
     stock: { beam: 1, lift: 1, wall: 1 },
-    hints: [{ text: '巣の卵は、光っているあいだに着かないと、かえらない', when: (c) => c.placed }], fail: '',
+    hints: [{ text: '__windowHint__', when: (c) => c.placed }], fail: '',
   },
   {
-    ...base, id: 's2', plate: 'VII', name: '高い巣',
+    ...base, id: 's2', plate: 'VIII', name: '高い巣',
     tops: tops([[0, 6, 7], [7, 11, 3], [25, 29, null]]), start: { x: 16, dir: 1 }, goal: { x: 3 },
     window: [16, 20], // 柱でひきかえさせる「時刻」と、ななめ板の時刻を、両方合わせる
     stock: { wall: 1, lift: 1 },
+    hints: [], fail: '',
+  },
+  {
+    // 崖が2つ: 広い崖はすべる板で運び、せまい崖は長い板。運ばれて早く着くキーウィに、長い板の時刻を合わせる
+    ...base, id: 's3', plate: 'IX', name: 'まにあう巣',
+    tops: tops([[8, 16, null], [22, 26, null]]), start: { x: 1.6, dir: 1 }, goal: { x: 32 },
+    window: [17, 18],
+    stock: { beam: 1, slide: 1 },
     hints: [], fail: '',
   },
 ];

@@ -1,5 +1,5 @@
 // 2D世界の決まったルール。置いた3Dの形は、その秒の断面（長方形）として2D世界に現れる。
-import { KINDS } from './level.js?v=26';
+import { KINDS } from './level.js?v=28';
 
 export const DT = 0.1;          // 1コマ＝0.1秒
 const SPEED = 1.5;              // 2D人の歩く速さ（マス/秒）
@@ -12,6 +12,8 @@ const G = 22;
 // 3Dの形 p の大きさ。rot=1 なら横と奥行きを入れかえる（ななめの板は、横の方向に上がる坂になる）
 export function pieceDims(p) {
   const k = KINDS[p.kind];
+  // 平行四辺形の板: 回すと、すべる向きが反対になる（横の広がり wx は、すべる道のりもふくむ）
+  if (k.shear) return { wx: k.w + k.shear * k.d, dz: k.d, h: k.h, slope: 0, along: 'z', wbase: k.w, vx: p.rot ? -k.shear : k.shear };
   return p.rot
     ? { wx: k.d, dz: k.w, h: k.h, slope: k.slope, along: 'x' }
     : { wx: k.w, dz: k.d, h: k.h, slope: k.slope, along: 'z' };
@@ -21,6 +23,12 @@ export function pieceDims(p) {
 export function sectionRects(p, t) {
   const d = pieceDims(p);
   if (t < p.t0 - 1e-6 || t >= p.t0 + d.dz - 1e-6) return [];
+  if (d.vx) {
+    // すべる足場: その秒の位置
+    const u = t - p.t0;
+    const xs = d.vx > 0 ? p.x0 + d.vx * u : p.x0 + (d.wx - d.wbase) + d.vx * u;
+    return [{ x0: xs, x1: xs + d.wbase, y0: p.y0, y1: p.y0 + d.h, p, vx: d.vx }];
+  }
   if (d.along === 'z') {
     const y = p.y0 + d.slope * (t - p.t0);
     return [{ x0: p.x0, x1: p.x0 + d.wx, y0: y, y1: y + d.h, p }];
@@ -104,6 +112,13 @@ export function simulate(L, pieces) {
       if (w.y - sup > 0.2) { w.st = 'fall'; w.from = w.y; w.vy = 0; }
       else {
         w.y = sup;
+        // すべる足場の上なら、足場といっしょに横へ運ばれる（行く手が壁ならそこで止まる）
+        const ride = secs.find((s) => s.vx && Math.abs(s.y1 - sup) < 1e-6 && w.x + HALF > s.x0 && w.x - HALF < s.x1);
+        if (ride) {
+          const cx = w.x + ride.vx * DT;
+          const bt = blockTop(L, cx + Math.sign(ride.vx) * HALF, w.y, secs.filter((s) => s !== ride));
+          if (bt === -Infinity || bt - w.y <= 0.02) w.x = cx;
+        }
         const nx = w.x + w.dir * SPEED * DT;
         const bt = blockTop(L, nx + w.dir * HALF, w.y, secs);
         if (bt > -Infinity) {

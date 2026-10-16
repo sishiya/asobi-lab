@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・標本台・主人公・置いた形・持っている形・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=26';
-import { radialTexture } from './look/util.js?v=26';
-import { S, drawSheet } from './sheet.js?v=26';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=26';
-import { TABLE, tableY } from './hero.js?v=26';
+import { look, kindColor } from './look/index.js?v=28';
+import { radialTexture } from './look/util.js?v=28';
+import { S, drawSheet } from './sheet.js?v=28';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=28';
+import { TABLE, tableY } from './hero.js?v=28';
 
 export const GAP = 1.0;
 const Z = (t) => -t * GAP;
@@ -29,11 +29,13 @@ export function pieceGeometry(p) {
   const key = p.kind + ':' + (p.rot ? 1 : 0);
   if (geoCache.has(key)) return geoCache.get(key);
   const d = pieceDims(p);
-  const g = new THREE.BoxGeometry(d.wx, d.h, d.dz * GAP, Math.max(1, Math.round(d.wx)), 1, Math.max(1, Math.round(d.dz)));
-  g.translate(d.wx / 2, d.h / 2, -d.dz * GAP / 2);
+  const bw = d.vx ? d.wbase : d.wx;
+  const g = new THREE.BoxGeometry(bw, d.h, d.dz * GAP, Math.max(1, Math.round(bw)), 1, Math.max(1, Math.round(d.dz)));
+  g.translate(bw / 2, d.h / 2, -d.dz * GAP / 2);
   const pos = g.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const tt = -pos.getZ(i) / GAP;
+    if (d.vx) { pos.setX(i, pos.getX(i) + (d.vx > 0 ? d.vx * tt : (d.wx - d.wbase) + d.vx * tt)); continue; } // 平行四辺形
     pos.setY(i, pos.getY(i) + d.slope * (d.along === 'z' ? tt : pos.getX(i)));
   }
   g.computeVertexNormals();

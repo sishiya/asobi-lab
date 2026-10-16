@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=26';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=26';
-import { drawSheet } from './sheet.js?v=26';
-import { createStage } from './stage3d.js?v=26';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=26';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=26';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=26';
+import { LEVELS } from './level.js?v=28';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=28';
+import { drawSheet } from './sheet.js?v=28';
+import { createStage } from './stage3d.js?v=28';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=28';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=28';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=28';
 
 const $ = (id) => document.getElementById(id);
 
@@ -417,7 +417,7 @@ function coachText() {
   const hs = L.hints || [];
   const c = { walked: st.walked, seenEnd: st.revealT >= st.base.end.t, placed: blockPieces().length > 0, rotated: !!st.rotatedOnce };
   while (st.hintIdx < hs.length && hs[st.hintIdx].when(c)) st.hintIdx++;
-  if (st.hintIdx < hs.length) return tx(hs[st.hintIdx].text);
+  if (st.hintIdx < hs.length) return hs[st.hintIdx].text === '__windowHint__' ? look().windowHint : tx(hs[st.hintIdx].text);
   if (st.failedOnce && L.fail) return tx(L.fail);
   return '';
 }
@@ -512,9 +512,9 @@ function judge() {
   } else {
     const np = st.hist.nestPass;
     // 巣を通りすぎたなら、そのことをいちばんに伝える（時刻の窓のヒント）
-    const why = np ? (np.early ? '巣に着いたけれど、卵はまだ光っていなかった（早すぎた）' : '巣に着いたけれど、卵の光はもう消えていた（遅すぎた）')
+    const why = np ? (np.early ? look().earlyMsg : look().lateMsg)
       : e.type === 'abyss' ? '崖に落ちてしまった' : e.type === 'fall' ? '高い所から落ちてしまった' : '巣に着かなかった';
-    el.innerHTML = '<span class="stamp">まだ</span><p>' + tx('キーウィは' + why) + '。考えなおそう。</p>';
+    el.innerHTML = '<span class="stamp">まだ</span><p>' + (np ? tx('キーウィは') + why : tx('キーウィは' + why)) + '。考えなおそう。</p>';
     $('rpTitle').textContent = 'まだ正史ではない';
     st.failedOnce = true;
     setTimeout(() => se.notyet(), 120);

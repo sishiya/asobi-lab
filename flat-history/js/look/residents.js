@@ -1,7 +1,7 @@
 // 2D世界の住人（設定で選ぶ）。どちらも図鑑の銅版画の線で描く
 //   kiwi: 実在の生き物（飛べない鳥キーウィ。巣穴から卵の巣へ）
 //   flat: 低い次元の住人（『フラットランド』のような図形の生き物「サンカク」。五角形の家から家族の家へ）
-import { INK, hatch } from './ink.js?v=26';
+import { INK, hatch } from './ink.js?v=28';
 
 // 4つの光の星（彫った線の星）
 export function sparkle(g, x, y, r, a) {
@@ -22,7 +22,11 @@ const py = (L, S, y) => (L.H - y) * S;
 
 // ---------------- キーウィ ----------------
 const kiwi = {
-  id: 'kiwi', who: 'キーウィ', goalName: '巣', goalThing: '卵', plate: 'Apteryx',
+  id: 'kiwi', who: 'キーウィ', goalName: '巣', goalThing: '卵',
+  // 卵が光ってゆれるのは、ひなが中から殻をつつく「嘴打ち（はしうち）」のあいだ（本当に、かえる前のひなは殻をつつく）
+  windowHint: '卵が光ってゆれるのは、ひなが中から殻をつつく「嘴打ち」のあいだだけ',
+  earlyMsg: '巣に着いたけれど、ひなはまだ眠っていた（早すぎた）',
+  lateMsg: '巣に着いたけれど、ひなは待ちくたびれて、また眠ってしまった（遅すぎた）', plate: 'Apteryx',
   drawHome(g, L, S) {
     const hy = py(L, S, L.tops[Math.floor(L.start.x)]);
     g.save(); g.translate(Math.max(0, L.start.x * S - 27), 0);
@@ -140,7 +144,10 @@ function triangleBody(g, s, tilt = 0) {
   g.restore();
 }
 const flat = {
-  id: 'flat', who: 'サンカク', goalName: '家族の家', goalThing: '窓の明かり', plate: 'Trigonum',
+  id: 'flat', who: 'サンカク', goalName: '家族の家', goalThing: '窓の明かり',
+  windowHint: '家族が窓に明かりをともして待っているのは、少しのあいだだけ',
+  earlyMsg: '家に着いたけれど、まだ明かりはついていなかった（早すぎた）',
+  lateMsg: '家に着いたけれど、明かりはもう消えていた（遅すぎた）', plate: 'Trigonum',
   drawHome(g, L, S) {
     const hy = py(L, S, L.tops[Math.floor(L.start.x)]);
     pentagonHouse(g, L.start.x * S - 4, hy, 16);
