@@ -126,7 +126,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .win-acts { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
 @keyframes pop { from { transform: scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
 
-.modal { position: fixed; inset: 0; z-index: 9; display: grid; place-items: center; background: rgba(50, 34, 18, .4); backdrop-filter: blur(2px); padding: 16px; }
+.modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(50, 34, 18, .4); backdrop-filter: blur(2px); padding: 16px; }
 .modal-card {
   width: min(780px, 100%); max-height: 100%; overflow: auto; padding: 22px 26px;
   background-color: #f6ecd4; background-image: var(--grain);
