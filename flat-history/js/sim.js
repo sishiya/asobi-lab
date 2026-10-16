@@ -1,5 +1,5 @@
 // 2D世界の決まったルール。置いた3Dの形は、その秒の断面（長方形）として2D世界に現れる。
-import { KINDS } from './level.js?v=23';
+import { KINDS } from './level.js?v=25';
 
 export const DT = 0.1;          // 1コマ＝0.1秒
 const SPEED = 1.5;              // 2D人の歩く速さ（マス/秒）
@@ -75,7 +75,7 @@ export function simulate(L, pieces) {
   const frames = new Array(N + 1);
   const events = [];
   const w = { x: L.start.x, y: L.tops[Math.floor(L.start.x)], dir: L.start.dir || 1, vy: 0, st: 'walk', from: 0 };
-  let end = null, overlap = null;
+  let end = null, overlap = null, nestPass = null;
   for (let k = 0; k <= N; k++) {
     const t = k * DT;
     const secs = sectionsAt(pieces, t);
@@ -111,9 +111,15 @@ export function simulate(L, pieces) {
           else { w.dir = -w.dir; events.push({ t, type: 'turn', x: w.x, y: w.y }); }
         } else w.x = nx;
         if (Math.abs(w.x - L.goal.x) < 0.3 && w.y >= L.tops[Math.floor(L.goal.x)] - 0.01) {
-          w.st = 'goal';
-          end = { type: 'goal', t, x: w.x, y: w.y };
-          events.push(end);
+          // 時刻の窓（卵が光っているあいだ）があるなら、そのあいだに着いたときだけ巣に入る。外れたら通りすぎる
+          if (!L.window || (t >= L.window[0] && t <= L.window[1])) {
+            w.st = 'goal';
+            end = { type: 'goal', t, x: w.x, y: w.y };
+            events.push(end);
+          } else if (!nestPass || t - nestPass.t > 1) {
+            nestPass = { t, early: t < L.window[0] };
+            events.push({ type: 'nest', t, x: w.x, early: nestPass.early });
+          }
         }
       }
     }
@@ -131,7 +137,7 @@ export function simulate(L, pieces) {
     }
   }
   if (!end) end = { type: 'time', t: L.T, x: w.x, y: w.y };
-  return { frames, events, end, overlap };
+  return { frames, events, end, overlap, nestPass };
 }
 
 // 時刻 t の2D人（コマのあいだはなめらかに）

@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=23';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=23';
-import { drawSheet } from './sheet.js?v=23';
-import { createStage } from './stage3d.js?v=23';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=23';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=23';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=23';
+import { LEVELS } from './level.js?v=25';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=25';
+import { drawSheet } from './sheet.js?v=25';
+import { createStage } from './stage3d.js?v=25';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=25';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=25';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=25';
 
 const $ = (id) => document.getElementById(id);
 
@@ -24,7 +24,7 @@ setHero(cfg.hero); setRes(cfg.res);
 setVolumes(cfg.bgmVol, cfg.seVol);
 setBgm(cfg.bgm);
 // 図版の文の「キーウィ」「巣」を、いまの住人に合わせる
-const tx = (str) => str.replaceAll('キーウィ', look().who).replaceAll('巣', look().goalName);
+const tx = (str) => str.replaceAll('キーウィ', look().who).replaceAll('巣', look().goalName).replaceAll('卵', look().goalThing);
 
 let L = LEVELS[0];
 const st = {
@@ -509,7 +509,10 @@ function judge() {
     $('rpTitle').textContent = '正史ができた';
     setTimeout(() => se.goal(), 120);
   } else {
-    const why = e.type === 'abyss' ? '崖に落ちてしまった' : e.type === 'fall' ? '高い所から落ちてしまった' : '巣に着かなかった';
+    const np = st.hist.nestPass;
+    // 巣を通りすぎたなら、そのことをいちばんに伝える（時刻の窓のヒント）
+    const why = np ? (np.early ? '巣に着いたけれど、卵はまだ光っていなかった（早すぎた）' : '巣に着いたけれど、卵の光はもう消えていた（遅すぎた）')
+      : e.type === 'abyss' ? '崖に落ちてしまった' : e.type === 'fall' ? '高い所から落ちてしまった' : '巣に着かなかった';
     el.innerHTML = '<span class="stamp">まだ</span><p>' + tx('キーウィは' + why) + '。考えなおそう。</p>';
     $('rpTitle').textContent = 'まだ正史ではない';
     st.failedOnce = true;

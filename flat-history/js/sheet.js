@@ -1,5 +1,5 @@
 // 1秒のページ（2D世界）の絵。空は透明にして、ページを重ねると地面が奥行きにのびて見えるようにする。
-import { look, kindColor } from './look/index.js?v=23';
+import { look, kindColor } from './look/index.js?v=25';
 
 export const S = 20; // 1マスのピクセル
 
@@ -34,6 +34,8 @@ export function drawSheet(g, L, t, frame, secs, opt = {}) {
   g.drawImage(terrainCanvas(L), 0, 0);
   // 巣に着いてからの時間（よろこぶ・卵がかえる）
   const since = frame && frame.st === 'goal' && opt.goalT != null ? t - opt.goalT : null;
+  // 時刻の窓のあいだは、ゴールが光る（まだ着いていなければ）
+  if (since === null && L.window && t >= L.window[0] && t <= L.window[1] && look().drawGoalReady) look().drawGoalReady(g, L, S, t);
   if (since !== null && look().drawGoalJoy) look().drawGoalJoy(g, L, S, since);
   for (const s of secs) look().drawSection(g, L, s, S, kindColor(s.p.kind));
   drawWalker(g, L, since !== null ? { ...frame, since } : frame);

@@ -62,12 +62,15 @@ export const LEVELS = [
   {
     ...base, id: 's1', plate: 'V', name: '崖と段',
     tops: tops([[12, 16, null], [19, 23, 3], [24, 35, 7]]), start: { x: 1.6, dir: 1 }, goal: { x: 32.4 },
+    // 時刻の窓: 卵が光っているあいだ（28〜34秒）に着いたときだけ巣に入る。ななめ板だけでは早すぎて、柱で時刻をずらすしかない
+    window: [28, 34],
     stock: { beam: 1, lift: 1, wall: 1 },
-    hints: [], fail: '',
+    hints: [{ text: '巣の卵は、光っているあいだに着かないと、かえらない', when: (c) => c.placed }], fail: '',
   },
   {
     ...base, id: 's2', plate: 'VI', name: '高い巣',
     tops: tops([[0, 6, 7], [7, 11, 3], [25, 29, null]]), start: { x: 16, dir: 1 }, goal: { x: 3 },
+    window: [16, 20], // 柱でひきかえさせる「時刻」と、ななめ板の時刻を、両方合わせる
     stock: { wall: 1, lift: 1 },
     hints: [], fail: '',
   },

@@ -1,7 +1,7 @@
 // 見た目: 図鑑の銅版画と標本室（museum）に、設定で選ぶ主人公（3D）と住人（2D）をのせる
-import museum from './museum.js?v=23';
-import { RESIDENTS } from './residents.js?v=23';
-import { HEROES, HERO_LIST } from './heroes.js?v=23';
+import museum from './museum.js?v=25';
+import { RESIDENTS } from './residents.js?v=25';
+import { HEROES, HERO_LIST } from './heroes.js?v=25';
 
 export { HERO_LIST };
 export const RES_LIST = [{ id: 'kiwi', name: 'キーウィ' }, { id: 'flat', name: 'サンカク（図形の住人）' }];
@@ -16,10 +16,12 @@ export function look() {
     id: 'museum-' + res.id,
     who: res.who,
     goalName: res.goalName,
+    goalThing: res.goalThing,
     drawTerrain: (g, L, S) => museum.drawTerrain(g, L, S, res),
     drawBackdrop: (g, L, S) => museum.drawBackdrop(g, L, S, res),
     drawWalker: res.drawWalker,
     drawGoalJoy: res.drawGoalJoy,
+    drawGoalReady: res.drawGoalReady,
     makeHero: HEROES[heroId],
   });
   return composed;

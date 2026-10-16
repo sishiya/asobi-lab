@@ -1,7 +1,7 @@
 // 2D世界の住人（設定で選ぶ）。どちらも図鑑の銅版画の線で描く
 //   kiwi: 実在の生き物（飛べない鳥キーウィ。巣穴から卵の巣へ）
 //   flat: 低い次元の住人（『フラットランド』のような図形の生き物「サンカク」。五角形の家から家族の家へ）
-import { INK, hatch } from './ink.js?v=23';
+import { INK, hatch } from './ink.js?v=25';
 
 // 4つの光の星（彫った線の星）
 export function sparkle(g, x, y, r, a) {
@@ -22,7 +22,7 @@ const py = (L, S, y) => (L.H - y) * S;
 
 // ---------------- キーウィ ----------------
 const kiwi = {
-  id: 'kiwi', who: 'キーウィ', goalName: '巣', plate: 'Apteryx',
+  id: 'kiwi', who: 'キーウィ', goalName: '巣', goalThing: '卵', plate: 'Apteryx',
   drawHome(g, L, S) {
     const hy = py(L, S, L.tops[Math.floor(L.start.x)]);
     g.save(); g.translate(Math.max(0, L.start.x * S - 27), 0);
@@ -46,6 +46,18 @@ const kiwi = {
     g.beginPath(); g.ellipse(gx + 16, gy - 15, 10, 13, 0.15, 0, 7); g.fill();
     g.save(); g.clip(); hatch(g, gx + 16, gy - 28, 12, 26, 2.2, -0.9, 'rgba(74,51,32,.4)'); g.restore();
     g.beginPath(); g.ellipse(gx + 16, gy - 15, 10, 13, 0.15, 0, 7); g.stroke();
+  },
+  // 時刻の窓のあいだ: 卵が光ってゆれる
+  drawGoalReady(g, L, S, t) {
+    const ex = L.goal.x * S, ey = py(L, S, L.tops[Math.floor(L.goal.x)]) - 15;
+    const gr = g.createRadialGradient(ex, ey, 2, ex, ey, 26);
+    gr.addColorStop(0, 'rgba(255,214,120,.95)'); gr.addColorStop(1, 'rgba(255,214,120,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(ex, ey, 26, 0, 7); g.fill();
+    g.save(); g.translate(ex, ey); g.rotate(Math.sin(t * 9) * 0.12);
+    g.fillStyle = '#fff6dc'; g.strokeStyle = INK; g.lineWidth = 1.2;
+    g.beginPath(); g.ellipse(0, 0, 10, 13, 0.15, 0, 7); g.fill(); g.stroke();
+    g.restore();
+    sparkle(g, ex + 13, ey - 12, 3, t * 3); sparkle(g, ex - 12, ey - 6, 2.4, t * 2 + 1);
   },
   // 巣に着いてから: 卵にひびが入り、ひなが顔を出す
   drawGoalJoy(g, L, S, since) {
@@ -128,7 +140,7 @@ function triangleBody(g, s, tilt = 0) {
   g.restore();
 }
 const flat = {
-  id: 'flat', who: 'サンカク', goalName: '家族の家', plate: 'Trigonum',
+  id: 'flat', who: 'サンカク', goalName: '家族の家', goalThing: '窓の明かり', plate: 'Trigonum',
   drawHome(g, L, S) {
     const hy = py(L, S, L.tops[Math.floor(L.start.x)]);
     pentagonHouse(g, L.start.x * S - 4, hy, 16);
@@ -138,6 +150,14 @@ const flat = {
     pentagonHouse(g, L.goal.x * S + 4, gy, 20);
     // 窓に家族の小さな三角
     g.save(); g.translate(L.goal.x * S + 4, gy - 22); g.scale(-0.55, 0.55); triangleBody(g, 1); g.restore();
+  },
+  drawGoalReady(g, L, S, t) {
+    // 家族の家の窓に明かりがともる
+    const gx = L.goal.x * S + 4, gy = py(L, S, L.tops[Math.floor(L.goal.x)]);
+    const gr = g.createRadialGradient(gx, gy - 18, 2, gx, gy - 18, 30);
+    gr.addColorStop(0, 'rgba(255,214,120,.9)'); gr.addColorStop(1, 'rgba(255,214,120,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(gx, gy - 18, 30, 0, 7); g.fill();
+    sparkle(g, gx + 16, gy - 34, 3, t * 3);
   },
   drawGoalJoy(g, L, S, since) {
     const gx = L.goal.x * S + 4, gy = py(L, S, L.tops[Math.floor(L.goal.x)]);
