@@ -40,11 +40,13 @@ function dinoHeight(d) { return Math.max(d.r.neckEnd[1], d.r.headEnd[1]) + d.p.t
 function updateCamera(snap = false) {
   const {W, H} = viewSize(), ds = VIEW.R ? VIEW.R.dinos : [];
   if (!ds.length || !W) return;
-  const laneH = (H - PROGRESS_H) / ds.length;
+  const title = document.body.classList.contains('titled');
+  const laneH = (H - (title ? 0 : PROGRESS_H)) / ds.length;
   VIEW.cams = ds.map((d, i) => {
     const long = d.r.headEnd[0] - d.r.tailEnd[0];
-    const scale = Math.min((laneH - 52) / (dinoHeight(d) * 1.15), W / (long * 2.4));
-    const want = d.dist + d.x0 - (W / scale) * 0.55;
+    // タイトルの背景: 体の長さが画面の幅の 3/4 ほど（高さは画面の 17% まで。パネルにかからないように）で、体のまん中を画面のまん中に
+    const scale = title ? Math.min(W / (long * 1.35), H * 0.17 / dinoHeight(d)) : Math.min((laneH - 52) / (dinoHeight(d) * 1.15), W / (long * 2.4));
+    const want = title ? d.dist + d.x0 + (d.r.headEnd[0] + d.r.tailEnd[0]) / 2 - (W / scale) * 0.5 : d.dist + d.x0 - (W / scale) * 0.55;
     const c = VIEW.cams[i] && !snap ? VIEW.cams[i] : {x: want};
     return {scale, x: c.x + (want - c.x) * (snap ? 1 : 0.2)};
   });
@@ -187,7 +189,8 @@ function loop(now) {
   // 走るようすが出ていない画面（大会・記録帳など）の練習場は、計算も描くのも休む
   const shown = $('stage').getClientRects().length > 0;
   if (shown || VIEW.mode !== 'idle-run') stepView(dt);
-  if (VIEW.R && shown) { updateCamera(); drawScene($('view'), VIEW.R, VIEW.cams, {labels: VIEW.labels, progressH: PROGRESS_H, ghosts: VIEW.ghosts, fx: VIEW.fx, clock: VIEW.clock}); }
+  const title = document.body.classList.contains('titled');
+  if (VIEW.R && shown) { updateCamera(); drawScene($('view'), VIEW.R, VIEW.cams, {title, labels: VIEW.labels, progressH: title ? 0 : PROGRESS_H, ghosts: VIEW.ghosts, fx: VIEW.fx, clock: VIEW.clock}); }
   requestAnimationFrame(loop);
 }
 

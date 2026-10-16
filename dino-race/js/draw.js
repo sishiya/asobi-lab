@@ -453,7 +453,8 @@ function drawProgress(ctx, R, W, h, ghosts = []) {
 
 // 場面全体: 上に進みぐあいの帯、その下にレーン。cams[i] = {x: 左端の m, scale: px/m}
 // fx[i]（view.js の VIEW.fx）: {tracks 足あと, dust 土ぼこり, stamp 判子, shake 揺れの始まり}。clock はその時計（本当の時間の秒）
-function drawScene(canvas, R, cams, {labels = [], progressH = 0, ghosts = [], fx = null, clock = 0} = {}) {
+// title: タイトルの背景（1匹を大きく、地面は画面の下のほう。名前・物差し・目盛りの数字・ゴールの文字は出さない）
+function drawScene(canvas, R, cams, {labels = [], progressH = 0, ghosts = [], fx = null, clock = 0, title = false} = {}) {
   const ctx = canvas.getContext('2d'), dpr = window.devicePixelRatio || 1;
   const W = canvas.width / dpr, H = canvas.height / dpr, dinos = R.dinos;
   if (!W || !H) return;
@@ -466,7 +467,7 @@ function drawScene(canvas, R, cams, {labels = [], progressH = 0, ghosts = [], fx
   const n = Math.max(1, dinos.length), laneH = (H - progressH) / n;
   dinos.forEach((d, i) => {
     const cam = cams[i]; if (!cam) return;
-    const top = progressH + laneH * i, s = cam.scale, px = 1 / s, base = top + laneH - 30;
+    const top = progressH + laneH * i, s = cam.scale, px = 1 / s, base = title ? Math.round(H * 0.9) : top + laneH - 30;
     const x0 = cam.x, x1 = cam.x + W / s, camPx = cam.x * s, L = fx && fx[i];
     if (i > 0 || progressH) { ctx.strokeStyle = INK.line || INK['ink-soft']; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, top + 0.5); ctx.lineTo(W, top + 0.5); ctx.stroke(); }
     ctx.save(); ctx.beginPath(); ctx.rect(0, top, W, laneH); ctx.clip();
@@ -487,6 +488,7 @@ function drawScene(canvas, R, cams, {labels = [], progressH = 0, ghosts = [], fx
     ctx.restore();
     if (L) drawDust(ctx, L.dust, cam, s, base, clock);
     ctx.restore();
+    if (title) return;
     // 目盛りの数字・ゴール
     ctx.fillStyle = INK.muted; ctx.font = '11px ' + f; ctx.textAlign = 'center';
     for (let m = Math.ceil(x0 / major) * major; m <= x1; m += major) if (m >= -1e-9 && m <= FINISH) haloText(ctx, fmtLen(+m.toFixed(2)), (m - cam.x) * s, base + 22);
