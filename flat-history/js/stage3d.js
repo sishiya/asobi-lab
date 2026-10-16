@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・標本台・主人公・置いた形・持っている形・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=28';
-import { radialTexture } from './look/util.js?v=28';
-import { S, drawSheet } from './sheet.js?v=28';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=28';
-import { TABLE, tableY } from './hero.js?v=28';
+import { look, kindColor } from './look/index.js?v=29';
+import { radialTexture } from './look/util.js?v=29';
+import { S, drawSheet } from './sheet.js?v=29';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=29';
+import { TABLE, tableY } from './hero.js?v=29';
 
 export const GAP = 1.0;
 const Z = (t) => -t * GAP;
@@ -475,7 +475,9 @@ export function createStage(canvas, L) {
         m.opacity = Math.max(0.06, 1 - face * (0.75 + Math.min(0.2, Math.abs(z - hz) * 0.03)));
       } else { m.alphaTest = 0.12; m.depthWrite = true; m.opacity = 1; }
       const c = sh.t === focus ? 1 : 0.94;
-      m.color.setRGB(c, c, c);
+      // パラパラ: 立ち止まっているあいだ、まわりのページを順に明るく
+      if (v.flip != null && Math.abs(sh.t - v.flip) < 0.5) m.color.setRGB(1.12, 1.08, 0.96);
+      else m.color.setRGB(c, c, c);
     }
     paper.position.set(L.W / 2, L.H / 2, Z(focus) + 0.03);
     frame.position.z = Z(focus) + 0.01;

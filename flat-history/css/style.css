@@ -395,3 +395,25 @@ body.touch .prompt:empty { display: none; }
 .rp-result.ok .stamp::before { width: 200px; height: 200px; margin: -100px 0 0 -100px; }
 .preview-card { overflow: hidden; max-height: calc(100vh - 32px); }
 .preview-card .win-acts { position: static; margin: 10px 0 0; padding: 0; background: none; }
+
+/* 「まだ」のわけの2枚 */
+.rp-why { display: flex; gap: 10px; justify-content: center; margin: 4px 0 2px; }
+.rp-why[hidden], .rp-why figure[hidden] { display: none; }
+.rp-why figure { margin: 0; flex: 1; max-width: 300px; }
+.rp-why canvas { display: block; width: 100%; height: auto; border: 1px solid var(--rule); }
+.rp-why figcaption { font: 12px var(--serif); color: var(--sub); text-align: center; margin-top: 3px; }
+.rp-why figure { max-width: 220px; }
+.replay-card.with-why .rp-row canvas { max-height: max(50px, calc((100vh - 560px) / 2)); }
+.replay-card.with-why .rp-label { margin-bottom: 1px; }
+/* 「まだ」のときは、はじめの歴史の段をしまって、わけの2枚とボタンが入るように */
+.replay-card.with-why .rp-row:first-of-type { display: none; }
+.replay-card.with-why .rp-row canvas { max-height: max(60px, calc(100vh - 560px)); }
+.replay-card.with-why .rp-row:first-of-type { display: block; }
+.replay-card.with-why .rp-orig { display: none; }
+.replay-card.with-why .rp-row canvas { max-height: max(60px, calc(100vh - 620px)); }
+/* 結果画面: 中身が縮まないように（足りないときだけスクロール。光の筋は判の中なので伸び縮みしない） */
+.replay-card { overflow-y: auto; }
+.replay-card > * { flex-shrink: 0; }
+.rp-foot .win-acts { padding-bottom: 2px; }
+.rp-foot { overflow: visible; }
+.rp-foot { padding-bottom: 14px; }

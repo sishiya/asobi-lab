@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=28';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=28';
-import { drawSheet } from './sheet.js?v=28';
-import { createStage } from './stage3d.js?v=28';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=28';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=28';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=28';
+import { LEVELS } from './level.js?v=29';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=29';
+import { drawSheet } from './sheet.js?v=29';
+import { createStage } from './stage3d.js?v=29';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=29';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=29';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=29';
 
 const $ = (id) => document.getElementById(id);
 
@@ -482,6 +482,8 @@ let bindingNow = false;
 function showBindReplay() {
   $('rpTitle').textContent = 'この歴史で回答する';
   $('rpResult').hidden = true;
+  $('rpWhy').hidden = true;
+  document.querySelector('.replay-card').classList.remove('with-why');
   $('rpNext').hidden = true;
   $('rpClose').hidden = true;
   $('replay').hidden = false;
@@ -517,14 +519,42 @@ function judge() {
     el.innerHTML = '<span class="stamp">まだ</span><p>' + (np ? tx('キーウィは') + why : tx('キーウィは' + why)) + '。考えなおそう。</p>';
     $('rpTitle').textContent = 'まだ正史ではない';
     st.failedOnce = true;
+    showWhy(e, np);
     setTimeout(() => se.notyet(), 120);
   }
+  if (ok) { $('rpWhy').hidden = true; document.querySelector('.replay-card').classList.remove('with-why'); }
   el.hidden = false;
   el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   $('rpNext').hidden = !(ok && hasNext());
   $('rpClose').hidden = false;
   $('rpClose').innerHTML = ok ? 'この図版にもどる <kbd>Esc</kbd>' : '考えなおす <kbd>Esc</kbd>';
 }
+// 「まだ」のわけを2枚の絵で: 住人がつまずいたページと、いちばん近い形の、出ていた（いなかった）ページ
+function showWhy(e, np) {
+  const inb = blockPieces();
+  const tFail = np ? np.t : Math.max(0, Math.min(L.T, e.t - 0.3));
+  const draw = (g, t) => drawSheet(g, L, t, frameAt(st.hist.frames, t), sectionsAt(inb, t), { paper: true, label: '' });
+  draw($('rpWhyA').getContext('2d'), tFail);
+  $('rpWhyCapA').textContent = np ? tx(np.early ? 'キーウィが巣に着いたとき（卵はまだ）' : 'キーウィが巣に着いたとき（卵はもう）') : tx('キーウィがつまずいたとき');
+  // つまずいた場所にかかる形のうち、時刻がいちばん近いもの
+  let best = null, bd = Infinity;
+  for (const p of inb) {
+    const d = pieceDims(p);
+    if (!np && (e.x < p.x0 - 1 || e.x > p.x0 + d.wx + 1)) continue;
+    const a = p.t0, b = p.t0 + d.dz;
+    const dist = tFail < a ? a - tFail : tFail > b ? tFail - b : 0;
+    if (dist < bd) { bd = dist; best = { p, t: tFail < a ? a : tFail > b ? b - 0.05 : tFail, when: tFail < a ? 'まだ出ていなかった' : tFail > b ? 'もう消えていた' : 'あった' }; }
+  }
+  const box = $('rpWhy').children[1];
+  if (best && best.when !== 'あった') {
+    draw($('rpWhyB').getContext('2d'), best.t);
+    $('rpWhyCapB').textContent = `${kindName(best.p.kind)}が出ていたのは、このころ（そのときは${best.when}）`;
+    box.hidden = false;
+  } else box.hidden = true;
+  $('rpWhy').hidden = false;
+  document.querySelector('.replay-card').classList.add('with-why');
+}
+
 // 回答の再生の最中に Esc → 最後まで早送りして結果を出す
 function closeReplay() { if (!rp.judged) { rp.t = rp.endT; return; } $('replay').hidden = true; stage.openBook(); duckBgm(false); }
 function togglePlay() { if (rp.t >= L.T) rp.t = 0; rp.playing = !rp.playing; $('rpPlay').textContent = rp.playing ? '❚❚' : '▶'; }
@@ -543,7 +573,8 @@ function drawReplay() {
 }
 
 // ---- 毎フレーム ----
-let last = performance.now(), lastFocus = 0, stepAcc = 0, landed = false;
+let last = performance.now(), lastFocus = 0, stepAcc = 0, landed = false, idleT = 0;
+const flip = { t: null, lastT: 0, walk: 0 };
 // 主人公の姿ごとの足音
 const STEP_KIND = { poly: 'chime', star: 'chime', cloud: 'puff', wind: 'puff', agate: 'stone', hourglass: 'wood', crane: 'paper', curator: 'wood' };
 function loop(now) {
@@ -588,13 +619,21 @@ function loop(now) {
   const focus = Math.max(0, Math.min(L.T, Math.round(h.t)));
   if (focus !== lastFocus && act) { se.page(); lastFocus = focus; }
 
+  // 立ち止まって1秒たつと、まわりのページ（−3〜＋3秒）を順にめくって見せる。住人の音も、その秒のぶん鳴る
+  if (act && Math.hypot(mx, mt) < 0.05 && !st.carry) idleT += dt; else { idleT = 0; flip.t = null; }
+  if (idleT > 1) {
+    if (flip.t === null) { flip.t = Math.max(0, focus - 3); flip.lastT = flip.t; flip.walk = 0; }
+    flip.t += dt * 4;
+    if (flip.t > Math.min(L.T, focus + 3)) { flip.t = Math.max(0, focus - 3); flip.lastT = flip.t; }
+    if (flip.t <= st.revealT) replaySounds(st.hist, flip, flip.t);
+  }
   const cand = act ? candidate() : null;
   const why = cand ? canPlace(L, cand, st.pieces) : '';
   stage.update(dt, {
     hero: h, walking: Math.hypot(mx, mt) > 0.05, moveX: mx, moveT: mt,
     carry: st.carry, cand, candOk: !why, revealT: st.revealT, focus,
     running: running && Math.hypot(mx, mt) > 0.05, showRoute: cfg.showRoute, grab: act ? grabbable() : null,
-    groundY: groundAt(L, st.pieces, h.x, h.t, h.y),
+    groundY: groundAt(L, st.pieces, h.x, h.t, h.y), flip: flip.t === null ? null : Math.round(flip.t),
   });
 
   if (screen === 'game') {
