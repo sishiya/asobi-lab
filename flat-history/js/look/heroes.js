@@ -11,7 +11,7 @@
 // userData.sliceHatch: 断面にハッチングの線をのせる（銅版画になじませる）
 // userData.animate(dt, s) で動く。s = { speed(0〜), run, grounded, vy, carry, landT }
 import * as THREE from 'three';
-import { radialTexture } from './util.js?v=25';
+import { radialTexture } from './util.js?v=26';
 
 const lerp = (a, b, u) => a + (b - a) * u;
 

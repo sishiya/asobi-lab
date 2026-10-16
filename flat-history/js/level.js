@@ -60,7 +60,17 @@ export const LEVELS = [
     fail: '柱にぶつかったら、キーウィはどうする？',
   },
   {
-    ...base, id: 's1', plate: 'V', name: '崖と段',
+    // 回すと意味がかわる: 長い板は、そのままでは崖に届かない。Q で回すと横に長く（そのかわり短い時間だけ）
+    ...base, id: 't5', plate: 'V', name: 'まわす板', tutorial: true,
+    tops: tops([[10, 16, null]]), start: { x: 1.6, dir: 1 }, goal: { x: 30 },
+    stock: { beam: 1 },
+    hints: [
+      { text: 'この崖は、板の長さでは届かない', when: (c) => c.rotated },
+    ],
+    fail: '回した板は、横に長いぶん、ある時間は短い',
+  },
+  {
+    ...base, id: 's1', plate: 'VI', name: '崖と段',
     tops: tops([[12, 16, null], [19, 23, 3], [24, 35, 7]]), start: { x: 1.6, dir: 1 }, goal: { x: 32.4 },
     // 時刻の窓: 卵が光っているあいだ（28〜34秒）に着いたときだけ巣に入る。ななめ板だけでは早すぎて、柱で時刻をずらすしかない
     window: [28, 34],
@@ -68,7 +78,7 @@ export const LEVELS = [
     hints: [{ text: '巣の卵は、光っているあいだに着かないと、かえらない', when: (c) => c.placed }], fail: '',
   },
   {
-    ...base, id: 's2', plate: 'VI', name: '高い巣',
+    ...base, id: 's2', plate: 'VII', name: '高い巣',
     tops: tops([[0, 6, 7], [7, 11, 3], [25, 29, null]]), start: { x: 16, dir: 1 }, goal: { x: 3 },
     window: [16, 20], // 柱でひきかえさせる「時刻」と、ななめ板の時刻を、両方合わせる
     stock: { wall: 1, lift: 1 },

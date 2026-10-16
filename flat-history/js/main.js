@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=25';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=25';
-import { drawSheet } from './sheet.js?v=25';
-import { createStage } from './stage3d.js?v=25';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=25';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=25';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=25';
+import { LEVELS } from './level.js?v=26';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=26';
+import { drawSheet } from './sheet.js?v=26';
+import { createStage } from './stage3d.js?v=26';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=26';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=26';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=26';
 
 const $ = (id) => document.getElementById(id);
 
@@ -55,7 +55,7 @@ function loadLevel(i) {
   st.base = simulate(L, []); st.hist = st.base;
   st.hero = makeHero(L);
   st.revealT = 3; st.walked = 0;
-  st.hintIdx = 0; st.solved = false; st.lastEnd = st.base.end.type; st.failedOnce = false; st.boundOnce = false;
+  st.hintIdx = 0; st.solved = false; st.lastEnd = st.base.end.type; st.failedOnce = false; st.boundOnce = false; st.rotatedOnce = false;
   stage.setLevel(L);
   stage.setHistory(st.hist, st.pieces, 0, false);
   stage.resetCamera();
@@ -213,6 +213,7 @@ function useE() {
 function rotate() {
   if (!st.carry) return;
   st.carry = { ...st.carry, rot: st.carry.rot ? 0 : 1 };
+  st.rotatedOnce = true;
   se.click();
 }
 let flashMsg = '', flashUntil = 0;
@@ -414,7 +415,7 @@ function coachText() {
   if (st.solved) return hasNext() ? '正史ができた。Enter で次の図版へ' : '正史ができた';
   if (st.lv === 0 && !st.boundOnce && !st.carry && blockPieces().length && st.hintIdx >= (L.hints || []).length) return tx('これで巣に着くと思ったら、「回答する」（Enter）で答えよう');
   const hs = L.hints || [];
-  const c = { walked: st.walked, seenEnd: st.revealT >= st.base.end.t, placed: blockPieces().length > 0 };
+  const c = { walked: st.walked, seenEnd: st.revealT >= st.base.end.t, placed: blockPieces().length > 0, rotated: !!st.rotatedOnce };
   while (st.hintIdx < hs.length && hs[st.hintIdx].when(c)) st.hintIdx++;
   if (st.hintIdx < hs.length) return tx(hs[st.hintIdx].text);
   if (st.failedOnce && L.fail) return tx(L.fail);
