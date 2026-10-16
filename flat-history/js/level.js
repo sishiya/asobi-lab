@@ -34,7 +34,7 @@ export const LEVELS = [
     hints: [
       { text: TX('W で前へ。前へ歩くと、未来のページへ進む', 'Press W to go forward. Walking forward takes you to future pages'), when: (c) => c.walked > 4 },
       { text: TX('キーウィは、このあとどうなる？　見に行こう', 'What happens to the kiwi after this? Go and see'), when: (c) => c.seenEnd },
-      { text: TX('下のパレットで板をえらび、置きたい所をクリックしよう', 'Pick the board from the palette at the bottom, then click where you want it'), when: (c) => c.placed },
+      { text: TX('左のパレットで板をえらび、置きたい所をクリックしよう', 'Pick the board from the palette on the left, then click where you want it'), when: (c) => c.placed },
     ],
     fail: TX('まだ落ちてしまう。板のある時間と、キーウィが通る時間は重なっている？', 'It still falls. Does the time of the board overlap the time the kiwi passes?'),
   },
