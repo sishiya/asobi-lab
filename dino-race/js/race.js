@@ -90,8 +90,8 @@ function giveJoiners() {
 function tierNews() {
   const out = [];
   const sp = giveJoiners();
-  if (sp) out.push(`中級のお題が開きました。<b>${esc(sp.name)}</b>が牧場に仲間入り！`);
-  if (tierOpen(3) && !prog.joined.evolveBody) { prog.joined.evolveBody = true; saveProg(); out.push('上級のお題が開きました。おまかせの進化で<b>体の形も変える</b>が使えます。'); }
+  if (sp) { out.push(`中級のお題が開きました。<b>${esc(sp.name)}</b>が牧場に仲間入り！`); cupTier = 2; }
+  if (tierOpen(3) && !prog.joined.evolveBody) { prog.joined.evolveBody = true; saveProg(); out.push('上級のお題が開きました。おまかせの進化で<b>体の形も変える</b>が使えます。'); cupTier = 3; }
   return out.map(t => `<br><span class="news">${t}</span>`).join('');
 }
 
@@ -110,9 +110,15 @@ function renderCups() {
       : `<span><b>次のお題</b> ${esc(next.title)} — ${esc(next.text)}</span><button type="button" class="chip-btn" id="btnNextCup">出場する</button>`;
     if (!first) $('btnNextCup').onclick = () => openPick(next);
   }
-  $('cupList').innerHTML = TIERS.map(T => {
-    const open = tierOpen(T.id), list = CUPS.filter(c => c.tier === T.id), got = list.filter(c => prog.medals[c.id]).length;
-    const head = `<h3 class="tier-h${open ? '' : ' locked'}">${T.name} <span class="n">${got}/${list.length}</span>${open ? '' : `<span class="lock">${TIERS[T.id - 2].name}のお題をぜんぶ取ると開きます</span>`}</h3>${!open && T.gift ? `<p class="hint">${esc(T.gift)}</p>` : ''}`;
+  // 段は1つずつ見せる（v005。上の切りかえで初級・中級・上級）。はじめは、まだ取っていないお題のある、開いている段
+  if (!cupTier || !TIERS.some(T => T.id === cupTier)) cupTier = (TIERS.find(T => tierOpen(T.id) && !tierDone(T.id)) || TIERS.filter(T => tierOpen(T.id)).pop()).id;
+  $('tierSeg').innerHTML = TIERS.map(T => {
+    const list = CUPS.filter(c => c.tier === T.id), got = list.filter(c => prog.medals[c.id]).length;
+    return `<button type="button" role="tab" data-tier="${T.id}" aria-selected="${T.id === cupTier}">${tierOpen(T.id) ? '' : '🔒 '}${T.name}<small>${got}/${list.length}</small></button>`;
+  }).join('');
+  $('cupList').innerHTML = TIERS.filter(T => T.id === cupTier).map(T => {
+    const open = tierOpen(T.id), list = CUPS.filter(c => c.tier === T.id);
+    const head = open ? '' : `<p class="hint"><b>${TIERS[T.id - 2].name}のお題をぜんぶ取ると開きます。</b>${T.gift ? '<br>' + esc(T.gift) : ''}</p>`;
     return head + `<div class="cup-list">${list.map(c => {
       const m = prog.medals[c.id];
       const who = [...(c.rivals || []).map(id => SPECIES.find(s => s.id === id).name), ...(c.ghosts || []).map(k => REFS[k].short + '（目安）')];
@@ -126,7 +132,9 @@ function renderCups() {
     }).join('')}</div>`;
   }).join('');
 }
+let cupTier = 0;
 $('cupList').addEventListener('click', e => { const b = e.target.closest('[data-cup]'); if (b) openPick(CUPS.find(c => c.id === b.dataset.cup)); });
+$('tierSeg').addEventListener('click', e => { const b = e.target.closest('[data-tier]'); if (b) { cupTier = +b.dataset.tier; renderCups(); } });
 
 function openPick(cup) {
   // 出られる恐竜を先に、その中は速い順
@@ -158,8 +166,8 @@ function renderBook() {
       <td>${e ? `${esc(e.name)}（${fmtMass(e.M)}）<br><span class="note">秒速 ${v.toFixed(1)}m</span>` : '—'}</td>
       <td><span class="pct"><i style="width:${Math.min(100, pct)}%"></i></span>${e ? pct + '%' : ''}</td></tr>`;
   }).join('');
-  $('book').innerHTML = `<div class="book">
-    <div class="stat">
+  const pages = {
+    sum: `<div class="stat">
       <div><span>最速の 100m</span><b>${b ? fmtT(b.t) : '—'}</b><span>${b ? esc(b.name) : ''}</span></div>
       <div><span>メダル</span><b>${Object.keys(prog.medals).length} / ${CUPS.length}</b></div>
       <div><span>生まれた子</span><b>${prog.born}匹</b></div>
@@ -167,20 +175,26 @@ function renderBook() {
       <div><span>練習</span><b>${prog.practiced}回</b></div>
       <div><span>かけっこ</span><b>${prog.races}回</b></div>
     </div>
-    <h3>体重と速さ（相似則）</h3>
+    <h3>体重クラスごとの最速</h3>
+    <table><thead><tr><th>体重</th><th>100m</th><th>恐竜</th></tr></thead><tbody>${cls}</tbody></table>`,
+    speed: `<h3>体重と速さ（相似則）</h3>
     <canvas id="bookChart" class="book-chart" aria-label="体重と速さの図"></canvas>
     <p class="note">● あなたの恐竜（牧場と生まれた子、体重クラスの最速）、□ 研究の推定（Sellers &amp; Manning 2007）、△ 人・ダチョウ・ゾウ。横は体重（目盛りは10倍ずつ）。体を2倍にすると重さは8倍、筋肉が関節を回す力も8倍になりますが、重い体を長い脚で支えるのに要る力は16倍。だから大きいほど力が足りず、遅くなります（Hutchinson &amp; Garcia 2002）。</p>
     <h3>研究の推定とくらべる</h3>
     <p class="note">Sellers &amp; Manning（2007）は、化石から作った骨格の模型をコンピューターの中で進化させて走らせ、最高速度を見積もりました。体重が半分〜2倍の、あなたの最速の恐竜とくらべます（100m の平均の速さ。スタートの加速もふくむので、少し不利）。研究の模型は筋肉や腱がもっとくわしく、推定にも幅があります。</p>
-    <table><thead><tr><th>研究の推定</th><th>あなたの恐竜</th><th>推定の何%</th></tr></thead><tbody>${res}</tbody></table>
-    <h3>体重クラスごとの最速</h3>
-    <table><thead><tr><th>体重</th><th>100m</th><th>恐竜</th></tr></thead><tbody>${cls}</tbody></table>
-    <h3>本物とくらべる（100m）</h3>
+    <table><thead><tr><th>研究の推定</th><th>あなたの恐竜</th><th>推定の何%</th></tr></thead><tbody>${res}</tbody></table>`,
+    real: `<h3>本物とくらべる（100m）</h3>
     <table><thead><tr><th></th><th>100m</th><th>時速</th></tr></thead><tbody>${refs.map(r => `<tr${r.me ? ' style="font-weight:700"' : ''}><td>${esc(r.name)}<br><span class="note">${esc(r.note)}</span></td><td>${fmtT(r.t)}</td><td>${kmh(FINISH / r.t)}km</td></tr>`).join('')}</tbody></table>
-    <p class="note">ゾウとダチョウは全力の速さから計算した目安です（100m を同じ速さで走るとして）。</p>
-  </div>`;
-  drawBookChart();
+    <p class="note">ゾウとダチョウは全力の速さから計算した目安です（100m を同じ速さで走るとして）。</p>`,
+  };
+  $('bookSeg').innerHTML = BOOK_PAGES.map(([k, name]) => `<button type="button" role="tab" data-page="${k}" aria-selected="${k === bookPage}">${name}</button>`).join('');
+  $('book').innerHTML = `<div class="book">${pages[bookPage]}</div>`;
+  if (bookPage === 'speed') drawBookChart();
 }
+// 記録帳は3ページ（v005）: まとめ・体重と速さ（図と研究の推定）・本物とくらべる
+const BOOK_PAGES = [['sum', 'まとめ'], ['speed', '体重と速さ'], ['real', '本物とくらべる']];
+let bookPage = 'sum';
+$('bookSeg').addEventListener('click', e => { const b = e.target.closest('[data-page]'); if (b) { bookPage = b.dataset.page; renderBook(); $('screens').scrollTop = 0; } });
 
 // 体重（対数）と速さの図。図鑑の図表ふうに、インクの線と記号で
 function drawBookChart() {

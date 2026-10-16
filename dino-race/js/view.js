@@ -27,9 +27,11 @@ function startView(genomes, labels, {mode = 'race', onEnd = null, ghosts = []} =
   if (mode === 'race') { VIEW.count = COUNT_T; showCount('位置について'); SFX.play('ready'); }
   updateCamera(true);
   const live = mode !== 'idle-run';
-  $('stage').classList.toggle('live', live);
+  document.body.classList.toggle('racing', live); // かけっこ・走りを見る間は、走るようすを画面いっぱいに（ほかは隠す）
+  $('stage').style.setProperty('--lanes', genomes.length); // 縦長の画面では、レーンの数に合わせた高さにして、下に実況の板
+  VIEW.boardT = 0; if (live) renderBoard(VIEW.R);
   $('btnSkip').hidden = !live;
-  if (live) { if ($('sheet').open) closeSheet(); window.scrollTo({top: 0, behavior: 'smooth'}); }
+  if (live && $('sheet').open) closeSheet();
 }
 
 function dinoHeight(d) { return Math.max(d.r.neckEnd[1], d.r.headEnd[1]) + d.p.thick.head; }
@@ -75,10 +77,11 @@ function stepView(dt) {
   while (VIEW.acc >= DT && n < 40) {
     stepRace(R); VIEW.acc -= DT; n++;
     trackFeet(R);
-    if (raceOver(R)) { listen(R); if (VIEW.mode === 'idle-run') finishView(); else VIEW.linger = LINGER; return; }
+    if (raceOver(R)) { listen(R); if (VIEW.mode === 'idle-run') finishView(); else { VIEW.linger = LINGER; renderBoard(R); } return; }
   }
   listen(R);
   if (VIEW.mode === 'idle-run') return;
+  if ((VIEW.boardT -= Math.min(dt, 0.1)) <= 0) { VIEW.boardT = 0.1; renderBoard(R); }
   $('hudText').textContent = `${R.t.toFixed(1)}秒` + R.dinos.map((d, i) => ` ・ ${i + 1} ${d.finishT != null ? 'ゴール' : Math.max(0, d.dist).toFixed(0) + 'm' + (d.fell ? '（転んだ）' : '')}`).join('');
 }
 
@@ -123,10 +126,12 @@ function listen(R) {
       if (live && L) L.stamp = {t0: VIEW.clock + 0.04, small: 'ゴール', big: d.finishT.toFixed(2), foot: '秒', rot, seed};
     }
     if (d.fell && !h.fell) {
-      h.fell = fell = true;
+      h.fell = true;
+      const after = d.finishT != null; // ゴールしたあとの走り抜けで転んだときは、土ぼこりだけ（判子はゴールのまま）
+      if (!after) fell = true;
       if (L) {
         L.dust.push(makeDust(d, live));
-        if (live) { L.shake = VIEW.clock; L.stamp = {t0: VIEW.clock + 0.12, small: Math.max(0, d.dist).toFixed(1) + 'm', big: '転倒', foot: '', rot, seed}; }
+        if (live && !after) { L.shake = VIEW.clock; L.stamp = {t0: VIEW.clock + 0.12, small: Math.max(0, d.dist).toFixed(1) + 'm', big: '転倒', foot: '', rot, seed}; }
       }
     }
   });
@@ -142,6 +147,16 @@ function alexander(d, t, dist) {
   return {v: 0.25 * Math.sqrt(GRAV) * Math.pow(lambda, 1.67) * Math.pow(h, -1.17), lambda};
 }
 
+// 実況の板（縦長の画面のかけっこの間だけ。CSS）: 名前・進んだ距離の帯・ゴールのタイムか転倒
+function renderBoard(R) {
+  const order = R.dinos.map((d, i) => ({d, i})).sort((a, b) => (b.d.finishT != null) - (a.d.finishT != null) || (a.d.finishT ?? 0) - (b.d.finishT ?? 0) || b.d.dist - a.d.dist);
+  $('board').innerHTML = order.map(({d, i}) => {
+    const dist = Math.max(0, Math.min(FINISH, d.dist));
+    const st = d.finishT != null ? `ゴール ${fmtT(d.finishT)}` : d.fell ? `転倒 ${dist.toFixed(1)}m` : `${dist.toFixed(0)}m`;
+    return `<li class="${d.finishT != null ? 'goal' : d.fell ? 'fell' : ''}"><span class="no">${i + 1}</span><span class="nm">${esc(VIEW.labels[i])}</span><span class="st">${st}</span><span class="bar"><i style="width:${dist}%"></i></span></li>`;
+  }).join('') + VIEW.ghosts.map(g => { const x = Math.min(FINISH, FINISH * R.t / g.t); return `<li class="ghost"><span class="no">–</span><span class="nm">${esc(g.short)}（目安）</span><span class="st">${x >= FINISH ? fmtT(g.t) : x.toFixed(0) + 'm'}</span><span class="bar"><i style="width:${x}%"></i></span></li>`; }).join('');
+}
+
 function finishView() {
   const R = VIEW.R, mode = VIEW.mode, cb = VIEW.onEnd;
   const results = R.dinos.map((d, i) => {
@@ -150,7 +165,7 @@ function finishView() {
   });
   VIEW.mode = 'idle'; VIEW.onEnd = null; VIEW.count = 0;
   showCount(null);
-  $('stage').classList.remove('live');
+  document.body.classList.remove('racing');
   $('btnSkip').hidden = true;
   if (mode === 'idle-run') { setTimeout(idleRun, 1200); return; }
   $('hudText').textContent = results.map(r => `${r.label} ${r.ok ? fmtT(r.t) : (r.fell ? `${r.dist.toFixed(0)}mで転倒` : `${r.dist.toFixed(0)}m`)}`).join(' ・ ');
@@ -160,7 +175,7 @@ function finishView() {
 // 練習場: 何もしていないときは、牧場の速い恐竜（3匹まで）が走っている
 function idleRun() {
   if (VIEW.mode !== 'idle') return;
-  const n = innerWidth < 640 ? 2 : 3; // スマホでは2匹（1匹ずつ大きく）
+  const n = document.body.classList.contains('titled') || innerWidth < 640 ? 1 : 2; // 練習場は牧場の画面の上に小さく出すので、タイトルとスマホでは1匹、広い画面では2匹
   const list = [...ranch].filter(x => x.rec && x.rec.finishT != null).sort((a, b) => a.rec.finishT - b.rec.finishT).slice(0, n);
   const use = list.length ? list : ranch.slice(0, n);
   startView(use.map(x => x.g), use.map(x => x.name), {mode: 'idle-run'});
@@ -169,8 +184,10 @@ function idleRun() {
 
 function loop(now) {
   const dt = lastT ? (now - lastT) / 1000 : 0; lastT = now;
-  stepView(dt);
-  if (VIEW.R) { updateCamera(); drawScene($('view'), VIEW.R, VIEW.cams, {labels: VIEW.labels, progressH: PROGRESS_H, ghosts: VIEW.ghosts, fx: VIEW.fx, clock: VIEW.clock}); }
+  // 走るようすが出ていない画面（大会・記録帳など）の練習場は、計算も描くのも休む
+  const shown = $('stage').getClientRects().length > 0;
+  if (shown || VIEW.mode !== 'idle-run') stepView(dt);
+  if (VIEW.R && shown) { updateCamera(); drawScene($('view'), VIEW.R, VIEW.cams, {labels: VIEW.labels, progressH: PROGRESS_H, ghosts: VIEW.ghosts, fx: VIEW.fx, clock: VIEW.clock}); }
   requestAnimationFrame(loop);
 }
 
@@ -188,10 +205,9 @@ $('btnSkip').addEventListener('click', () => {
 
 function watchRun(x) {
   const back = sheetKind === 'detail' ? sheetDino : null;
-  const y = window.scrollY; // 「走りを見る」を押す前のスクロール位置（終わったら戻す）
+  // 走っている間は画面いっぱいの走るようすが上にかぶさるだけなので、終わるともとの画面・スクロールの位置のまま
   startView([x.g], [x.name], {mode: 'watch', onEnd: res => {
     toast(`${x.name}: ${res[0].ok ? '100m ' + fmtT(res[0].t) : res[0].fell ? res[0].dist.toFixed(1) + 'm で転んだ' : res[0].dist.toFixed(1) + 'm'}`);
     if (back && ranch.includes(back)) setTimeout(() => openDetail(back), 700);
-    else if (y > 0) setTimeout(() => { if (VIEW.mode !== 'race' && VIEW.mode !== 'watch' && window.scrollY < 80) window.scrollTo({top: y, behavior: 'smooth'}); }, 700); // 走っている間に自分で動かしていたら戻さない
   }});
 }

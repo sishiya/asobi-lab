@@ -105,7 +105,7 @@ function updateSelection() {
     c.setAttribute('aria-pressed', i >= 0); no.hidden = i < 0; no.textContent = i + 1;
   });
   const n = selected.length, show = n > 0 && tab === 'ranch' && !$('sheet').open;
-  $('actbar').hidden = !show; document.body.classList.toggle('has-actbar', show);
+  $('actbar').hidden = !show;
   $('actN').textContent = n === 1 ? '1匹（もう1匹でかけ合わせ）' : `${n}匹を選んでいます`;
   $('btnBreed').disabled = n !== 2;
   $('btnRace').disabled = n < 1 || n > MAX_RACE;
@@ -151,12 +151,14 @@ function kidTag(x) {
 // 記録をはかっている間は卵（v004）。図鑑の卵化石ふう: 殻の点描とひび
 const EGG_SVG = `<svg viewBox="0 0 60 70" aria-hidden="true"><ellipse cx="30" cy="38" rx="22" ry="28" class="shell"/><g class="dots"><circle cx="20" cy="28" r="1"/><circle cx="36" cy="22" r="1.2"/><circle cx="40" cy="44" r="1"/><circle cx="24" cy="50" r="1.1"/><circle cx="30" cy="36" r=".8"/><circle cx="16" cy="42" r=".9"/><circle cx="44" cy="32" r=".8"/></g><path class="crack" d="M10 36l7 4 5-6 6 7 5-5 6 6 5-4 6 3"/></svg>`;
 function renderKids() {
-  const box = $('nurseryBox');
-  if (!kids.length) { box.hidden = true; box.innerHTML = ''; return; }
+  const box = $('nurseryBox'), badge = $('kidsCount');
+  badge.hidden = !kids.length; badge.textContent = kids.length;
+  if (!kids.length) {
+    box.innerHTML = `<div class="empty">${EGG_SVG}いまは、生まれた子はいません。<br>牧場で2匹を選んで「かけ合わせる」と、ここで卵がかえります。<div class="btn-row"><button type="button" data-act="toRanch">牧場へ</button></div></div>`;
+    return;
+  }
   const full = ranch.length >= slots();
-  box.hidden = false;
-  box.innerHTML = `<h2>生まれた子（${kids.length}匹）</h2>
-    <p class="parents">記録を見て、残す子を選ぶ。本番は毎回ほんの少し調子がちがうので、「6回中◯回ゴール」が多い子ほど転びにくい。転んだ子も練習すると走れるようになることがあります。${full ? `<br><b>牧場がいっぱい</b>（${slots()}匹）。残すには先に牧場から逃がすか、大会でメダルを取って広げる。` : ''}</p>
+  box.innerHTML = `<p class="parents">記録を見て、残す子を選ぶ。本番は毎回ほんの少し調子がちがうので、「6回中◯回ゴール」が多い子ほど転びにくい。転んだ子も練習すると走れるようになることがあります。${full ? `<br><b>牧場がいっぱい</b>（${slots()}匹）。残すには先に牧場から逃がすか、大会でメダルを取って広げる。` : ''}</p>
     <div class="kids">${kids.map(x => {
       const p = bodyPlan(x.g), egg = x.hatching;
       return `<div class="kid${egg ? ' egg-wait' : ''}${x.justHatched ? ' hatched' : ''}" data-id="${esc(x.id)}">
@@ -178,6 +180,7 @@ function renderKids() {
 }
 $('nurseryBox').addEventListener('click', async e => {
   const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.act === 'toRanch') { setTab('ranch'); return; }
   if (b.dataset.act === 'releaseAll') {
     if (kids.some(x => x.practiced) && !await ask('練習した子もいます。のこりを逃がしますか？', {ok: '逃がす'})) return;
     kids = []; save(); renderKids(); toast('のこりの子を逃がしました'); return;
@@ -188,6 +191,7 @@ $('nurseryBox').addEventListener('click', async e => {
   if (b.dataset.act === 'keep' && ranch.length < slots()) {
     kids = kids.filter(y => y !== x); x.isNew = true; ranch.push(x);
     save(); renderRanch(); renderKids(); toast(`${x.name} を牧場に残しました`);
+    if (!kids.length) { setTab('ranch'); const c = $('ranch').lastElementChild; if (c) c.scrollIntoView({block: 'center'}); } // ぜんぶ決めたら牧場へ（残した子はいちばん下）
   }
 });
 
@@ -208,8 +212,7 @@ function addKids(list) {
       save(); renderKids();
     }, wait + i * HATCH_GAP));
   });
-  setTab('ranch');
-  $('nurseryBox').scrollIntoView({behavior: 'smooth', block: 'start'});
+  setTab('kids', {top: true}); // 卵は「生まれた子」の画面でかえる
 }
 
 // ---------- かけ合わせ（v004: かける前のシートで、走り方を受けつぐ親を選ぶ・子の体重の幅を見る） ----------

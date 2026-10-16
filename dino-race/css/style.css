@@ -8,7 +8,6 @@
 [hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;line-height:1.7;-webkit-tap-highlight-color:transparent}
-body.has-actbar{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
 a{color:var(--accent)}
 button{font:inherit;font-size:15px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 14px;min-height:44px;cursor:pointer;touch-action:manipulation}
 button:hover:not(:disabled){border-color:var(--ink)}
@@ -23,34 +22,48 @@ button:focus-visible,select:focus-visible,input:focus-visible,.card:focus-visibl
 #btnSound.off .mute{display:inline}
 #btnSound.off{color:var(--muted)}
 
-.top{display:flex;align-items:center;gap:10px;max-width:1100px;margin:0 auto;padding:10px 16px 8px}
-.top h1{margin:0;font-size:19px;letter-spacing:.03em;white-space:nowrap}
+/* 画面の作り（v005）: 見出し・下のタブは固定、走るようす（牧場の画面だけ）も固定、画面ごとの中身だけがスクロール。
+   ページ全体はスクロールしない（100dvh の縦の並び） */
+body.app{height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+.top{flex:none;display:flex;align-items:center;gap:8px;width:100%;max-width:1100px;margin:0 auto;padding:8px 16px 6px}
+.top h1{margin:0;font-size:19px;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .back{font-size:18px;text-decoration:none;color:var(--muted);padding:6px 4px}
-.top #btnSound{margin-left:auto}
-main{max-width:1100px;margin:0 auto;padding:0 16px 48px}
+.top #btnHelp{margin-left:auto}
+main#app{flex:1;min-height:0;display:flex;flex-direction:column;width:100%;max-width:1100px;margin:0 auto;padding:0 16px}
+.screens{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:10px 2px 24px;-webkit-overflow-scrolling:touch}
+.screen{min-height:100%}
 
-/* 走るようす */
-.stage{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--paper);z-index:10}
-.stage.live{position:sticky;top:0;box-shadow:var(--shadow)}
-#view{display:block;width:100%;height:clamp(220px,38vh,460px)}
-.hud{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 12px;border-top:1px solid var(--line);font-size:13px;background:var(--paper)}
+/* 走るようす: 牧場の画面だけ上に（練習場）。ほかの画面では出さない。かけっこと「走りを見る」の間は画面いっぱい */
+.stage{flex:none;position:relative;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--paper);z-index:10}
+body:not([data-screen=ranch]) .stage{display:none}
+#view{display:block;width:100%;height:clamp(150px,26dvh,320px);flex:none}
+.hud{display:flex;align-items:center;gap:8px;padding:4px 8px 4px 12px;border-top:1px solid var(--line);font-size:13px;background:var(--paper);flex:none}
 .hud-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--muted)}
 .chip-btn{min-height:36px;padding:4px 12px;font-size:13px;border-radius:999px;flex:none}
+body.racing .stage{display:flex;position:fixed;left:0;right:0;bottom:0;top:var(--top-h,56px);z-index:25;border-radius:0;border-width:1px 0 0;box-shadow:none}
+body.racing #view{flex:1;height:auto;min-height:0}
+body.racing .hud{padding-bottom:calc(4px + env(safe-area-inset-bottom))}
+@media (min-width:1132px){body.racing .stage{left:calc(50% - 550px);right:calc(50% - 550px);border-width:1px}}
 
-/* タブ */
-.tabs{display:flex;gap:4px;margin:14px 0 4px;border-bottom:1px solid var(--line)}
-.tabs button{flex:1;border:0;border-radius:10px 10px 0 0;background:none;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
-.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
-.tabs .n{font-weight:400;font-size:12px;color:var(--muted)}
-.panel{padding-top:10px}
+/* 下のタブ（固定） */
+.tabbar{flex:none;display:flex;width:100%;max-width:1100px;margin:0 auto;border-top:1px solid var(--line);background:var(--bg);padding:0 4px env(safe-area-inset-bottom)}
+.tabbar button{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:0;min-height:56px;padding:6px 2px 4px;border:0;border-radius:0;background:none;color:var(--muted);font-size:11px;font-weight:600;line-height:1.3}
+.tabbar svg{width:24px;height:24px}
+.tabbar small{font-weight:400;font-size:10px}
+.tabbar button[aria-selected=true]{color:var(--accent)}
+.tabbar button[aria-selected=true]::before{content:'';position:absolute;top:-1px;left:22%;right:22%;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
+.tabbar .badge{position:absolute;top:4px;left:calc(50% + 8px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font-size:11px;line-height:18px;text-align:center}
 .hint{margin:4px 0 10px;font-size:13px;color:var(--muted)}
 
-/* あそびかた・おまかせ中のおしらせ */
-.tip{background:var(--card);border:1px dashed var(--accent);border-radius:12px;padding:12px 14px;margin:6px 0 12px;font-size:14px}
-.tip ol{margin:6px 0 8px;padding-left:20px}
-.tip li{margin:2px 0}
-.banner{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:8px 12px;margin:6px 0 12px;font-size:14px}
-.banner span{flex:1;min-width:12em}
+/* 画面の中の切りかえ（大会の段・記録帳のページ） */
+.seg{display:flex;gap:4px;padding:3px;margin:0 0 12px;background:var(--card);border:1px solid var(--line);border-radius:12px;position:sticky;top:-10px;z-index:2}
+.seg button{flex:1;min-height:38px;padding:4px 6px;border:0;border-radius:9px;background:none;color:var(--muted);font-size:14px;font-weight:600}
+.seg button[aria-selected=true]{background:var(--bg);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.seg small{font-weight:400;font-size:11px;margin-left:3px}
+
+/* 次のお題・おまかせ中のおしらせ（1行に） */
+.banner{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:6px 8px 6px 12px;margin:0 0 10px;font-size:13px;line-height:1.5}
+.banner span{flex:1;min-width:0}
 
 /* カード */
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
@@ -69,8 +82,10 @@ main{max-width:1100px;margin:0 auto;padding:0 16px 48px}
 @keyframes born{0%{transform:scale(.85);opacity:0}70%{transform:scale(1.03)}100%{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.card.born{animation:none}}
 
-/* 生まれた子 */
-.nursery{background:var(--card);border:1px solid var(--accent);border-radius:12px;padding:12px;margin:6px 0 14px}
+/* 生まれた子（画面ひとつ） */
+.nursery{margin:0}
+.nursery .empty{text-align:center;color:var(--muted);padding:40px 12px;font-size:14px}
+.nursery .empty svg{width:56px;height:64px;display:block;margin:0 auto 8px;opacity:.7}
 .nursery h2{font-size:16px;margin:0}
 .nursery .parents{font-size:13px;color:var(--muted);margin:2px 0 10px}
 .kids{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:0 20px}
@@ -87,12 +102,10 @@ main{max-width:1100px;margin:0 auto;padding:0 16px 48px}
 .kid .diff{font-size:12px;color:var(--muted)}
 .nursery .foot{display:flex;justify-content:flex-end;margin-top:8px}
 
-/* 下の操作バー */
-.actbar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;align-items:center;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));
-  background:var(--card);border-top:1px solid var(--line);box-shadow:var(--shadow)}
+/* 選んだ恐竜への操作（下のタブの上。スクロールしない） */
+.actbar{flex:none;display:flex;align-items:center;gap:8px;width:100%;max-width:1100px;margin:0 auto;padding:8px 12px;background:var(--card);border-top:1px solid var(--line)}
 .actbar .act-n{flex:1;font-size:13px;color:var(--muted);min-width:0}
 .actbar button{flex:none}
-@media (min-width:720px){.actbar{left:50%;right:auto;transform:translateX(-50%);bottom:16px;border:1px solid var(--line);border-radius:14px;padding:8px 10px 8px 16px;min-width:480px}}
 
 /* 大会 */
 .cup-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
@@ -164,14 +177,15 @@ dialog#sheet::backdrop{background:rgba(20,15,10,.45)}
 .about-body .small{font-size:12px;color:var(--muted)}
 
 /* しらせ（画面の下に少しのあいだ） */
-.toast{position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:30;background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100% - 32px);box-shadow:var(--shadow)}
+.toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:30;background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100% - 32px);box-shadow:var(--shadow)}
 
 @media (max-width:639px){
-  main{padding:0 10px 40px}
-  .top{padding:8px 10px 6px}
+  main#app{padding:0 10px}
+  .top{padding:6px 8px 4px}
+  .top h1{font-size:17px}
+  .top .icon-btn{width:36px;height:36px;min-height:36px}
   .stage{border-radius:10px}
-  .stage.live{border-radius:0;margin:0 -10px;border-left:0;border-right:0}
-  #view,.count{height:clamp(200px,34vh,320px)}
+  #view{height:clamp(130px,22dvh,200px)}
   .cards{grid-template-columns:repeat(2,1fr);gap:8px}
   .card{padding:6px}
   .card canvas{height:70px}
@@ -182,19 +196,24 @@ dialog#sheet::backdrop{background:rgba(20,15,10,.45)}
 }
 
 /* タイトル画面（後ろで練習場の恐竜が走っている） */
-body.titled{overflow:hidden}
-.title-screen{position:fixed;inset:0;z-index:50;display:grid;place-items:end center;padding:16px 16px calc(6vh + env(safe-area-inset-bottom));background:linear-gradient(to bottom,transparent 0,transparent 30%,var(--scrim) 52%);animation:fade .35s ease-out}
+body.titled .top,body.titled .screens,body.titled .tabbar,body.titled .actbar{visibility:hidden}
+body.titled .stage{display:flex;position:fixed;top:0;left:0;right:0;height:40dvh;z-index:40;border:0;border-radius:0}
+@media (min-width:640px){body.titled .stage{height:62dvh}}
+body.titled #view{flex:1;height:auto}
+body.titled .hud{display:none}
+.title-screen{position:fixed;inset:0;z-index:50;display:grid;place-items:end center;padding:16px 16px calc(6vh + env(safe-area-inset-bottom));background:linear-gradient(to bottom,transparent 0,transparent 36%,var(--bg) 46%);animation:fade .35s ease-out}
 .title-card{width:100%;max-width:380px;text-align:center;background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:28px 22px 18px;box-shadow:var(--shadow)}
 .title-logo{width:76px;height:76px;display:block;margin:0 auto 10px}
 .title-card h2{margin:0;font-size:28px;letter-spacing:.06em;line-height:1.3}
 .title-sub{margin:8px 0 20px;color:var(--muted);font-size:14px}
 .title-btns{display:flex;flex-direction:column;gap:10px}
 .title-btns button{min-height:52px;font-size:17px}
-.title-foot{margin:16px 0 0;font-size:12px;color:var(--muted)}
+.title-help{margin-top:10px;width:100%;border:0;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+.title-foot{margin:10px 0 0;font-size:12px;color:var(--muted)}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 
 /* スタートの合図 */
-.count{position:absolute;left:0;right:0;top:0;height:clamp(220px,38vh,460px);display:flex;align-items:center;justify-content:center;pointer-events:none;
+.count{position:absolute;left:0;right:0;top:0;bottom:44px;display:flex;align-items:center;justify-content:center;pointer-events:none;
   font-size:clamp(30px,8vw,52px);font-weight:800;letter-spacing:.08em;color:var(--accent);text-shadow:0 0 12px var(--paper),0 0 4px var(--paper)}
 .count.pop{animation:pop .35s ease-out}
 @keyframes pop{0%{transform:scale(1.5);opacity:0}100%{transform:none;opacity:1}}
@@ -233,8 +252,8 @@ dialog#ask input{width:100%;font:inherit;font-size:16px;min-height:44px;padding:
 .credits dd{margin:0}
 
 /* サムネイルを撮るとき（?thumb）: 走るようすだけを画面いっぱいに */
-body.thumb .title-screen,body.thumb .top,body.thumb .tabs,body.thumb .panel,body.thumb .hud,body.thumb .actbar{display:none!important}
-body.thumb main{padding:0;max-width:none}
+body.thumb .title-screen,body.thumb .top,body.thumb .tabbar,body.thumb .screens,body.thumb .hud,body.thumb .actbar{display:none!important}
+body.thumb main#app{padding:0;max-width:none}
 body.thumb .stage{border:0;border-radius:0}
 body.thumb #view{height:100vh}
 
@@ -283,3 +302,33 @@ body.thumb #view{height:100vh}
 .book-chart{width:100%;height:240px;display:block;background:var(--paper);border:1px solid var(--line);border-radius:10px;margin:6px 0}
 .pct{display:inline-block;width:56px;height:6px;border-radius:3px;background:var(--line);margin-right:6px;vertical-align:middle;overflow:hidden}
 .pct i{display:block;height:100%;background:var(--accent)}
+
+/* あそびかた（v005。見出しの ? とタイトルから開く。いつもは出さない） */
+.help ol{margin:4px 0 8px;padding-left:20px}
+.help li{margin:6px 0}
+.help .steps{counter-reset:st;list-style:none;padding:0}
+.help .steps li{position:relative;padding-left:34px;min-height:26px}
+.help .steps li::before{counter-increment:st;content:counter(st);position:absolute;left:0;top:1px;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:13px;line-height:24px;text-align:center}
+.help dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:4px 0;font-size:13px}
+.help dt{font-weight:700}
+.help dd{margin:0;color:var(--muted)}
+.nursery .empty .shell{fill:none;stroke:var(--muted);stroke-width:1.6}
+.nursery .empty .dots circle{fill:var(--muted)}
+.nursery .empty .crack{fill:none;stroke:var(--muted);stroke-width:1.2}
+@media (max-width:639px){.title-screen{padding-bottom:calc(3vh + env(safe-area-inset-bottom))}.title-card{padding:20px 18px 14px;border:0;box-shadow:none;background:none}.title-logo{width:60px;height:60px}.title-card h2{font-size:26px}}
+/* 実況の板（v005）: 縦長の画面のかけっこの間だけ。走るようすはレーンの数に合わせた高さに、残りに順位と距離 */
+.board{display:none;list-style:none;margin:0;padding:8px 14px;overflow-y:auto;font-size:14px;font-variant-numeric:tabular-nums}
+.board li{display:grid;grid-template-columns:22px 1fr auto;gap:2px 8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.board .no{font-weight:700;color:var(--muted)}
+.board .nm{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board .st{font-weight:700}
+.board .bar{grid-column:2/-1;height:6px}
+.board .bar i{position:static;display:block;height:100%;width:0;border-radius:3px;transform:none;top:auto}
+.board li.goal .st{color:var(--accent)}
+.board li.fell{opacity:.6}
+.board li.ghost{color:var(--muted)}.board li.ghost .bar i{background:var(--ink-soft)}
+@media (orientation:portrait){
+  body.racing #view{flex:none;height:min(calc(var(--lanes,1) * 64vw + 34px),calc(100% - 150px))}
+  body.racing .board{display:block;flex:1;min-height:0}
+  body.racing .count{bottom:auto;height:min(calc(var(--lanes,1) * 64vw + 34px),calc(100% - 150px))}
+}

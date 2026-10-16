@@ -8,12 +8,13 @@
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="theme-color" content="#efe7d4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#16120d" media="(prefers-color-scheme: dark)">
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=5">
 </head>
-<body>
+<body class="app" data-screen="ranch">
 <header class="top">
   <a class="back" href="../" aria-label="あそびラボへ戻る">←</a>
   <h1>恐竜かけっこ牧場</h1>
+  <button type="button" class="icon-btn" id="btnHelp" aria-label="あそびかた">?</button>
   <button type="button" class="icon-btn" id="btnSound" aria-label="効果音" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="mute" d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <button type="button" class="icon-btn" id="btnAbout" aria-label="メニュー"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
 </header>
@@ -25,15 +26,17 @@
     <h2>恐竜かけっこ牧場</h2>
     <p class="title-sub">恐竜をかけ合わせて育て、<br>物理の計算で本当に走らせる 100m かけっこ。</p>
     <div class="title-btns" id="titleBtns"></div>
+    <button type="button" class="quiet title-help" id="btnTitleHelp">あそびかた</button>
     <p class="title-foot"><span id="titleVer"></span> ・ あそびラボ</p>
   </div>
 </div>
 
-<main>
-  <!-- 走るようす。かけっこの間は画面の上に固定（.live） -->
+<main id="app">
+  <!-- 走るようす。牧場の画面では上に小さく（練習場）、かけっこと「走りを見る」の間は画面いっぱい（body.racing） -->
   <section class="stage" id="stage">
     <canvas id="view" aria-label="恐竜が走るようす"></canvas>
     <div class="count" id="count" aria-live="assertive" hidden></div>
+    <ol class="board" id="board" aria-label="いまの順位"></ol>
     <div class="hud">
       <span id="hudText" class="hud-text">牧場の恐竜が、練習場を走っています</span>
       <button type="button" id="btnSpeed" class="chip-btn" aria-label="再生の速さ">×1</button>
@@ -41,46 +44,46 @@
     </div>
   </section>
 
-  <nav class="tabs" role="tablist" aria-label="画面の切りかえ">
-    <button type="button" role="tab" id="tab-ranch" aria-controls="panel-ranch" aria-selected="true">牧場 <span class="n" id="ranchCount"></span></button>
-    <button type="button" role="tab" id="tab-cups" aria-controls="panel-cups" aria-selected="false">大会 <span class="n" id="medalCount"></span></button>
-    <button type="button" role="tab" id="tab-book" aria-controls="panel-book" aria-selected="false">記録帳</button>
-  </nav>
+  <!-- 画面ごとの中身（ここだけがスクロールする） -->
+  <div class="screens" id="screens">
+    <section class="screen" id="screen-ranch" aria-labelledby="tab-ranch">
+      <div id="nextCup" class="banner next" hidden></div>
+      <div id="evolveBanner" class="banner" hidden></div>
+      <p class="hint" id="selHint">カードを押して選ぶ（かけ合わせは2匹、かけっこは4匹まで）。「…」で詳しく。</p>
+      <div class="cards" id="ranch"></div>
+    </section>
 
-  <section class="panel" id="panel-ranch" role="tabpanel" aria-labelledby="tab-ranch">
-    <div class="tip" id="tip" hidden>
-      <b>あそびかた</b>
-      <ol>
-        <li>2匹を選んで<b>かけ合わせる</b>と、子が3匹生まれます（体の近い2匹ほど、子が転びにくい）。</li>
-        <li>転んだ子も<b>練習</b>すると走れるようになることがあります。速くて転びにくい子を<b>残す</b>。</li>
-        <li>牧場で生まれた子で<b>大会</b>に出て、メダルを集めよう（初級・中級・上級。メダル1つで牧場が1匹分広がる）。</li>
-      </ol>
-      <button type="button" id="btnTipOk" class="quiet">わかった</button>
-    </div>
-    <div id="nextCup" class="banner next" hidden></div>
-    <div id="evolveBanner" class="banner" hidden></div>
-    <div id="nurseryBox" class="nursery" hidden></div>
-    <p class="hint" id="selHint">カードを押して選ぶ（かけっこは4匹まで、かけ合わせは2匹）。「…」で詳しく。</p>
-    <div class="cards" id="ranch"></div>
-  </section>
+    <section class="screen" id="screen-kids" aria-labelledby="tab-kids" hidden>
+      <div id="nurseryBox" class="nursery"></div>
+    </section>
 
-  <section class="panel" id="panel-cups" role="tabpanel" aria-labelledby="tab-cups" hidden>
-    <p class="hint">お題をクリアするとメダル。メダル1つで牧場が1匹分広がります。段のお題をぜんぶ取ると次の段が開きます。「はじめての100m」のほかは、牧場で生まれた恐竜で出ます。</p>
-    <div id="cupList"></div>
-  </section>
+    <section class="screen" id="screen-cups" aria-labelledby="tab-cups" hidden>
+      <div class="seg" id="tierSeg" role="tablist" aria-label="大会の段"></div>
+      <div id="cupList"></div>
+    </section>
 
-  <section class="panel" id="panel-book" role="tabpanel" aria-labelledby="tab-book" hidden>
-    <div id="book"></div>
-  </section>
+    <section class="screen" id="screen-book" aria-labelledby="tab-book" hidden>
+      <div class="seg" id="bookSeg" role="tablist" aria-label="記録帳のページ"></div>
+      <div id="book"></div>
+    </section>
+  </div>
 </main>
 
-<!-- 選んだ恐竜への操作（スマホでは画面の下に固定） -->
+<!-- 選んだ恐竜への操作（牧場の画面で選んだときだけ。下のタブの上） -->
 <div class="actbar" id="actbar" hidden>
   <span class="act-n" id="actN"></span>
   <button type="button" id="btnClearSel" class="quiet" aria-label="選ぶのをやめる">×</button>
   <button type="button" id="btnBreed">かけ合わせる</button>
   <button type="button" id="btnRace" class="primary">かけっこ</button>
 </div>
+
+<!-- 画面の切りかえ（下に固定） -->
+<nav class="tabbar" role="tablist" aria-label="画面の切りかえ">
+  <button type="button" role="tab" id="tab-ranch" aria-controls="screen-ranch" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-6 9 6v9H3z M9 20v-5h6v5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>牧場 <small id="ranchCount"></small></span></button>
+  <button type="button" role="tab" id="tab-kids" aria-controls="screen-kids" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="13.5" rx="6.5" ry="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M6 13l3 1.5 2-2 2.5 2 2-1.5 2.5 1" fill="none" stroke="currentColor" stroke-width="1.4"/></svg><span>生まれた子</span><b class="badge" id="kidsCount" hidden></b></button>
+  <button type="button" role="tab" id="tab-cups" aria-controls="screen-cups" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="14" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 3l2 5M16 3l-2 5M12 11.5l.9 1.8 2 .3-1.4 1.4.3 2-1.8-1-1.8 1 .3-2-1.4-1.4 2-.3z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg><span>大会 <small id="medalCount"></small></span></button>
+  <button type="button" role="tab" id="tab-book" aria-controls="screen-book" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-5a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h5z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><span>記録帳</span></button>
+</nav>
 
 <!-- 下からせり上がるシート（詳しく・結果・大会に出る恐竜・おまかせ・このゲームについて） -->
 <dialog id="sheet" aria-labelledby="sheetTitle">
@@ -147,18 +150,18 @@
 </template>
 
 <script src="https://cdn.jsdelivr.net/npm/planck@1.5.0/dist/planck.min.js"></script>
-<script src="js/genome.js?v=4"></script>
-<script src="js/sim.js?v=4"></script>
-<script src="js/ga.js?v=4"></script>
-<script src="js/draw.js?v=4"></script>
-<script src="js/cups.js?v=4"></script>
-<script src="js/sound.js?v=4"></script>
-<script src="js/store.js?v=4"></script>
-<script src="js/ranch.js?v=4"></script>
-<script src="js/view.js?v=4"></script>
-<script src="js/race.js?v=4"></script>
-<script src="js/sheets.js?v=4"></script>
-<script src="js/shell.js?v=4"></script>
-<script src="js/main.js?v=4"></script>
+<script src="js/genome.js?v=5"></script>
+<script src="js/sim.js?v=5"></script>
+<script src="js/ga.js?v=5"></script>
+<script src="js/draw.js?v=5"></script>
+<script src="js/cups.js?v=5"></script>
+<script src="js/sound.js?v=5"></script>
+<script src="js/store.js?v=5"></script>
+<script src="js/ranch.js?v=5"></script>
+<script src="js/view.js?v=5"></script>
+<script src="js/race.js?v=5"></script>
+<script src="js/sheets.js?v=5"></script>
+<script src="js/shell.js?v=5"></script>
+<script src="js/main.js?v=5"></script>
 </body>
 </html>

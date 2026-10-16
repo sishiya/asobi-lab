@@ -63,6 +63,7 @@ function showTitle() {
 function closeTitle() {
   $('titleScreen').hidden = true;
   document.body.classList.remove('titled');
+  if (VIEW.mode === 'idle-run') { VIEW.mode = 'idle'; idleRun(); } // タイトルの1匹から、牧場の練習場（2〜3匹）へ
   SFX.play('hatch');
 }
 $('titleBtns').addEventListener('click', async e => {
@@ -126,15 +127,7 @@ const CREDITS = `<dl class="credits">
 function openMenu() {
   const done = Object.keys(prog.medals).length === CUPS.length;
   openSheet('メニュー', `<div class="menu about-body">
-    <h3>あそびかた</h3>
-    <ol>
-      <li>牧場の恐竜を2匹選んで<b>かけ合わせる</b>と、子が3匹生まれます。体は両親のあいだ、走り方は選んだ親ゆずり。体の近い2匹ほど、子が転びにくい。</li>
-      <li>生まれた子は記録を見て<b>残す</b>か決めます。転んだ子も<b>練習</b>すると走れるようになることがあります（体は変わらないので、伸びには限りがあります）。</li>
-      <li>本番のかけっこは、毎回ほんの少し調子がちがいます。カードの「6回中◯回ゴール」は、調子が少しずれても走りきれた数（しっかり度）。速いけど危うい子と、少し遅いけど安定した子、どちらを残すかはあなたしだい。</li>
-      <li>「…」の<b>おまかせで進化</b>は、群れを何世代も育てて、いちばん速い子を連れて帰ります。</li>
-      <li><b>大会</b>は初級・中級・上級の3段。お題をクリアするとメダル（牧場が1匹分広がる）。段のお題をぜんぶ取ると次の段が開きます。</li>
-      <li>かけっこは 100m。40秒たってもゴールできないと、そこまでの距離が記録です。</li>
-    </ol>
+    <div class="btn-row"><button type="button" id="btnMenuHelp">あそびかた</button></div>
     <h3>設定</h3>
     <label class="switch"><input type="checkbox" id="chkSound"${SFX.on ? ' checked' : ''}> 効果音</label>
     <h3>データ</h3>
@@ -151,8 +144,38 @@ function openMenu() {
   $('btnImport').onclick = () => $('importFile').click();
   $('btnReset').onclick = async () => { if (await ask('はじめからやり直しますか？ 牧場・メダル・記録が消えます。', {ok: 'やり直す'})) resetAll(); };
   if (done) $('btnEnding').onclick = showEnding;
+  $('btnMenuHelp').onclick = openHelp;
 }
 $('btnAbout').addEventListener('click', openMenu);
+
+// ---------- あそびかた（v005: いつもは出さない。見出しの ? ・タイトル・メニューから開く） ----------
+function openHelp() {
+  openSheet('あそびかた', `<div class="help about-body">
+    <p>恐竜をかけ合わせて育て、物理の計算で本当に走らせて、100m のかけっこの大会でメダルを集めます。</p>
+    <ol class="steps">
+      <li><b>牧場</b>で2匹を選んで<b>かけ合わせる</b>。子が3匹、<b>生まれた子</b>の画面で卵からかえります。体は両親のあいだ、走り方は選んだ親ゆずり。体の近い2匹ほど、子が転びにくい。</li>
+      <li>生まれた子の記録を見て<b>残す</b>か決める。転んだ子も<b>練習</b>すると走れるようになることがあります（体は変わらないので、伸びには限りがあります）。</li>
+      <li>残した子で<b>大会</b>へ。お題をクリアするとメダル（牧場が1匹分広がる）。初級・中級・上級の3段で、段のお題をぜんぶ取ると次の段が開きます。</li>
+    </ol>
+    <h3>カードの見かた</h3>
+    <dl>
+      <dt>100m ◯秒</dt><dd>いつもの走りでの記録。</dd>
+      <dt>6回中◯回ゴール</dt><dd>本番は毎回ほんの少し調子がちがいます。調子を少しずらして6回走らせ、走りきれた数（しっかり度）。多いほど本番で転びにくい。</dd>
+      <dt>親ごえ ▲</dt><dd>速いほうの親より速い子。</dd>
+    </dl>
+    <h3>ほかに</h3>
+    <ul>
+      <li>カードの「…」で詳しく。<b>おまかせで進化</b>は、群れを何世代も育てて、いちばん速い子を連れて帰ります。</li>
+      <li>かけっこは 100m。40秒たってもゴールできないと、そこまでの距離が記録です。</li>
+      <li><b>記録帳</b>では、体重と速さの関係（大きいほど遅くなる相似則）や、研究の推定とくらべられます。</li>
+    </ul>
+    <details><summary>このゲームについて（本物のしくみ・出どころ）</summary>${$('aboutTpl').innerHTML}</details>
+    <div class="btn-row"><button type="button" class="primary" id="btnHelpOk">わかった</button></div>
+  </div>`, 'help');
+  $('btnHelpOk').onclick = closeSheet;
+}
+$('btnHelp').addEventListener('click', openHelp);
+$('btnTitleHelp').addEventListener('click', openHelp);
 
 // ---------- エンディング（お題をぜんぶクリア） ----------
 const allMedals = () => Object.keys(prog.medals).length === CUPS.length;
