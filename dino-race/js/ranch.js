@@ -241,7 +241,7 @@ function openBreed(a, b) {
       <b class="pa" style="left:${pos(F.Ma)}%">1</b><b class="pb" style="left:${pos(F.Mb)}%">2</b></div>
     <p class="small">およそ ${fmtMass(F.lo)}〜${fmtMass(F.hi)}（1: ${esc(a.name)} ${fmtMass(F.Ma)}、2: ${esc(b.name)} ${fmtMass(F.Mb)}）</p>
     ${ratio > 8 ? `<p class="warn">体の大きさがかなりちがう2匹です。受けついだ走り方が子の体に合わず、転ぶ子が多くなりがち（練習で直ることもあります）。</p>` : ''}
-    <div class="btn-row"><button type="button" class="primary" id="btnBreedGo">かけ合わせる</button></div>`, 'breed');
+    <div class="btn-row sheet-foot"><button type="button" class="primary" id="btnBreedGo">かけ合わせる</button></div>`, 'breed');
   paintPortraits($('sheetBody'), [a, b]);
   $('btnBreedGo').onclick = () => {
     const id = $('sheetBody').querySelector('input[name=gaitFrom]:checked').value;

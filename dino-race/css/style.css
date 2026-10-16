@@ -332,3 +332,16 @@ body.thumb #view{height:100vh}
   body.racing .board{display:block;flex:1;min-height:0}
   body.racing .count{bottom:auto;height:min(calc(var(--lanes,1) * 64vw + 34px),calc(100% - 150px))}
 }
+/* スクロールバー（v007）: ブラウザの太い灰色のバーが紙の色から浮くので、細く・紙とインクの色に */
+*{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background-color:var(--muted)}
+::-webkit-scrollbar-corner{background:transparent}
+/* シートの下のボタン（かけ合わせ）: 中身がスクロールしても、いつも下に見えている */
+.sheet-body .sheet-foot{position:sticky;bottom:calc(-18px - env(safe-area-inset-bottom));margin:12px -18px calc(-18px - env(safe-area-inset-bottom));padding:10px 18px calc(12px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line)}
+/* かけ合わせのシートを低い画面でも収まりやすく */
+.gait-opt{padding:8px 10px}
+.gait-opt canvas{height:52px}
+@media (max-height:640px){.gait-opt canvas{height:40px}.sheet-body h3{margin:10px 0 4px}}
