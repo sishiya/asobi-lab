@@ -1,5 +1,5 @@
 // 2D世界の決まったルール。置いた3Dの形は、その秒の断面（長方形）として2D世界に現れる。
-import { KINDS } from './level.js';
+import { KINDS } from './level.js?v=6';
 
 export const DT = 0.1;          // 1コマ＝0.1秒
 const SPEED = 1.5;              // 2D人の歩く速さ（マス/秒）
@@ -57,7 +57,7 @@ export function simulate(L, pieces) {
   const N = Math.round(L.T / DT);
   const frames = new Array(N + 1);
   const events = [];
-  const w = { x: L.start.x, y: L.tops[Math.floor(L.start.x)], dir: 1, vy: 0, st: 'walk', from: 0 };
+  const w = { x: L.start.x, y: L.tops[Math.floor(L.start.x)], dir: L.start.dir || 1, vy: 0, st: 'walk', from: 0 };
   let end = null;
   for (let k = 0; k <= N; k++) {
     const t = k * DT;
@@ -66,7 +66,7 @@ export function simulate(L, pieces) {
       // 断面が体に重なって現れた・下から上がってきた
       for (const s of secs) {
         if (w.x + HALF > s.x0 && w.x - HALF < s.x1 && s.y0 < w.y + BODY && s.y1 > w.y + 1e-6) {
-          if (s.y1 - w.y <= STEP && s.y0 < w.y + 0.6) {
+          if (s.y1 - s.y0 <= STEP && s.y1 - w.y <= STEP && s.y0 < w.y + 0.6) {
             // 低い・下から → 押し上げられる
             w.y = s.y1;
             if (w.st === 'fall') { w.st = 'walk'; w.vy = 0; }
@@ -92,7 +92,7 @@ export function simulate(L, pieces) {
           if (bt - w.y <= STEP) { w.y = bt; w.x = nx; }
           else { w.dir = -w.dir; events.push({ t, type: 'turn', x: w.x, y: w.y }); }
         } else w.x = nx;
-        if (w.x >= L.goal.x) {
+        if (Math.abs(w.x - L.goal.x) < 0.3 && w.y >= L.tops[Math.floor(L.goal.x)] - 0.01) {
           w.st = 'goal';
           end = { type: 'goal', t, x: w.x, y: w.y };
           events.push(end);

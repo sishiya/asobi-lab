@@ -8,24 +8,56 @@
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="description" content="1秒ずつの2D世界が奥と手前に並んでいる。3Dの形を置くと、2D世界にはその断面が現れて、歴史が書きかわる。">
 <meta name="theme-color" content="#e2d2b0">
-<link rel="stylesheet" href="css/style.css?v=5">
+<link rel="stylesheet" href="css/style.css?v=6">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
-<body>
+<body class="menu">
 <canvas id="view" aria-label="ページの束と主人公"></canvas>
 
-<header class="top">
-  <a class="back" href="../archive.html" aria-label="あそびラボの保管庫へ戻る">←</a>
-  <h1>ぺらぺら世界の歴史係<span class="proto">試作</span></h1>
-  <label class="look-pick">見た目 <select id="lookSel" aria-label="見た目"></select></label>
+<!-- タイトル -->
+<section id="title" class="screen title-screen">
+  <div class="title-card">
+    <p class="t-kicker">Pl. — 2次元＋時間の博物誌</p>
+    <h1 class="t-name">ぺらぺら世界の歴史係</h1>
+    <p class="t-sub">1秒ずつの2D世界が、図版のように並んでいる。<br>外から形を下ろして、歴史を書きかえよう。</p>
+    <div class="t-acts">
+      <button type="button" id="tStart" class="act primary big">はじめる</button>
+      <button type="button" id="tSelect" class="act big">図版をえらぶ</button>
+    </div>
+    <div class="t-row">
+      <button type="button" id="tHelp" class="act ghost">あそびかた</button>
+      <button type="button" class="act ghost sound-btn">音: あり</button>
+    </div>
+    <p class="t-foot">キーボードとマウスで遊びます ・ 試作 <span class="ver">v006</span> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
+  </div>
+</section>
+
+<!-- 図版えらび -->
+<section id="select" class="screen" hidden>
+  <div class="select-card">
+    <div class="sel-head"><h2>図版の一覧</h2><button type="button" id="selClose" class="icon-btn" aria-label="もどる">×</button></div>
+    <p class="sel-group">はじめの図版（ひとつずつ覚える）</p>
+    <div id="selTut" class="plates"></div>
+    <p class="sel-group">本番の図版</p>
+    <div id="selMain" class="plates"></div>
+  </div>
+</section>
+
+<header class="top hud">
+  <button type="button" class="back" id="btnTitle" aria-label="タイトルへ">←</button>
+  <div class="lv"><span id="lvPlate" class="lv-plate">Pl. I</span><span id="lvName" class="lv-name"></span></div>
+  <button type="button" class="icon-btn" id="btnSelect" aria-label="図版の一覧">☰</button>
+  <button type="button" class="icon-btn sound-btn" aria-label="音のあり・なし">♪</button>
   <button type="button" class="icon-btn" id="btnHelp" aria-label="あそびかた">?</button>
 </header>
 
-<div class="clock" aria-live="polite"><span class="pl">Pl.</span><span id="clockNum">0</span><small>秒目のページ</small></div>
-<div id="status" class="status"></div>
+<div class="clock hud" aria-live="polite"><span class="pl">Pl.</span><span id="clockNum">0</span><small>秒目のページ</small></div>
+<div id="status" class="status hud"></div>
+<div id="coach" class="coach hud" aria-live="polite"></div>
+<div id="intro" class="intro" hidden></div>
 
-<aside class="tray" aria-label="置ける3Dの形">
-  <div class="tray-title">3Dの形 <small>1〜3 でえらぶ</small></div>
+<aside class="tray hud" aria-label="置ける3Dの形">
+  <div class="tray-title">3Dの形</div>
   <div id="kinds"></div>
   <div class="tray-acts">
     <button type="button" id="btnPlace" class="act primary">置く <kbd>Z</kbd></button>
@@ -34,12 +66,12 @@
   <p id="candMsg" class="cand-msg"></p>
 </aside>
 
-<figure class="inset">
+<figure class="inset hud">
   <canvas id="inset" width="720" height="280"></canvas>
-  <figcaption id="insetCap">2D人から見た、いまのページ</figcaption>
+  <figcaption id="insetCap"></figcaption>
 </figure>
 
-<div class="bottom">
+<div class="bottom hud">
   <canvas id="timeline" height="64" aria-label="時間の帯（クリックでその秒へ）"></canvas>
   <div class="bottom-acts">
     <button type="button" id="btnReplay" class="act">くらべて再生 <kbd>P</kbd></button>
@@ -51,7 +83,11 @@
   <div class="win-card">
     <div class="win-title">正史ができた</div>
     <p id="winText"></p>
-    <div class="win-acts"><button type="button" id="winReplay" class="act primary">くらべて再生</button><button type="button" id="winClose" class="act ghost">つづける</button></div>
+    <div class="win-acts">
+      <button type="button" id="winNext" class="act primary">次の図版へ</button>
+      <button type="button" id="winReplay" class="act">くらべて再生</button>
+      <button type="button" id="winClose" class="act ghost">このまま</button>
+    </div>
   </div>
 </div>
 
@@ -72,25 +108,23 @@
 <div id="help" class="modal" hidden>
   <div class="modal-card help-card">
     <h2>あそびかた</h2>
-    <p>ここには <b>1秒ずつの2D世界</b> が、ページのように並んでいます。<b>奥が昔、手前が未来</b>。左はしの家から出た住人は、右のゴールをめざして歩きますが、このままでは崖に落ちてしまいます。</p>
-    <p>あなたは2D世界の外（空の上のガラスの棚）にいる3Dの存在です。2D世界の物にはさわれません。そのかわり <b>3Dの形</b> をページの束の中に下ろせます。住人にさわれるのは、形とページが重なった <b>断面</b> だけ。だから <b>3Dの形は、2D世界では「動き」になります</b>。奥行きの長い角材はしばらくだけある橋に、手前へ上がる板はだんだん上がる足場に。</p>
-    <p>未来のページを見て、どこで何が起きるかをたしかめ、昔のページに形を置いて、住人がゴールに着く <b>正史</b> を作ってください。</p>
+    <p>図版の一枚一枚は、<b>1秒ずつの2D世界</b>。奥が昔、手前が未来。<br>あなたは2D世界の外にいて、住人にはさわれない。かわりに<b>3Dの形</b>を下ろせる。<br>住人が巣にたどり着く歴史を作ろう。</p>
     <table class="keys">
-      <tr><td><kbd>←</kbd><kbd>→</kbd> ／ <kbd>A</kbd><kbd>D</kbd></td><td>横へ歩く</td></tr>
-      <tr><td><kbd>↑</kbd><kbd>↓</kbd> ／ <kbd>W</kbd><kbd>S</kbd></td><td>奥（昔）・手前（未来）へ。<kbd>Shift</kbd> でゆっくり</td></tr>
+      <tr><td><kbd>A</kbd><kbd>D</kbd> ／ <kbd>←</kbd><kbd>→</kbd></td><td>横へ歩く</td></tr>
+      <tr><td><kbd>W</kbd><kbd>S</kbd> ／ <kbd>↑</kbd><kbd>↓</kbd></td><td>昔・未来へ（<kbd>Shift</kbd> でゆっくり）</td></tr>
+      <tr><td><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></td><td>形をえらぶ</td></tr>
+      <tr><td><kbd>Z</kbd> ／ <kbd>X</kbd></td><td>置く ／ 持ち上げる</td></tr>
+      <tr><td><kbd>P</kbd></td><td>くらべて再生</td></tr>
       <tr><td><kbd>Space</kbd></td><td>ジャンプ</td></tr>
-      <tr><td><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></td><td>形をえらぶ（もう一度でえらぶのをやめる）</td></tr>
-      <tr><td><kbd>Z</kbd></td><td>えらんだ形を、いまのページから奥行きの方向へ置く</td></tr>
-      <tr><td><kbd>X</kbd></td><td>足もとの形を持ち上げる</td></tr>
-      <tr><td><kbd>P</kbd></td><td>はじめの歴史といまの歴史をくらべて再生</td></tr>
-      <tr><td><kbd>L</kbd></td><td>見た目を切りかえる（左上のメニューでも）</td></tr>
-      <tr><td>マウス</td><td>ドラッグで見る向きを回す・ホイールで寄る／引く・ダブルクリックでもとの向き</td></tr>
     </table>
-    <p class="small">下の時間の帯をクリックすると、その秒へとべます。</p>
-    <div class="win-acts"><button type="button" id="helpClose" class="act primary">はじめる</button></div>
+    <details class="more">
+      <summary>見る向きを変える</summary>
+      <p>左ドラッグで回す、中（右）ドラッグで平行移動、ホイールで寄る・引く、ダブルクリックでもとにもどる。下の時間の帯をクリックすると、その秒へとべる。</p>
+    </details>
+    <div class="win-acts"><button type="button" id="helpClose" class="act primary">とじる</button></div>
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=5"></script>
+<script type="module" src="js/main.js?v=6"></script>
 </body>
 </html>

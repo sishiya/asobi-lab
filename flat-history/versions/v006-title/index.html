@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ぺらぺら世界の歴史係（仮）</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='10' fill='%23f2e6cb'/><rect x='4' y='4' width='56' height='56' rx='6' fill='none' stroke='%234a3320' stroke-width='2'/><g fill='%23f8efd8' stroke='%234a3320' stroke-width='2.4'><path d='M12 46V24l10-8v22z'/><path d='M22 48V26l10-8v22z'/><path d='M32 50V28l10-8v22z'/></g><path d='M10 52L54 16' stroke='%23a8742a' stroke-width='4' stroke-linecap='round'/></svg>">
+<meta name="description" content="1秒ずつの2D世界が奥と手前に並んでいる。3Dの形を置くと、2D世界にはその断面が現れて、歴史が書きかわる。">
+<meta name="theme-color" content="#e2d2b0">
+<link rel="stylesheet" href="css/style.css?v=6">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+</head>
+<body class="menu">
+<canvas id="view" aria-label="ページの束と主人公"></canvas>
+
+<!-- タイトル -->
+<section id="title" class="screen title-screen">
+  <div class="title-card">
+    <p class="t-kicker">Pl. — 2次元＋時間の博物誌</p>
+    <h1 class="t-name">ぺらぺら世界の歴史係</h1>
+    <p class="t-sub">1秒ずつの2D世界が、図版のように並んでいる。<br>外から形を下ろして、歴史を書きかえよう。</p>
+    <div class="t-acts">
+      <button type="button" id="tStart" class="act primary big">はじめる</button>
+      <button type="button" id="tSelect" class="act big">図版をえらぶ</button>
+    </div>
+    <div class="t-row">
+      <button type="button" id="tHelp" class="act ghost">あそびかた</button>
+      <button type="button" class="act ghost sound-btn">音: あり</button>
+    </div>
+    <p class="t-foot">キーボードとマウスで遊びます ・ 試作 <span class="ver">v006</span> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
+  </div>
+</section>
+
+<!-- 図版えらび -->
+<section id="select" class="screen" hidden>
+  <div class="select-card">
+    <div class="sel-head"><h2>図版の一覧</h2><button type="button" id="selClose" class="icon-btn" aria-label="もどる">×</button></div>
+    <p class="sel-group">はじめの図版（ひとつずつ覚える）</p>
+    <div id="selTut" class="plates"></div>
+    <p class="sel-group">本番の図版</p>
+    <div id="selMain" class="plates"></div>
+  </div>
+</section>
+
+<header class="top hud">
+  <button type="button" class="back" id="btnTitle" aria-label="タイトルへ">←</button>
+  <div class="lv"><span id="lvPlate" class="lv-plate">Pl. I</span><span id="lvName" class="lv-name"></span></div>
+  <button type="button" class="icon-btn" id="btnSelect" aria-label="図版の一覧">☰</button>
+  <button type="button" class="icon-btn sound-btn" aria-label="音のあり・なし">♪</button>
+  <button type="button" class="icon-btn" id="btnHelp" aria-label="あそびかた">?</button>
+</header>
+
+<div class="clock hud" aria-live="polite"><span class="pl">Pl.</span><span id="clockNum">0</span><small>秒目のページ</small></div>
+<div id="status" class="status hud"></div>
+<div id="coach" class="coach hud" aria-live="polite"></div>
+<div id="intro" class="intro" hidden></div>
+
+<aside class="tray hud" aria-label="置ける3Dの形">
+  <div class="tray-title">3Dの形</div>
+  <div id="kinds"></div>
+  <div class="tray-acts">
+    <button type="button" id="btnPlace" class="act primary">置く <kbd>Z</kbd></button>
+    <button type="button" id="btnPick" class="act">持ち上げる <kbd>X</kbd></button>
+  </div>
+  <p id="candMsg" class="cand-msg"></p>
+</aside>
+
+<figure class="inset hud">
+  <canvas id="inset" width="720" height="280"></canvas>
+  <figcaption id="insetCap"></figcaption>
+</figure>
+
+<div class="bottom hud">
+  <canvas id="timeline" height="64" aria-label="時間の帯（クリックでその秒へ）"></canvas>
+  <div class="bottom-acts">
+    <button type="button" id="btnReplay" class="act">くらべて再生 <kbd>P</kbd></button>
+    <button type="button" id="btnReset" class="act ghost">全部とりのぞく</button>
+  </div>
+</div>
+
+<div id="win" class="win" hidden>
+  <div class="win-card">
+    <div class="win-title">正史ができた</div>
+    <p id="winText"></p>
+    <div class="win-acts">
+      <button type="button" id="winNext" class="act primary">次の図版へ</button>
+      <button type="button" id="winReplay" class="act">くらべて再生</button>
+      <button type="button" id="winClose" class="act ghost">このまま</button>
+    </div>
+  </div>
+</div>
+
+<div id="replay" class="modal" hidden>
+  <div class="modal-card replay-card">
+    <div class="rp-head"><b>くらべて再生</b><span class="rp-sub">住人から見た歴史</span><button type="button" id="rpClose" class="icon-btn" aria-label="閉じる">×</button></div>
+    <div class="rp-row"><div class="rp-label">はじめの歴史</div><canvas id="rpA" width="720" height="280"></canvas></div>
+    <div class="rp-row"><div class="rp-label now">いまの歴史</div><canvas id="rpB" width="720" height="280"></canvas></div>
+    <div class="rp-ctrl">
+      <button type="button" id="rpPlay" class="act primary" aria-label="再生・一時停止">❚❚</button>
+      <input id="rpSeek" type="range" min="0" max="60" step="0.05" value="0" aria-label="シーク">
+      <span id="rpTime" class="rp-time">0.0 秒</span>
+      <select id="rpSpeed" aria-label="速さ"><option value="1">×1</option><option value="2" selected>×2</option><option value="4">×4</option></select>
+    </div>
+  </div>
+</div>
+
+<div id="help" class="modal" hidden>
+  <div class="modal-card help-card">
+    <h2>あそびかた</h2>
+    <p>図版の一枚一枚は、<b>1秒ずつの2D世界</b>。奥が昔、手前が未来。<br>あなたは2D世界の外にいて、住人にはさわれない。かわりに<b>3Dの形</b>を下ろせる。<br>住人が巣にたどり着く歴史を作ろう。</p>
+    <table class="keys">
+      <tr><td><kbd>A</kbd><kbd>D</kbd> ／ <kbd>←</kbd><kbd>→</kbd></td><td>横へ歩く</td></tr>
+      <tr><td><kbd>W</kbd><kbd>S</kbd> ／ <kbd>↑</kbd><kbd>↓</kbd></td><td>昔・未来へ（<kbd>Shift</kbd> でゆっくり）</td></tr>
+      <tr><td><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></td><td>形をえらぶ</td></tr>
+      <tr><td><kbd>Z</kbd> ／ <kbd>X</kbd></td><td>置く ／ 持ち上げる</td></tr>
+      <tr><td><kbd>P</kbd></td><td>くらべて再生</td></tr>
+      <tr><td><kbd>Space</kbd></td><td>ジャンプ</td></tr>
+    </table>
+    <details class="more">
+      <summary>見る向きを変える</summary>
+      <p>左ドラッグで回す、中（右）ドラッグで平行移動、ホイールで寄る・引く、ダブルクリックでもとにもどる。下の時間の帯をクリックすると、その秒へとべる。</p>
+    </details>
+    <div class="win-acts"><button type="button" id="helpClose" class="act primary">とじる</button></div>
+  </div>
+</div>
+
+<script type="module" src="js/main.js?v=6"></script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 // 見た目 案2「図鑑の銅版画と標本室」: 線で彫った博物画の大地を、飛べない鳥キーウィが歩く。標本室の石膏像
 import * as THREE from 'three';
-import { rng, canvasTexture, floorPlane, radialTexture } from './util.js';
+import { rng, canvasTexture, floorPlane, radialTexture } from './util.js?v=6';
 
 const INK = '#4a3320';
 
@@ -56,7 +56,9 @@ function drawTerrain(g, L, S) {
     g.stroke();
     for (let a = 0; a < Math.PI * 2; a += 0.45) { g.beginPath(); g.moveTo(cx + Math.cos(a) * r * 0.55, cy + Math.sin(a) * r * 0.55); g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); g.stroke(); }
   };
-  ammonite(5.5 * S, py(1.4), 9); ammonite(27 * S, py(2.2), 11); ammonite(33.5 * S, py(4.6), 7);
+  // 化石は、その列の地面の中に収まるときだけ
+  const inGround = (xt, yt, rt = 0.6) => [Math.floor(xt - rt), Math.floor(xt + rt)].every((c) => c >= 0 && c < L.W && L.tops[c] > yt + rt);
+  for (const [xt, yt, r] of [[5.5, 1.4, 9], [27, 2.2, 11], [33.5, 4.6, 7], [17.5, 2.4, 8]]) if (inGround(xt, yt)) ammonite(xt * S, py(yt), r);
   const bone = (x0, y0, len, ang) => {
     g.save(); g.translate(x0, y0); g.rotate(ang);
     g.fillStyle = '#f6edd6'; g.strokeStyle = INK; g.lineWidth = 1;
@@ -64,7 +66,7 @@ function drawTerrain(g, L, S) {
     for (const s of [-1, 1]) { g.beginPath(); g.arc(s * len / 2, -2.5, 3, 0, 7); g.arc(s * len / 2, 2.5, 3, 0, 7); g.fill(); g.stroke(); }
     g.restore();
   };
-  bone(9 * S, py(2.6), 22, 0.3); bone(21 * S, py(1.5), 18, -0.5);
+  for (const [xt, yt, len, a] of [[9, 2.6, 22, 0.3], [21, 1.5, 18, -0.5], [31, 2.8, 20, 0.2]]) if (inGround(xt, yt, 0.8)) bone(xt * S, py(yt), len, a);
   // 縁どり（地表と崖の面）
   g.strokeStyle = INK; g.lineWidth = 1.8;
   for (let c = 0; c < L.W; c++) {
@@ -83,7 +85,8 @@ function drawTerrain(g, L, S) {
     g.lineWidth = 1.8;
   }
   // 家: 土の巣穴
-  const hy = py(L.tops[0]);
+  const hy = py(L.tops[Math.floor(L.start.x)]);
+  g.save(); g.translate(Math.max(0, L.start.x * S - 27), 0);
   g.fillStyle = '#e6d6b2';
   g.beginPath(); g.moveTo(0, hy); g.quadraticCurveTo(6, hy - 30, 30, hy - 28); g.quadraticCurveTo(50, hy - 24, 54, hy); g.fill();
   g.save(); g.clip();
@@ -93,8 +96,9 @@ function drawTerrain(g, L, S) {
   g.beginPath(); g.moveTo(0, hy - 2); g.quadraticCurveTo(6, hy - 30, 30, hy - 28); g.quadraticCurveTo(50, hy - 24, 54, hy); g.stroke();
   g.fillStyle = '#2b1d12';
   g.beginPath(); g.ellipse(26, hy, 11, 10, 0, Math.PI, 0); g.fill();
+  g.restore();
   // ゴール: 小枝の巣と大きな卵
-  const gx = L.goal.x * S, gy = py(L.tops[Math.floor(L.goal.x)]);
+  const gx = L.goal.x * S - 16, gy = py(L.tops[Math.floor(L.goal.x)]);
   g.strokeStyle = INK; g.lineWidth = 1.2;
   for (let i = 0; i < 16; i++) {
     const a = R() * 0.6 - 0.3;
@@ -117,12 +121,12 @@ function drawBackdrop(g, L, S) {
   g.strokeStyle = 'rgba(74,51,32,.7)'; g.lineWidth = 1; g.strokeRect(5, 5, W - 10, H - 10);
   g.strokeRect(8, 8, W - 16, H - 16);
   g.fillStyle = 'rgba(74,51,32,.75)'; g.font = 'italic 12px Georgia, serif'; g.textAlign = 'right';
-  g.fillText('Pl. I — Apteryx', W - 16, 22); g.textAlign = 'left';
+  g.fillText('Pl. ' + (L.plate || 'I') + ' — Apteryx', W - 16, 22); g.textAlign = 'left';
 }
 
 function drawSection(g, L, s, S, color) {
   const x = s.x0 * S, y = (L.H - s.y1) * S, w = (s.x1 - s.x0) * S, h = (s.y1 - s.y0) * S;
-  const kind = s.p.kind;
+  const kind = s.p.kind === 'plank' || s.p.kind === 'short' ? 'beam' : s.p.kind;
   g.fillStyle = kind === 'beam' ? '#d8b483' : kind === 'lift' ? '#dcb85a' : '#f4f1e8';
   g.fillRect(x, y, w, h);
   if (kind === 'beam') {
@@ -168,50 +172,71 @@ function drawWalker(g, L, f, S, scale = 1) {
   g.restore();
 }
 
-// 石膏の像
+// 3D世界の住人: 学芸員（2D世界のセピアとちがう、はっきりした色）
 function makeHero() {
   const hero = new THREE.Group();
   const body = new THREE.Group();
   hero.add(body);
-  const plaster = new THREE.MeshStandardMaterial({ color: '#f1ede4', roughness: 0.95 });
-  // ひだのある衣（回転体をひだの形にゆがめる）
-  const pts = [[0.42, 0], [0.4, 0.15], [0.33, 0.6], [0.28, 0.95], [0.24, 1.12], [0.14, 1.22], [0, 1.24]].map(([r, y]) => new THREE.Vector2(r, y));
-  const robeGeo = new THREE.LatheGeometry(pts, 48);
-  const pos = robeGeo.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const vx = pos.getX(i), vz = pos.getZ(i), vy = pos.getY(i);
-    const a = Math.atan2(vz, vx), k = 1 + Math.sin(a * 9) * 0.05 * (1 - vy / 1.3);
-    pos.setX(i, vx * k); pos.setZ(i, vz * k);
+  const coat = new THREE.MeshStandardMaterial({ color: '#16708a', roughness: 0.55 });
+  const coatDark = new THREE.MeshStandardMaterial({ color: '#0d4c5f', roughness: 0.6 });
+  const scarf = new THREE.MeshStandardMaterial({ color: '#c8322b', roughness: 0.6 });
+  const skin = new THREE.MeshStandardMaterial({ color: '#f2c9a0', roughness: 0.55 });
+  const hair = new THREE.MeshStandardMaterial({ color: '#2b1a12', roughness: 0.6 });
+  const brass = new THREE.MeshStandardMaterial({ color: '#e0a83a', roughness: 0.3, metalness: 0.85 });
+  const boot = new THREE.MeshStandardMaterial({ color: '#3a2418', roughness: 0.5 });
+  for (const z of [-0.1, 0.1]) {
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.2, 4, 8), coatDark);
+    leg.position.set(0, 0.17, z); body.add(leg);
+    const shoe = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 8), boot);
+    shoe.scale.set(1.5, 0.6, 1); shoe.position.set(0.05, 0.045, z); body.add(shoe);
   }
-  robeGeo.computeVertexNormals();
-  body.add(new THREE.Mesh(robeGeo, plaster));
-  // かたにかけた布
-  const drape = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.06, 8, 24, Math.PI * 1.2), plaster);
-  drape.position.y = 1.05; drape.rotation.set(Math.PI / 2, 0.5, 0.6); body.add(drape);
-  // 頭・鼻・まき毛
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 28, 20), plaster);
-  head.position.y = 1.44; body.add(head);
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.08, 8), plaster);
-  nose.rotation.z = -Math.PI / 2; nose.position.set(0.2, 1.43, 0); body.add(nose);
-  for (let i = 0; i < 9; i++) {
-    const a = (i / 9) * Math.PI * 1.4 - 0.2;
-    const curl = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 8), plaster);
-    curl.position.set(Math.cos(a + Math.PI / 2) * 0.16 - 0.03, 1.55 + Math.sin(i) * 0.03, Math.sin(a + Math.PI / 2) * 0.16);
-    body.add(curl);
+  // 長い上着（すそが広がる）
+  const pts = [[0.34, 0.26], [0.3, 0.42], [0.23, 0.8], [0.21, 0.95], [0.13, 1.02], [0, 1.03]].map(([r, y]) => new THREE.Vector2(r, y));
+  body.add(new THREE.Mesh(new THREE.LatheGeometry(pts, 28), coat));
+  const belt = new THREE.Mesh(new THREE.TorusGeometry(0.245, 0.025, 8, 28), coatDark);
+  belt.rotation.x = Math.PI / 2; belt.position.y = 0.66; body.add(belt);
+  for (let i = 0; i < 3; i++) {
+    const btn = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), brass);
+    btn.position.set(0.225 - i * 0.004, 0.86 - i * 0.12, 0); body.add(btn);
   }
-  const armGeo = new THREE.CapsuleGeometry(0.055, 0.4, 4, 8);
-  armGeo.translate(0, -0.22, 0);
-  const armL = new THREE.Mesh(armGeo, plaster), armR = new THREE.Mesh(armGeo, plaster);
-  armL.position.set(0, 1.05, -0.26); armR.position.set(0, 1.05, 0.26);
+  const sc = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.05, 8, 20), scarf);
+  sc.rotation.x = Math.PI / 2; sc.position.y = 1.02; body.add(sc);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.28, 0.09), scarf);
+  tail.position.set(-0.14, 0.88, 0.08); tail.rotation.z = 0.25; body.add(tail);
+  // 頭（大きめ）・髪・丸めがね
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 28, 20), skin);
+  head.position.y = 1.29; body.add(head);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.275, 28, 20, 0, Math.PI * 2, 0, Math.PI * 0.52), hair);
+  cap.position.y = 1.31; cap.rotation.z = 0.4; body.add(cap);
+  for (const z of [-0.095, 0.095]) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 8, 20), brass);
+    ring.rotation.y = Math.PI / 2; ring.position.set(0.25, 1.28, z); body.add(ring);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 8), hair);
+    eye.position.set(0.245, 1.28, z); body.add(eye);
+  }
+  const cheekM = new THREE.MeshStandardMaterial({ color: '#e8907a', roughness: 0.7 });
+  for (const z of [-0.15, 0.15]) {
+    const ch = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), cheekM);
+    ch.scale.set(0.5, 0.6, 1); ch.position.set(0.225, 1.2, z); body.add(ch);
+  }
+  const armGeo = new THREE.CapsuleGeometry(0.06, 0.32, 4, 8);
+  armGeo.translate(0, -0.2, 0);
+  const armL = new THREE.Mesh(armGeo, coat), armR = new THREE.Mesh(armGeo, coat);
+  armL.position.set(0, 0.95, -0.25); armR.position.set(0, 0.95, 0.25);
   body.add(armL, armR);
-  // 手もとの小さなランプの火
-  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.08, 14, 10),
-    new THREE.MeshStandardMaterial({ color: '#ffe2a8', emissive: '#ffb347', emissiveIntensity: 1.8 }));
-  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: radialTexture('rgba(255,190,90,.9)', 'rgba(255,190,90,0)'), transparent: true, depthWrite: false }));
-  glow.scale.set(0.8, 0.8, 1); orb.add(glow);
-  hero.add(orb);
-  hero.scale.setScalar(1.3);
-  hero.userData = { body, armL, armR, orb };
+  // 手さげランプ（右手。真鍮のわくとあたたかい火）
+  const lamp = new THREE.Group();
+  const frame = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.16, 6, 1, true), new THREE.MeshStandardMaterial({ color: '#e0a83a', roughness: 0.3, metalness: 0.85, wireframe: true }));
+  const capTop = new THREE.Mesh(new THREE.ConeGeometry(0.085, 0.07, 6), brass);
+  capTop.position.y = 0.115;
+  const flame = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8), new THREE.MeshStandardMaterial({ color: '#fff0b8', emissive: '#ffb030', emissiveIntensity: 2.2 }));
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: radialTexture('rgba(255,190,80,.85)', 'rgba(255,190,80,0)'), transparent: true, depthWrite: false }));
+  glow.scale.set(0.6, 0.6, 1);
+  lamp.add(frame, capTop, flame, glow);
+  lamp.position.set(0.02, -0.5, 0.02);
+  armR.add(lamp);
+  hero.scale.setScalar(1.45);
+  hero.userData = { body, armL, armR, orbMode: 'hold' };
   return hero;
 }
 
@@ -251,8 +276,8 @@ function makeEnv(L) {
 
 export default {
   id: 'museum', name: '案2 図鑑の銅版画', who: 'キーウィ',
-  kindNames: { beam: '標本の板', lift: '真鍮の板', wall: '石膏の柱' },
-  kindColors: { beam: '#c99a63', lift: '#d4ad4a', wall: '#ece8de' },
+  kindNames: { beam: '長い標本の板', plank: '標本の板', short: 'うすい標本の板', lift: '真鍮のななめ板', wall: '石膏の柱' },
+  kindColors: { beam: '#c9732f', plank: '#c9732f', short: '#d9893f', lift: '#e8a91c', wall: '#e9eef2' },
   bg: 'radial-gradient(120% 90% at 30% 0%, #f5ead2 0%, #e2d2b0 50%, #b9a27c 100%)',
   fog: '#ddcca8', fogNear: 38, fogFar: 100, paper: ['#f4ead2', '#eadcbc'], paperTint: '#f8efd8',
   edge: '#b29a6c', focus: '#a8742a', shelf: '#f0e2c0', shelfLine: '#a88e5e',

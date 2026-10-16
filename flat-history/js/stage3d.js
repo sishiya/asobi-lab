@@ -1,10 +1,10 @@
 // 3Dの舞台: ページの束・ガラスの棚・主人公・置いた形・世界線・描きかえの波
 import * as THREE from 'three';
-import { KINDS } from './level.js';
-import { look, kindColor } from './look/index.js';
-import { radialTexture } from './look/util.js';
-import { S, drawSheet } from './sheet.js';
-import { sectionsAt, DT } from './sim.js';
+import { KINDS } from './level.js?v=6';
+import { look, kindColor } from './look/index.js?v=6';
+import { radialTexture } from './look/util.js?v=6';
+import { S, drawSheet } from './sheet.js?v=6';
+import { sectionsAt, DT } from './sim.js?v=6';
 
 export const GAP = 1.0; // 1秒あたりの奥行き
 
@@ -234,22 +234,38 @@ export function createStage(canvas, L) {
   // ---- 毎フレーム ----
   const target = new THREE.Vector3(), camPos = new THREE.Vector3();
   let camInit = false;
-  // マウスでぐりぐり回す（左ドラッグ: 回す、ホイール: 寄る・引く、ダブルクリック: もとへ）
+  // マウス: 左ドラッグで回す、中・右ドラッグで平行移動、ホイールで寄る・引く、ダブルクリックでもとへ
   const ORBIT0 = { yaw: 0.33, pitch: 0.51, dist: 38.7 };
   const orbit = { ...ORBIT0 };
+  const pan = new THREE.Vector3();
   let drag = null;
-  canvas.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId); canvas.style.cursor = 'grabbing'; });
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.button === 1) e.preventDefault(); // 中ボタンの自動スクロールを止める
+    drag = { x: e.clientX, y: e.clientY, mode: e.button === 0 ? 'orbit' : 'pan' };
+    canvas.setPointerCapture(e.pointerId);
+    canvas.style.cursor = drag.mode === 'pan' ? 'move' : 'grabbing';
+  });
+  canvas.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   canvas.addEventListener('pointermove', (e) => {
     if (!drag) return;
-    orbit.yaw -= (e.clientX - drag.x) * 0.006;
-    orbit.pitch = Math.max(0.04, Math.min(1.45, orbit.pitch + (e.clientY - drag.y) * 0.005));
-    drag = { x: e.clientX, y: e.clientY };
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (drag.mode === 'orbit') {
+      orbit.yaw -= dx * 0.006;
+      orbit.pitch = Math.max(0.04, Math.min(1.45, orbit.pitch + dy * 0.005));
+    } else {
+      const k = orbit.dist * 0.0016;
+      pan.x += -Math.cos(orbit.yaw) * dx * k;
+      pan.z += Math.sin(orbit.yaw) * dx * k;
+      pan.y += dy * k;
+    }
+    drag.x = e.clientX; drag.y = e.clientY;
   });
   const endDrag = () => { drag = null; canvas.style.cursor = ''; };
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); orbit.dist = Math.max(10, Math.min(95, orbit.dist * Math.pow(1.0015, e.deltaY))); }, { passive: false });
-  canvas.addEventListener('dblclick', () => Object.assign(orbit, ORBIT0));
+  canvas.addEventListener('dblclick', () => { Object.assign(orbit, ORBIT0); pan.set(0, 0, 0); });
   let ghostMsgOk = true;
 
   function update(dt, view) {
@@ -341,7 +357,7 @@ export function createStage(canvas, L) {
     }
 
     // カメラ: 手前ななめ上から
-    target.set(L.W / 2 + (heroX - L.W / 2) * 0.35, L.H * 0.5, heroT * GAP - 1);
+    target.set(L.W / 2 + (heroX - L.W / 2) * 0.35, L.H * 0.5, heroT * GAP - 1).add(pan);
     const cp = Math.cos(orbit.pitch);
     camPos.set(target.x + Math.sin(orbit.yaw) * cp * orbit.dist, target.y + Math.sin(orbit.pitch) * orbit.dist, target.z + Math.cos(orbit.yaw) * cp * orbit.dist);
     if (!camInit) { camera.position.copy(camPos); camInit = true; }
@@ -388,5 +404,12 @@ export function createStage(canvas, L) {
     camera.updateProjectionMatrix();
   }
 
-  return { setHistory, update, resize, applyLook, waving: () => waveT !== null };
+  function setLevel(nl) {
+    L = nl;
+    for (const [id, o] of pieceObjs) { scene.remove(o); pieceObjs.delete(id); }
+    if (ghost) { scene.remove(ghost); ghost = null; ghostKind = null; }
+    pieces = [];
+  }
+
+  return { setLevel, setHistory, update, resize, applyLook, waving: () => waveT !== null };
 }
