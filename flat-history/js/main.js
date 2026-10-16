@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=45';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=45';
-import { drawSheet } from './sheet.js?v=45';
-import { createStage, misprintOf } from './stage3d.js?v=45';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=45';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=45';
-import { audioRunning, initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=45';
+import { LEVELS } from './level.js?v=47';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=47';
+import { drawSheet } from './sheet.js?v=47';
+import { createStage, misprintOf } from './stage3d.js?v=47';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=47';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=47';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=47';
 
 const $ = (id) => document.getElementById(id);
 
@@ -16,7 +16,7 @@ try { progress = JSON.parse(localStorage.getItem('flat-history.progress') || '{}
 function saveProgress() { try { localStorage.setItem('flat-history.progress', JSON.stringify(progress)); } catch (e) { /* なし */ } }
 
 // ---- 設定（このブラウザだけに覚える） ----
-const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'minuet', showRoute: false, runDefault: true, inset: true, invX: false, invY: false, move: 'tap', hero: 'poly', res: 'kiwi' };
+const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'minuet', showRoute: false, runDefault: true, inset: true, invX: false, invY: false, move: 'tap', heroSlice: false, hero: 'poly', res: 'kiwi' };
 let cfg = { ...DEF };
 try { cfg = { ...DEF, ...JSON.parse(localStorage.getItem('flat-history.settings2') || '{}') }; } catch (e) { cfg = { ...DEF }; }
 function saveCfg() { try { localStorage.setItem('flat-history.settings2', JSON.stringify(cfg)); } catch (e) { /* なし */ } }
@@ -466,9 +466,7 @@ window.addEventListener('blur', () => keys.clear());
 document.addEventListener('visibilitychange', () => keys.clear());
 window.addEventListener('contextmenu', (e) => { keys.clear(); if (e.target.closest('canvas')) e.preventDefault(); });
 // 音はページに触れてからでないと鳴らせない（ブラウザの決まり）。iPhone などは「離した」「クリック」で許されるので、そちらでも始める
-for (const ev of ['pointerdown', 'pointerup', 'click', 'touchend']) window.addEventListener(ev, () => { initAudio(); startBgm(); updateSoundHint(); }, { passive: true });
-function updateSoundHint() { const el = $('tSound'); if (el) el.hidden = audioRunning(); }
-setInterval(updateSoundHint, 1000);
+for (const ev of ['pointerdown', 'pointerup', 'click', 'touchend']) window.addEventListener(ev, () => { initAudio(); startBgm(); }, { passive: true });
 
 // タイトル・図版えらび・メニュー
 document.querySelectorAll('.langsw [data-lang]').forEach((b) => {
@@ -503,6 +501,7 @@ function openSettings(from) {
   $('sInset').checked = cfg.inset;
   $('sInvX').checked = !!cfg.invX; $('sInvY').checked = !!cfg.invY;
   $('sMove').value = cfg.move || 'tap';
+  $('sSlice').checked = !!cfg.heroSlice;
   $('sHero').value = cfg.hero;
   $('sRes').value = cfg.res;
   $('settings').hidden = false;
@@ -520,6 +519,7 @@ $('sRoute').addEventListener('change', (e) => { cfg.showRoute = e.target.checked
 $('sRun').addEventListener('change', (e) => { cfg.runDefault = e.target.checked; saveCfg(); });
 $('sMove').options[0].textContent = TX('タップで歩く（かんたん）', 'Tap to walk (easy)');
 $('sMove').options[1].textContent = TX('スティック', 'Stick');
+$('sSlice').addEventListener('change', (e) => { cfg.heroSlice = e.target.checked; saveCfg(); });
 $('sMove').addEventListener('change', (e) => { cfg.move = e.target.value; saveCfg(); applyMove(); });
 $('sInvX').addEventListener('change', (e) => { cfg.invX = e.target.checked; saveCfg(); stage.setInvert(cfg.invX, cfg.invY); });
 $('sInvY').addEventListener('change', (e) => { cfg.invY = e.target.checked; saveCfg(); stage.setInvert(cfg.invX, cfg.invY); });
@@ -862,7 +862,7 @@ function loop(now) {
     hero: h, walking: Math.hypot(mx, mt) > 0.05, moveX: mx, moveT: mt,
     carry: st.carry, cand, candOk: !why, revealT: st.revealT, focus, sockets: cand && !st.lock ? sockCache.list : [],
     running: running && Math.hypot(mx, mt) > 0.05, showRoute: cfg.showRoute, grab: act ? grabbable() : null,
-    groundY: groundAt(L, st.pieces, h.x, h.t, h.y), walkTo: walk.to, flip: flip.t === null ? null : Math.round(flip.t),
+    groundY: groundAt(L, st.pieces, h.x, h.t, h.y), walkTo: walk.to, heroSlice: !!cfg.heroSlice, flip: flip.t === null ? null : Math.round(flip.t),
   });
 
   if (screen === 'game') {

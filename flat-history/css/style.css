@@ -553,11 +553,6 @@ body.touch .prompt:not(:empty) { display: flex; top: 136px; bottom: auto; left: 
 /* サムネイルを撮るとき（?thumb）: 画面の飾りをしまう */
 body.thumb .hud, body.thumb .intro, body.thumb .inset, body.thumb .edge-shade, body.thumb .screen, body.thumb .modal { display: none !important; }
 
-/* タイトル: 音がまだ鳴っていないときのひとこと */
-.t-sound { margin: 10px 0 0; font: 12px var(--serif); color: var(--brass); animation: soundBlink 2.4s ease-in-out infinite; }
-.t-sound[hidden] { display: none; }
-@keyframes soundBlink { 50% { opacity: .45; } }
-body.thumb .t-sound { display: none; }
 /* 正史の光の筋: 判のまわりの箱の中だけで回し、ふちへ向かってだんだん消す（箱の大きさは変えない＝ボタンやスクロールに響かない。切れ目も見えない） */
 @property --rayAng { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
 .rp-result.ok .stamp::before { display: none; }

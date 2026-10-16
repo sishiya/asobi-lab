@@ -9,7 +9,7 @@
 <script>/* 言語 ja／en（まなびラボの I18N.md・edge-falls と同じ決め方。localStorage の manabi-lang はまなびラボ・あそびラボで共通）: ?lang= → 前に選んだもの → ブラウザの言語。js の中の文は TX(日本語, 英語) */var LANG=(function(){var q=new URLSearchParams(location.search).get('lang'),s=null;try{s=localStorage.getItem('manabi-lang');}catch(e){}var l=q==='en'||q==='ja'?q:s==='en'||s==='ja'?s:/^ja\b/i.test(navigator.language||'ja')?'ja':'en';document.documentElement.lang=l;if(l==='en')document.title='One-Second Field Guide — Keeper of the Flat World';return l;})();function TX(ja,en){return LANG==='en'?en:ja;}function setLang(l){try{localStorage.setItem('manabi-lang',l);}catch(e){}var u=new URL(location.href);u.searchParams.set('lang',l);location.href=u.href;}</script>
 <meta name="description" content="1秒ずつの2D世界が奥と手前に並んでいる。3Dの形を置くと、2D世界にはその断面が現れて、歴史が書きかわる。">
 <meta name="theme-color" content="#e2d2b0">
-<link rel="stylesheet" href="css/style.css?v=49">
+<link rel="stylesheet" href="css/style.css?v=50">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body class="menu">
@@ -31,8 +31,7 @@
       <button type="button" id="tHelp" class="act ghost"><span lang="ja">あそびかた</span><span lang="en">How to play</span></button>
       <button type="button" id="tSettings" class="act ghost"><span lang="ja">設定</span><span lang="en">Settings</span></button>
     </div>
-    <p id="tSound" class="t-sound"><span lang="ja">♪ 画面に触れると、音楽がはじまる</span><span lang="en">♪ Touch or click to start the music</span></p>
-    <p class="t-foot"><span class="t-dev"><span lang="ja">キーボードとマウスで遊びます</span><span lang="en">Play with keyboard and mouse</span></span><span class="t-touch"><span lang="ja">指で遊べます（横向きがおすすめ）</span><span lang="en">Touch controls (landscape recommended)</span></span> ・ <span lang="ja">試作</span><span lang="en">Prototype</span> <span class="ver">v029</span> ・ <a href="../"><span lang="ja">あそびラボへ</span><span lang="en">To Asobi Lab</span></a></p>
+    <p class="t-foot"><span class="t-dev"><span lang="ja">キーボードとマウスで遊びます</span><span lang="en">Play with keyboard and mouse</span></span><span class="t-touch"><span lang="ja">指で遊べます（横向きがおすすめ）</span><span lang="en">Touch controls (landscape recommended)</span></span> ・ <span lang="ja">試作</span><span lang="en">Prototype</span> <span class="ver">v030</span> ・ <a href="../"><span lang="ja">あそびラボへ</span><span lang="en">To Asobi Lab</span></a></p>
   </div>
 </section>
 
@@ -110,6 +109,7 @@
     <div class="set-checks">
       <label><input id="sRoute" type="checkbox"> <span lang="ja">住人の通り道を見せる</span><span lang="en">Show the resident’s path</span></label>
       <label><input id="sRun" type="checkbox"> <span lang="ja">ふだんは走る（Shift を押すと歩く）</span><span lang="en">Run by default (hold Shift to walk)</span></label>
+      <label><input id="sSlice" type="checkbox"> <span lang="ja">あなたの透かし（断面）をページに出す</span><span lang="en">Show your watermark (cross-section) on the pages</span></label>
       <label><input id="sInvX" type="checkbox"> <span lang="ja">カメラを回す向きを左右さかさに</span><span lang="en">Invert camera left/right</span></label>
       <label><input id="sInvY" type="checkbox"> <span lang="ja">カメラを回す向きを上下さかさに</span><span lang="en">Invert camera up/down</span></label>
       <label><input id="sInset" type="checkbox"> <span lang="ja">いま立っているページの小窓を出す（V）</span><span lang="en">Show the current page window (V)</span></label>
@@ -194,6 +194,6 @@
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=45"></script>
+<script type="module" src="js/main.js?v=47"></script>
 </body>
 </html>

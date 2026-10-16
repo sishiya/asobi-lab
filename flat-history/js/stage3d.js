@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・標本台・主人公・置いた形・持っている形・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=45';
-import { radialTexture } from './look/util.js?v=45';
-import { S, drawSheet } from './sheet.js?v=45';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=45';
-import { TABLE, tableY, groundAt } from './hero.js?v=45';
+import { look, kindColor } from './look/index.js?v=47';
+import { radialTexture } from './look/util.js?v=47';
+import { S, drawSheet } from './sheet.js?v=47';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=47';
+import { TABLE, tableY, groundAt } from './hero.js?v=47';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -545,7 +545,9 @@ export function createStage(canvas, L) {
     ud.body.rotation.y += d * Math.min(1, dt * 12);
     const tm = now;
     if (ud.animate) ud.animate(dt, { speed: Math.hypot(moveX, moveT), run: !!v.running, grounded: h.grounded, vy: h.vy, carry: !!carry, landT: h.landT || 0, t: h.t });
-    heroOverlay(h.x, visY, h.t);
+    // あなたの断面（透かし）をページに描くか（設定。ふだんは描かない）
+    if (v.heroSlice) heroOverlay(h.x, visY, h.t);
+    else if (heroPages.size) { for (const [t] of heroPages) if (hist) drawOne(sheets[t]); heroPages = new Map(); }
     // 足もとの影（真下の地面に）
     blob.visible = Number.isFinite(v.groundY);
     if (blob.visible) {
