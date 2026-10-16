@@ -1,10 +1,12 @@
-// 操作・画面（タイトル・図版えらび・面）・ひとことの導き・くらべて再生
-import { LEVELS, KINDS } from './level.js?v=8';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, section } from './sim.js?v=8';
-import { drawSheet } from './sheet.js?v=8';
-import { createStage } from './stage3d.js?v=8';
-import { look, kindName, kindColor } from './look/index.js?v=8';
-import { initAudio, startBgm, se, isMuted, setMuted, BGM_LIST, bgmId, setBgm } from './audio.js?v=8';
+// 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
+// v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
+import { LEVELS } from './level.js?v=9';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=9';
+import { drawSheet } from './sheet.js?v=9';
+import { createStage } from './stage3d.js?v=9';
+import { kindName } from './look/index.js?v=9';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=9';
+import { initAudio, startBgm, se, isMuted, setMuted, BGM_LIST, bgmId, setBgm } from './audio.js?v=9';
 
 const $ = (id) => document.getElementById(id);
 
@@ -16,27 +18,38 @@ function saveProgress() { try { localStorage.setItem('flat-history.progress', JS
 let L = LEVELS[0];
 const st = {
   lv: 0, pieces: [], nextId: 1, base: null, hist: null,
-  heroX: 4, heroT: 0, heroY: 0, heroVY: 0, facing: { x: 1, z: 0 },
-  sel: null, reach: 0, solvedShown: false,
-  visited: new Set(), hintIdx: 0, lastEnd: '',
+  hero: null, carry: null, revealT: 0, walked: 0,
+  hintIdx: 0, solved: false, lastEnd: '',
 };
 const stage = createStage($('view'), L);
+const inBlock = (p) => p.x0 + pieceDims(p).wx > 0;
+const blockPieces = () => st.pieces.filter(inBlock);
 
 // ---- 面をはじめる ----
 function loadLevel(i) {
   st.lv = i; L = LEVELS[i];
-  st.pieces = []; st.nextId = 1;
+  st.pieces = []; st.nextId = 1; st.carry = null;
+  // 標本台に、持てる形を並べる
+  let t = 1;
+  for (const [kind, n] of Object.entries(L.stock)) {
+    for (let k = 0; k < n; k++) {
+      const p = { id: st.nextId++, kind, rot: 0, t0: t, y0: tableY(L) };
+      const d = pieceDims(p);
+      p.x0 = -7 + Math.floor((7 - d.wx) / 2);
+      st.pieces.push(p);
+      t += d.dz + 1;
+    }
+  }
   st.base = simulate(L, []); st.hist = st.base;
-  st.heroX = L.start.x + 2; st.heroT = 0; st.heroY = 0; st.heroVY = 0;
-  st.sel = null; st.solvedShown = false;
-  st.visited = new Set([0]); st.hintIdx = 0; st.lastEnd = st.base.end.type;
+  st.hero = makeHero(L);
+  st.revealT = 3; st.walked = 0;
+  st.hintIdx = 0; st.solved = false; st.lastEnd = st.base.end.type;
   stage.setLevel(L);
   stage.setHistory(st.hist, st.pieces, 0, false);
+  stage.resetCamera();
   $('lvPlate').textContent = 'Pl. ' + L.plate;
   $('lvName').textContent = L.name;
-  $('win').hidden = true;
-  renderTray();
-  insetDirty = true;
+  closeAll();
   showIntro();
 }
 function showIntro() {
@@ -49,18 +62,21 @@ function showIntro() {
 }
 
 // ---- 画面の切りかえ ----
+let screen = 'title';
 function showScreen(name) {
+  screen = name;
   $('title').hidden = name !== 'title';
   $('select').hidden = name !== 'select';
   document.body.classList.toggle('menu', name !== 'game');
+  closeAll();
   keys.clear();
 }
+function closeAll() { for (const id of ['menu', 'help', 'replay']) $(id).hidden = true; }
 function startGame(i) { loadLevel(i); showScreen('game'); }
-function firstUnsolved() {
-  const i = LEVELS.findIndex((l) => !progress[l.id]);
-  return i < 0 ? 0 : i;
-}
-function renderSelect() {
+function firstUnsolved() { const i = LEVELS.findIndex((l) => !progress[l.id]); return i < 0 ? 0 : i; }
+let selectFrom = 'title';
+function renderSelect(from) {
+  selectFrom = from;
   for (const [boxId, tut] of [['selTut', true], ['selMain', false]]) {
     const box = $(boxId);
     box.innerHTML = '';
@@ -77,196 +93,164 @@ function renderSelect() {
   }
   showScreen('select');
 }
+const openMenu = () => { closeAll(); $('menu').hidden = false; keys.clear(); se.click(); };
+const modalOpen = () => !$('menu').hidden || !$('help').hidden || !$('replay').hidden;
+const playing = () => screen === 'game' && !modalOpen();
 
-// ---- 形のトレイ ----
-function kindIcon(kind) {
-  const k = { ...KINDS[kind], color: kindColor(kind) };
-  const w = k.w * 4.2, h = k.h * 5, d = Math.min(18, k.d * 1.3), rise = k.slope * k.d * 2.2;
-  const ox = 4, oy = 30 - h;
-  const dx = d * 0.8, dy = -d * 0.45 - rise;
-  const f = `M${ox},${oy} h${w} v${h} h${-w}z`;
-  const top = `M${ox},${oy} l${dx},${dy} h${w} l${-dx},${-dy}z`;
-  const side = `M${ox + w},${oy} l${dx},${dy} v${h} l${-dx},${-dy}z`;
-  return `<svg viewBox="0 0 ${ox + w + dx + 4} 34" preserveAspectRatio="xMidYMid meet"><g stroke="rgba(30,30,50,.55)" stroke-width="1" stroke-linejoin="round">
-    <path d="${top}" fill="${k.color}" opacity=".75"/><path d="${side}" fill="${k.color}" opacity=".55"/><path d="${f}" fill="${k.color}"/></g></svg>`;
+// ---- つかむ・置く・回す ----
+function facingAxis() {
+  const h = st.hero;
+  return Math.abs(h.ft) >= Math.abs(h.fx) ? { ax: 't', s: Math.sign(h.ft) || 1 } : { ax: 'x', s: Math.sign(h.fx) || 1 };
 }
-const kindsHere = () => Object.keys(L.stock);
-const left = (kind) => L.stock[kind] - st.pieces.filter((p) => p.kind === kind).length;
-function renderTray() {
-  const box = $('kinds');
-  box.innerHTML = '';
-  kindsHere().forEach((kind, i) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'kind' + (st.sel === kind ? ' sel' : '') + (left(kind) <= 0 ? ' empty' : '');
-    b.innerHTML = `${kindIcon(kind)}<span><span class="nm">${i + 1}. ${kindName(kind)}</span><br><span class="ds">${KINDS[kind].desc}</span></span><span class="ct">×${left(kind)}</span>`;
-    b.addEventListener('click', () => select(kind));
-    box.appendChild(b);
-  });
-}
-function select(kind) {
-  if (!kind) return;
-  st.sel = st.sel === kind ? null : kind;
-  se.click();
-  renderTray();
-}
-
-// ---- 置く・持ち上げる ----
+// 持っている形を、目の前のどこに置くか
 function candidate() {
-  if (!st.sel) return null;
-  const k = KINDS[st.sel];
-  const x0 = Math.max(0, Math.min(L.W - k.w, Math.round(st.heroX - k.w / 2)));
-  const t0 = Math.round(st.heroT);
-  return { kind: st.sel, x0, t0, y0: restHeight(L, st.sel, x0) };
+  if (!st.carry) return null;
+  const h = st.hero, f = facingAxis();
+  const c = { kind: st.carry.kind, rot: st.carry.rot };
+  const d = pieceDims(c);
+  if (f.ax === 't') {
+    c.x0 = Math.round(h.x - d.wx / 2);
+    c.t0 = f.s > 0 ? Math.round(h.t + 0.8) : Math.round(h.t - 0.8 - d.dz);
+  } else {
+    c.t0 = Math.round(h.t - d.dz / 2);
+    c.x0 = f.s > 0 ? Math.round(h.x + 0.8) : Math.round(h.x - 0.8 - d.wx);
+  }
+  c.y0 = restHeight(L, c, tableY(L));
+  return c;
+}
+// 目の前（または足もと）でつかめる形
+function grabbable() {
+  if (st.carry) return null;
+  const h = st.hero;
+  const px = h.x + h.fx * 1.0, pt = h.t + h.ft * 1.0;
+  let best = null, bd = 9;
+  for (const p of st.pieces) {
+    const d = pieceDims(p);
+    const dx = Math.max(p.x0 - px, 0, px - (p.x0 + d.wx));
+    const dt = Math.max(p.t0 - pt, 0, pt - (p.t0 + d.dz));
+    const dist = Math.hypot(dx, dt);
+    if (dist < 0.9 && dist < bd && h.y - p.y0 > -2.5 && h.y - p.y0 < 3) { best = p; bd = dist; }
+  }
+  return best;
 }
 function recompute(fromT) {
   st.hist = simulate(L, st.pieces);
   stage.setHistory(st.hist, st.pieces, fromT, true);
-  renderTray();
-  insetDirty = true;
   se.wave();
-  if (st.hist.end.type !== 'goal' && st.hist.end.type !== 'time' && st.lastEnd === 'goal') se.fall();
+  // 書きかえたら、その先の知っていた未来はぼやける（見に行きなおす）
+  st.revealT = Math.min(st.revealT, Math.max(st.hero.t + 3, fromT));
+  if (st.hist.end.type !== 'goal' && st.lastEnd === 'goal') se.fall();
   st.lastEnd = st.hist.end.type;
 }
-function place() {
-  const c = candidate();
-  if (!c) { flash('形をえらぼう（1〜' + kindsHere().length + '）'); se.no(); return; }
-  if (left(c.kind) <= 0) { flash(`${kindName(c.kind)}はもう置いてある（X で持ち上げられる）`); se.no(); return; }
-  const why = canPlace(L, c, st.pieces);
-  if (why) { flash('置けない: ' + why); se.no(); return; }
-  st.pieces.push({ id: st.nextId++, ...c });
-  if (left(c.kind) <= 0) st.sel = null;
-  st.reach = 1;
-  se.place();
-  recompute(c.t0);
-}
-function pickUp() {
-  const t = Math.round(st.heroT);
-  const p = st.pieces.find((p) => {
-    const k = KINDS[p.kind];
-    return st.heroX >= p.x0 - 0.3 && st.heroX <= p.x0 + k.w + 0.3 && t >= p.t0 && t < p.t0 + k.d;
-  });
-  if (!p) { flash('足もとに形がない（形の真上で X）'); se.no(); return; }
+function useE() {
+  if (st.carry) {
+    const c = candidate();
+    const why = canPlace(L, c, st.pieces);
+    if (why) { flashPrompt(why); se.no(); return; }
+    const p = { id: st.nextId++, ...c };
+    st.pieces.push(p);
+    st.carry = null;
+    se.place();
+    if (inBlock(p)) recompute(p.t0); else stage.setHistory(st.hist, st.pieces, null, true);
+    return;
+  }
+  const p = grabbable();
+  if (!p) return;
   st.pieces = st.pieces.filter((q) => q !== p);
-  st.sel = p.kind;
-  st.reach = 1;
+  st.carry = { kind: p.kind, rot: p.rot || 0 };
   se.pick();
-  recompute(p.t0);
+  if (inBlock(p)) recompute(p.t0); else stage.setHistory(st.hist, st.pieces, null, false);
 }
-function resetAll() {
-  if (!st.pieces.length) return;
-  const from = Math.min(...st.pieces.map((p) => p.t0));
-  st.pieces = [];
-  st.solvedShown = false;
-  se.pick();
-  recompute(from);
+function rotate() {
+  if (!st.carry) return;
+  st.carry = { ...st.carry, rot: st.carry.rot ? 0 : 1 };
+  se.click();
 }
-let flashUntil = 0;
-function flash(msg) { $('candMsg').textContent = msg; flashUntil = performance.now() + 2200; }
+let flashMsg = '', flashUntil = 0;
+function flashPrompt(m) { flashMsg = m; flashUntil = performance.now() + 1800; }
 
 // ---- 入力 ----
 const keys = new Set();
-const inGame = () => !document.body.classList.contains('menu');
-const modalOpen = () => !$('help').hidden || !$('replay').hidden;
+let jumpQueued = false;
 window.addEventListener('keydown', (e) => {
   initAudio(); startBgm();
-  if (e.key === 'Escape') { closeReplay(); $('help').hidden = true; return; }
+  const k = e.key;
   if (!$('replay').hidden) {
-    if (e.key === ' ' || e.key === 'p' || e.key === 'P') { e.preventDefault(); togglePlay(); }
+    if (k === 'Escape') closeReplay();
+    else if (k === 'Enter' && st.solved && hasNext()) goNext();
+    else if (k === ' ' || k === 'p' || k === 'P') { e.preventDefault(); togglePlay(); }
     return;
   }
-  if (modalOpen() || !inGame()) return;
-  keys.add(e.key);
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
+  if (!$('help').hidden) { if (k === 'Escape' || k === 'Enter') closeHelp(); return; }
+  if (!$('menu').hidden) { if (k === 'Escape') $('menu').hidden = true; return; }
+  if (screen === 'select') { if (k === 'Escape') closeSelect(); return; }
+  if (screen === 'title') { if (k === 'Enter') startGame(firstUnsolved()); return; }
+  if (k === 'Escape') { openMenu(); return; }
+  keys.add(k.length === 1 ? k.toLowerCase() : k);
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Tab'].includes(k)) e.preventDefault();
   if (e.repeat) return;
-  if (e.key === ' ' && st.heroY <= 0.001) st.heroVY = 7.5;
-  if (/^[1-9]$/.test(e.key)) select(kindsHere()[+e.key - 1]);
-  if (e.key === 'z' || e.key === 'Z' || e.key === 'Enter') place();
-  if (e.key === 'x' || e.key === 'X' || e.key === 'Backspace') pickUp();
-  if (e.key === 'p' || e.key === 'P') openReplay();
+  if (k === ' ') jumpQueued = true;
+  if (k === 'e' || k === 'E') useE();
+  if (k === 'q' || k === 'Q') rotate();
+  if (k === 'Enter' && st.solved && hasNext()) goNext();
+  if (k === 'm' || k === 'M') nextBgm();
 });
-window.addEventListener('keyup', (e) => { keys.delete(e.key); keys.delete(e.key.toLowerCase()); keys.delete(e.key.toUpperCase()); });
-// 右クリックのメニュー・ウィンドウの切りかえで keyup が届かず、キーが押されたままになるのを防ぐ
+window.addEventListener('keyup', (e) => { const k = e.key; keys.delete(k); keys.delete(k.toLowerCase()); keys.delete(k.toUpperCase()); });
+// 右クリック・ウィンドウの切りかえで keyup が届かず、押されたままになるのを防ぐ
 window.addEventListener('blur', () => keys.clear());
 document.addEventListener('visibilitychange', () => keys.clear());
 window.addEventListener('contextmenu', (e) => { keys.clear(); if (e.target.closest('canvas')) e.preventDefault(); });
 window.addEventListener('pointerdown', () => { initAudio(); startBgm(); });
 
-$('btnPlace').addEventListener('click', place);
-$('btnPick').addEventListener('click', pickUp);
-$('btnReset').addEventListener('click', resetAll);
-$('btnHelp').addEventListener('click', () => { $('help').hidden = false; keys.clear(); });
-$('tHelp').addEventListener('click', () => { $('help').hidden = false; });
-$('helpClose').addEventListener('click', () => { $('help').hidden = true; });
+// タイトル・図版えらび・メニュー
 $('tStart').addEventListener('click', () => { se.click(); startGame(firstUnsolved()); });
-$('tSelect').addEventListener('click', () => { se.click(); renderSelect(); });
-$('selClose').addEventListener('click', () => showScreen(document.body.dataset.from === 'game' ? 'game' : 'title'));
-$('btnSelect').addEventListener('click', () => { document.body.dataset.from = 'game'; renderSelect(); });
-$('btnTitle').addEventListener('click', () => { document.body.dataset.from = 'title'; showScreen('title'); });
-function renderSound() {
-  for (const b of document.querySelectorAll('.sound-btn')) {
-    if (b.classList.contains('icon-btn')) { b.textContent = isMuted() ? '♪̸' : '♪'; b.style.opacity = isMuted() ? 0.5 : 1; }
-    else b.textContent = isMuted() ? '音: なし' : '音: あり';
-  }
-}
+$('tSelect').addEventListener('click', () => { se.click(); renderSelect('title'); });
+$('tHelp').addEventListener('click', () => { $('help').hidden = false; });
+function closeSelect() { if (selectFrom === 'game') { showScreen('game'); openMenu(); } else showScreen('title'); }
+function closeHelp() { $('help').hidden = true; if (screen === 'game') $('menu').hidden = false; }
+$('selClose').addEventListener('click', closeSelect);
+$('mResume').addEventListener('click', () => { $('menu').hidden = true; });
+$('mRetry').addEventListener('click', () => { se.click(); startGame(st.lv); });
+$('mSelect').addEventListener('click', () => { se.click(); renderSelect('game'); });
+$('mHelp').addEventListener('click', () => { $('menu').hidden = true; $('help').hidden = false; });
+$('mTitle').addEventListener('click', () => { se.click(); showScreen('title'); });
+$('helpClose').addEventListener('click', closeHelp);
+
+// 音
+function renderSound() { for (const b of document.querySelectorAll('.sound-btn')) b.textContent = isMuted() ? '音: なし' : '音: あり'; }
 for (const b of document.querySelectorAll('.sound-btn')) b.addEventListener('click', () => { initAudio(); setMuted(!isMuted()); renderSound(); });
 renderSound();
-
-// 音楽をえらぶ（タイトルのメニュー、遊んでいるあいだは M キー）
-const bgmSel = $('bgmSel');
-for (const b of BGM_LIST) { const o = document.createElement('option'); o.value = b.id; o.textContent = b.name; bgmSel.appendChild(o); }
-bgmSel.value = bgmId();
-bgmSel.addEventListener('change', () => { initAudio(); setBgm(bgmSel.value); startBgm(); bgmSel.blur(); });
-function toast(msg) {
-  let el = document.querySelector('.toast');
-  if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); }
-  el.textContent = msg; el.classList.add('on');
-  clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 1800);
+const bgmSels = [$('bgmSel'), $('mBgm')];
+for (const sel of bgmSels) {
+  for (const b of BGM_LIST) { const o = document.createElement('option'); o.value = b.id; o.textContent = b.name; sel.appendChild(o); }
+  sel.value = bgmId();
+  sel.addEventListener('change', () => { initAudio(); setBgm(sel.value); startBgm(); for (const s2 of bgmSels) s2.value = sel.value; sel.blur(); });
 }
-window.addEventListener('keydown', (e) => {
-  if ((e.key === 'm' || e.key === 'M') && !e.repeat && inGame() && !modalOpen()) {
-    const i = BGM_LIST.findIndex((b) => b.id === bgmId());
-    const nx = BGM_LIST[(i + 1) % BGM_LIST.length];
-    setBgm(nx.id); startBgm(); bgmSel.value = nx.id;
-    toast('♪ ' + nx.name);
-  }
-});
+function nextBgm() {
+  const i = BGM_LIST.findIndex((b) => b.id === bgmId());
+  const nx = BGM_LIST[(i + 1) % BGM_LIST.length];
+  setBgm(nx.id); startBgm();
+  for (const s2 of bgmSels) s2.value = nx.id;
+  flashPrompt('♪ ' + nx.name);
+}
 
-// 時間の帯: クリック・ドラッグでその秒へ
+// 時間のしおり: クリック・ドラッグでその秒へ（主人公ごと）
 const tl = $('timeline');
-let dragging = false;
+let tlDrag = false;
 function tlJump(e) {
   const r = tl.getBoundingClientRect();
   const pad = 30;
   const u = (e.clientX - r.left - pad) / (r.width - pad * 2);
-  st.heroT = Math.max(0, Math.min(L.T, Math.round(u * L.T)));
+  const nt = Math.max(0, Math.min(L.T, Math.round(u * L.T)));
+  const h = st.hero;
+  const g = groundAt(L, st.pieces, h.x, nt, Infinity);
+  if (Number.isFinite(g)) { h.t = nt; h.y = g; h.vy = 0; }
 }
-tl.addEventListener('pointerdown', (e) => { dragging = true; tl.setPointerCapture(e.pointerId); tlJump(e); });
-tl.addEventListener('pointermove', (e) => { if (dragging) tlJump(e); });
-tl.addEventListener('pointerup', () => { dragging = false; });
-
-// ---- 右下の「いまのページ」 ----
-const insetG = $('inset').getContext('2d');
-let insetDirty = true, insetFocus = -1;
-// ふだんは、いまの歴史をはじめから結末まで くりかえし再生。時間を動かしているあいだだけ、そのページ
-const ins = { t: 0, hold: 0, browseUntil: 0 };
-function insetPlay(dt) {
-  const endT = Math.min(L.T, st.hist.end.t + 0.3);
-  if (ins.t >= endT) { ins.hold += dt; if (ins.hold > 1.6) { ins.t = 0; ins.hold = 0; } }
-  else ins.t = Math.min(endT, ins.t + dt * 2);
-  const t = ins.t;
-  drawSheet(insetG, L, t, frameAt(st.hist.frames, t), sectionsAt(st.pieces, t), { paper: true, label: t.toFixed(1) + '秒' });
-  $('insetCap').textContent = 'いまの歴史 ・ P で大きく';
-}
-function drawInset(focus) {
-  const fr = st.hist.frames[Math.round(focus / 0.1)];
-  drawSheet(insetG, L, focus, fr, sectionsAt(st.pieces, focus), { paper: true, label: focus + '秒' });
-  $('insetCap').textContent = `${focus}秒目のページ`;
-}
-
-// ---- 時間の帯 ----
+tl.addEventListener('pointerdown', (e) => { tlDrag = true; tl.setPointerCapture(e.pointerId); tlJump(e); });
+tl.addEventListener('pointermove', (e) => { if (tlDrag) tlJump(e); });
+tl.addEventListener('pointerup', () => { tlDrag = false; });
 const tg = tl.getContext('2d');
-function drawTimeline(focus) {
+function drawTimeline() {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const w = tl.clientWidth, h = tl.clientHeight;
   if (!w) return;
@@ -274,117 +258,86 @@ function drawTimeline(focus) {
   tg.setTransform(dpr, 0, 0, dpr, 0, 0);
   tg.clearRect(0, 0, w, h);
   const pad = 30, X = (t) => pad + (t / L.T) * (w - pad * 2);
-  tg.strokeStyle = 'rgba(74,51,32,.55)'; tg.fillStyle = '#6b4f33'; tg.font = 'italic 11px Georgia, serif'; tg.textAlign = 'center';
-  tg.lineWidth = 1;
-  tg.beginPath(); tg.moveTo(X(0), 44.5); tg.lineTo(X(L.T), 44.5); tg.stroke();
+  // 見に行ったところまで、紙を明るく
+  tg.fillStyle = 'rgba(255,248,226,.85)';
+  tg.fillRect(X(0), 10, X(Math.min(L.T, st.revealT)) - X(0), 14);
+  tg.strokeStyle = 'rgba(74,51,32,.55)'; tg.lineWidth = 1;
+  tg.beginPath(); tg.moveTo(X(0), 24.5); tg.lineTo(X(L.T), 24.5); tg.stroke();
+  tg.fillStyle = '#6b4f33'; tg.font = 'italic 10px Georgia, serif'; tg.textAlign = 'center';
   for (let t = 0; t <= L.T; t++) {
     const big = t % 5 === 0;
-    tg.beginPath(); tg.moveTo(X(t), 44.5); tg.lineTo(X(t), big ? 35 : 40); tg.stroke();
-    if (big) tg.fillText(t + '', X(t), 58);
+    tg.beginPath(); tg.moveTo(X(t), 24.5); tg.lineTo(X(t), big ? 16 : 20); tg.stroke();
+    if (big) tg.fillText(t + '', X(t), 36);
   }
   tg.font = '11px "Yu Mincho", serif';
-  tg.textAlign = 'left'; tg.fillText('昔', 4, 48); tg.textAlign = 'right'; tg.fillText('未来', w - 2, 48);
-  st.pieces.forEach((p, i) => {
-    const k = KINDS[p.kind];
-    const y = 4 + (i % 3) * 9, x1 = X(Math.min(L.T, p.t0 + k.d));
-    tg.fillStyle = kindColor(p.kind);
-    tg.fillRect(X(p.t0), y, x1 - X(p.t0), 7);
-    tg.strokeStyle = 'rgba(74,51,32,.7)';
-    tg.strokeRect(X(p.t0) + 0.5, y + 0.5, x1 - X(p.t0) - 1, 6);
-  });
-  const mark = (e, faint) => {
-    if (e.type === 'time') return;
+  tg.textAlign = 'left'; tg.fillText('昔', 4, 28); tg.textAlign = 'right'; tg.fillText('未来', w - 2, 28);
+  // 結末は、見に行っていれば
+  const e = st.hist.end;
+  if (e.type !== 'time' && e.t <= st.revealT && !stage.waving()) {
     const x = X(e.t);
-    tg.globalAlpha = faint ? 0.35 : 1;
-    if (e.type === 'goal') { tg.fillStyle = '#c99a4a'; tg.strokeStyle = '#4a3320'; tg.beginPath(); tg.arc(x, 31, 6, 0, 7); tg.fill(); tg.stroke(); }
-    else { tg.fillStyle = '#8f3b2b'; tg.beginPath(); tg.moveTo(x, 24); tg.lineTo(x + 6, 31); tg.lineTo(x, 38); tg.lineTo(x - 6, 31); tg.fill(); }
-    tg.globalAlpha = 1;
-  };
-  if (st.hist !== st.base) mark(st.base.end, true);
-  mark(st.hist.end, false);
-  if (performance.now() >= ins.browseUntil) {
-    tg.fillStyle = '#4a3320';
-    tg.beginPath(); tg.moveTo(X(ins.t), 44); tg.lineTo(X(ins.t) + 5, 50); tg.lineTo(X(ins.t) - 5, 50); tg.fill();
+    if (e.type === 'goal') { tg.fillStyle = '#c99a4a'; tg.beginPath(); tg.arc(x, 13, 5, 0, 7); tg.fill(); }
+    else { tg.fillStyle = '#8f3b2b'; tg.beginPath(); tg.moveTo(x, 7); tg.lineTo(x + 5, 13); tg.lineTo(x, 19); tg.lineTo(x - 5, 13); tg.fill(); }
   }
   tg.fillStyle = '#a8742a';
-  tg.fillRect(X(focus) - 1.5, 2, 3, 42);
-  tg.beginPath(); tg.moveTo(X(focus) - 6, 0); tg.lineTo(X(focus) + 6, 0); tg.lineTo(X(focus), 7); tg.fill();
+  const hx = X(Math.max(0, Math.min(L.T, st.hero.t)));
+  tg.fillRect(hx - 1.5, 4, 3, 22);
 }
 
-// ---- 結末の一言 ----
-function statusText() {
-  const e = st.hist.end, el = $('status');
-  el.classList.toggle('goal', e.type === 'goal');
-  if (e.type === 'goal') return `${e.t.toFixed(0)}秒目に巣に着く ― 正史`;
-  if (e.type === 'abyss') return `${Math.floor(e.t)}秒目、崖に落ちてしまう`;
-  if (e.type === 'fall') return `${Math.floor(e.t)}秒目、高い所から落ちてしまう`;
-  return `${L.T}秒たっても巣に着かない`;
-}
-
-// ---- ひとことの導き（チュートリアル） ----
+// ---- ひとことの導き ----
 function coachText() {
-  if (st.hist.end.type === 'goal') return '';
+  if (st.solved) return hasNext() ? '正史ができた。Enter で次の図版へ' : '正史ができた';
   const hs = L.hints || [];
-  const c = {
-    visited: st.visited.size,
-    seenEnd: [...st.visited].some((t) => t >= Math.floor(st.base.end.t)),
-    placed: st.pieces.length > 0,
-  };
+  const c = { walked: st.walked, seenEnd: st.revealT >= st.base.end.t, placed: blockPieces().length > 0 };
   while (st.hintIdx < hs.length && hs[st.hintIdx].when(c)) st.hintIdx++;
   if (st.hintIdx < hs.length) return hs[st.hintIdx].text;
-  if (c.placed && L.fail && !stage.waving()) return L.fail;
+  if (c.placed && L.fail && !stage.waving() && st.hist.end.t <= st.revealT) return L.fail;
   return '';
 }
-let coachShown = '';
+let coachShown = null;
 function renderCoach() {
   const t = coachText();
   if (t === coachShown) return;
   coachShown = t;
   const el = $('coach');
   el.classList.add('off');
-  setTimeout(() => { el.textContent = coachShown; el.classList.toggle('off', !coachShown); }, 250);
+  setTimeout(() => { el.textContent = coachShown; el.classList.toggle('off', !coachShown); }, 220);
 }
 
-// ---- 正史の札 ----
-function winShow() {
-  const n = st.pieces.length;
+// そのとき使えるキー
+function renderPrompt(why) {
+  let html = '';
+  const g = grabbable();
+  if (performance.now() < flashUntil) html = flashMsg;
+  else if (st.carry) html = `<kbd>E</kbd> 置く　<kbd>Q</kbd> 回す` + (why ? `<span class="bad">${why}</span>` : '');
+  else if (g) html = `<kbd>E</kbd> ${kindName(g.kind)}をつかむ`;
+  else if (st.walked < 2 && st.lv === 0) html = `<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 歩く　<kbd>Space</kbd> 跳ぶ　ドラッグ 見回す`;
+  const el = $('prompt');
+  if (el.innerHTML !== html) el.innerHTML = html;
+}
+
+// ---- 正史 → すぐくらべて再生 ----
+const hasNext = () => st.lv + 1 < LEVELS.length;
+function goNext() { se.click(); startGame(st.lv + 1); }
+function onSolved() {
+  const n = blockPieces().length;
   const prev = progress[L.id];
   progress[L.id] = { best: prev ? Math.min(prev.best, n) : n };
   saveProgress();
-  const next = st.lv + 1 < LEVELS.length;
-  $('winText').textContent = `キーウィは ${st.hist.end.t.toFixed(0)} 秒目に巣に着く。使った形は ${n} つ。`;
-  $('winNext').hidden = !next;
-  $('win').hidden = false;
   se.goal();
+  openReplay(true);
 }
-$('winNext').addEventListener('click', goNext);
-$('rpNext').addEventListener('click', goNext);
-$('btnNext').addEventListener('click', goNext);
-
-// ---- くらべて再生 ----
 const rp = { t: 0, playing: true, speed: 2, gA: $('rpA').getContext('2d'), gB: $('rpB').getContext('2d') };
-function openReplay() {
-  $('win').hidden = true;
+function openReplay(won) {
+  closeAll();
+  $('rpTitle').textContent = won ? '正史ができた' : 'くらべて再生';
+  $('rpNext').hidden = !(st.solved && hasNext());
   $('replay').hidden = false;
   rp.t = 0; rp.playing = true; $('rpPlay').textContent = '❚❚';
-  $('rpNext').hidden = !(st.hist.end.type === 'goal' && hasNext());
   keys.clear();
 }
-function closeReplay() {
-  if ($('replay').hidden) return;
-  $('replay').hidden = true;
-  // 正史ができたあとなら、札をもう一度（次へ進めるように）
-  if (st.hist.end.type === 'goal') $('win').hidden = false;
-}
-const hasNext = () => st.lv + 1 < LEVELS.length;
-function goNext() { se.click(); $('replay').hidden = true; startGame(st.lv + 1); }
-function togglePlay() {
-  if (rp.t >= L.T) rp.t = 0;
-  rp.playing = !rp.playing; $('rpPlay').textContent = rp.playing ? '❚❚' : '▶';
-}
-$('btnReplay').addEventListener('click', openReplay);
-$('winReplay').addEventListener('click', openReplay);
-$('winClose').addEventListener('click', () => { $('win').hidden = true; });
+function closeReplay() { $('replay').hidden = true; }
+function togglePlay() { if (rp.t >= L.T) rp.t = 0; rp.playing = !rp.playing; $('rpPlay').textContent = rp.playing ? '❚❚' : '▶'; }
+$('rpNext').addEventListener('click', goNext);
 $('rpClose').addEventListener('click', closeReplay);
 $('rpPlay').addEventListener('click', togglePlay);
 $('rpSeek').addEventListener('input', (e) => { rp.t = +e.target.value; });
@@ -392,7 +345,7 @@ $('rpSpeed').addEventListener('change', (e) => { rp.speed = +e.target.value; });
 function drawReplay() {
   const t = rp.t, lab = t.toFixed(1) + '秒';
   drawSheet(rp.gA, L, t, frameAt(st.base.frames, t), [], { paper: true, label: lab });
-  drawSheet(rp.gB, L, t, frameAt(st.hist.frames, t), sectionsAt(st.pieces, t), { paper: true, label: lab });
+  drawSheet(rp.gB, L, t, frameAt(st.hist.frames, t), sectionsAt(blockPieces(), t), { paper: true, label: lab });
   $('rpSeek').value = t;
   $('rpTime').textContent = t.toFixed(1) + ' 秒';
 }
@@ -406,48 +359,42 @@ function loop(now) {
     if (rp.playing) { rp.t = Math.min(L.T, rp.t + dt * rp.speed); if (rp.t >= L.T) { rp.playing = false; $('rpPlay').textContent = '▶'; } }
     drawReplay();
   }
-  const held = (...ks) => ks.some((k) => keys.has(k));
-  const ax = (held('ArrowRight', 'd', 'D') ? 1 : 0) - (held('ArrowLeft', 'a', 'A') ? 1 : 0);
-  const az = (held('ArrowDown', 's', 'S') ? 1 : 0) - (held('ArrowUp', 'w', 'W') ? 1 : 0);
-  const slow = keys.has('Shift');
-  st.heroX = Math.max(0, Math.min(L.W, st.heroX + ax * 7 * dt));
-  if (az) st.heroT = Math.max(0, Math.min(L.T, st.heroT + az * (slow ? 2.5 : 9) * dt));
-  else st.heroT += (Math.round(st.heroT) - st.heroT) * Math.min(1, dt * 12);
-  if (ax || az) st.facing = { x: ax, z: az };
-  st.heroVY -= 24 * dt;
-  st.heroY = Math.max(0, st.heroY + st.heroVY * dt);
-  if (st.heroY === 0) st.heroVY = 0;
-  st.reach = Math.max(0, st.reach - dt * 2.5);
-  const focus = Math.round(st.heroT);
-  if (focus !== lastFocus) { st.visited.add(focus); if (inGame()) se.page(); lastFocus = focus; }
+  // カメラ基準の移動（W＝画面の奥）
+  let mx = 0, mt = 0;
+  const act = playing();
+  if (act) {
+    const f = (keys.has('w') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('s') || keys.has('ArrowDown') ? 1 : 0);
+    const r = (keys.has('d') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('a') || keys.has('ArrowLeft') ? 1 : 0);
+    const yaw = stage.camYaw();
+    // 画面の奥＝(x,t) で (-sin yaw, cos yaw)、画面の右＝(cos yaw, sin yaw)
+    mx = r * Math.cos(yaw) - f * Math.sin(yaw);
+    mt = r * Math.sin(yaw) + f * Math.cos(yaw);
+  }
+  const h = st.hero;
+  const before = h.t;
+  if (stepHero(h, L, st.pieces, mx, mt, act && jumpQueued, act ? dt : 0) === 'respawn') flashPrompt('底なしに落ちた。さっきの場所へもどる');
+  jumpQueued = false;
+  st.walked += Math.abs(h.t - before);
+  st.revealT = Math.max(st.revealT, Math.min(L.T, h.t + 3));
+  const focus = Math.max(0, Math.min(L.T, Math.round(h.t)));
+  if (focus !== lastFocus && act) { se.page(); lastFocus = focus; }
 
-  const cand = inGame() ? candidate() : null;
-  let candOk = false;
-  if (cand) {
-    const why = left(cand.kind) <= 0 ? `${kindName(cand.kind)}はもう置いてある` : canPlace(L, cand, st.pieces);
-    candOk = !why;
-    if (performance.now() > flashUntil) $('candMsg').textContent = why ? '置けない: ' + why : '';
-  } else if (performance.now() > flashUntil) $('candMsg').textContent = '';
-
+  const cand = act ? candidate() : null;
+  const why = cand ? canPlace(L, cand, st.pieces) : '';
   stage.update(dt, {
-    heroX: st.heroX, heroT: st.heroT, heroY: st.heroY, focus, facing: st.facing,
-    cand, candOk, walking: !!(ax || az), reach: st.reach,
+    hero: h, walking: Math.hypot(mx, mt) > 0.05, moveX: mx, moveT: mt,
+    carry: st.carry, cand, candOk: !why, revealT: st.revealT, focus,
+    groundY: groundAt(L, st.pieces, h.x, h.t, h.y),
   });
 
-  if (inGame()) {
-    if (az || dragging) ins.browseUntil = now + 1200;
-    if (insetDirty) { ins.t = 0; ins.hold = 0; }
-    if (now < ins.browseUntil) {
-      if (focus !== insetFocus || insetDirty) { drawInset(focus); insetFocus = focus; }
-    } else { insetPlay(dt); insetFocus = -1; }
-    insetDirty = false;
+  if (screen === 'game') {
     $('clockNum').textContent = focus;
-    $('status').textContent = statusText();
-    drawTimeline(st.heroT);
+    drawTimeline();
     renderCoach();
-    if (st.hist.end.type === 'goal' && !st.solvedShown && !stage.waving()) { st.solvedShown = true; winShow(); }
-    if (st.hist.end.type !== 'goal') { st.solvedShown = false; $('win').hidden = true; }
-    $('btnNext').hidden = !(st.solvedShown && hasNext());
+    renderPrompt(why);
+    // 正史は、巣に着くところを見届けたときに（見ていない未来の結果は教えない）
+    if (st.hist.end.type === 'goal' && !st.solved && !stage.waving() && st.revealT >= st.hist.end.t) { st.solved = true; onSolved(); }
+    if (st.hist.end.type !== 'goal') st.solved = false;
   }
   requestAnimationFrame(loop);
 }
@@ -460,4 +407,4 @@ loadLevel(firstUnsolved());
 showScreen('title');
 requestAnimationFrame(loop);
 // 確認用
-window.__fh = { st, LEVELS, simulate, section, keys, startGame, get L() { return L; } };
+window.__fh = { st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, get L() { return L; } };

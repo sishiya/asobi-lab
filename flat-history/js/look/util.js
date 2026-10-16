@@ -35,7 +35,7 @@ export function floorPlane(L, tex, y = -4.5, color = '#ffffff') {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(L.W + 70, L.T + 90),
     new THREE.MeshStandardMaterial({ map: tex, color, roughness: 0.85 }));
   m.rotation.x = -Math.PI / 2;
-  m.position.set(L.W / 2, y, L.T / 2);
+  m.position.set(L.W / 2, y, -L.T / 2);
   return m;
 }
 

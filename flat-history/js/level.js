@@ -26,11 +26,11 @@ export const LEVELS = [
     tops: tops([[10, 12, null]]), start: { x: 1.6, dir: 1 }, goal: { x: 30 },
     stock: { plank: 1 },
     hints: [
-      { text: 'W・S（↑・↓）で、ページをめくってみよう', when: (c) => c.visited >= 4 },
-      { text: 'キーウィは、このあとどうなる？　未来のページをたどってみよう', when: (c) => c.seenEnd },
-      { text: '形をえらんで（1）、落ちる前のページに置いてみよう（Z）', when: (c) => c.placed },
+      { text: 'W で前へ。前へ歩くと、未来のページへ進む', when: (c) => c.walked > 4 },
+      { text: 'キーウィは、このあとどうなる？　見に行こう', when: (c) => c.seenEnd },
+      { text: '標本台の板を E でつかみ、運んで、E で置いてみよう', when: (c) => c.placed },
     ],
-    fail: 'まだ落ちてしまう。板のあるページと、キーウィが通るページは重なっている？',
+    fail: 'まだ落ちてしまう。板のある時間と、キーウィが通る時間は重なっている？',
   },
   {
     ...base, id: 't2', plate: 'II', name: 'つかのまの橋', tutorial: true,
@@ -39,14 +39,14 @@ export const LEVELS = [
     hints: [
       { text: 'こんどの板は、奥行きがうすい', when: (c) => c.placed },
     ],
-    fail: '置くページを、1枚ずつずらしてみよう',
+    fail: '置く時間を、少しずつずらしてみよう（E で持ち上げて、置きなおせる）',
   },
   {
     ...base, id: 't3', plate: 'III', name: 'のぼる板', tutorial: true,
     tops: tops([[14, 18, 3], [19, 35, 7]]), start: { x: 1.6, dir: 1 }, goal: { x: 31 },
     stock: { lift: 1 },
     hints: [
-      { text: 'この段は、キーウィには高すぎる', when: (c) => c.placed },
+      { text: 'この段は、キーウィには高すぎる（あなたは跳んで、よじ登れる）', when: (c) => c.placed },
     ],
     fail: '板の上で、キーウィはどうなった？',
   },

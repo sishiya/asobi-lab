@@ -240,3 +240,25 @@ details.more p { font-size: 13px; color: var(--sub); }
   transition: opacity .4s; opacity: 0;
 }
 .toast.on { opacity: 1; }
+
+/* ---- v009: 歩く版の HUD ---- */
+.top { gap: 14px; }
+.esc-hint { font: 12px var(--serif); color: var(--sub); }
+.prompt {
+  position: fixed; left: 50%; bottom: 74px; transform: translateX(-50%); z-index: 6; pointer-events: none;
+  padding: 6px 16px; font: 14px var(--serif); color: var(--paper); background: rgba(61, 42, 24, .82); border-radius: 2px;
+  white-space: nowrap; transition: opacity .2s;
+}
+.prompt:empty { opacity: 0; }
+.prompt .bad { color: #ffb4a0; margin-left: 8px; }
+.prompt kbd { background: rgba(255, 245, 220, .14); color: var(--paper); border-color: rgba(255, 245, 220, .45); }
+.bottom { padding: 4px 12px; }
+#timeline { height: 40px; }
+.coach { top: 66px; max-width: min(620px, calc(100vw - 340px)); }
+.menu-card { width: min(380px, 100%); text-align: center; }
+.menu-card h2 { margin: 0 0 14px; font: 700 20px var(--serif); letter-spacing: .2em; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.menu-list { display: flex; flex-direction: column; gap: 8px; }
+.menu-list .act { padding: 10px; font-size: 15px; }
+.menu-row { display: flex; gap: 10px; justify-content: center; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+.replay-card .win-acts { margin-top: 14px; }
+@media (max-width: 760px) { .coach { top: 120px; max-width: calc(100vw - 24px); } }

@@ -1,5 +1,5 @@
 // 2D世界の決まったルール。置いた3Dの形は、その秒の断面（長方形）として2D世界に現れる。
-import { KINDS } from './level.js?v=8';
+import { KINDS } from './level.js?v=9';
 
 export const DT = 0.1;          // 1コマ＝0.1秒
 const SPEED = 1.5;              // 2D人の歩く速さ（マス/秒）
@@ -9,17 +9,34 @@ const STEP = 1.05;              // のぼれる段
 const SAFE_FALL = 3.5;          // これより高く落ちるとだめ
 const G = 22;
 
-// 3Dの形 p の、時刻 t のページでの断面
-export function section(p, t) {
+// 3Dの形 p の大きさ。rot=1 なら横と奥行きを入れかえる（ななめの板は、横の方向に上がる坂になる）
+export function pieceDims(p) {
   const k = KINDS[p.kind];
-  if (t < p.t0 - 1e-6 || t >= p.t0 + k.d - 1e-6) return null;
-  const y = p.y0 + k.slope * (t - p.t0);
-  return { x0: p.x0, x1: p.x0 + k.w, y0: y, y1: y + k.h, p };
+  return p.rot
+    ? { wx: k.d, dz: k.w, h: k.h, slope: k.slope, along: 'x' }
+    : { wx: k.w, dz: k.d, h: k.h, slope: k.slope, along: 'z' };
+}
+
+// 3Dの形 p の、時刻 t のページでの断面（長方形の並び。坂は半マスずつの段で表す）
+export function sectionRects(p, t) {
+  const d = pieceDims(p);
+  if (t < p.t0 - 1e-6 || t >= p.t0 + d.dz - 1e-6) return [];
+  if (d.along === 'z') {
+    const y = p.y0 + d.slope * (t - p.t0);
+    return [{ x0: p.x0, x1: p.x0 + d.wx, y0: y, y1: y + d.h, p }];
+  }
+  if (!d.slope) return [{ x0: p.x0, x1: p.x0 + d.wx, y0: p.y0, y1: p.y0 + d.h, p }];
+  const r = [];
+  for (let i = 0; i < d.wx * 2; i++) {
+    const y = p.y0 + d.slope * (i / 2 + 0.25);
+    r.push({ x0: p.x0 + i / 2, x1: p.x0 + i / 2 + 0.5, y0: y, y1: y + d.h, p });
+  }
+  return r;
 }
 
 export function sectionsAt(pieces, t) {
   const r = [];
-  for (const p of pieces) { const s = section(p, t); if (s) r.push(s); }
+  for (const p of pieces) for (const s of sectionRects(p, t)) r.push(s);
   return r;
 }
 
@@ -125,25 +142,31 @@ export function frameAt(frames, t) {
   return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, dir: a.dir, st: a.st };
 }
 
-// 置き場所: 下にある動かない地形でとまる高さ（底なしの上なら -Infinity）
-export function restHeight(L, kind, x0) {
-  const k = KINDS[kind];
+// 置き場所: 下にある地形（標本台もふくむ）でとまる高さ（底なしの上だけなら -Infinity）
+export function restHeight(L, cand, tableY) {
+  const d = pieceDims(cand);
   let best = -Infinity;
-  for (let c = x0; c < x0 + k.w; c++) best = Math.max(best, terrTop(L, c));
+  for (let c = cand.x0; c < cand.x0 + d.wx; c++) {
+    if (c < 0) { if (c >= -7) best = Math.max(best, tableY); }
+    else if (c < L.W) best = Math.max(best, L.tops[c]);
+  }
   return best;
 }
 
-// 置けるか（理由つき）
+// 置けるか（理由つき）。3Dの形どうしは重ならない
 export function canPlace(L, cand, pieces) {
-  const k = KINDS[cand.kind];
-  if (cand.y0 === -Infinity) return '下に地面がない（底のない崖）';
-  if (cand.y0 + k.h + k.slope * k.d > L.H + 0.01) return '空の上につき出てしまう';
+  const d = pieceDims(cand);
+  if (cand.y0 === -Infinity) return '下に支えがない';
+  if (cand.x0 + d.wx > L.W || cand.x0 < -7) return 'ここには置けない';
+  const top = cand.y0 + d.h + (d.along === 'z' ? d.slope * d.dz : d.slope * d.wx);
+  if (top > L.H + 0.01) return '空の上につき出てしまう';
   for (const p of pieces) {
-    const kp = KINDS[p.kind];
-    const a = Math.max(cand.t0, p.t0), b = Math.min(cand.t0 + k.d, p.t0 + kp.d);
+    const dp = pieceDims(p);
+    const a = Math.max(cand.t0, p.t0), b = Math.min(cand.t0 + d.dz, p.t0 + dp.dz);
     for (let t = a; t < b; t += 0.25) {
-      const s1 = section(cand, t), s2 = section(p, t);
-      if (s1 && s2 && s1.x0 < s2.x1 && s2.x0 < s1.x1 && s1.y0 < s2.y1 && s2.y0 < s1.y1) return 'ほかの形とぶつかる';
+      for (const s1 of sectionRects(cand, t)) for (const s2 of sectionRects(p, t)) {
+        if (s1.x0 < s2.x1 - 1e-6 && s2.x0 < s1.x1 - 1e-6 && s1.y0 < s2.y1 - 1e-6 && s2.y0 < s1.y1 - 1e-6) return 'ほかの形とぶつかる';
+      }
     }
   }
   return '';

@@ -1,6 +1,6 @@
 // 見た目 案2「図鑑の銅版画と標本室」: 線で彫った博物画の大地を、飛べない鳥キーウィが歩く。標本室の石膏像
 import * as THREE from 'three';
-import { rng, canvasTexture, floorPlane, radialTexture } from './util.js?v=8';
+import { rng, canvasTexture, floorPlane, radialTexture } from './util.js?v=9';
 
 const INK = '#4a3320';
 
@@ -263,13 +263,13 @@ function makeEnv(L) {
   }, [6, 8]);
   grp.add(floorPlane(L, tex, -4.5));
   const brass = new THREE.MeshStandardMaterial({ color: '#b98d3f', roughness: 0.35, metalness: 0.85 });
-  for (const x of [-0.4, L.W + 0.4]) for (const y of [-0.2, L.H + 0.15]) {
+  for (const x of [L.W + 0.4]) for (const y of [-0.2, L.H + 0.15]) {
     const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, L.T + 2, 12), brass);
-    rail.rotation.x = Math.PI / 2; rail.position.set(x, y, L.T / 2); grp.add(rail);
+    rail.rotation.x = Math.PI / 2; rail.position.set(x, y, -L.T / 2); grp.add(rail);
   }
-  for (let t = 0; t <= L.T; t += 10) for (const x of [-0.4, L.W + 0.4]) {
+  for (let t = 0; t <= L.T; t += 10) for (const x of [L.W + 0.4]) {
     const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, L.H + 4.4, 10), brass);
-    post.position.set(x, (L.H - 4.4) / 2, t); grp.add(post);
+    post.position.set(x, (L.H - 4.4) / 2, -t); grp.add(post);
   }
   return grp;
 }
