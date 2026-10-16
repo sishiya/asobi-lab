@@ -680,3 +680,31 @@ body.touch .inset { left: 12px; right: auto; top: 120px; }
 .menu-sub { display: flex; flex-direction: column; gap: 8px; }
 .menu-sub .act { width: 100%; padding: 10px; font-size: 15px; background: #fbf5e6; }
 .menu-sub .act:hover { background: #fffaf0; }
+
+/* v046: 回答するボタンは、図版の名前のとなり（上の、名前と導きのまとまりの中）。角丸の横長。小窓は右上へ */
+.head-row { display: flex; align-items: stretch; gap: 10px; pointer-events: auto; }
+.headgroup .bind-btn {
+  position: static; width: auto; height: auto; min-height: 40px; padding: 0 22px; border-radius: 10px;
+  flex-direction: row; gap: 0; font: 700 15px var(--serif); letter-spacing: .14em; white-space: nowrap;
+  background: linear-gradient(180deg, #a3503a, #7d2f22); color: #fbeedd;
+  border: 1px solid #5a1f15; box-shadow: inset 0 0 0 2px rgba(255,235,210,.22), 0 3px 10px rgba(60,20,10,.3);
+}
+.headgroup .bind-btn:hover { filter: brightness(1.08); }
+.headgroup .bind-btn:active { transform: translateY(1px); }
+.inset { top: 16px; }
+@media (max-width: 760px), (max-height: 520px) {
+  .headgroup .bind-btn { min-height: 32px; padding: 0 14px; font-size: 13px; border-radius: 8px; }
+  .headgroup { max-width: calc(100vw - 12px); }
+  .inset, body.touch .inset { top: 180px; bottom: auto; right: 6px; left: auto; width: 40vw; }
+}
+@media (max-height: 520px) {
+  .headgroup { max-width: calc(64vw - 12px); }
+  .inset, body.touch .inset { top: 8px; bottom: auto; right: 8px; left: auto; width: 30vw; }
+}
+/* スティックはやめた（v046） */
+.stick { display: none !important; }
+
+/* あそびかた: 文と操作の表を、まん中にそろえる（左にかたよって見えた） */
+.help-card { text-align: center; }
+.help-card .keys { margin: 8px auto 12px; text-align: left; }
+.help-card .help-touch { text-align: left; max-width: 34em; margin-left: auto; margin-right: auto; }

@@ -16,7 +16,7 @@ try { progress = JSON.parse(localStorage.getItem('flat-history.progress') || '{}
 function saveProgress() { try { localStorage.setItem('flat-history.progress', JSON.stringify(progress)); } catch (e) { /* なし */ } }
 
 // ---- 設定（このブラウザだけに覚える） ----
-const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'fog', runDefault: true, inset: true, invX: false, invY: false, move: 'tap', moveSe: 'chimeSoft', hero: 'poly', res: 'kiwi' };
+const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'fog', runDefault: true, inset: true, invX: false, invY: false, moveSe: 'chimeSoft', hero: 'poly', res: 'kiwi' };
 let cfg = { ...DEF };
 try { cfg = { ...DEF, ...JSON.parse(localStorage.getItem('flat-history.settings2') || '{}') }; } catch (e) { cfg = { ...DEF }; }
 function saveCfg() { try { localStorage.setItem('flat-history.settings2', JSON.stringify(cfg)); } catch (e) { /* なし */ } }
@@ -25,7 +25,7 @@ if (!cfg.v39) { cfg.bgm = 'fog'; cfg.v39 = true; } // v039: 音楽は「霧の�
 if (!cfg.v38) { cfg.hero = 'poly'; cfg.v38 = true; delete cfg.v34; } // v038: 既定は多面体の旅人に（一度だけ）
 if (!HERO_LIST.some((c) => c.id === cfg.hero)) cfg.hero = 'poly';
 if (!RES_LIST.some((c) => c.id === cfg.res)) cfg.res = 'kiwi';
-delete cfg.showRoute; delete cfg.heroSlice;
+delete cfg.showRoute; delete cfg.heroSlice; delete cfg.move;
 saveCfg();
 setHero(cfg.hero); setRes(cfg.res);
 // 確かめ用: ?mute で開くと、音楽も効果音も鳴らさない（設定は書きかえない。テストプレイのとき）
@@ -65,7 +65,6 @@ stage.onHover = (x, t, pid) => {
 stage.onRight = () => { if (playing() && st.carry) rotate(); };
 stage.setInvert(!!cfg.invX, !!cfg.invY);
 // 指での動かし方: タップで歩く（スティックをしまう）／スティック
-function applyMove() { document.body.classList.toggle('stickmode', cfg.move === 'stick'); walk.to = null; }
 const blockPieces = () => st.pieces;
 
 // ---- 面をはじめる ----
@@ -342,7 +341,7 @@ function nudge(k) {
   se.click();
 }
 // ---- かんたん操作: タップした所へ歩く（スマホではこれが最初。スティックは設定で選ぶ） ----
-const tapWalk = () => isTouch && cfg.move !== 'stick';
+const tapWalk = () => isTouch; // v046: スマホはタップで歩くだけ（スティックはやめた）
 const walk = { to: null, best: 0, since: 0 };
 function walkTo(x, t) {
   walk.to = { x: Math.max(0.3, Math.min(L.W - 0.3, x)), t: Math.max(-0.5, Math.min(L.T + 0.5, t)) };
@@ -417,21 +416,7 @@ const enterOk = () => performance.now() > enterLock;
 // ---- スマホ: 左下のスティックと、右下のボタン ----
 const isTouch = window.matchMedia('(pointer: coarse)').matches;
 if (isTouch) document.body.classList.add('touch');
-const joy = { x: 0, y: 0, id: null };
 {
-  const stick = $('stick'), knob = $('stickKnob');
-  const R = 46;
-  const move = (e) => {
-    const r = stick.getBoundingClientRect();
-    let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
-    const d = Math.hypot(dx, dy); if (d > R) { dx *= R / d; dy *= R / d; }
-    joy.x = dx / R; joy.y = dy / R;
-    knob.style.transform = `translate(${dx}px, ${dy}px)`;
-  };
-  stick.addEventListener('pointerdown', (e) => { initAudio(); startBgm(); joy.id = e.pointerId; stick.setPointerCapture(e.pointerId); move(e); });
-  stick.addEventListener('pointermove', (e) => { if (e.pointerId === joy.id) move(e); });
-  const up = () => { joy.id = null; joy.x = joy.y = 0; knob.style.transform = ''; };
-  stick.addEventListener('pointerup', up); stick.addEventListener('pointercancel', up);
   const tap = (id, fn) => $(id).addEventListener('pointerdown', (e) => { e.preventDefault(); initAudio(); startBgm(); if (playing()) fn(); });
   tap('tPlace', () => place());
   tap('tRot', () => rotate());
@@ -518,7 +503,6 @@ function openSettings(from) {
   $('sRun').checked = cfg.runDefault;
   $('sInset').checked = cfg.inset;
   $('sInvX').checked = !!cfg.invX; $('sInvY').checked = !!cfg.invY;
-  $('sMove').value = cfg.move || 'tap';
   $('sMoveSe').value = cfg.moveSe;
   $('sHero').value = cfg.hero;
   $('sRes').value = cfg.res;
@@ -534,12 +518,9 @@ $('sSeVol').addEventListener('input', (e) => { cfg.seVol = e.target.value / 100;
 $('sSeVol').addEventListener('change', () => { initAudio(); se.goal(); });
 $('sBgm').addEventListener('change', (e) => { cfg.bgm = e.target.value; initAudio(); setBgm(cfg.bgm); startBgm(); saveCfg(); });
 $('sRun').addEventListener('change', (e) => { cfg.runDefault = e.target.checked; saveCfg(); });
-$('sMove').options[0].textContent = TX('タップで歩く（かんたん）', 'Tap to walk (easy)');
-$('sMove').options[1].textContent = TX('スティック', 'Stick');
 // 幾何学の主人公の動く音（ききくらべ用。v040）
 [TX('鈴（やわらかく）', 'Soft bell'), TX('鈴（もとの音）', 'Bell (original)'), TX('きらきら', 'Sparkle')].forEach((t, i) => { $('sMoveSe').options[i].textContent = t; });
 $('sMoveSe').addEventListener('change', (e) => { cfg.moveSe = e.target.value; saveCfg(); initAudio(); se.step(cfg.moveSe); setTimeout(() => se.step(cfg.moveSe), 260); });
-$('sMove').addEventListener('change', (e) => { cfg.move = e.target.value; saveCfg(); applyMove(); });
 $('sInvX').addEventListener('change', (e) => { cfg.invX = e.target.checked; saveCfg(); stage.setInvert(cfg.invX, cfg.invY); });
 $('sInvY').addEventListener('change', (e) => { cfg.invY = e.target.checked; saveCfg(); stage.setInvert(cfg.invX, cfg.invY); });
 $('sInset').addEventListener('change', (e) => { cfg.inset = e.target.checked; saveCfg(); applyInset(); });
@@ -581,7 +562,6 @@ function drawInset(focus, cand, ok) {
   $('insetCap').textContent = TX(focus + '秒目のページ', `Page at ${focus}s`);
 }
 applyInset();
-applyMove();
 
 // 時間のしおり: クリック・ドラッグでその秒へ（主人公ごと）
 const tl = $('timeline');
@@ -648,9 +628,9 @@ let coachShown = null;
 // スマホでは、キーの名前をボタンの名前に言いかえる
 function touchText(t) {
   if (!isTouch || !t) return t;
-  if (LANG === 'en') return t.replace(tapWalk() ? 'Press W to go forward. ' : 'Press W to go forward', tapWalk() ? 'Tap where you want to go. ' : 'Push the stick up to go forward').replace('then click where you want it', 'then tap where you want it (tap the outline again to place)')
+  if (LANG === 'en') return t.replace('Press W to go forward. ', 'Tap where you want to go. ').replace('then click where you want it', 'then tap where you want it (tap the outline again to place)')
     .replace('click the placed board', 'tap the placed board').replace(' (Enter)', '');
-  return t.replace(tapWalk() ? 'W で前へ。' : 'W で前へ', tapWalk() ? '行きたい所をタップすると歩く。' : 'スティックを上へ倒して前へ').replace('置きたい所をクリックしよう', '置きたい所をタップ。点線の形をもう一度タップで置く')
+  return t.replace('W で前へ。', '行きたい所をタップすると歩く。').replace('置きたい所をクリックしよう', '置きたい所をタップ。点線の形をもう一度タップで置く')
     .replace('置いた板をクリック', '置いた板をタップ').replace(/Q で/g, '「回す」で').replace('（Enter）', '').replace(/Enter で/g, '');
 }
 function renderCoach() {
@@ -844,7 +824,6 @@ function loop(now) {
   if (act) {
     let f = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0);
     let r = (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0);
-    if (joy.id !== null) { f = -joy.y; r = joy.x; } // スティック（倒した分だけ）
     const yaw = stage.camYaw();
     // 画面の奥＝(x,t) で (-sin yaw, cos yaw)、画面の右＝(cos yaw, sin yaw)
     mx = r * Math.cos(yaw) - f * Math.sin(yaw);
@@ -856,7 +835,7 @@ function loop(now) {
   if (!act && walk.to && screen !== 'game') walk.to = null;
   const h = st.hero;
   const before = h.t, bx = h.x;
-  const running = act && (walk.to ? walkRun : joy.id !== null ? Math.hypot(joy.x, joy.y) > 0.8 : cfg.runDefault ? !keys.has('Shift') : keys.has('Shift'));
+  const running = act && (walk.to ? walkRun : cfg.runDefault ? !keys.has('Shift') : keys.has('Shift'));
   stepHero(h, L, st.pieces, mx, mt, act ? dt : 0, running);
   st.walked += Math.abs(h.t - before);
   // 主人公の動く音（本当に進んだ距離ごと）。浮かんでいるので、置いた形の上でも音は変えない（v039）
@@ -896,7 +875,7 @@ function loop(now) {
       $('tRot').hidden = !st.carry;
       $('tCancel').hidden = !st.carry;
     }
-    const bindHtml = st.solved ? TX('結果を<br>見る', 'See<br>result') : TX('回答<br>する', 'Answer');
+    const bindHtml = st.solved ? TX('結果を見る', 'See result') : TX('回答する', 'Answer');
     if ($('btnBind').innerHTML !== bindHtml) $('btnBind').innerHTML = bindHtml;
     // 形を置いて歴史が変わったのに、まだ回答していないあいだは、ボタンが脈打つ
     $('btnBind').classList.toggle('ready', !st.solved && st.dirty && blockPieces().length > 0);
