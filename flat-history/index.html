@@ -8,7 +8,7 @@
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="description" content="1秒ずつの2D世界が奥と手前に並んでいる。3Dの形を置くと、2D世界にはその断面が現れて、歴史が書きかわる。">
 <meta name="theme-color" content="#e2d2b0">
-<link rel="stylesheet" href="css/style.css?v=9">
+<link rel="stylesheet" href="css/style.css?v=10">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body class="menu">
@@ -29,7 +29,7 @@
       <button type="button" class="act ghost sound-btn">音: あり</button>
     </div>
     <label class="t-bgm">音楽 <select id="bgmSel" aria-label="音楽をえらぶ"></select></label>
-    <p class="t-foot">キーボードとマウスで遊びます ・ 試作 <span class="ver">v009</span> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
+    <p class="t-foot">キーボードとマウスで遊びます ・ 試作 <span class="ver">v010</span> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
   </div>
 </section>
 
@@ -78,7 +78,7 @@
 
 <div id="replay" class="modal" hidden>
   <div class="modal-card replay-card">
-    <div class="rp-head"><b id="rpTitle">正史ができた</b><span class="rp-sub">住人から見た、はじめの歴史と いまの歴史</span></div>
+    <div class="rp-head"><b id="rpTitle">この歴史を綴じる</b><span class="rp-sub">住人から見た、はじめの歴史と いまの歴史</span></div>
     <div class="rp-row"><div class="rp-label">はじめの歴史</div><canvas id="rpA" width="720" height="280"></canvas></div>
     <div class="rp-row"><div class="rp-label now">いまの歴史</div><canvas id="rpB" width="720" height="280"></canvas></div>
     <div class="rp-ctrl">
@@ -87,6 +87,7 @@
       <span id="rpTime" class="rp-time">0.0 秒</span>
       <select id="rpSpeed" aria-label="速さ"><option value="1">×1</option><option value="2" selected>×2</option><option value="4">×4</option></select>
     </div>
+    <div id="rpResult" class="rp-result" hidden></div>
     <div class="win-acts">
       <button type="button" id="rpNext" class="act primary">次の図版へ <kbd>Enter</kbd></button>
       <button type="button" id="rpClose" class="act">この図版にもどる <kbd>Esc</kbd></button>
@@ -99,17 +100,18 @@
     <h2>あそびかた</h2>
     <p>図版の一枚一枚は、<b>1秒ずつの2D世界</b>。前へ歩くと未来、うしろへ歩くと昔。<br>あなたは2D世界のページのあいだを歩けるけれど、住人にはさわれない。かわりに<b>3Dの形</b>を置ける。<br>住人が巣にたどり着く歴史を作ろう。</p>
     <table class="keys">
-      <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td>歩く（見ている向きが前）</td></tr>
+      <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td>歩く（見ている向きが前）。<kbd>Shift</kbd> で走る</td></tr>
       <tr><td><kbd>Space</kbd></td><td>跳ぶ（壁のふちに手がとどけば、よじ登る）</td></tr>
       <tr><td><kbd>E</kbd></td><td>つかむ ／ 置く</td></tr>
       <tr><td><kbd>Q</kbd></td><td>持っている形を回す</td></tr>
       <tr><td>マウスのドラッグ</td><td>見回す（ホイールで寄る・引く）</td></tr>
+      <tr><td><kbd>Enter</kbd></td><td>この歴史を綴じる（これで巣に着く、と思ったら答える）</td></tr>
       <tr><td><kbd>Esc</kbd></td><td>メニュー</td></tr>
     </table>
     <div class="win-acts"><button type="button" id="helpClose" class="act primary">とじる</button></div>
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=9"></script>
+<script type="module" src="js/main.js?v=10"></script>
 </body>
 </html>

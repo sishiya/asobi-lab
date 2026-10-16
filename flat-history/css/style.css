@@ -262,3 +262,10 @@ details.more p { font-size: 13px; color: var(--sub); }
 .menu-row { display: flex; gap: 10px; justify-content: center; align-items: center; margin-top: 14px; flex-wrap: wrap; }
 .replay-card .win-acts { margin-top: 14px; }
 @media (max-width: 760px) { .coach { top: 120px; max-width: calc(100vw - 24px); } }
+
+/* 綴じた結果の札 */
+.rp-result { margin: 12px auto 0; text-align: center; font-family: var(--serif); animation: pop .5s ease-out; }
+.rp-result .stamp { display: inline-block; padding: 6px 22px; font: 700 24px var(--serif); letter-spacing: .3em; border: 2px solid currentColor; transform: rotate(-3deg); }
+.rp-result.ok { color: #9a6a12; }
+.rp-result.ng { color: var(--red); }
+.rp-result p { margin: 8px 0 0; font-size: 14px; color: var(--ink); }

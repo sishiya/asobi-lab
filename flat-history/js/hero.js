@@ -1,13 +1,13 @@
 // 主人公（3Dの学芸員）の歩き方。時空の大地（ページの上のふちが奥行きに並んだ地形）の上を歩く。
 // 座標: x＝2D世界の横（マス）、t＝時間（秒。3Dの奥行き）、y＝高さ（マス）。
 // 主人公の体はページの間隔（1秒）より薄いので、ページのあいだを歩くかぎり2D世界とは交わらない（REDESIGN 3-1）
-import { pieceDims } from './sim.js?v=9';
+import { pieceDims } from './sim.js?v=10';
 
 // 標本台: 2D世界のブロックの左どなり（x<0）。ここに置いた形は、ページと交わらない
 export const TABLE = { x0: -7, x1: 0, t0: -1, t1: 34 };
 export const tableY = (L) => (Number.isFinite(L.tops[0]) ? L.tops[0] : 4);
 
-export const HERO = { speed: 5.2, jumpV: 10.5, g: 25, step: 0.6, mantle: 1.9, coyote: 0.12, buffer: 0.14 };
+export const HERO = { speed: 5.2, run: 1.9, jumpV: 10.5, g: 25, step: 0.6, mantle: 1.9, coyote: 0.12, buffer: 0.14 };
 
 // (x, t) の足もとの高さ。yRef より 1 以上うえにある形の底は、床にしない（頭の上の形）
 export function groundAt(L, pieces, x, t, yRef = Infinity) {
@@ -36,7 +36,7 @@ export function makeHero(L) {
 }
 
 // 1フレーム動かす。mx・mt はカメラ基準から直した、世界の向きの入力（-1〜1）
-export function stepHero(h, L, pieces, mx, mt, jumpPressed, dt) {
+export function stepHero(h, L, pieces, mx, mt, jumpPressed, dt, running = false) {
   const len = Math.hypot(mx, mt);
   if (len > 1) { mx /= len; mt /= len; }
   if (len > 0.05) { h.fx = mx; h.ft = mt; }
@@ -51,8 +51,9 @@ export function stepHero(h, L, pieces, mx, mt, jumpPressed, dt) {
     if (g - h.y <= HERO.step) { h.x = nx; h.t = nt; if (h.grounded && g > h.y) h.y = g; return; }
     if (!h.grounded && g - h.y <= HERO.mantle) { h.x = nx; h.t = nt; h.y = g; h.vy = 0; h.grounded = true; h.mantle = 0.25; }
   };
-  tryMove(h.x + mx * HERO.speed * dt, h.t);
-  tryMove(h.x, h.t + mt * HERO.speed * dt);
+  const sp = HERO.speed * (running ? HERO.run : 1);
+  tryMove(h.x + mx * sp * dt, h.t);
+  tryMove(h.x, h.t + mt * sp * dt);
 
   // 上下
   const g0 = footGround(L, pieces, h.x, h.t, h.y);

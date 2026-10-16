@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=9';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=9';
-import { drawSheet } from './sheet.js?v=9';
-import { createStage } from './stage3d.js?v=9';
-import { kindName } from './look/index.js?v=9';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=9';
-import { initAudio, startBgm, se, isMuted, setMuted, BGM_LIST, bgmId, setBgm } from './audio.js?v=9';
+import { LEVELS } from './level.js?v=10';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=10';
+import { drawSheet } from './sheet.js?v=10';
+import { createStage } from './stage3d.js?v=10';
+import { kindName } from './look/index.js?v=10';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=10';
+import { initAudio, startBgm, se, isMuted, setMuted, BGM_LIST, bgmId, setBgm } from './audio.js?v=10';
 
 const $ = (id) => document.getElementById(id);
 
@@ -19,7 +19,7 @@ let L = LEVELS[0];
 const st = {
   lv: 0, pieces: [], nextId: 1, base: null, hist: null,
   hero: null, carry: null, revealT: 0, walked: 0,
-  hintIdx: 0, solved: false, lastEnd: '',
+  hintIdx: 0, solved: false, lastEnd: '', boundOnce: false, failedOnce: false,
 };
 const stage = createStage($('view'), L);
 const inBlock = (p) => p.x0 + pieceDims(p).wx > 0;
@@ -43,7 +43,7 @@ function loadLevel(i) {
   st.base = simulate(L, []); st.hist = st.base;
   st.hero = makeHero(L);
   st.revealT = 3; st.walked = 0;
-  st.hintIdx = 0; st.solved = false; st.lastEnd = st.base.end.type;
+  st.hintIdx = 0; st.solved = false; st.lastEnd = st.base.end.type; st.failedOnce = false; st.boundOnce = false;
   stage.setLevel(L);
   stage.setHistory(st.hist, st.pieces, 0, false);
   stage.resetCamera();
@@ -134,12 +134,12 @@ function grabbable() {
   return best;
 }
 function recompute(fromT) {
+  st.solved = false;
   st.hist = simulate(L, st.pieces);
   stage.setHistory(st.hist, st.pieces, fromT, true);
   se.wave();
   // 書きかえたら、その先の知っていた未来はぼやける（見に行きなおす）
   st.revealT = Math.min(st.revealT, Math.max(st.hero.t + 3, fromT));
-  if (st.hist.end.type !== 'goal' && st.lastEnd === 'goal') se.fall();
   st.lastEnd = st.hist.end.type;
 }
 function useE() {
@@ -177,7 +177,8 @@ window.addEventListener('keydown', (e) => {
   const k = e.key;
   if (!$('replay').hidden) {
     if (k === 'Escape') closeReplay();
-    else if (k === 'Enter' && st.solved && hasNext()) goNext();
+    else if (k === 'Enter' && rp.judged && st.solved && hasNext()) goNext();
+    else if (k === 'Enter' && rp.judged && !st.solved) closeReplay();
     else if (k === ' ' || k === 'p' || k === 'P') { e.preventDefault(); togglePlay(); }
     return;
   }
@@ -192,7 +193,7 @@ window.addEventListener('keydown', (e) => {
   if (k === ' ') jumpQueued = true;
   if (k === 'e' || k === 'E') useE();
   if (k === 'q' || k === 'Q') rotate();
-  if (k === 'Enter' && st.solved && hasNext()) goNext();
+  if (k === 'Enter') { if (st.solved && hasNext()) goNext(); else bind(); }
   if (k === 'm' || k === 'M') nextBgm();
 });
 window.addEventListener('keyup', (e) => { const k = e.key; keys.delete(k); keys.delete(k.toLowerCase()); keys.delete(k.toUpperCase()); });
@@ -286,11 +287,12 @@ function drawTimeline() {
 // ---- ひとことの導き ----
 function coachText() {
   if (st.solved) return hasNext() ? '正史ができた。Enter で次の図版へ' : '正史ができた';
+  if (st.lv === 0 && !st.boundOnce && !st.carry && blockPieces().length && st.hintIdx >= (L.hints || []).length) return 'これで巣に着くと思ったら、Enter で この歴史を綴じよう';
   const hs = L.hints || [];
   const c = { walked: st.walked, seenEnd: st.revealT >= st.base.end.t, placed: blockPieces().length > 0 };
   while (st.hintIdx < hs.length && hs[st.hintIdx].when(c)) st.hintIdx++;
   if (st.hintIdx < hs.length) return hs[st.hintIdx].text;
-  if (c.placed && L.fail && !stage.waving() && st.hist.end.t <= st.revealT) return L.fail;
+  if (c.placed && L.fail && st.failedOnce) return L.fail;
   return '';
 }
 let coachShown = null;
@@ -309,33 +311,61 @@ function renderPrompt(why) {
   const g = grabbable();
   if (performance.now() < flashUntil) html = flashMsg;
   else if (st.carry) html = `<kbd>E</kbd> 置く　<kbd>Q</kbd> 回す` + (why ? `<span class="bad">${why}</span>` : '');
-  else if (g) html = `<kbd>E</kbd> ${kindName(g.kind)}をつかむ`;
-  else if (st.walked < 2 && st.lv === 0) html = `<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 歩く　<kbd>Space</kbd> 跳ぶ　ドラッグ 見回す`;
+  else if (g) html = `<kbd>E</kbd> ${kindName(g.kind)}をつかむ` + (blockPieces().length && !st.solved ? '　<kbd>Enter</kbd> 綴じる' : '');
+  else if (blockPieces().length && !st.solved) html = '<kbd>Enter</kbd> この歴史を綴じる';
+  else if (st.walked < 2 && st.lv === 0) html = `<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 歩く　<kbd>Shift</kbd> 走る　<kbd>Space</kbd> 跳ぶ　ドラッグ 見回す`;
   const el = $('prompt');
   if (el.innerHTML !== html) el.innerHTML = html;
 }
 
-// ---- 正史 → すぐくらべて再生 ----
+// ---- 綴じる（答える）: 再生して見届けてから、正史かどうかを出す ----
 const hasNext = () => st.lv + 1 < LEVELS.length;
 function goNext() { se.click(); startGame(st.lv + 1); }
-function onSolved() {
-  const n = blockPieces().length;
-  const prev = progress[L.id];
-  progress[L.id] = { best: prev ? Math.min(prev.best, n) : n };
-  saveProgress();
-  se.goal();
-  openReplay(true);
-}
-const rp = { t: 0, playing: true, speed: 2, gA: $('rpA').getContext('2d'), gB: $('rpB').getContext('2d') };
-function openReplay(won) {
+const rp = { t: 0, playing: true, speed: 4, judged: true, endT: 0, gA: $('rpA').getContext('2d'), gB: $('rpB').getContext('2d') };
+function bind() {
+  if (stage.waving()) return;
+  if (!blockPieces().length) { flashPrompt('まだ何も置いていない'); se.no(); return; }
+  st.boundOnce = true;
+  se.click();
   closeAll();
-  $('rpTitle').textContent = won ? '正史ができた' : 'くらべて再生';
-  $('rpNext').hidden = !(st.solved && hasNext());
+  $('rpTitle').textContent = 'この歴史を綴じる';
+  $('rpResult').hidden = true;
+  $('rpNext').hidden = true;
+  $('rpClose').hidden = true;
   $('replay').hidden = false;
-  rp.t = 0; rp.playing = true; $('rpPlay').textContent = '❚❚';
+  rp.judged = false;
+  rp.endT = Math.min(L.T, st.hist.end.t + 1.2);
+  rp.t = 0; rp.playing = true; rp.speed = 4; $('rpSpeed').value = '4'; $('rpPlay').textContent = '❚❚';
   keys.clear();
 }
-function closeReplay() { $('replay').hidden = true; }
+function judge() {
+  rp.judged = true;
+  const e = st.hist.end, ok = e.type === 'goal';
+  const el = $('rpResult');
+  el.className = 'rp-result ' + (ok ? 'ok' : 'ng');
+  if (ok) {
+    st.solved = true;
+    const n = blockPieces().length;
+    const prev = progress[L.id];
+    progress[L.id] = { best: prev ? Math.min(prev.best, n) : n };
+    saveProgress();
+    el.innerHTML = '<span class="stamp">正史</span><p>キーウィは巣に着いた。この歴史を図版に綴じた。</p>';
+    $('rpTitle').textContent = '正史ができた';
+    se.goal();
+  } else {
+    const why = e.type === 'abyss' ? '崖に落ちてしまった' : e.type === 'fall' ? '高い所から落ちてしまった' : '巣に着かなかった';
+    el.innerHTML = '<span class="stamp">まだ</span><p>キーウィは' + why + '。考えなおそう。</p>';
+    $('rpTitle').textContent = 'まだ正史ではない';
+    st.failedOnce = true;
+    se.fall();
+  }
+  el.hidden = false;
+  $('rpNext').hidden = !(ok && hasNext());
+  $('rpClose').hidden = false;
+  $('rpClose').innerHTML = ok ? 'この図版にもどる <kbd>Esc</kbd>' : '考えなおす <kbd>Esc</kbd>';
+}
+// 綴じている最中に Esc → 最後まで早送りして結果を出す
+function closeReplay() { if (!rp.judged) { rp.t = rp.endT; return; } $('replay').hidden = true; }
 function togglePlay() { if (rp.t >= L.T) rp.t = 0; rp.playing = !rp.playing; $('rpPlay').textContent = rp.playing ? '❚❚' : '▶'; }
 $('rpNext').addEventListener('click', goNext);
 $('rpClose').addEventListener('click', closeReplay);
@@ -357,6 +387,7 @@ function loop(now) {
   last = now;
   if (!$('replay').hidden) {
     if (rp.playing) { rp.t = Math.min(L.T, rp.t + dt * rp.speed); if (rp.t >= L.T) { rp.playing = false; $('rpPlay').textContent = '▶'; } }
+    if (!rp.judged && rp.t >= rp.endT) judge();
     drawReplay();
   }
   // カメラ基準の移動（W＝画面の奥）
@@ -372,7 +403,7 @@ function loop(now) {
   }
   const h = st.hero;
   const before = h.t;
-  if (stepHero(h, L, st.pieces, mx, mt, act && jumpQueued, act ? dt : 0) === 'respawn') flashPrompt('底なしに落ちた。さっきの場所へもどる');
+  if (stepHero(h, L, st.pieces, mx, mt, act && jumpQueued, act ? dt : 0, act && keys.has('Shift')) === 'respawn') flashPrompt('底なしに落ちた。さっきの場所へもどる');
   jumpQueued = false;
   st.walked += Math.abs(h.t - before);
   st.revealT = Math.max(st.revealT, Math.min(L.T, h.t + 3));
@@ -392,9 +423,7 @@ function loop(now) {
     drawTimeline();
     renderCoach();
     renderPrompt(why);
-    // 正史は、巣に着くところを見届けたときに（見ていない未来の結果は教えない）
-    if (st.hist.end.type === 'goal' && !st.solved && !stage.waving() && st.revealT >= st.hist.end.t) { st.solved = true; onSolved(); }
-    if (st.hist.end.type !== 'goal') st.solved = false;
+    // 正史かどうかは、遊ぶ人が「綴じる」（Enter）まで判定しない
   }
   requestAnimationFrame(loop);
 }
