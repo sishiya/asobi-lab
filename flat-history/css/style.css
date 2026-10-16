@@ -430,9 +430,57 @@ body.touch .prompt:empty { display: none; }
 #tNext { font-size: 13px; }
 @media (max-width: 420px) { .stick { left: 12px; width: 108px; height: 108px; } .knob { left: 29px; top: 29px; } .tbtns { right: 10px; grid-template-columns: 58px 76px; } .tb { width: 58px; height: 58px; } .tb.big { width: 76px; height: 76px; } }
 
-/* ためし: 束の中の再生のあいだは、画面の飾りをしまう */
-body.touring .hud, body.touring .inset { visibility: hidden; }
 
 /* 題: 一秒図鑑（副題つき）・あそびかたの「つじつま」 */
 .t-name-sub { display: block; margin-top: 6px; font-size: 15px; font-weight: 400; letter-spacing: .3em; color: var(--sub); }
 .help-lore { margin: 14px 0 4px; padding: 10px 12px; border-left: 3px solid var(--brass); background: rgba(244,234,211,.5); font: 13px/1.8 var(--serif); color: #5a4430; }
+
+/* v025: 回答するボタンを大きく・気づきやすく（歴史が変わったのに未回答のあいだ脈打つ） */
+.bind-btn { width: 104px; height: 104px; font-size: 19px; line-height: 1.15; }
+.bind-btn.ready { animation: bindPulse 1.6s ease-in-out infinite; }
+@keyframes bindPulse {
+  0%, 100% { box-shadow: inset 0 0 0 4px rgba(255,235,210,.25), 0 4px 12px rgba(60,20,10,.35), 0 0 0 0 rgba(163,80,58,.55); }
+  50% { box-shadow: inset 0 0 0 4px rgba(255,235,210,.25), 0 4px 12px rgba(60,20,10,.35), 0 0 0 14px rgba(163,80,58,0); }
+}
+@media (max-width: 760px), (max-height: 520px) { .bind-btn { width: 78px; height: 78px; font-size: 15px; } }
+/* 取り消しの札（置いた・つかんだ直後だけ） */
+.undo-tip { position: fixed; left: 50%; transform: translateX(-50%); bottom: 112px; z-index: 7; border: 1px solid var(--rule); border-radius: 20px;
+  background: rgba(251,245,230,.95); color: var(--ink); font: 14px var(--serif); padding: 6px 14px; cursor: pointer; box-shadow: 0 2px 8px rgba(60,40,20,.2); }
+.undo-tip[hidden] { display: none; }
+.undo-tip kbd { font-size: 11px; }
+body.touch .undo-tip kbd { display: none; }
+body.touch .undo-tip { bottom: 250px; }
+/* メニュー: 大きいボタンは3つ、のこりは下に小さく */
+.menu-sub { display: flex; justify-content: center; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--rule); flex-wrap: wrap; }
+.menu-sub .act { font-size: 13px; padding: 6px 10px; }
+
+/* タイトル・図版えらびでは、スマホのスティックとボタンを出さない */
+body.touch.menu .touch-ui { display: none; }
+
+/* スマホ: キーの印はしまう（あそびかたの表は別）。図版の名前は画面の幅に合わせる */
+body.touch kbd { display: none; }
+body.touch .help-card kbd { display: inline-block; }
+@media (max-width: 520px) {
+  .intro .nm { font-size: clamp(20px, 7vw, 30px); letter-spacing: .08em; white-space: nowrap; }
+  .intro .pn { font-size: 13px; letter-spacing: .08em; }
+  .plates { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px; }
+}
+
+/* 低い画面（スマホの横向き）: タイトルを詰めて、はみ出しても中でスクロールできるように */
+.screen { overflow-y: auto; }
+@media (max-height: 520px) {
+  .title-card { padding: 14px 24px 10px; }
+  .t-kicker { margin-bottom: 2px; font-size: 11px; }
+  .t-name { font-size: 24px; }
+  .t-name::after { display: none; }
+  .t-name-sub { font-size: 12px; margin-top: 2px; }
+  .t-sub { margin: 6px 0 10px; font-size: 12px; line-height: 1.6; }
+  .t-acts .act.big { padding: 8px 18px; font-size: 14px; }
+  .t-row { margin-top: 6px; }
+  .t-foot { margin-top: 6px; font-size: 10px; }
+  .menu-card, .help-card, .settings-card { max-height: 92vh; overflow-y: auto; }
+}
+/* スマホの横向き: 小窓は左上へ（右のボタンと重ならないように） */
+@media (max-height: 520px) {
+  body.touch .inset, body.touch .inset[style] { top: 46px; left: 6px; right: auto; width: 30vw; }
+}

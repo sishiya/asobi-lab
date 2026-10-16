@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・標本台・主人公・置いた形・持っている形・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=34';
-import { radialTexture } from './look/util.js?v=34';
-import { S, drawSheet } from './sheet.js?v=34';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=34';
-import { TABLE, tableY } from './hero.js?v=34';
+import { look, kindColor } from './look/index.js?v=36';
+import { radialTexture } from './look/util.js?v=36';
+import { S, drawSheet } from './sheet.js?v=36';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=36';
+import { TABLE, tableY } from './hero.js?v=36';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -232,14 +232,22 @@ export function createStage(canvas, L) {
     m.visible = false; scene.add(m); sockMarks.push(m);
   }
   let carried = null, carriedKey = '';
-  // つかめる形の上に、ポコっと出る E のキー
+  // つかめる形の上に、ポコっと出る「つかむ手」の印（銅版画ふうの線の手）
   const eIcon = (() => {
     const cv = document.createElement('canvas'); cv.width = cv.height = 128;
     const g = cv.getContext('2d');
     g.fillStyle = '#3d2a18'; g.beginPath(); g.roundRect(14, 18, 100, 100, 18); g.fill();
     g.fillStyle = '#fbf5e6'; g.beginPath(); g.roundRect(14, 10, 100, 96, 18); g.fill();
     g.strokeStyle = '#3d2a18'; g.lineWidth = 6; g.stroke();
-    g.fillStyle = '#3d2a18'; g.font = 'bold 64px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('E', 64, 60);
+    // 手のひらと4本の指・親指（指を軽く曲げた、つかむ手）
+    g.save(); g.translate(64, 60); g.fillStyle = '#e9d3a8'; g.strokeStyle = '#3d2a18'; g.lineWidth = 4; g.lineJoin = 'round';
+    const finger = (x, y, h) => { g.beginPath(); g.roundRect(x - 6, y - h, 12, h + 8, 6); g.fill(); g.stroke(); };
+    finger(-15, -6, 26); finger(-3, -9, 31); finger(9, -8, 29); finger(21, -3, 22);
+    g.beginPath(); g.roundRect(-22, -6, 50, 36, 12); g.fill(); g.stroke();
+    g.beginPath(); g.moveTo(-20, 10); g.quadraticCurveTo(-36, 4, -34, -10); g.quadraticCurveTo(-30, -16, -24, -10); g.quadraticCurveTo(-20, 0, -12, 4); g.fill(); g.stroke();
+    g.strokeStyle = 'rgba(61,42,24,.5)'; g.lineWidth = 2;
+    for (const x of [-9, 3, 15]) { g.beginPath(); g.moveTo(x, -4); g.lineTo(x, 6); g.stroke(); }
+    g.restore();
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
     sp.renderOrder = 10; sp.visible = false; scene.add(sp);
@@ -439,7 +447,6 @@ export function createStage(canvas, L) {
   function update(dt, v) {
     const { hero: h, walking, carry, cand, candOk, revealT, focus, moveX, moveT } = v;
     heroY = h.y;
-    hero.visible = !v.tour;
     const now = performance.now() / 1000;
     // 波
     if (waveT !== null) {
@@ -483,7 +490,7 @@ export function createStage(canvas, L) {
       const e = book * book * (3 - 2 * book), az = Z(bookAt);
       for (const sh of sheets) sh.mesh.position.z = Z(sh.t) + (az - Z(sh.t)) * e + (sh.t - bookAt) * 0.002 * e;
       const show = book < 0.05;
-      edgeLines.visible = show; hero.visible = show && !v.tour; blob.visible = blob.visible && show;
+      edgeLines.visible = show; hero.visible = show; blob.visible = blob.visible && show;
       for (const [, o] of pieceObjs) o.visible = show;
       if (ribbon) ribbon.visible = ribbon.visible && show;
       frame.position.z = book > 0 ? az + 0.02 : frame.position.z;
@@ -532,7 +539,7 @@ export function createStage(canvas, L) {
     ud.body.rotation.y += d * Math.min(1, dt * 12);
     const tm = now;
     if (ud.animate) ud.animate(dt, { speed: Math.hypot(moveX, moveT), run: !!v.running, grounded: h.grounded, vy: h.vy, carry: !!carry, landT: h.landT || 0, t: h.t });
-    if (!v.tour) heroOverlay(h.x, visY, h.t);
+    heroOverlay(h.x, visY, h.t);
     // 足もとの影（真下の地面に）
     blob.visible = Number.isFinite(v.groundY);
     if (blob.visible) {
@@ -550,7 +557,7 @@ export function createStage(canvas, L) {
       const pop = ePop < 1 ? 1 + Math.sin(ePop * Math.PI) * 0.35 : 1;
       const top = gp.y0 + dd.h + (dd.along === 'z' ? dd.slope * dd.dz : dd.slope * dd.wx);
       eIcon.position.set(gp.x0 + dd.wx / 2, top + 0.7 + Math.sin(tm * 4) * 0.08, Z(gp.t0 + dd.dz / 2));
-      eIcon.scale.setScalar(0.5 * pop * ePop);
+      eIcon.scale.setScalar(0.75 * pop * ePop);
     }
 
     // 持っている形（頭の上に小さく）
@@ -629,7 +636,5 @@ export function createStage(canvas, L) {
   // 確認用: 波を終わらせる
   function skipWave() { if (waveT === null) return; for (const sh of sheets) if (sh.pending) drawOne(sh); waveT = null; }
 
-  const saveOrbit = () => ({ ...orbit });
-  const setOrbit = (o) => { Object.assign(orbit, o); lastManual = performance.now() / 1000; };
-  return { saveOrbit, setOrbit, setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, heroPortrait, pickGround, set onTap(f) { onTap = f; }, closeBook, openBook, waving: () => waveT !== null };
+  return { setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, heroPortrait, pickGround, set onTap(f) { onTap = f; }, closeBook, openBook, waving: () => waveT !== null };
 }

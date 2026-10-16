@@ -1,5 +1,5 @@
 // 1秒のページ（2D世界）の絵。空は透明にして、ページを重ねると地面が奥行きにのびて見えるようにする。
-import { look, kindColor } from './look/index.js?v=34';
+import { look, kindColor } from './look/index.js?v=36';
 
 export const S = 20; // 1マスのピクセル
 

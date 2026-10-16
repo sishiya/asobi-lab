@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=34';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=34';
-import { drawSheet } from './sheet.js?v=34';
-import { createStage, misprintOf } from './stage3d.js?v=34';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=34';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=34';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=34';
+import { LEVELS } from './level.js?v=36';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=36';
+import { drawSheet } from './sheet.js?v=36';
+import { createStage, misprintOf } from './stage3d.js?v=36';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=36';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=36';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=36';
 
 const $ = (id) => document.getElementById(id);
 
@@ -60,7 +60,7 @@ function loadLevel(i) {
   stage.setLevel(L);
   stage.setHistory(st.hist, st.pieces, 0, false);
   stage.resetCamera();
-  st.lock = null; st.undo = [];
+  st.lock = null; st.undo = []; st.dirty = false;
   $('lvPlate').textContent = 'Pl. ' + L.plate;
   $('lvName').textContent = L.name;
   closeAll();
@@ -161,14 +161,15 @@ function drawEnding(dt) {
   const lines = ['図鑑が、一冊になった。', `${look().who}の ${n}代の正史が、ここに綴じられている。`, '光にかざすと、すみに見なれない形の透かしがひとつ。'];
   lines.forEach((s2, i) => { const a = Math.max(0, Math.min(1, (t - 1.5 - i * 2.2) / 1.2)); g.fillStyle = `rgba(74,51,32,${a})`; g.font = '18px "Yu Mincho", serif'; g.textAlign = 'center'; g.fillText(s2, 360, 46 + i * 28); });
   g.textAlign = 'left';
-  $('edClose').hidden = t < 9;
+  $('edClose').hidden = t < 1.5;
 }
 $('edClose').addEventListener('click', closeEnding);
+$('edCanvas').addEventListener('click', () => { if (ed.t > 1.5) closeEnding(); });
 $('selEnding').addEventListener('click', () => { se.click(); openEnding(); });
 
 const openMenu = () => { closeAll(); $('menu').hidden = false; keys.clear(); se.click(); };
 const modalOpen = () => ['menu', 'help', 'replay', 'preview', 'settings', 'ending'].some((id) => !$(id).hidden);
-const playing = () => screen === 'game' && !modalOpen() && !bindingNow && !tour;
+const playing = () => screen === 'game' && !modalOpen() && !bindingNow;
 
 // ---- つかむ・置く・回す ----
 function facingAxis() {
@@ -278,8 +279,14 @@ function tapAt(x, t) {
   lockTo(list.length ? list[0] : sockCache.base);
   se.click();
 }
-// ひとつ戻す（置く・つかむの前の形にもどす）
-function pushUndo() { st.undo.push({ pieces: st.pieces.map((p) => ({ ...p })), carry: st.carry && { ...st.carry } }); if (st.undo.length > 40) st.undo.shift(); }
+// 取り消し: さっきの「置く」「つかむ」を、なかったことにする（置いた・つかんだ直後に、取り消しの札が数秒出る）
+let undoUntil = 0;
+function pushUndo(what, kind) {
+  st.undo.push({ pieces: st.pieces.map((p) => ({ ...p })), carry: st.carry && { ...st.carry }, what, kind });
+  if (st.undo.length > 40) st.undo.shift();
+  undoUntil = performance.now() + 5000;
+  $('undoTip').innerHTML = `↶ いま${what === 'place' ? '置いた' : 'つかんだ'}のを取り消す` + (isTouch ? '' : ' <kbd>Z</kbd>');
+}
 function undo() {
   const u = st.undo.pop();
   if (!u) { se.no(); return; }
@@ -291,25 +298,33 @@ function undo() {
   const inb = changed.filter(inBlock);
   if (inb.length) recompute(Math.min(...inb.map((p) => p.t0)));
   else stage.setHistory(st.hist, st.pieces, null, false);
-  flashPrompt('ひとつ前にもどした');
+  flashPrompt(u.what === 'place' ? `${kindName(u.kind)}を、置く前にもどした（手に持っている）` : `${kindName(u.kind)}を、もとの場所にもどした`);
+  undoUntil = 0;
 }
 // 目の前（または足もと）でつかめる形
 function grabbable() {
   if (st.carry) return null;
   const h = st.hero;
-  const px = h.x + h.fx * 1.0, pt = h.t + h.ft * 1.0;
+  // 目の前の点と、足もとの点（乗っている形もつかめる）
+  const pts = [[h.x + h.fx * 1.0, h.t + h.ft * 1.0], [h.x, h.t]];
   let best = null, bd = 9;
   for (const p of st.pieces) {
     const d = pieceDims(p);
-    const dx = Math.max(p.x0 - px, 0, px - (p.x0 + d.wx));
-    const dt = Math.max(p.t0 - pt, 0, pt - (p.t0 + d.dz));
-    const dist = Math.hypot(dx, dt);
-    if (dist < 0.9 && dist < bd && h.y - p.y0 > -2.5 && h.y - p.y0 < 3) { best = p; bd = dist; }
+    let dist = 9;
+    for (const [px, pt] of pts) {
+      const dx = Math.max(p.x0 - px, 0, px - (p.x0 + d.wx));
+      const dt = Math.max(p.t0 - pt, 0, pt - (p.t0 + d.dz));
+      dist = Math.min(dist, Math.hypot(dx, dt));
+    }
+    // 高さは、形の下から、いちばん高い上の面まで（ななめの板や柱の上でも）
+    const top = p.y0 + d.h + Math.max(0, d.along === 'z' ? d.slope * d.dz : d.slope * d.wx);
+    if (dist < 0.9 && dist < bd && h.y > p.y0 - 2.5 && h.y < top + 0.6) { best = p; bd = dist; }
   }
   return best;
 }
 function recompute(fromT) {
   st.solved = false;
+  st.dirty = true;
   st.hist = simulate(L, st.pieces);
   stage.setHistory(st.hist, st.pieces, fromT, true);
   se.wave();
@@ -322,7 +337,7 @@ function useE() {
     const c = candidate();
     const why = canPlace(L, c, st.pieces);
     if (why) { flashPrompt(why); se.no(); return; }
-    pushUndo();
+    pushUndo('place', c.kind);
     const p = { id: st.nextId++, kind: c.kind, rot: c.rot, x0: c.x0, t0: c.t0, y0: c.y0 };
     st.lock = null;
     st.pieces.push(p);
@@ -333,7 +348,7 @@ function useE() {
   }
   const p = grabbable();
   if (!p) return;
-  pushUndo();
+  pushUndo('grab', p.kind);
   st.pieces = st.pieces.filter((q) => q !== p);
   st.carry = { kind: p.kind, rot: p.rot || 0 };
   st.lock = null;
@@ -385,7 +400,6 @@ let jumpQueued = false;
 window.addEventListener('keydown', (e) => {
   initAudio(); startBgm();
   const k = e.key;
-  if (tour) { if (k === 'Escape' || k === 'Enter' || k === ' ') { e.preventDefault(); endTour(); } return; }
   if (!$('replay').hidden) {
     if (k === 'Escape') closeReplay();
     else if (k === 'Enter' && rp.judged && enterOk() && st.solved && (hasNext() || allSolved())) goNext();
@@ -415,7 +429,7 @@ window.addEventListener('keydown', (e) => {
   if (k === 'q' || k === 'Q') rotate();
   if (k === 'Tab' && st.carry) nextSocket();
   if (k === 'z' || k === 'Z' || k === 'Backspace') undo();
-  if (k === 'Enter' && enterOk()) { if (st.solved && hasNext()) goNext(); else bind(); }
+  if (k === 'Enter' && enterOk()) { if (st.solved) reopenResult(); else bind(); }
   if (k === 'm' || k === 'M') nextBgm();
 });
 window.addEventListener('keyup', (e) => { const k = e.key; keys.delete(k); keys.delete(k.toLowerCase()); keys.delete(k.toUpperCase()); });
@@ -426,7 +440,7 @@ window.addEventListener('contextmenu', (e) => { keys.clear(); if (e.target.close
 window.addEventListener('pointerdown', () => { initAudio(); startBgm(); });
 
 // タイトル・図版えらび・メニュー
-$('mUndo').addEventListener('click', () => { closeAll(); undo(); });
+$('undoTip').addEventListener('click', () => { if (playing()) undo(); });
 $('tStart').addEventListener('click', () => { se.click(); startGame(firstUnsolved()); });
 $('tSelect').addEventListener('click', () => { se.click(); renderSelect('title'); });
 $('tHelp').addEventListener('click', () => { $('help').hidden = false; });
@@ -558,7 +572,7 @@ function drawTimeline() {
 
 // ---- ひとことの導き ----
 function coachText() {
-  if (st.solved) return hasNext() ? '正史ができた。Enter で次の図版へ' : '正史ができた';
+  if (st.solved) return '正史ができた。もう一度見るなら「結果を見る」';
   if (st.lv === 0 && !st.boundOnce && !st.carry && blockPieces().length && st.hintIdx >= (L.hints || []).length) return tx('これで巣に着くと思ったら、「回答する」（Enter）で答えよう');
   const hs = L.hints || [];
   const c = { walked: st.walked, seenEnd: st.revealT >= st.base.end.t, placed: blockPieces().length > 0, rotated: !!st.rotatedOnce };
@@ -568,8 +582,14 @@ function coachText() {
   return '';
 }
 let coachShown = null;
+// スマホでは、キーの名前をボタンの名前に言いかえる
+function touchText(t) {
+  if (!isTouch || !t) return t;
+  return t.replace('W で前へ', 'スティックを上へ倒して前へ').replace(/E でつかみ/g, '「つかむ」でつかみ').replace(/E で置いて/g, '「置く」で置いて')
+    .replace(/E で持ち上げて/g, '「つかむ」で持ち上げて').replace(/Q で/g, '「回す」で').replace('（Enter）', '').replace(/Enter で/g, '');
+}
 function renderCoach() {
-  const t = coachText();
+  const t = touchText(coachText());
   if (t === coachShown) return;
   coachShown = t;
   const el = $('coach');
@@ -582,7 +602,7 @@ function renderPrompt(why) {
   let html = '';
   const g = grabbable();
   if (performance.now() < flashUntil) html = flashMsg;
-  else if (st.carry) html = `<kbd>E</kbd> 置く　<kbd>Q</kbd> 回す　<kbd>Tab</kbd> となりの置き場所　クリック そこへ　<kbd>Z</kbd> ひとつ戻す` + (why ? `<span class="bad">${why}</span>` : '');
+  else if (st.carry) html = `<kbd>E</kbd> 置く　<kbd>Q</kbd> 回す　<kbd>Tab</kbd> となりの置き場所` + (why ? `<span class="bad">${why}</span>` : '');
   else if (g) html = `<kbd>E</kbd> ${kindName(g.kind)}をつかむ`;
   else if (st.walked < 2 && st.lv === 0) html = `<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ${cfg.runDefault ? '走る' : '歩く'}　<kbd>Shift</kbd> ${cfg.runDefault ? '歩く' : '走る'}　<kbd>Space</kbd> 跳ぶ　ドラッグ 見回す`;
   if (isTouch) html = performance.now() < flashUntil ? flashMsg : (st.carry && why ? `<span class="bad">${why}</span>` : '');
@@ -621,8 +641,16 @@ function goNext() {
   if (hasNext()) startGame(st.lv + 1); else renderSelect('game');
 }
 const rp = { t: 0, playing: true, speed: 4, judged: true, endT: 0, gA: $('rpA').getContext('2d'), gB: $('rpB').getContext('2d') };
+// 正史のあと: さっきの結果画面をもう一度（判定はしなおさない）
+function reopenResult() {
+  se.click(); closeAll();
+  $('replay').hidden = false;
+  rp.t = 0; rp.playing = true; rp.lastT = 0; rp.walk = 0; $('rpPlay').textContent = '❚❚';
+  lockEnter(500); keys.clear();
+}
 function bind() {
   if (bindingNow) return;
+  st.dirty = false;
   if (stage.waving()) stage.skipWave();
   st.boundOnce = true;
   se.click();
@@ -637,7 +665,6 @@ function showBindReplay() {
   document.querySelector('.replay-card').classList.remove('with-why');
   $('rpNext').hidden = true;
   $('rpClose').hidden = true;
-  $('rpTour').hidden = true;
   $('replay').hidden = false;
   rp.judged = false;
   rp.endT = Math.min(L.T, st.hist.end.t + 1.2);
@@ -680,7 +707,6 @@ function judge() {
   $('rpNext').hidden = !(ok && (hasNext() || allSolved()));
   $('rpNext').innerHTML = ok && allSolved() && !progress._ending ? 'おわりの図版へ <kbd>Enter</kbd>' : '次の図版へ <kbd>Enter</kbd>';
   $('rpClose').hidden = false;
-  $('rpTour').hidden = false;
   $('rpClose').innerHTML = ok ? 'この図版にもどる <kbd>Esc</kbd>' : '考えなおす <kbd>Esc</kbd>';
 }
 // 「まだ」のわけを2枚の絵で: 住人がつまずいたページと、いちばん近い形の、出ていた（いなかった）ページ
@@ -710,38 +736,10 @@ function showWhy(e, np) {
 }
 
 // 回答の再生の最中に Esc → 最後まで早送りして結果を出す
-// ---- ためし: 結果を、ページの束の中を飛んで見る（住人のいるページを追いかけて、昔から未来へ） ----
-let tour = null;
-function startTour() {
-  if (!rp.judged) return;
-  se.click();
-  $('replay').hidden = true;
-  tour = { t: 0, lastT: 0, end: Math.min(L.T, st.hist.end.t + 2), saved: stage.saveOrbit() };
-  stage.setOrbit({ yaw: 0.45, pitch: 0.5, dist: 22 });
-  document.body.classList.add('touring');
-}
-function endTour() {
-  if (!tour) return;
-  stage.setOrbit(tour.saved);
-  tour = null;
-  document.body.classList.remove('touring');
-  $('replay').hidden = false;
-}
-function stepTour(dt) {
-  tour.t = Math.min(tour.end, tour.t + dt * 3);
-  const fr = frameAt(st.hist.frames, tour.t);
-  const ghostHero = { x: fr.x * 0.4 + L.W * 0.3, y: Math.max(fr.y, 3), t: tour.t, fx: fr.dir, ft: 0, vy: 0, grounded: true, landT: 0 };
-  replaySounds(st.hist, tour, tour.t);
-  stage.update(dt, { hero: ghostHero, tour: true, walking: false, moveX: 0, moveT: 0, carry: null, cand: null, revealT: L.T, focus: Math.round(tour.t), showRoute: false, grab: null, groundY: NaN, flip: null });
-  if (tour.t >= tour.end) { if (!tour.doneAt) tour.doneAt = performance.now(); else if (performance.now() - tour.doneAt > 900) endTour(); }
-}
-$('rpTour').addEventListener('click', startTour);
-$('view').addEventListener('pointerdown', () => { if (tour) endTour(); });
-
 function closeReplay() { if (!rp.judged) { rp.t = rp.endT; return; } $('replay').hidden = true; stage.openBook(); duckBgm(false); }
 function togglePlay() { if (rp.t >= L.T) rp.t = 0; rp.playing = !rp.playing; $('rpPlay').textContent = rp.playing ? '❚❚' : '▶'; }
 $('rpNext').addEventListener('click', goNext);
-$('btnBind').addEventListener('click', () => { if (playing()) { if (st.solved && hasNext()) goNext(); else bind(); } });
+$('btnBind').addEventListener('click', () => { if (playing()) { if (st.solved) reopenResult(); else bind(); } });
 $('rpClose').addEventListener('click', closeReplay);
 $('rpPlay').addEventListener('click', togglePlay);
 $('rpSeek').addEventListener('input', (e) => { rp.t = +e.target.value; });
@@ -764,7 +762,6 @@ function loop(now) {
   last = now;
   if (!$('preview').hidden) drawPreview(dt);
   if (ed.on) drawEnding(dt);
-  if (tour) { stepTour(dt); requestAnimationFrame(loop); return; }
   if (!$('replay').hidden) {
     if (rp.playing) { rp.t = Math.min(L.T, rp.t + dt * rp.speed); if (rp.t >= L.T) { rp.playing = false; $('rpPlay').textContent = '▶'; } }
     // 住人の音（再生の時刻が進んだ分だけ）
@@ -824,6 +821,7 @@ function loop(now) {
     drawTimeline();
     renderCoach();
     renderPrompt(why);
+    $('undoTip').hidden = !(performance.now() < undoUntil && st.undo.length);
     drawInset(focus, cand, !why);
     if (isTouch) {
       $('tGrab').textContent = st.carry ? '置く' : 'つかむ';
@@ -831,8 +829,10 @@ function loop(now) {
       $('tRot').hidden = !st.carry;
       $('tNext').hidden = !st.carry;
     }
-    const bindHtml = st.solved && hasNext() ? '次へ <kbd>Enter</kbd>' : '回答する <kbd>Enter</kbd>';
+    const bindHtml = st.solved ? '結果を<br>見る <kbd>Enter</kbd>' : '回答<br>する <kbd>Enter</kbd>';
     if ($('btnBind').innerHTML !== bindHtml) $('btnBind').innerHTML = bindHtml;
+    // 形を置いて歴史が変わったのに、まだ回答していないあいだは、ボタンが脈打つ
+    $('btnBind').classList.toggle('ready', !st.solved && st.dirty && blockPieces().length > 0);
     // 正史かどうかは、遊ぶ人が「回答する」（Enter）まで判定しない
   }
   requestAnimationFrame(loop);
@@ -846,4 +846,4 @@ loadLevel(firstUnsolved());
 showScreen('title');
 requestAnimationFrame(loop);
 // 確認用
-window.__fh = { startTour, get tour() { return tour; }, st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, nextSocket, tapAt, undo, lockTo, socketsAround, bind, judge, rp, stage, showBindReplay, ed, openEnding, get L() { return L; } };
+window.__fh = { st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, nextSocket, tapAt, undo, lockTo, socketsAround, bind, judge, rp, stage, showBindReplay, ed, openEnding, get L() { return L; } };
