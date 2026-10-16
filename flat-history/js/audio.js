@@ -30,7 +30,8 @@ export function initAudio() {
   bgmBus = ctx.createGain(); bgmBus.gain.value = BGM_MAX * bgmVol;
   bgmBus.connect(master); bgmBus.connect(verb);
   seBus = ctx.createGain(); seBus.gain.value = SE_MAX * seVol;
-  seBus.connect(master); seBus.connect(verb);
+  const seVerb = ctx.createGain(); seVerb.gain.value = 0.35;
+  seBus.connect(master); seBus.connect(seVerb).connect(verb);
 }
 
 export function setVolumes(b, e) {
@@ -60,6 +61,7 @@ function harpsichord(t, m, dur, vel, bus = bgmBus) {
     o.start(t); o.stop(t + Math.max(0.35, dur) + 0.05);
   }
   lp.connect(g).connect(bus);
+  noise(t, 0.018, 'highpass', 3500, 0.7, vel * 0.18, bus); // 弦をはじく音
 }
 
 // 鈴・オルゴール
@@ -172,7 +174,7 @@ function melody(t, mel, step, play) {
 
 const TRACKS = [
   {
-    id: 'minuet', name: 'チェンバロのメヌエット', beat: 60 / 80, beats: 3,
+    id: 'minuet', name: 'チェンバロのメヌエット', beat: 60 / 80, beats: 3, key: [57, 'minor'],
     bars: [
       ['Am', [76, 74, 72]], ['Dm', [74, 72, 69]], ['G', [71, 74, 79]], ['C', [76, 72, null]],
       ['F', [77, 76, 74]], ['Dm', [72, 74, 77]], ['E', [76, 71, 68]], ['Am', [69, null, null]],
@@ -188,7 +190,7 @@ const TRACKS = [
     },
   },
   {
-    id: 'musicbox', name: '夜のオルゴール', beat: 60 / 66, beats: 3,
+    id: 'musicbox', name: '夜のオルゴール', beat: 60 / 66, beats: 3, key: [62, 'minor'],
     bars: [
       ['Dm', [74, 77, 81]], ['Bb', [79, 77, 74]], ['F', [72, 77, 81]], ['C', [79, 76, 72]],
       ['Gm', [74, 79, 82]], ['Dm', [81, 77, 74]], ['A', [76, 73, 69]], ['Dm', [74, null, null]],
@@ -201,7 +203,7 @@ const TRACKS = [
     },
   },
   {
-    id: 'pavane', name: '古時計のパヴァーヌ', beat: 60 / 62, beats: 4,
+    id: 'pavane', name: '古時計のパヴァーヌ', beat: 60 / 62, beats: 4, key: [57, 'minor'],
     bars: [
       ['Am', [76, null, 74, 72]], ['G', [74, null, 71, 67]], ['F', [72, 69, 72, 77]], ['G', [74, null, null, null]],
       ['Am', [72, 74, 76, 79]], ['Em', [79, 77, 76, 74]], ['F', [72, null, 74, 72]], ['E', [71, null, 68, null]],
@@ -214,10 +216,12 @@ const TRACKS = [
     },
   },
   {
-    id: 'stroll', name: '標本室のおさんぽ', beat: 60 / 104, beats: 2,
+    id: 'stroll', name: '標本室のおさんぽ', beat: 60 / 104, beats: 2, key: [60, 'major'],
     bars: [
       ['C', [72, 76, 79, 76]], ['Am', [72, 76, 81, 79]], ['F', [77, 76, 74, 72]], ['G', [74, null, 71, 74]],
       ['C', [76, 79, 84, 79]], ['F', [81, 77, 74, 77]], ['G', [79, 77, 74, 71]], ['C', [72, null, null, null]],
+      ['Am', [76, 72, 69, 72]], ['Em', [71, 74, 79, 76]], ['F', [77, 81, 77, 74]], ['C', [76, null, 72, 76]],
+      ['Dm', [74, 77, 81, 77]], ['G', [79, 74, 71, 74]], ['F', [72, 76, 74, 71]], ['C', [72, null, null, null]],
     ],
     play(t, [name, mel], B) {
       const c = CH[name];
@@ -227,7 +231,7 @@ const TRACKS = [
     },
   },
   {
-    id: 'fog', name: '霧のなかの図版', beat: 60 / 52, beats: 4,
+    id: 'fog', name: '霧のなかの図版', beat: 60 / 52, beats: 4, key: [57, 'minor'],
     bars: [['Am', 0], ['Am', 1], ['F', 2], ['F', 3], ['C', 4], ['C', 5], ['G', 6], ['Em', 7]],
     play(t, [name, seed], B) {
       const c = CH[name];
@@ -262,6 +266,12 @@ export function startBgm() {
   timer = setInterval(scheduler, 120);
 }
 export function stopBgm() { bgmOn = false; clearInterval(timer); }
+// 判定のあいだは BGM を小さく（duck=true）。結果のあとにもどす
+export function duckBgm(on) {
+  if (!ctx || !bgmBus) return;
+  bgmBus.gain.setTargetAtTime(BGM_MAX * bgmVol * (on ? 0.25 : 1), ctx.currentTime, on ? 0.08 : 0.6);
+}
+const keyOf = () => (TRACKS.find((tr) => tr.id === trackId) || TRACKS[0]).key;
 // 曲をかえる（前の曲は小さくして、はじめから新しい曲）
 export function setBgm(id) {
   if (!TRACKS.some((tr) => tr.id === id)) return;
@@ -309,11 +319,66 @@ export const se = {
     if (!ctx) return;
     tone(ctx.currentTime + 1.2, 'triangle', 660, 180, 0.7, 0.12);
   },
-  goal() { // 正史ができた: オルゴールの分散和音
+  goal() { // 正史: いまの曲の調で、属和音から主和音へ解決し、上でオルゴールが鳴る
     if (!ctx) return;
-    const t = ctx.currentTime + 0.1;
-    [69, 72, 76, 81, 84, 88].forEach((m, i) => bell(t + i * 0.11, m, 0.2, 2.2));
-    [57, 64, 69].forEach((m) => harpsichord(t + 0.7, m, 2, 0.3, seBus));
+    const [r, mode] = keyOf(), t = ctx.currentTime + 0.05;
+    const third = mode === 'minor' ? 3 : 4;
+    [r - 5, r - 1, r + 2, r + 7].forEach((m) => harpsichord(t, m, 0.6, 0.22, seBus)); // 属和音（V7）
+    [r - 12, r, r + third, r + 7, r + 12].forEach((m) => harpsichord(t + 0.55, m, 2.4, 0.28, seBus)); // 主和音
+    [r + 12, r + 12 + third, r + 19, r + 24].forEach((m, i) => bell(t + 0.6 + i * 0.12, m, 0.16, 2.4));
+  },
+  notyet() { // まだ: 解決しないまま止まる
+    if (!ctx) return;
+    const [r] = keyOf(), t = ctx.currentTime + 0.05;
+    [r - 5, r - 1, r + 2, r + 5].forEach((m) => harpsichord(t, m, 1.6, 0.22, seBus));
+    tone(t + 0.4, 'triangle', 330, 220, 0.6, 0.06);
+  },
+  stamp() { // 判を押す音（紙に木の判）
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    tone(t, 'sine', 140, 60, 0.18, 0.6);
+    noise(t, 0.08, 'lowpass', 900, 0.8, 0.35);
+    noise(t + 0.01, 0.05, 'bandpass', 2400, 2, 0.12);
+  },
+  // ---- 住人（2D世界）の音。回答の再生・はじめの歴史でも鳴る ----
+  kiwiStep(res) {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    if (res === 'flat') tone(t, 'triangle', 1500 + Math.random() * 200, 1300, 0.04, 0.035); // 図形のすり足
+    else { noise(t, 0.035, 'bandpass', 900 + Math.random() * 300, 3, 0.07); } // 草をふむ小さな足音
+  },
+  kiwiTurn(res) {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    if (res === 'flat') { tone(t, 'square', 700, 900, 0.06, 0.03); tone(t + 0.07, 'square', 900, 700, 0.06, 0.03); }
+    else { tone(t, 'sine', 1900, 2600, 0.07, 0.08); tone(t + 0.09, 'sine', 2300, 1800, 0.08, 0.06); } // キーウィの短い鳴き声
+  },
+  kiwiFall() {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    tone(t, 'sine', 1400, 300, 0.7, 0.09);
+    noise(t + 0.5, 0.25, 'lowpass', 500, 0.7, 0.08);
+  },
+  kiwiHome() {
+    if (!ctx) return;
+    const [r] = keyOf(), t = ctx.currentTime;
+    [r + 12, r + 19, r + 24].forEach((m, i) => bell(t + i * 0.08, m, 0.1, 1.4));
+  },
+  // ---- 主人公の足音（姿ごとに音色を変える） ----
+  step(kind) {
+    if (!ctx) return;
+    const t = ctx.currentTime, v = 0.05 + Math.random() * 0.02;
+    if (kind === 'chime') bell(t, 88 + Math.floor(Math.random() * 3) * 2, v * 0.6, 0.5);
+    else if (kind === 'puff') noise(t, 0.12, 'lowpass', 600, 0.7, v * 1.4);
+    else if (kind === 'paper') noise(t, 0.05, 'highpass', 2600, 0.8, v);
+    else if (kind === 'stone') { tone(t, 'sine', 180, 120, 0.08, v * 2); noise(t, 0.03, 'bandpass', 1200, 2, v); }
+    else { tone(t, 'sine', 240, 160, 0.06, v * 1.6); noise(t, 0.03, 'bandpass', 1800, 2, v * 0.8); } // 木の床
+  },
+  land() {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    tone(t, 'sine', 160, 70, 0.14, 0.18);
+    noise(t, 0.06, 'lowpass', 700, 0.7, 0.1);
   },
   no() { // 置けない
     if (!ctx) return;

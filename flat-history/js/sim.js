@@ -1,5 +1,5 @@
 // 2D世界の決まったルール。置いた3Dの形は、その秒の断面（長方形）として2D世界に現れる。
-import { KINDS } from './level.js?v=22';
+import { KINDS } from './level.js?v=23';
 
 export const DT = 0.1;          // 1コマ＝0.1秒
 const SPEED = 1.5;              // 2D人の歩く速さ（マス/秒）
@@ -75,7 +75,7 @@ export function simulate(L, pieces) {
   const frames = new Array(N + 1);
   const events = [];
   const w = { x: L.start.x, y: L.tops[Math.floor(L.start.x)], dir: L.start.dir || 1, vy: 0, st: 'walk', from: 0 };
-  let end = null;
+  let end = null, overlap = null;
   for (let k = 0; k <= N; k++) {
     const t = k * DT;
     const secs = sectionsAt(pieces, t);
@@ -88,7 +88,8 @@ export function simulate(L, pieces) {
             w.y = s.y1;
             if (w.st === 'fall') { w.st = 'walk'; w.vy = 0; }
           } else {
-            // 背より高い → 近いほうの横へ押しのけられる（のりこえない）
+            // 背より高い形が、住人のいる所に現れた → そういう置き方は置けない（canPlace が見る）
+            if (!overlap) overlap = { t, x: w.x };
             const toL = w.x - s.x0, toR = s.x1 - w.x;
             w.x = toL < toR ? s.x0 - HALF - 0.01 : s.x1 + HALF + 0.01;
           }
@@ -130,7 +131,7 @@ export function simulate(L, pieces) {
     }
   }
   if (!end) end = { type: 'time', t: L.T, x: w.x, y: w.y };
-  return { frames, events, end };
+  return { frames, events, end, overlap };
 }
 
 // 時刻 t の2D人（コマのあいだはなめらかに）
@@ -160,6 +161,8 @@ export function canPlace(L, cand, pieces) {
   if (cand.x0 + d.wx > L.W || cand.x0 < -7) return 'ここには置けない';
   const top = cand.y0 + d.h + (d.along === 'z' ? d.slope * d.dz : d.slope * d.wx);
   if (top > L.H + 0.01) return '空の上につき出てしまう';
+  // 2D世界（ページ）にかかる形は、0〜60秒の外へはみ出せない
+  if (cand.x0 + d.wx > 0 && (cand.t0 < 0 || cand.t0 + d.dz > L.T)) return 'ページの外へはみ出してしまう';
   for (const p of pieces) {
     const dp = pieceDims(p);
     const a = Math.max(cand.t0, p.t0), b = Math.min(cand.t0 + d.dz, p.t0 + dp.dz);
@@ -168,6 +171,12 @@ export function canPlace(L, cand, pieces) {
         if (s1.x0 < s2.x1 - 1e-6 && s2.x0 < s1.x1 - 1e-6 && s1.y0 < s2.y1 - 1e-6 && s2.y0 < s1.y1 - 1e-6) return 'ほかの形とぶつかる';
       }
     }
+  }
+  // 住人のいる所に、背より高い形が現れる置き方はできない
+  if (cand.x0 + d.wx > 0) {
+    const key = JSON.stringify([L.id, cand, pieces.map((p) => [p.kind, p.rot, p.x0, p.t0, p.y0])]);
+    if (key !== canPlace.key) { canPlace.key = key; canPlace.hit = !!simulate(L, [...pieces, cand]).overlap; }
+    if (canPlace.hit) return '住人のいる所には置けない';
   }
   return '';
 }

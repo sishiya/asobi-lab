@@ -8,7 +8,7 @@
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="description" content="1秒ずつの2D世界が奥と手前に並んでいる。3Dの形を置くと、2D世界にはその断面が現れて、歴史が書きかわる。">
 <meta name="theme-color" content="#e2d2b0">
-<link rel="stylesheet" href="css/style.css?v=22">
+<link rel="stylesheet" href="css/style.css?v=23">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body class="menu">
@@ -28,7 +28,7 @@
       <button type="button" id="tHelp" class="act ghost">あそびかた</button>
       <button type="button" id="tSettings" class="act ghost">設定</button>
     </div>
-    <p class="t-foot"><span class="t-dev">キーボードとマウスで遊びます</span><span class="t-touch">指で遊べます（横向きがおすすめ）</span> ・ 試作 <span class="ver">v016</span> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
+    <p class="t-foot"><span class="t-dev">キーボードとマウスで遊びます</span><span class="t-touch">指で遊べます（横向きがおすすめ）</span> ・ 試作 <span class="ver">v017</span> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
   </div>
 </section>
 
@@ -48,7 +48,7 @@
   <button type="button" id="btnMenu" class="esc-hint"><kbd>Esc</kbd> メニュー</button>
 </header>
 
-<div class="clock hud" aria-live="polite"><span class="pl">Pl.</span><span id="clockNum">0</span><small>秒目のページ</small></div>
+<div class="clock hud" aria-live="polite"><span id="clockNum">0</span><small>秒目のページ</small></div>
 <div id="coach" class="coach hud" aria-live="polite"></div>
 <div id="intro" class="intro" hidden></div>
 <div id="prompt" class="prompt hud" aria-live="polite"></div>
@@ -102,7 +102,7 @@
       <label for="sRes">住人（2D）</label><select id="sRes"></select>
     </div>
     <div class="set-checks">
-      <label><input id="sRoute" type="checkbox"> 住人の通り道（世界線）を見せる</label>
+      <label><input id="sRoute" type="checkbox"> 住人の通り道を見せる</label>
       <label><input id="sRun" type="checkbox"> ふだんは走る（Shift を押すと歩く）</label>
       <label><input id="sInset" type="checkbox"> 右下に、いま立っているページを出す（V）</label>
     </div>
@@ -165,6 +165,6 @@
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=22"></script>
+<script type="module" src="js/main.js?v=23"></script>
 </body>
 </html>

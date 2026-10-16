@@ -383,3 +383,7 @@ body.touch #view { touch-action: none; }
 .rp-foot { z-index: 3; }
 .rp-foot .win-acts { position: relative; z-index: 2; }
 .rp-foot .act, .preview-card .act.big { min-height: 44px; padding: 10px 22px; font-size: 15px; }
+
+/* スマホ: 置けない理由・知らせは、画面の上のほうに出す */
+body.touch .prompt { display: block; bottom: auto; top: 96px; }
+body.touch .prompt:empty { display: none; }
