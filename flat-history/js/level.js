@@ -10,6 +10,8 @@ export const KINDS = {
   wall: { w: 1, h: 3, d: 6, slope: 0, desc: '高さ3マス・奥行き6秒ぶんの柱' },
   // 平行四辺形の板: 奥へ1秒進むごとに横へ shear マスずれた板。2D世界では横にすべる足場（ずれ＝速さ）。Q で向きが反対に
   slide: { w: 4, h: 1, d: 6, slope: 0, shear: 1.5, desc: '横にずれた、平行四辺形の板' },
+  // ひし形の板: 上から見るとひし形。2D世界では、まん中から広がって、また縮む足場（いちばん広いのは、まん中の秒だけ）
+  diamond: { w: 8, h: 1, d: 8, slope: 0, dia: true, desc: '上から見ると、ひし形の板' },
 };
 
 // 地形の列の高さを、[はじめの列, 終わりの列, 高さ] の並びから作る（書いていない列は 4。null は底なし）
@@ -111,6 +113,13 @@ export const LEVELS = [
     stones: [{ x: 32.5, t: 14, dir: -1 }],
     stock: { wall: 1 },
     hints: [{ text: '石は、どこへころがっていく？', when: (c) => c.placed }], fail: '',
+  },
+  {
+    // ひし形の板: 断面は、まん中の秒にいちばん広くなり、また縮む。崖をわたる3秒あまりに、広いところを合わせる
+    ...base, id: 's5', plate: 'XI', name: 'ひし形の橋',
+    tops: tops([[12, 16, null]]), start: { x: 1.6, dir: 1 }, goal: { x: 30 },
+    stock: { diamond: 1 },
+    hints: [{ text: 'ひし形の板は、どの秒で切っても同じ幅？', when: (c) => c.placed }], fail: '',
   },
 ];
 

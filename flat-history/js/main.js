@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=32';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=32';
-import { drawSheet } from './sheet.js?v=32';
-import { createStage, misprintOf } from './stage3d.js?v=32';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=32';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=32';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=32';
+import { LEVELS } from './level.js?v=34';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=34';
+import { drawSheet } from './sheet.js?v=34';
+import { createStage, misprintOf } from './stage3d.js?v=34';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=34';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=34';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=34';
 
 const $ = (id) => document.getElementById(id);
 
@@ -31,9 +31,10 @@ const st = {
   lv: 0, pieces: [], nextId: 1, base: null, hist: null,
   hero: null, carry: null, revealT: 0, walked: 0,
   hintIdx: 0, solved: false, lastEnd: '', boundOnce: false, failedOnce: false,
-  nudge: { x: 0, t: 0 },
+  lock: null, undo: [],
 };
 const stage = createStage($('view'), L);
+stage.onTap = (x, t) => tapAt(x, t);
 const inBlock = (p) => p.x0 + pieceDims(p).wx > 0;
 const blockPieces = () => st.pieces.filter(inBlock);
 
@@ -59,7 +60,7 @@ function loadLevel(i) {
   stage.setLevel(L);
   stage.setHistory(st.hist, st.pieces, 0, false);
   stage.resetCamera();
-  st.nudge = { x: 0, t: 0 };
+  st.lock = null; st.undo = [];
   $('lvPlate').textContent = 'Pl. ' + L.plate;
   $('lvName').textContent = L.name;
   closeAll();
@@ -155,8 +156,9 @@ function drawEnding(dt) {
     look().drawWalker(g, ENDL, { x, y: 4, dir: 1, st: arrived ? 'goal' : 'walk', since: arrived ? t : null }, 20);
   }
   // 係（あなた）も、ただ一度だけ、この本に刷られる
-  if (t > 6) { g.save(); g.globalAlpha = Math.min(1, (t - 6) / 2); stage.heroPortrait(g, 33.6, 4); g.restore(); }
-  const lines = ['図鑑が、一冊になった。', `${look().who}の ${n}代の正史が、ここに綴じられている。`, 'そのすみに、見なれない形の影がひとつ。'];
+  // 係は刷られない。最後のページを光にかざしたときだけ、透かしとして見える
+  if (t > 6) { g.save(); g.globalAlpha = 0.5 * Math.min(1, (t - 6) / 2) * (0.85 + 0.15 * Math.sin(t * 1.5)); stage.heroPortrait(g, 33.6, 4); g.restore(); }
+  const lines = ['図鑑が、一冊になった。', `${look().who}の ${n}代の正史が、ここに綴じられている。`, '光にかざすと、すみに見なれない形の透かしがひとつ。'];
   lines.forEach((s2, i) => { const a = Math.max(0, Math.min(1, (t - 1.5 - i * 2.2) / 1.2)); g.fillStyle = `rgba(74,51,32,${a})`; g.font = '18px "Yu Mincho", serif'; g.textAlign = 'center'; g.fillText(s2, 360, 46 + i * 28); });
   g.textAlign = 'left';
   $('edClose').hidden = t < 9;
@@ -166,39 +168,130 @@ $('selEnding').addEventListener('click', () => { se.click(); openEnding(); });
 
 const openMenu = () => { closeAll(); $('menu').hidden = false; keys.clear(); se.click(); };
 const modalOpen = () => ['menu', 'help', 'replay', 'preview', 'settings', 'ending'].some((id) => !$(id).hidden);
-const playing = () => screen === 'game' && !modalOpen() && !bindingNow;
+const playing = () => screen === 'game' && !modalOpen() && !bindingNow && !tour;
 
 // ---- つかむ・置く・回す ----
 function facingAxis() {
   const h = st.hero;
   return Math.abs(h.ft) >= Math.abs(h.fx) ? { ax: 't', s: Math.sign(h.ft) || 1 } : { ax: 'x', s: Math.sign(h.fx) || 1 };
 }
-// 持っている形を、目の前のどこに置くか
+// ---- 置き場所: 目の前のあたりで、いちばん「はまる」所（受け口）にゴーストが吸いつく ----
+// くぼみ（両がわが壁）・谷にかかる橋（両はしが支え）・となりの地面と面がそろう所ほど強く吸いつく
+const colTop = (i) => (i < -7 || i >= L.W ? -Infinity : i < 0 ? tableY(L) : L.tops[i]);
+function fitScore(c) {
+  const d = pieceDims(c), x0 = c.x0, x1 = c.x0 + d.wx;
+  let s = 0;
+  const lw = colTop(x0 - 1) > c.y0 + 0.5, rw = colTop(x1) > c.y0 + 0.5;
+  s += lw && rw ? 3 : lw || rw ? 1.2 : 0;
+  let gap = false;
+  for (let i = x0; i < x1; i++) if (colTop(i) < c.y0 - 0.5) gap = true;
+  if (gap && colTop(x0) >= c.y0 - 0.01 && colTop(x1 - 1) >= c.y0 - 0.01) s += 2.5;
+  const rise = d.along === 'z' ? d.slope * d.dz : d.slope * d.wx;
+  for (const tp of [c.y0 + d.h, c.y0 + d.h + rise]) if (Math.abs(colTop(x0 - 1) - tp) < 0.15 || Math.abs(colTop(x1) - tp) < 0.15) { s += 1; break; }
+  return s;
+}
+// (cx, ct) を中心にした置き場所の候補を、はまりのよい順に（置けるものだけ。住人の検査は上から順に）
+let sockCache = { key: '', list: [], base: null };
+function socketsAround(cx, ct, R = 4) {
+  const c0 = { kind: st.carry.kind, rot: st.carry.rot }, d = pieceDims(c0);
+  const bx = Math.round(cx - d.wx / 2), bt = Math.round(ct - d.dz / 2);
+  const key = [L.id, c0.kind, c0.rot, bx, bt, R, st.pieces.map((p) => p.id + ':' + p.x0 + ':' + p.t0).join(',')].join('|');
+  if (key === sockCache.key) return sockCache.list;
+  const all = [];
+  for (let dx = -R; dx <= R; dx++) for (let dt = -R; dt <= R; dt++) {
+    const c = { ...c0, x0: bx + dx, t0: bt + dt };
+    c.y0 = restHeight(L, c, tableY(L));
+    if (canPlaceQuick(L, c, st.pieces)) continue;
+    c.score = Math.hypot(dx, dt) * 0.75 - fitScore(c);
+    all.push(c);
+  }
+  all.sort((a, b) => a.score - b.score);
+  const list = [];
+  // Tab で巡る候補は、横の位置がちがうものを（秒は、主人公が奥・手前へ歩いて決める）
+  for (const c of all) {
+    if (list.some((q) => q.x0 === c.x0)) continue;
+    if (!overlapsWalker(L, c, st.pieces)) list.push(c);
+    if (list.length >= 5) break;
+  }
+  const base = { ...c0, x0: bx, t0: bt };
+  base.y0 = restHeight(L, base, tableY(L));
+  sockCache = { key, list, base };
+  return list;
+}
+// 持っている形を、どこに置くか。Tab・矢印・タップで決めた所（錠）は、3マス歩くまで動かない
+let lastPick = '';
+function aimCenter(d) {
+  const h = st.hero, f = facingAxis();
+  return [f.ax === 'x' ? h.x + f.s * (0.8 + d.wx / 2) : h.x, f.ax === 't' ? h.t + f.s * (0.8 + d.dz / 2) : h.t];
+}
 function candidate() {
   if (!st.carry) return null;
-  const h = st.hero, f = facingAxis();
-  const c = { kind: st.carry.kind, rot: st.carry.rot };
-  const d = pieceDims(c);
-  if (f.ax === 't') {
-    c.x0 = Math.round(h.x - d.wx / 2);
-    c.t0 = f.s > 0 ? Math.round(h.t + 0.8) : Math.round(h.t - 0.8 - d.dz);
-  } else {
-    c.t0 = Math.round(h.t - d.dz / 2);
-    c.x0 = f.s > 0 ? Math.round(h.x + 0.8) : Math.round(h.x - 0.8 - d.wx);
+  const h = st.hero;
+  const d = pieceDims({ kind: st.carry.kind, rot: st.carry.rot });
+  if (st.lock && (st.lock.kind !== st.carry.kind || st.lock.rot !== st.carry.rot)) st.lock = null;
+  if (st.lock && Math.hypot(h.x - st.lock.hx, h.t - st.lock.ht) > 3) st.lock = null;
+  if (st.lock) {
+    const c = { kind: st.carry.kind, rot: st.carry.rot, x0: st.lock.x0, t0: st.lock.t0 };
+    c.y0 = restHeight(L, c, tableY(L));
+    return c;
   }
-  c.x0 += st.nudge.x; c.t0 += st.nudge.t;
-  c.y0 = restHeight(L, c, tableY(L));
-  return c;
+  const [cx, ct] = aimCenter(d);
+  const list = socketsAround(cx, ct);
+  if (!list.length) return { ...sockCache.base };
+  // ちらつかないよう、前に選んだ所がまだ候補でほぼ同じよさなら、それのまま
+  const prev = list.find((c) => c.x0 + ',' + c.t0 === lastPick);
+  const pick = prev && prev.score <= list[0].score + 0.6 ? prev : list[0];
+  lastPick = pick.x0 + ',' + pick.t0;
+  return pick;
 }
+function lockTo(c) {
+  st.lock = { kind: c.kind, rot: c.rot, x0: c.x0, t0: c.t0, hx: st.hero.x, ht: st.hero.t };
+  lastPick = c.x0 + ',' + c.t0;
+}
+// Tab（スマホは「次」）: 近くのほかの受け口へ
+function nextSocket() {
+  if (!st.carry) return;
+  const cur = candidate();
+  const [cx, ct] = aimCenter(pieceDims(cur));
+  const list = socketsAround(cx, ct);
+  if (!list.length) { se.no(); return; }
+  const i = list.findIndex((c) => c.x0 === cur.x0 && c.t0 === cur.t0);
+  lockTo(list[(i + 1) % list.length]);
+  se.click();
+}
+// 矢印: 1マスずつずらす（画面の上＝カメラの奥を、いちばん近い軸にそろえる）
 function nudge(k) {
-  // 画面の上＝カメラの奥を、いちばん近い軸にそろえる
   const yaw = stage.camYaw();
   const f = [-Math.sin(yaw), Math.cos(yaw)], r = [Math.cos(yaw), Math.sin(yaw)];
   const snap = (v) => (Math.abs(v[0]) > Math.abs(v[1]) ? [Math.sign(v[0]), 0] : [0, Math.sign(v[1])]);
   const d = k === 'ArrowUp' ? snap(f) : k === 'ArrowDown' ? snap(f).map((q) => -q) : k === 'ArrowRight' ? snap(r) : snap(r).map((q) => -q);
-  st.nudge.x = Math.max(-3, Math.min(3, st.nudge.x + d[0]));
-  st.nudge.t = Math.max(-3, Math.min(3, st.nudge.t + d[1]));
+  const c = candidate();
+  lockTo({ ...c, x0: c.x0 + d[0], t0: c.t0 + d[1] });
   se.click();
+}
+// 画面をタップ／クリック: そこのいちばん近い受け口へ（主人公から 7 マスまで）
+function tapAt(x, t) {
+  if (!playing() || !st.carry) return;
+  const h = st.hero;
+  if (Math.hypot(x - h.x, t - h.t) > 7) { flashPrompt('もっと近くへ運ぼう'); se.no(); return; }
+  const list = socketsAround(x, t, 2);
+  lockTo(list.length ? list[0] : sockCache.base);
+  se.click();
+}
+// ひとつ戻す（置く・つかむの前の形にもどす）
+function pushUndo() { st.undo.push({ pieces: st.pieces.map((p) => ({ ...p })), carry: st.carry && { ...st.carry } }); if (st.undo.length > 40) st.undo.shift(); }
+function undo() {
+  const u = st.undo.pop();
+  if (!u) { se.no(); return; }
+  const sig = (p) => p.id + ':' + p.x0 + ':' + p.t0;
+  const A = new Set(st.pieces.map(sig)), B = new Set(u.pieces.map(sig));
+  const changed = [...st.pieces.filter((p) => !B.has(sig(p))), ...u.pieces.filter((p) => !A.has(sig(p)))];
+  st.pieces = u.pieces; st.carry = u.carry; st.lock = null;
+  se.pick();
+  const inb = changed.filter(inBlock);
+  if (inb.length) recompute(Math.min(...inb.map((p) => p.t0)));
+  else stage.setHistory(st.hist, st.pieces, null, false);
+  flashPrompt('ひとつ前にもどした');
 }
 // 目の前（または足もと）でつかめる形
 function grabbable() {
@@ -229,7 +322,9 @@ function useE() {
     const c = candidate();
     const why = canPlace(L, c, st.pieces);
     if (why) { flashPrompt(why); se.no(); return; }
-    const p = { id: st.nextId++, ...c };
+    pushUndo();
+    const p = { id: st.nextId++, kind: c.kind, rot: c.rot, x0: c.x0, t0: c.t0, y0: c.y0 };
+    st.lock = null;
     st.pieces.push(p);
     st.carry = null;
     se.place();
@@ -238,15 +333,17 @@ function useE() {
   }
   const p = grabbable();
   if (!p) return;
+  pushUndo();
   st.pieces = st.pieces.filter((q) => q !== p);
   st.carry = { kind: p.kind, rot: p.rot || 0 };
-  st.nudge = { x: 0, t: 0 };
+  st.lock = null;
   se.pick();
   if (inBlock(p)) recompute(p.t0); else stage.setHistory(st.hist, st.pieces, null, false);
 }
 function rotate() {
   if (!st.carry) return;
   st.carry = { ...st.carry, rot: st.carry.rot ? 0 : 1 };
+  st.lock = null;
   st.rotatedOnce = true;
   se.click();
 }
@@ -278,7 +375,7 @@ const joy = { x: 0, y: 0, id: null };
   tap('tJump', () => { jumpQueued = true; });
   tap('tGrab', () => useE());
   tap('tRot', () => rotate());
-  for (const [id, k] of [['tnU', 'ArrowUp'], ['tnD', 'ArrowDown'], ['tnL', 'ArrowLeft'], ['tnR', 'ArrowRight']]) tap(id, () => { if (st.carry) nudge(k); });
+  tap('tNext', () => nextSocket());
 }
 function flashPrompt(m) { flashMsg = m; flashUntil = performance.now() + 1800; }
 
@@ -288,6 +385,7 @@ let jumpQueued = false;
 window.addEventListener('keydown', (e) => {
   initAudio(); startBgm();
   const k = e.key;
+  if (tour) { if (k === 'Escape' || k === 'Enter' || k === ' ') { e.preventDefault(); endTour(); } return; }
   if (!$('replay').hidden) {
     if (k === 'Escape') closeReplay();
     else if (k === 'Enter' && rp.judged && enterOk() && st.solved && (hasNext() || allSolved())) goNext();
@@ -315,6 +413,8 @@ window.addEventListener('keydown', (e) => {
   if (k === ' ') jumpQueued = true;
   if (k === 'e' || k === 'E') useE();
   if (k === 'q' || k === 'Q') rotate();
+  if (k === 'Tab' && st.carry) nextSocket();
+  if (k === 'z' || k === 'Z' || k === 'Backspace') undo();
   if (k === 'Enter' && enterOk()) { if (st.solved && hasNext()) goNext(); else bind(); }
   if (k === 'm' || k === 'M') nextBgm();
 });
@@ -326,6 +426,7 @@ window.addEventListener('contextmenu', (e) => { keys.clear(); if (e.target.close
 window.addEventListener('pointerdown', () => { initAudio(); startBgm(); });
 
 // タイトル・図版えらび・メニュー
+$('mUndo').addEventListener('click', () => { closeAll(); undo(); });
 $('tStart').addEventListener('click', () => { se.click(); startGame(firstUnsolved()); });
 $('tSelect').addEventListener('click', () => { se.click(); renderSelect('title'); });
 $('tHelp').addEventListener('click', () => { $('help').hidden = false; });
@@ -384,14 +485,24 @@ function nextBgm() {
 const insetG = $('inset').getContext('2d');
 function applyInset() { $('insetBox').hidden = !cfg.inset; }
 let insetKey = '';
-function drawInset(focus) {
+function drawInset(focus, cand, ok) {
   if (!cfg.inset) return;
+  // 持っているあいだは、ゴーストがかかるページのうち、いちばん近い秒を見せる
+  if (cand && Number.isFinite(cand.y0)) { const dz = pieceDims(cand).dz; focus = Math.max(0, Math.min(L.T, Math.max(Math.ceil(cand.t0), Math.min(Math.floor(cand.t0 + dz - 0.01), focus)))); }
   const h = st.hero;
-  const k = `${focus}:${st.pieces.length}:${h.x.toFixed(1)}:${h.y.toFixed(1)}:${h.t.toFixed(2)}:${st.hist === st.base}:${stage.waving()}`;
+  const k = `${cand ? [cand.x0, cand.t0, cand.rot, ok].join(',') : ''}:${focus}:${st.pieces.length}:${h.x.toFixed(1)}:${h.y.toFixed(1)}:${h.t.toFixed(2)}:${st.hist === st.base}:${stage.waving()}`;
   if (k === insetKey) return;
   insetKey = k;
   const fr = st.hist.frames[Math.round(focus / 0.1)];
   drawSheet(insetG, L, focus, fr, sectionsAt(blockPieces(), focus), { paper: true, label: focus + '秒', goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null, misprintAfter: misprintOf(st.hist) });
+  // 持っている形を置いたら、このページに出る断面（点線）
+  if (cand && Number.isFinite(cand.y0) && cand.x0 + pieceDims(cand).wx > 0) {
+    const S = insetG.canvas.width / L.W;
+    insetG.save(); insetG.setLineDash([5, 4]); insetG.lineWidth = 2;
+    insetG.strokeStyle = ok ? 'rgba(60,40,20,.85)' : 'rgba(200,50,40,.9)'; insetG.fillStyle = ok ? 'rgba(255,250,235,.45)' : 'rgba(220,80,60,.18)';
+    for (const r of sectionRects(cand, focus + 0.001)) { insetG.fillRect(r.x0 * S, (L.H - r.y1) * S, (r.x1 - r.x0) * S, (r.y1 - r.y0) * S); insetG.strokeRect(r.x0 * S, (L.H - r.y1) * S, (r.x1 - r.x0) * S, (r.y1 - r.y0) * S); }
+    insetG.restore();
+  }
   $('insetCap').textContent = focus + '秒目のページ（V でしまう）';
 }
 applyInset();
@@ -471,7 +582,7 @@ function renderPrompt(why) {
   let html = '';
   const g = grabbable();
   if (performance.now() < flashUntil) html = flashMsg;
-  else if (st.carry) html = `<kbd>E</kbd> 置く　<kbd>Q</kbd> 回す　<kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 置き場所をずらす` + (why ? `<span class="bad">${why}</span>` : '');
+  else if (st.carry) html = `<kbd>E</kbd> 置く　<kbd>Q</kbd> 回す　<kbd>Tab</kbd> となりの置き場所　クリック そこへ　<kbd>Z</kbd> ひとつ戻す` + (why ? `<span class="bad">${why}</span>` : '');
   else if (g) html = `<kbd>E</kbd> ${kindName(g.kind)}をつかむ`;
   else if (st.walked < 2 && st.lv === 0) html = `<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ${cfg.runDefault ? '走る' : '歩く'}　<kbd>Shift</kbd> ${cfg.runDefault ? '歩く' : '走る'}　<kbd>Space</kbd> 跳ぶ　ドラッグ 見回す`;
   if (isTouch) html = performance.now() < flashUntil ? flashMsg : (st.carry && why ? `<span class="bad">${why}</span>` : '');
@@ -526,6 +637,7 @@ function showBindReplay() {
   document.querySelector('.replay-card').classList.remove('with-why');
   $('rpNext').hidden = true;
   $('rpClose').hidden = true;
+  $('rpTour').hidden = true;
   $('replay').hidden = false;
   rp.judged = false;
   rp.endT = Math.min(L.T, st.hist.end.t + 1.2);
@@ -568,6 +680,7 @@ function judge() {
   $('rpNext').hidden = !(ok && (hasNext() || allSolved()));
   $('rpNext').innerHTML = ok && allSolved() && !progress._ending ? 'おわりの図版へ <kbd>Enter</kbd>' : '次の図版へ <kbd>Enter</kbd>';
   $('rpClose').hidden = false;
+  $('rpTour').hidden = false;
   $('rpClose').innerHTML = ok ? 'この図版にもどる <kbd>Esc</kbd>' : '考えなおす <kbd>Esc</kbd>';
 }
 // 「まだ」のわけを2枚の絵で: 住人がつまずいたページと、いちばん近い形の、出ていた（いなかった）ページ
@@ -597,6 +710,34 @@ function showWhy(e, np) {
 }
 
 // 回答の再生の最中に Esc → 最後まで早送りして結果を出す
+// ---- ためし: 結果を、ページの束の中を飛んで見る（住人のいるページを追いかけて、昔から未来へ） ----
+let tour = null;
+function startTour() {
+  if (!rp.judged) return;
+  se.click();
+  $('replay').hidden = true;
+  tour = { t: 0, lastT: 0, end: Math.min(L.T, st.hist.end.t + 2), saved: stage.saveOrbit() };
+  stage.setOrbit({ yaw: 0.45, pitch: 0.5, dist: 22 });
+  document.body.classList.add('touring');
+}
+function endTour() {
+  if (!tour) return;
+  stage.setOrbit(tour.saved);
+  tour = null;
+  document.body.classList.remove('touring');
+  $('replay').hidden = false;
+}
+function stepTour(dt) {
+  tour.t = Math.min(tour.end, tour.t + dt * 3);
+  const fr = frameAt(st.hist.frames, tour.t);
+  const ghostHero = { x: fr.x * 0.4 + L.W * 0.3, y: Math.max(fr.y, 3), t: tour.t, fx: fr.dir, ft: 0, vy: 0, grounded: true, landT: 0 };
+  replaySounds(st.hist, tour, tour.t);
+  stage.update(dt, { hero: ghostHero, tour: true, walking: false, moveX: 0, moveT: 0, carry: null, cand: null, revealT: L.T, focus: Math.round(tour.t), showRoute: false, grab: null, groundY: NaN, flip: null });
+  if (tour.t >= tour.end) { if (!tour.doneAt) tour.doneAt = performance.now(); else if (performance.now() - tour.doneAt > 900) endTour(); }
+}
+$('rpTour').addEventListener('click', startTour);
+$('view').addEventListener('pointerdown', () => { if (tour) endTour(); });
+
 function closeReplay() { if (!rp.judged) { rp.t = rp.endT; return; } $('replay').hidden = true; stage.openBook(); duckBgm(false); }
 function togglePlay() { if (rp.t >= L.T) rp.t = 0; rp.playing = !rp.playing; $('rpPlay').textContent = rp.playing ? '❚❚' : '▶'; }
 $('rpNext').addEventListener('click', goNext);
@@ -623,6 +764,7 @@ function loop(now) {
   last = now;
   if (!$('preview').hidden) drawPreview(dt);
   if (ed.on) drawEnding(dt);
+  if (tour) { stepTour(dt); requestAnimationFrame(loop); return; }
   if (!$('replay').hidden) {
     if (rp.playing) { rp.t = Math.min(L.T, rp.t + dt * rp.speed); if (rp.t >= L.T) { rp.playing = false; $('rpPlay').textContent = '▶'; } }
     // 住人の音（再生の時刻が進んだ分だけ）
@@ -645,7 +787,6 @@ function loop(now) {
   }
   const h = st.hero;
   const before = h.t;
-  if (mx || mt) st.nudge = { x: 0, t: 0 }; // 動き出したら、置き場所はもとへ
   const running = act && (joy.id !== null ? Math.hypot(joy.x, joy.y) > 0.8 : cfg.runDefault ? !keys.has('Shift') : keys.has('Shift'));
   if (stepHero(h, L, st.pieces, mx, mt, act && jumpQueued, act ? dt : 0, running) === 'respawn') flashPrompt('底なしに落ちた。さっきの場所へもどる');
   jumpQueued = false;
@@ -673,7 +814,7 @@ function loop(now) {
   const why = cand ? canPlace(L, cand, st.pieces) : '';
   stage.update(dt, {
     hero: h, walking: Math.hypot(mx, mt) > 0.05, moveX: mx, moveT: mt,
-    carry: st.carry, cand, candOk: !why, revealT: st.revealT, focus,
+    carry: st.carry, cand, candOk: !why, revealT: st.revealT, focus, sockets: cand && !st.lock ? sockCache.list : [],
     running: running && Math.hypot(mx, mt) > 0.05, showRoute: cfg.showRoute, grab: act ? grabbable() : null,
     groundY: groundAt(L, st.pieces, h.x, h.t, h.y), flip: flip.t === null ? null : Math.round(flip.t),
   });
@@ -683,12 +824,12 @@ function loop(now) {
     drawTimeline();
     renderCoach();
     renderPrompt(why);
-    drawInset(focus);
+    drawInset(focus, cand, !why);
     if (isTouch) {
       $('tGrab').textContent = st.carry ? '置く' : 'つかむ';
       $('tGrab').classList.toggle('dim', !st.carry && !grabbable());
       $('tRot').hidden = !st.carry;
-      $('tNudge').hidden = !st.carry;
+      $('tNext').hidden = !st.carry;
     }
     const bindHtml = st.solved && hasNext() ? '次へ <kbd>Enter</kbd>' : '回答する <kbd>Enter</kbd>';
     if ($('btnBind').innerHTML !== bindHtml) $('btnBind').innerHTML = bindHtml;
@@ -705,4 +846,4 @@ loadLevel(firstUnsolved());
 showScreen('title');
 requestAnimationFrame(loop);
 // 確認用
-window.__fh = { st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, bind, judge, rp, stage, showBindReplay, ed, openEnding, get L() { return L; } };
+window.__fh = { startTour, get tour() { return tour; }, st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, nextSocket, tapAt, undo, lockTo, socketsAround, bind, judge, rp, stage, showBindReplay, ed, openEnding, get L() { return L; } };

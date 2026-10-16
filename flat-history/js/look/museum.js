@@ -1,7 +1,7 @@
 // 見た目「図鑑の銅版画と標本室」: 線で彫った博物画の大地と、標本室。住人と主人公は residents.js・heroes.js（設定で選ぶ）
 import * as THREE from 'three';
-import { rng, canvasTexture, floorPlane } from './util.js?v=32';
-import { INK, hatch } from './ink.js?v=32';
+import { rng, canvasTexture, floorPlane } from './util.js?v=34';
+import { INK, hatch } from './ink.js?v=34';
 
 function drawTerrain(g, L, S, res) {
   const R = rng(23);
@@ -86,7 +86,7 @@ function drawBackdrop(g, L, S, res) {
 
 // ころがる石（ころがった分だけ線が回る）
 function drawStone(g, L, s, S) {
-  const cx = s.x * S, cy = (L.H - s.y - 0.5) * S, r = S * 0.48;
+  const cx = s.x * S, cy = (L.H - s.y - 0.6) * S, r = S * 0.58; // 直径1.2マス（sim の STONE_R）
   g.save(); g.translate(cx, cy);
   g.fillStyle = '#cbb894'; g.beginPath(); g.arc(0, 0, r, 0, 7); g.fill();
   g.save(); g.clip(); hatch(g, -r, -r * 0.2, r * 2, r * 1.3, 2.2, -0.9, 'rgba(74,51,32,.55)'); g.restore();
@@ -101,7 +101,7 @@ function drawStone(g, L, s, S) {
 function drawSection(g, L, s, S, color) {
   const x = s.x0 * S, y = (L.H - s.y1) * S, w = (s.x1 - s.x0) * S, h = (s.y1 - s.y0) * S;
   const kind = s.p.kind === 'plank' || s.p.kind === 'short' ? 'beam' : s.p.kind;
-  g.fillStyle = kind === 'beam' ? '#d8b483' : kind === 'lift' ? '#dcb85a' : kind === 'slide' ? '#b9c7b0' : '#f4f1e8';
+  g.fillStyle = kind === 'beam' ? '#d8b483' : kind === 'lift' ? '#dcb85a' : kind === 'slide' ? '#b9c7b0' : kind === 'diamond' ? '#d9c2d4' : '#f4f1e8';
   g.fillRect(x, y, w, h);
   if (kind === 'slide') {
     // すべる向きの山形の線
@@ -161,8 +161,8 @@ function makeEnv(L) {
 
 export default {
   id: 'museum',
-  kindNames: { beam: '長い標本の板', plank: '標本の板', short: 'うすい標本の板', lift: '真鍮のななめ板', wall: '石膏の柱', slide: '平行四辺形の板' },
-  kindColors: { beam: '#c9732f', plank: '#c9732f', short: '#d9893f', lift: '#e8a91c', wall: '#e9eef2', slide: '#4f9a86' },
+  kindNames: { beam: '長い標本の板', plank: '標本の板', short: 'うすい標本の板', lift: '真鍮のななめ板', wall: '石膏の柱', slide: '平行四辺形の板', diamond: 'ひし形の板' },
+  kindColors: { beam: '#c9732f', plank: '#c9732f', short: '#d9893f', lift: '#e8a91c', wall: '#e9eef2', slide: '#4f9a86', diamond: '#a0628f' },
   bg: 'radial-gradient(120% 90% at 30% 0%, #f5ead2 0%, #e2d2b0 50%, #b9a27c 100%)',
   fog: '#ddcca8', fogNear: 38, fogFar: 100, paper: ['#f4ead2', '#eadcbc'], paperTint: '#f8efd8',
   edge: '#b29a6c', focus: '#a8742a',

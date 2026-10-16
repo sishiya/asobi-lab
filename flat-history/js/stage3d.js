@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・標本台・主人公・置いた形・持っている形・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=32';
-import { radialTexture } from './look/util.js?v=32';
-import { S, drawSheet } from './sheet.js?v=32';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=32';
-import { TABLE, tableY } from './hero.js?v=32';
+import { look, kindColor } from './look/index.js?v=34';
+import { radialTexture } from './look/util.js?v=34';
+import { S, drawSheet } from './sheet.js?v=34';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=34';
+import { TABLE, tableY } from './hero.js?v=34';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -38,6 +38,7 @@ export function pieceGeometry(p) {
   for (let i = 0; i < pos.count; i++) {
     const tt = -pos.getZ(i) / GAP;
     if (d.vx) { pos.setX(i, pos.getX(i) + (d.vx > 0 ? d.vx * tt : (d.wx - d.wbase) + d.vx * tt)); continue; } // 平行四辺形
+    if (d.dia) { const k = 1 - Math.abs(2 * tt / d.dz - 1); pos.setX(i, d.wx / 2 + (pos.getX(i) - d.wx / 2) * k); continue; } // ひし形
     pos.setY(i, pos.getY(i) + d.slope * (d.along === 'z' ? tt : pos.getX(i)));
   }
   g.computeVertexNormals();
@@ -215,12 +216,21 @@ export function createStage(canvas, L) {
       color: col, transparent: true, opacity: ghost ? 0.22 : 0.55, roughness: 0.3, metalness: 0.1, depthWrite: false,
     }));
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo),
-      new THREE.LineBasicMaterial({ color: ghost ? '#ffffff' : new THREE.Color(col).multiplyScalar(0.55), transparent: true, opacity: 0.95 }));
+      new THREE.LineBasicMaterial({ color: ghost ? '#ffffff' : new THREE.Color(col).multiplyScalar(0.55), transparent: true, opacity: 0.95, depthTest: !ghost }));
+    // ゴーストの線は、ページの束の奥にあっても見えるように上から描く
+    if (ghost) edges.renderOrder = 10;
     grp.add(fill, edges);
     grp.userData = { fill, edges };
     return grp;
   }
   let ghost = null, ghostKey = '';
+  // ほかの受け口（Tab で移れる置き場所）: 床に点線の枠
+  const sockMarks = [];
+  for (let i = 0; i < 5; i++) {
+    const m = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([0, 1, 2, 3].map(() => new THREE.Vector3())),
+      new THREE.LineDashedMaterial({ color: '#fff6dc', dashSize: 0.25, gapSize: 0.18, transparent: true, opacity: 0.8 }));
+    m.visible = false; scene.add(m); sockMarks.push(m);
+  }
   let carried = null, carriedKey = '';
   // つかめる形の上に、ポコっと出る E のキー
   const eIcon = (() => {
@@ -339,7 +349,7 @@ export function createStage(canvas, L) {
       touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (touches.size === 2) { const [a, b] = [...touches.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); drag = null; return; }
     }
-    drag = { x: e.clientX, y: e.clientY };
+    drag = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, at: performance.now() };
     canvas.setPointerCapture(e.pointerId);
     canvas.style.cursor = 'grabbing';
   });
@@ -360,11 +370,34 @@ export function createStage(canvas, L) {
     drag.x = e.clientX; drag.y = e.clientY;
     lastManual = performance.now() / 1000;
   });
-  const endDrag = (e) => { drag = null; canvas.style.cursor = ''; if (e && touches.has(e.pointerId)) { touches.delete(e.pointerId); pinch0 = 0; } };
+  const endDrag = (e) => {
+    if (drag && e && e.type === 'pointerup' && e.button !== 2 && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 8 && performance.now() - drag.at < 350 && onTap) {
+      const p = pickGround(e.clientX, e.clientY);
+      if (p) onTap(p.x, p.t);
+    }
+    drag = null; canvas.style.cursor = ''; if (e && touches.has(e.pointerId)) { touches.delete(e.pointerId); pinch0 = 0; } };
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); orbit.dist = Math.max(6, Math.min(60, orbit.dist * Math.pow(1.0015, e.deltaY))); }, { passive: false });
   canvas.addEventListener('dblclick', () => { Object.assign(orbit, ORBIT0); });
+  // 画面の点 → 時空の大地の (x, t)。主人公の高さの床、だめなら地面の高さで探す
+  let onTap = null, heroY = 4;
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  function pickGround(cx, cy) {
+    const r = canvas.getBoundingClientRect();
+    ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    const o = ray.ray.origin, d = ray.ray.direction;
+    if (Math.abs(d.y) < 1e-4) return null;
+    // 地形の上面と交わるところ（ざっと、手前から少しずつ進む）
+    for (let s = 0; s < 120; s += 0.25) {
+      const x = o.x + d.x * s, y = o.y + d.y * s, z = o.z + d.z * s;
+      const c = Math.floor(x), top = c < 0 ? (c >= -7 ? heroY : -1) : c < L.W ? L.tops[c] : -1;
+      if (y <= Math.max(top, 0)) return { x, t: -z / GAP };
+    }
+    const s = (heroY - o.y) / d.y;
+    return s > 0 ? { x: o.x + d.x * s, t: -(o.z + d.z * s) / GAP } : null;
+  }
   const target = new THREE.Vector3(), camPos = new THREE.Vector3();
   let visY = NaN;
   let camInit = false;
@@ -405,6 +438,8 @@ export function createStage(canvas, L) {
   // ---- 毎フレーム ----
   function update(dt, v) {
     const { hero: h, walking, carry, cand, candOk, revealT, focus, moveX, moveT } = v;
+    heroY = h.y;
+    hero.visible = !v.tour;
     const now = performance.now() / 1000;
     // 波
     if (waveT !== null) {
@@ -448,7 +483,7 @@ export function createStage(canvas, L) {
       const e = book * book * (3 - 2 * book), az = Z(bookAt);
       for (const sh of sheets) sh.mesh.position.z = Z(sh.t) + (az - Z(sh.t)) * e + (sh.t - bookAt) * 0.002 * e;
       const show = book < 0.05;
-      edgeLines.visible = show; hero.visible = show; blob.visible = blob.visible && show;
+      edgeLines.visible = show; hero.visible = show && !v.tour; blob.visible = blob.visible && show;
       for (const [, o] of pieceObjs) o.visible = show;
       if (ribbon) ribbon.visible = ribbon.visible && show;
       frame.position.z = book > 0 ? az + 0.02 : frame.position.z;
@@ -497,7 +532,7 @@ export function createStage(canvas, L) {
     ud.body.rotation.y += d * Math.min(1, dt * 12);
     const tm = now;
     if (ud.animate) ud.animate(dt, { speed: Math.hypot(moveX, moveT), run: !!v.running, grounded: h.grounded, vy: h.vy, carry: !!carry, landT: h.landT || 0, t: h.t });
-    heroOverlay(h.x, visY, h.t);
+    if (!v.tour) heroOverlay(h.x, visY, h.t);
     // 足もとの影（真下の地面に）
     blob.visible = Number.isFinite(v.groundY);
     if (blob.visible) {
@@ -543,6 +578,16 @@ export function createStage(canvas, L) {
       ghost.userData.edges.material.color.set(candOk ? '#ffffff' : '#ff5a4a');
       ghost.userData.fill.material.color.set(candOk ? kindColor(cand.kind) : '#ff5a4a');
     }
+    const socks = v.sockets || [];
+    sockMarks.forEach((m, i) => {
+      const s = socks[i];
+      m.visible = !!s && !!cand && !(s.x0 === cand.x0 && s.t0 === cand.t0);
+      if (!m.visible) return;
+      const dd = pieceDims(s), y = s.y0 + 0.04;
+      m.geometry.setFromPoints([new THREE.Vector3(s.x0, y, Z(s.t0)), new THREE.Vector3(s.x0 + dd.wx, y, Z(s.t0)), new THREE.Vector3(s.x0 + dd.wx, y, Z(s.t0 + dd.dz)), new THREE.Vector3(s.x0, y, Z(s.t0 + dd.dz))]);
+      m.computeLineDistances();
+      m.material.opacity = 0.45 + 0.3 * Math.sin(tm * 4 + i);
+    });
     renderer.render(scene, camera);
   }
 
@@ -584,5 +629,7 @@ export function createStage(canvas, L) {
   // 確認用: 波を終わらせる
   function skipWave() { if (waveT === null) return; for (const sh of sheets) if (sh.pending) drawOne(sh); waveT = null; }
 
-  return { setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, heroPortrait, closeBook, openBook, waving: () => waveT !== null };
+  const saveOrbit = () => ({ ...orbit });
+  const setOrbit = (o) => { Object.assign(orbit, o); lastManual = performance.now() / 1000; };
+  return { saveOrbit, setOrbit, setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, heroPortrait, pickGround, set onTap(f) { onTap = f; }, closeBook, openBook, waving: () => waveT !== null };
 }

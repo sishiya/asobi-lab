@@ -1,5 +1,5 @@
 // 2D世界の決まったルール。置いた3Dの形は、その秒の断面（長方形）として2D世界に現れる。
-import { KINDS } from './level.js?v=32';
+import { KINDS } from './level.js?v=34';
 
 export const DT = 0.1;          // 1コマ＝0.1秒
 const SPEED = 1.5;              // 2D人の歩く速さ（マス/秒）
@@ -14,6 +14,7 @@ export function pieceDims(p) {
   const k = KINDS[p.kind];
   // 平行四辺形の板: 回すと、すべる向きが反対になる（横の広がり wx は、すべる道のりもふくむ）
   if (k.shear) return { wx: k.w + k.shear * k.d, dz: k.d, h: k.h, slope: 0, along: 'z', wbase: k.w, vx: p.rot ? -k.shear : k.shear };
+  if (k.dia) return { wx: p.rot ? k.d : k.w, dz: p.rot ? k.w : k.d, h: k.h, slope: 0, along: 'z', dia: true };
   return p.rot
     ? { wx: k.d, dz: k.w, h: k.h, slope: k.slope, along: 'x' }
     : { wx: k.w, dz: k.d, h: k.h, slope: k.slope, along: 'z' };
@@ -28,6 +29,11 @@ export function sectionRects(p, t) {
     const u = t - p.t0;
     const xs = d.vx > 0 ? p.x0 + d.vx * u : p.x0 + (d.wx - d.wbase) + d.vx * u;
     return [{ x0: xs, x1: xs + d.wbase, y0: p.y0, y1: p.y0 + d.h, p, vx: d.vx }];
+  }
+  if (d.dia) {
+    // ひし形: その秒の幅（まん中の秒でいちばん広く、はしの秒ではほとんどない）
+    const u = (t - p.t0) / d.dz, hw = (d.wx / 2) * (1 - Math.abs(2 * u - 1)), c = p.x0 + d.wx / 2;
+    return hw < 0.05 ? [] : [{ x0: c - hw, x1: c + hw, y0: p.y0, y1: p.y0 + d.h, p }];
   }
   if (d.along === 'z') {
     const y = p.y0 + d.slope * (t - p.t0);
@@ -78,11 +84,17 @@ function blockTop(L, fx, y, secs) {
 }
 
 // ---- ころがる石（2D世界の物。決まった時刻にころがりだす） ----
-// 1マスの石。壁や形にぶつかると止まる。足もとがなければ落ちる。幅1マスの割れ目に落ちると、はさまって「ふた」になる
-const STONE_V = 2;
-function stoneRect(s) { return { x0: s.x - 0.5, x1: s.x + 0.5, y0: s.y, y1: s.y + 1, stone: true }; }
+// 直径1.2マスの丸い石。壁や形にぶつかると止まる。足もとがなくなれば落ちる。
+// 幅1マスの割れ目には入りきらないので、ふちの2点にのってはまり「ふた」になる（中心は、ふちより WEDGE だけ上）
+const STONE_V = 2, SR = 0.6, WEDGE = Math.sqrt(SR * SR - 0.25);
+export const STONE_R = SR;
+function stoneRect(s) {
+  // はまった石: 割れ目をふさぎ、上はふちより 0.93 高い（住人は一歩でのぼれる）
+  if (s.st === 'plug') return { x0: s.x - 0.5, x1: s.x + 0.5, y0: s.y - 2, y1: s.y + 2 * SR, stone: true };
+  return { x0: s.x - 0.5, x1: s.x + 0.5, y0: s.y, y1: s.y + 2 * SR, stone: true };
+}
 function stepStone(L, s, t, secs) {
-  if (s.st === 'gone' || s.st === 'plug' || s.st === 'stop') return null;
+  if (s.st === 'gone' || s.st === 'plug') return null;
   if (s.st === 'wait') { if (t >= s.t0) s.st = 'roll'; else return null; }
   const colTop = (c) => (c < 0 || c >= L.W ? Infinity : L.tops[c]);
   const supAt = (x) => {
@@ -90,21 +102,27 @@ function stepStone(L, s, t, secs) {
     for (const r of secs) if (x > r.x0 && x < r.x1 && r.y1 <= s.y + 0.05 && r.y1 > g) g = r.y1;
     return g;
   };
+  // 足もと（中心の真下）がなくなったら: 幅1マスの割れ目ならはまる。広ければ落ちる
+  const drop = () => {
+    const c = Math.floor(s.x);
+    if (supAt(s.x) >= s.y - 0.05) return null;
+    if (supAt(c - 0.5) >= s.y - 0.05 && supAt(c + 1.5) >= s.y - 0.05) {
+      const rim = Math.min(supAt(c - 0.5), supAt(c + 1.5));
+      s.x = c + 0.5; s.y = rim + WEDGE - SR; s.st = 'plug';
+      return { type: 'plug', t, x: s.x };
+    }
+    s.st = 'fall'; s.vy = 0;
+    return null;
+  };
+  if (s.st === 'stop') return drop(); // 止まっていても、下の板が消えれば落ちる
   if (s.st === 'roll') {
     const nx = s.x + s.dir * STONE_V * DT, fx = nx + s.dir * 0.5;
     let blocked = colTop(Math.floor(fx)) > s.y + 0.05;
-    for (const r of secs) if (fx > r.x0 && fx < r.x1 && r.y0 < s.y + 0.9 && r.y1 > s.y + 0.05) blocked = true;
+    for (const r of secs) if (fx > r.x0 && fx < r.x1 && r.y0 < s.y + 2 * SR - 0.1 && r.y1 > s.y + 0.05) blocked = true;
     if (blocked) { s.st = 'stop'; return { type: 'stoneStop', t, x: s.x }; }
     s.x = nx;
-    const c = Math.floor(s.x);
-    if (supAt(s.x) < s.y - 0.05 && Math.abs(s.x - (c + 0.5)) < 0.2) {
-      // 幅1マスの割れ目なら、はさまってふたになる
-      if (colTop(c) < s.y - 1 && colTop(c - 1) >= s.y && colTop(c + 1) >= s.y) {
-        s.x = c + 0.5; s.y -= 1; s.st = 'plug';
-        return { type: 'plug', t, x: s.x };
-      }
-      s.st = 'fall'; s.vy = 0;
-    }
+    const ev = drop();
+    if (ev) return ev;
   }
   if (s.st === 'fall') {
     s.vy -= G * DT; const ny = s.y + s.vy * DT;
@@ -218,6 +236,17 @@ export function restHeight(L, cand, tableY) {
 
 // 置けるか（理由つき）。3Dの形どうしは重ならない
 export function canPlace(L, cand, pieces) {
+  return canPlaceQuick(L, cand, pieces) || (overlapsWalker(L, cand, pieces) ? '住人のいる所には置けない' : '');
+}
+// 住人のいる所に、背より高い形が現れる置き方か（歴史を計算しなおすので、結果をおぼえておく）
+const ovCache = new Map();
+export function overlapsWalker(L, cand, pieces) {
+  if (cand.x0 + pieceDims(cand).wx <= 0) return false;
+  const key = JSON.stringify([L.id, cand.kind, cand.rot, cand.x0, cand.t0, cand.y0, pieces.map((p) => [p.kind, p.rot, p.x0, p.t0, p.y0])]);
+  if (!ovCache.has(key)) { if (ovCache.size > 4000) ovCache.clear(); ovCache.set(key, !!simulate(L, [...pieces, cand]).overlap); }
+  return ovCache.get(key);
+}
+export function canPlaceQuick(L, cand, pieces) {
   const d = pieceDims(cand);
   if (cand.y0 === -Infinity) return '下に支えがない';
   if (cand.x0 + d.wx > L.W || cand.x0 < -7) return 'ここには置けない';
@@ -233,12 +262,6 @@ export function canPlace(L, cand, pieces) {
         if (s1.x0 < s2.x1 - 1e-6 && s2.x0 < s1.x1 - 1e-6 && s1.y0 < s2.y1 - 1e-6 && s2.y0 < s1.y1 - 1e-6) return 'ほかの形とぶつかる';
       }
     }
-  }
-  // 住人のいる所に、背より高い形が現れる置き方はできない
-  if (cand.x0 + d.wx > 0) {
-    const key = JSON.stringify([L.id, cand, pieces.map((p) => [p.kind, p.rot, p.x0, p.t0, p.y0])]);
-    if (key !== canPlace.key) { canPlace.key = key; canPlace.hit = !!simulate(L, [...pieces, cand]).overlap; }
-    if (canPlace.hit) return '住人のいる所には置けない';
   }
   return '';
 }

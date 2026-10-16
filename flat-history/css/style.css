@@ -423,3 +423,16 @@ body.touch .prompt:empty { display: none; }
 #selEnding[hidden] { display: none; }
 .ending-card { width: min(820px, 100%); text-align: center; }
 #edCanvas { display: block; width: 100%; height: auto; border: 1px solid var(--rule); }
+
+/* スマホのボタン: 右下に2段（左のスティックと重ならない幅に）。持っているあいだは「回す」「となり」が上の段に */
+.tbtns { display: grid; grid-template-columns: 64px 84px; grid-template-areas: "rot next" "grab jump"; gap: 10px; align-items: end; justify-items: center; }
+#tRot { grid-area: rot; } #tNext { grid-area: next; } #tGrab { grid-area: grab; } #tJump { grid-area: jump; }
+#tNext { font-size: 13px; }
+@media (max-width: 420px) { .stick { left: 12px; width: 108px; height: 108px; } .knob { left: 29px; top: 29px; } .tbtns { right: 10px; grid-template-columns: 58px 76px; } .tb { width: 58px; height: 58px; } .tb.big { width: 76px; height: 76px; } }
+
+/* ためし: 束の中の再生のあいだは、画面の飾りをしまう */
+body.touring .hud, body.touring .inset { visibility: hidden; }
+
+/* 題: 一秒図鑑（副題つき）・あそびかたの「つじつま」 */
+.t-name-sub { display: block; margin-top: 6px; font-size: 15px; font-weight: 400; letter-spacing: .3em; color: var(--sub); }
+.help-lore { margin: 14px 0 4px; padding: 10px 12px; border-left: 3px solid var(--brass); background: rgba(244,234,211,.5); font: 13px/1.8 var(--serif); color: #5a4430; }
