@@ -8,7 +8,7 @@
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="description" content="1秒ずつの2D世界が奥と手前に並んでいる。3Dの形を置くと、2D世界にはその断面が現れて、歴史が書きかわる。">
 <meta name="theme-color" content="#e2d2b0">
-<link rel="stylesheet" href="css/style.css?v=17">
+<link rel="stylesheet" href="css/style.css?v=18">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body class="menu">
@@ -55,8 +55,8 @@
 
 <div class="bottom hud">
   <canvas id="timeline" height="40" aria-label="時間のしおり（クリックでその秒へ）"></canvas>
-  <button type="button" id="btnBind" class="act primary bind-btn">この歴史を綴じる <kbd>Enter</kbd></button>
 </div>
+<button type="button" id="btnBind" class="bind-btn hud" aria-label="この歴史を綴じる（Enter）">綴じる <kbd>Enter</kbd></button>
 
 <!-- スマホ: スティックとボタン -->
 <div id="touch" class="touch-ui hud">
@@ -163,6 +163,6 @@
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=17"></script>
+<script type="module" src="js/main.js?v=18"></script>
 </body>
 </html>

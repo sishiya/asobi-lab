@@ -340,3 +340,21 @@ body.touch #view { touch-action: none; }
   .inset figcaption { display: none; }
 }
 .tnudge[hidden], .tb[hidden] { display: none; }
+
+/* 綴じるボタン: 右上（時計の下）の、まるい判子のようなボタン */
+.bind-btn {
+  position: fixed; top: 84px; right: 18px; z-index: 6; width: 88px; height: 88px; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  background: radial-gradient(circle at 35% 30%, #a3503a, #7d2f22 70%); color: #fbeedd;
+  border: 2px solid #5a1f15; box-shadow: inset 0 0 0 4px rgba(255,235,210,.25), 0 4px 12px rgba(60,20,10,.35);
+  font: 700 17px var(--serif); letter-spacing: .12em; cursor: pointer; padding: 0;
+}
+.bind-btn:hover { filter: brightness(1.08); }
+.bind-btn:active { transform: scale(.95); }
+.bind-btn kbd { font-size: 10px; background: rgba(255,240,220,.15); color: #fbeedd; border-color: rgba(255,240,220,.4); letter-spacing: 0; }
+@media (max-width: 760px), (max-height: 520px) {
+  .bind-btn { top: 54px; right: 8px; width: 64px; height: 64px; font-size: 13px; }
+  .bind-btn kbd { display: none; }
+  .inset { top: 124px; }
+  body.touch .inset { top: 124px; }
+}

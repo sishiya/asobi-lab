@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=17';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=17';
-import { drawSheet } from './sheet.js?v=17';
-import { createStage } from './stage3d.js?v=17';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=17';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=17';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm } from './audio.js?v=17';
+import { LEVELS } from './level.js?v=18';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=18';
+import { drawSheet } from './sheet.js?v=18';
+import { createStage } from './stage3d.js?v=18';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=18';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=18';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm } from './audio.js?v=18';
 
 const $ = (id) => document.getElementById(id);
 
@@ -558,7 +558,8 @@ function loop(now) {
       $('tRot').hidden = !st.carry;
       $('tNudge').hidden = !st.carry;
     }
-    $('btnBind').innerHTML = st.solved && hasNext() ? '次の図版へ <kbd>Enter</kbd>' : 'この歴史を綴じる <kbd>Enter</kbd>';
+    const bindHtml = st.solved && hasNext() ? '次へ <kbd>Enter</kbd>' : '綴じる <kbd>Enter</kbd>';
+    if ($('btnBind').innerHTML !== bindHtml) $('btnBind').innerHTML = bindHtml;
     // 正史かどうかは、遊ぶ人が「綴じる」（Enter）まで判定しない
   }
   requestAnimationFrame(loop);
