@@ -1,20 +1,15 @@
 // 3D世界の主人公（設定で選ぶ）。ページと重なったところの断面が2D世界に出るので、断面の見え方も考えて作る
-//   poly:      多面体の旅人。断面は形の変わる多角形
-//   agate:     瑪瑙（めのう）の精。外は石、中は色の層。断面に、しま模様（地層のような輪）が出る
+//   poly:      多面体の旅人。断面は形の変わる多角形（既定）
+//   cube・prism・dodeca: 立方体の測量士・六角柱の灯守・十二面体の賢者（多面体の旅人の仲間。makeGeo）
 //   hourglass: 砂時計の精。ガラスの中の砂が、いる時間に合わせて落ちていく。断面に砂の形が出る
 //   crane:     折り鶴の精。紙を折った体。断面は紙の色とインクの線で、銅版画になじむ
 //   star:      星の精。とげ（円すい）を何本も組んだ体。断面は、とげの三角が集まった星の形
-//   cloud:     雲の精。いくつもの球を集めた体。断面は、丸がつらなった雲の形
-//   wind:      風の精。うずをまく細い筋の体。断面は、銅版画の風の筋のような短い線が弧にならぶ
-//   jelly:     クラゲの精。かさと細い足。断面は弧と点々
-//   top:       こまの精。円すいと円盤。歩くほど速く回る
 //   balloon:   紙ふうせんの精。色紙を貼った角ばった玉
-//   curator:   学芸員（実在の人に近い見た目）
-// 断面はメッシュごとの凸包なので、星・雲・風は「小さな凸の部品の集まり」で作る
+// 断面はメッシュごとの凸包なので、星などは「小さな凸の部品の集まり」で作る
 // userData.sliceHatch: 断面にハッチングの線をのせる（銅版画になじませる）
 // userData.animate(dt, s) で動く。s = { speed(0〜), run, grounded, vy, carry, landT }
 import * as THREE from 'three';
-import { radialTexture } from './util.js?v=50';
+import { radialTexture } from './util.js?v=53';
 
 // 言語（index.html の TX(日本語, 英語)。ノードでの試験のときは日本語）
 const TX = globalThis.TX || ((ja) => ja);
@@ -270,10 +265,78 @@ function makeBalloon() {
 }
 
 // v034: 雲・風・瑪瑙・クラゲ・こま・学芸員はやめた（ユーザー「シンプル寄りに」）
-export const HEROES = { hourglass: makeHourglass, poly: makePoly, star: makeStar, crane: makeCrane, balloon: makeBalloon };
+// ---------------- 幾何学の旅人たち（v038。多面体の旅人の仲間） ----------------
+// 胴・頭・まわりを回る小さな部品を、正多面体などの凸な形で組む。色は、3D世界の色（青みの緑・金・クリーム）にそろえる
+function makeGeo(o) {
+  const hero = new THREE.Group();
+  const body = new THREE.Group();
+  hero.add(body);
+  const mA = new THREE.MeshStandardMaterial({ color: o.a, roughness: 0.25, metalness: 0.25, flatShading: true, emissive: o.aE, emissiveIntensity: 0.35 });
+  const mB = new THREE.MeshStandardMaterial({ color: o.b, roughness: 0.3, metalness: 0.5, flatShading: true, emissive: o.bE, emissiveIntensity: 0.3 });
+  const coreM = new THREE.MeshStandardMaterial({ color: '#fff3c2', emissive: o.glow, emissiveIntensity: 1.6 });
+  const edgeM = new THREE.LineBasicMaterial({ color: o.edge, transparent: true, opacity: 0.85 });
+  const withEdges = (geo, m) => { const x = new THREE.Mesh(geo, m); x.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeM)); return x; };
+  const torso = new THREE.Group(); torso.position.y = 0.95; body.add(torso);
+  const shell = withEdges(o.body(), mA); torso.add(shell);
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 12), coreM); torso.add(core);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: radialTexture(o.halo, 'rgba(0,0,0,0)'), transparent: true, depthWrite: false }));
+  glow.scale.set(1.3, 1.3, 1); torso.add(glow);
+  const head = new THREE.Group(); head.position.y = 1.75; body.add(head);
+  const cap = withEdges(o.head(), mB); head.add(cap);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), coreM); eye.position.set(0.25, 0.02, 0); head.add(eye);
+  const sats = [];
+  for (let i = 0; i < o.n; i++) { const t = withEdges(o.sat(), i % 2 ? mA : mB); body.add(t); sats.push(t); }
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.025, 8, o.ringSides || 40), new THREE.MeshBasicMaterial({ color: o.edge, transparent: true, opacity: 0.6 }));
+  ring.rotation.x = Math.PI / 2; ring.position.y = 0.12; body.add(ring);
+  hero.scale.setScalar(1.25);
+  let tm = 0, spin = 0;
+  hero.userData = {
+    body,
+    animate(dt, s) {
+      tm += dt;
+      spin += dt * (0.5 + s.speed * (s.run ? 3.5 : 2.2));
+      torso.position.y = 0.95 + Math.sin(tm * 2.2) * 0.05;
+      o.spinBody(shell, spin, tm);
+      head.position.y = torso.position.y + 0.8 + Math.sin(tm * 1.7) * 0.03;
+      cap.rotation.y = -spin * 1.2; cap.rotation.x = Math.sin(tm * 1.3) * 0.25;
+      body.rotation.z = -Math.min(0.3, s.speed * (s.run ? 0.25 : 0.12));
+      core.scale.setScalar(1 + Math.sin(tm * 3) * 0.12);
+      ring.scale.setScalar(1 + Math.sin(tm * 2) * 0.08);
+      sats.forEach((h, i) => {
+        const a = tm * o.orbit + (i / o.n) * Math.PI * 2;
+        h.position.set(Math.cos(a) * 0.72, 1.0 + Math.sin(tm * 2.5 + i * 2) * 0.14, Math.sin(a) * 0.72);
+        h.rotation.set(tm * 2 + i, tm * 3, 0);
+      });
+    },
+  };
+  return hero;
+}
+// 立方体の測量士: 立方体の胴が、二つの軸でゆっくり回る。頭は十二面体、まわりに小さな立方体が3つ
+const makeCube = () => makeGeo({
+  a: '#2f9a72', aE: '#0d4a35', b: '#e3b043', bE: '#5a3a08', edge: '#f2d98a', glow: '#ffd77a', halo: 'rgba(255,220,130,.55)',
+  body: () => new THREE.BoxGeometry(0.72, 0.72, 0.72), head: () => new THREE.DodecahedronGeometry(0.27, 0), sat: () => new THREE.BoxGeometry(0.17, 0.17, 0.17), n: 3, orbit: 1.4, ringSides: 4,
+  spinBody: (m, sp) => m.rotation.set(sp * 0.5, sp * 0.8, 0),
+});
+// 六角柱の灯守: 六角柱の胴の中に灯。頭は円すい（六角すい）の帽子、まわりに三角すいが2つ
+const makePrism = () => makeGeo({
+  a: '#1f8c9c', aE: '#0a3f48', b: '#d98a3a', bE: '#5a2c08', edge: '#f6d27a', glow: '#ffc96a', halo: 'rgba(255,205,120,.6)',
+  body: () => new THREE.CylinderGeometry(0.42, 0.42, 0.85, 6), head: () => new THREE.ConeGeometry(0.3, 0.42, 6), sat: () => new THREE.TetrahedronGeometry(0.16, 0), n: 2, orbit: 1.9, ringSides: 6,
+  spinBody: (m, sp, tm) => m.rotation.set(Math.sin(tm * 0.9) * 0.15, sp * 0.9, 0),
+});
+// 十二面体の賢者: 十二面体の胴。頭は二十面体、まわりに八面体が4つ、ゆっくり回る
+const makeDodeca = () => makeGeo({
+  a: '#5f9e4e', aE: '#22401a', b: '#e7c25a', bE: '#5a4208', edge: '#f4e2a0', glow: '#fff0a0', halo: 'rgba(255,240,170,.5)',
+  body: () => new THREE.DodecahedronGeometry(0.5, 0), head: () => new THREE.IcosahedronGeometry(0.24, 0), sat: () => new THREE.OctahedronGeometry(0.13, 0), n: 4, orbit: 0.9, ringSides: 5,
+  spinBody: (m, sp) => m.rotation.set(sp * 0.3, sp * 0.6, sp * 0.2),
+});
+
+export const HEROES = { poly: makePoly, cube: makeCube, prism: makePrism, dodeca: makeDodeca, hourglass: makeHourglass, star: makeStar, crane: makeCrane, balloon: makeBalloon };
 export const HERO_LIST = [
-  { id: 'hourglass', name: TX('砂時計の精', 'Hourglass Spirit') },
   { id: 'poly', name: TX('多面体の旅人', 'Polyhedron Traveler') },
+  { id: 'cube', name: TX('立方体の測量士', 'Cube Surveyor') },
+  { id: 'prism', name: TX('六角柱の灯守', 'Hexagonal Lamp-keeper') },
+  { id: 'dodeca', name: TX('十二面体の賢者', 'Dodecahedron Sage') },
+  { id: 'hourglass', name: TX('砂時計の精', 'Hourglass Spirit') },
   { id: 'star', name: TX('星の精', 'Star Spirit') },
   { id: 'crane', name: TX('折り鶴の精', 'Paper Crane Spirit') },
   { id: 'balloon', name: TX('紙ふうせんの精', 'Paper Balloon Spirit') },

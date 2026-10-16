@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
-import { LEVELS } from './level.js?v=50';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=50';
-import { drawSheet } from './sheet.js?v=50';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=50';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=52';
-import { makeHero, stepHero, groundAt, pieceUnder } from './hero.js?v=50';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=50';
+import { LEVELS } from './level.js?v=53';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=53';
+import { drawSheet } from './sheet.js?v=53';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=53';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=53';
+import { makeHero, stepHero, groundAt, pieceUnder } from './hero.js?v=54';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=53';
 
 const $ = (id) => document.getElementById(id);
 
@@ -16,13 +16,13 @@ try { progress = JSON.parse(localStorage.getItem('flat-history.progress') || '{}
 function saveProgress() { try { localStorage.setItem('flat-history.progress', JSON.stringify(progress)); } catch (e) { /* なし */ } }
 
 // ---- 設定（このブラウザだけに覚える） ----
-const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'minuet', runDefault: true, inset: true, invX: false, invY: false, move: 'tap', hero: 'hourglass', res: 'kiwi' };
+const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'minuet', runDefault: true, inset: true, invX: false, invY: false, move: 'tap', hero: 'poly', res: 'kiwi' };
 let cfg = { ...DEF };
 try { cfg = { ...DEF, ...JSON.parse(localStorage.getItem('flat-history.settings2') || '{}') }; } catch (e) { cfg = { ...DEF }; }
 function saveCfg() { try { localStorage.setItem('flat-history.settings2', JSON.stringify(cfg)); } catch (e) { /* なし */ } }
 // v034: 主人公・住人をしぼった。やめた者を選んでいた人・前の既定（多面体）のままの人は、砂時計とキーウィへ。通り道・透かしの設定はやめた
-if (!cfg.v34) { cfg.hero = 'hourglass'; cfg.v34 = true; }
-if (!HERO_LIST.some((c) => c.id === cfg.hero)) cfg.hero = 'hourglass';
+if (!cfg.v38) { cfg.hero = 'poly'; cfg.v38 = true; delete cfg.v34; } // v038: 既定は多面体の旅人に（一度だけ）
+if (!HERO_LIST.some((c) => c.id === cfg.hero)) cfg.hero = 'poly';
 if (!RES_LIST.some((c) => c.id === cfg.res)) cfg.res = 'kiwi';
 delete cfg.showRoute; delete cfg.heroSlice;
 saveCfg();
@@ -342,27 +342,21 @@ function nudge(k) {
 }
 // ---- かんたん操作: タップした所へ歩く（スマホではこれが最初。スティックは設定で選ぶ） ----
 const tapWalk = () => isTouch && cfg.move !== 'stick';
-const walk = { to: null, best: 0, since: 0, jumped: false };
+const walk = { to: null, best: 0, since: 0 };
 function walkTo(x, t) {
-  walk.to = { x: Math.max(-6.8, Math.min(L.W - 0.2, x)), t: Math.max(-0.8, Math.min(L.T + 0.4, t)) };
-  walk.best = Infinity; walk.since = 0; walk.jumped = false;
+  walk.to = { x: Math.max(0.3, Math.min(L.W - 0.3, x)), t: Math.max(-0.5, Math.min(L.T + 0.5, t)) };
+  walk.best = Infinity; walk.since = 0;
   se.click();
 }
-// 行き先へ向かう向き（着いた・進めない・この先が崖なら止まる）。戻り値 [mx, mt, 走るか]
+// 行き先へ向かう向き（着いたら止まる。浮かんでいるので、崖や段ではとまらない）。戻り値 [mx, mt, 走るか]
 function walkStep(dt) {
   const h = st.hero, w = walk.to;
   const dx = w.x - h.x, dz = w.t - h.t, d = Math.hypot(dx, dz);
   if (d < 0.35) { walk.to = null; return null; }
-  const ux = dx / d, uz = dz / d;
-  // この先が底なし・高すぎる崖なら、ふちで止まる
-  const ax = h.x + ux * 0.7, at = h.t + uz * 0.7, g = groundAt(L, st.pieces, ax, at, h.y + 1.2);
-  if (h.grounded && (g === -Infinity || h.y - g > 3.4)) { walk.to = null; flashPrompt(TX('この先は落ちてしまう。ここで止まった', 'You’d fall from here, so you stopped')); return null; }
-  // 段が高くて進めないときは、一度だけ跳ぶ（よじ登れる高さなら登る）。それでも進めなければあきらめる
   if (d < walk.best - 0.05) { walk.best = d; walk.since = 0; } else walk.since += dt;
-  if (walk.since > 0.3 && !walk.jumped) { jumpQueued = true; walk.jumped = true; walk.since = 0; }
-  else if (walk.since > 0.9 && walk.jumped) { walk.to = null; flashPrompt(TX('そこへは歩いて行けない', 'You can’t walk there')); return null; }
+  if (walk.since > 0.9) { walk.to = null; return null; } // 見えない壁などで進めない
   const k = Math.min(1, d / 0.8);
-  return [ux * k, uz * k, d > 3];
+  return [(dx / d) * k, (dz / d) * k, d > 3];
 }
 // 画面をタップ／クリック: そこのいちばん近い受け口に置く（遠くても置ける）。
 // 指では、1回目のタップでゴーストを動かし、ゴーストの上をもう一度タップすると置く
@@ -438,7 +432,6 @@ const joy = { x: 0, y: 0, id: null };
   const up = () => { joy.id = null; joy.x = joy.y = 0; knob.style.transform = ''; };
   stick.addEventListener('pointerup', up); stick.addEventListener('pointercancel', up);
   const tap = (id, fn) => $(id).addEventListener('pointerdown', (e) => { e.preventDefault(); initAudio(); startBgm(); if (playing()) fn(); });
-  tap('tJump', () => { jumpQueued = true; });
   tap('tPlace', () => place());
   tap('tRot', () => rotate());
   tap('tCancel', () => cancelCarry());
@@ -453,7 +446,6 @@ function flashPrompt(m) { flashMsg = m; flashUntil = performance.now() + 1800; }
 
 // ---- 入力 ----
 const keys = new Set();
-let jumpQueued = false;
 window.addEventListener('keydown', (e) => {
   initAudio(); startBgm();
   const k = e.key;
@@ -477,11 +469,10 @@ window.addEventListener('keydown', (e) => {
   if (screen === 'title') { if (k === 'Enter') startGame(hasProgress() ? firstUnsolved() : 0); return; }
   if (k === 'Escape') { if (st.carry) cancelCarry(); else openMenu(); return; }
   keys.add(k.length === 1 ? k.toLowerCase() : k);
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(k)) e.preventDefault();
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k)) e.preventDefault();
   if (k.startsWith('Arrow') && st.carry) { nudge(k); return; }
   if (e.repeat) return;
   if (k === 'v' || k === 'V') { cfg.inset = !cfg.inset; saveCfg(); applyInset(); }
-  if (k === ' ') jumpQueued = true;
   if (k === 'q' || k === 'Q') rotate();
   if (/^[1-9]$/.test(k)) { const kind = Object.keys(L.stock)[+k - 1]; if (kind) choose(kind); }
   if (k === 'Enter' && enterOk()) { if (st.solved) reopenResult(); else bind(); }
@@ -597,7 +588,8 @@ function tlJump(e) {
   const nt = Math.max(0, Math.min(L.T, Math.round(u * L.T)));
   const h = st.hero;
   const g = groundAt(L, st.pieces, h.x, nt, Infinity);
-  if (Number.isFinite(g)) { h.t = nt; h.y = g; h.vy = 0; }
+  h.t = nt; h.vy = 0;
+  if (Number.isFinite(g)) { h.y = g; h.floor = g; }
 }
 tl.addEventListener('pointerdown', (e) => { tlDrag = true; tl.setPointerCapture(e.pointerId); tlJump(e); });
 tl.addEventListener('pointermove', (e) => { if (tlDrag) tlJump(e); });
@@ -823,10 +815,10 @@ function drawReplay() {
 }
 
 // ---- 毎フレーム ----
-let onPieceId = 0, last = performance.now(), lastFocus = 0, stepAcc = 0, landed = false, idleT = 0;
+let onPieceId = 0, last = performance.now(), lastFocus = 0, stepAcc = 0, idleT = 0;
 const flip = { t: null };
 // 主人公の姿ごとの足音
-const STEP_KIND = { poly: 'chime', star: 'chime', hourglass: 'wood', crane: 'paper', balloon: 'paper' };
+const STEP_KIND = { poly: 'chime', cube: 'chime', prism: 'chime', dodeca: 'chime', star: 'chime', hourglass: 'wood', crane: 'paper', balloon: 'paper' };
 // 置いた形の上を歩く音（形の材質ごと）
 const PIECE_STEP = { beam: 'board', plank: 'board', short: 'board', lift: 'brass', wall: 'stone', slide: 'glass', diamond: 'glass' };
 function loop(now) {
@@ -861,8 +853,7 @@ function loop(now) {
   const h = st.hero;
   const before = h.t, bx = h.x;
   const running = act && (walk.to ? walkRun : joy.id !== null ? Math.hypot(joy.x, joy.y) > 0.8 : cfg.runDefault ? !keys.has('Shift') : keys.has('Shift'));
-  if (stepHero(h, L, st.pieces, mx, mt, act && jumpQueued, act ? dt : 0, running) === 'respawn') flashPrompt(TX('底なしに落ちた。さっきの場所へもどる', 'You fell into the abyss. Back to where you were'));
-  jumpQueued = false;
+  stepHero(h, L, st.pieces, mx, mt, act ? dt : 0, running);
   st.walked += Math.abs(h.t - before);
   // 主人公の足音（地面を本当に歩いた距離ごと。壁に押しつけているだけなら鳴らない）と着地
   if (act && h.grounded) {
@@ -873,8 +864,6 @@ function loop(now) {
     if ((on ? on.id : 0) !== onPieceId) { onPieceId = on ? on.id : 0; if (on) { stepAcc = 0; se.step(kindNow); } }
     if (stepAcc > (running ? 1.3 : 1.0)) { stepAcc = 0; se.step(kindNow); }
   }
-  if (h.landT > 0.2 && !landed) { landed = true; se.land(); }
-  if (!h.landT) landed = false;
   st.revealT = Math.max(st.revealT, Math.min(L.T, h.t + 3));
   const focus = Math.max(0, Math.min(L.T, Math.round(h.t)));
   if (focus !== lastFocus && act) { se.page(); lastFocus = focus; }

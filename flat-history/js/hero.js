@@ -1,9 +1,11 @@
-// 主人公（3Dの学芸員）の歩き方。1マスまでの段は自動でのぼる（キーウィと同じ）。時空の大地（ページの上のふちが奥行きに並んだ地形）の上を歩く。
+// 主人公の動き方。時空の大地（ページの上のふちが奥行きに並んだ地形）の上を、浮かんで進む（v038）。
 // 座標: x＝2D世界の横（マス）、t＝時間（秒。3Dの奥行き）、y＝高さ（マス）。
 // 主人公の体はページの間隔（1秒）より薄いので、ページのあいだを歩くかぎり2D世界とは交わらない（REDESIGN 3-1）
-import { pieceDims, sectionRects } from './sim.js?v=50';
+import { pieceDims, sectionRects } from './sim.js?v=53';
 
-export const HERO = { speed: 5.2, run: 1.9, jumpV: 10.5, g: 25, step: 1.05, mantle: 1.9, coyote: 0.12, buffer: 0.14 };
+// v038: 主人公は浮かんでいる。跳ぶ・よじ登る・落ちるはやめた。足もとの高さへ、ばねのようにふわりと寄る（少しゆれて、ぴたりとは張りつかない）
+// 奈落の上では、さっきの高さのまま浮かんでいる（落ちない）
+export const HERO = { speed: 5.2, run: 1.9, k: 34, c: 9.5, sink: 0.9, look: 0.4 };
 
 // (x, t) の足もとの高さ。yRef より 1 以上うえにある形の底は、床にしない（頭の上の形）
 export function groundAt(L, pieces, x, t, yRef = Infinity) {
@@ -26,7 +28,7 @@ export function groundAt(L, pieces, x, t, yRef = Infinity) {
 // 足もとの面が置いた形なら、その形（地面なら null）。足音を形の材質で鳴らす
 export function pieceUnder(pieces, x, t, y) {
   for (const p of pieces) {
-    if (Math.abs(groundAt({ tops: [], W: 0, T: -9 }, [p], x, t, y) - y) < 0.08) return p;
+    if (Math.abs(groundAt({ tops: [], W: 0, T: -9 }, [p], x, t, y) - y) < 0.4) return p;
   }
   return null;
 }
@@ -40,48 +42,32 @@ function footGround(L, pieces, x, t, yRef) {
 // はじめは、住人の立つ所の、1秒目と2秒目のページのあいだ（v031: 標本台はやめた）
 export function makeHero(L) {
   const x = L.start.x, t = 1.5, y = L.tops[Math.floor(x)];
-  return { x, t, y, vy: 0, grounded: true, coyote: 0, buffer: 0, safe: { x, t, y }, mantle: 0, fx: 0, ft: 1 };
+  return { x, t, y, vy: 0, floor: y, grounded: true, fx: 0, ft: 1 };
 }
 
 // 1フレーム動かす。mx・mt はカメラ基準から直した、世界の向きの入力（-1〜1）
-export function stepHero(h, L, pieces, mx, mt, jumpPressed, dt, running = false) {
+export function stepHero(h, L, pieces, mx, mt, dt, running = false) {
   const len = Math.hypot(mx, mt);
   if (len > 1) { mx /= len; mt /= len; }
   if (len > 0.05) { h.fx = mx; h.ft = mt; }
-  if (jumpPressed) h.buffer = HERO.buffer; else h.buffer = Math.max(0, h.buffer - dt);
-  h.mantle = Math.max(0, h.mantle - dt);
-  h.landT = Math.max(0, (h.landT || 0) - dt);
-
-  // 横の移動（軸ごとに。壁ならそこで止まる、低い段はのぼる、跳んでいれば よじ登る）
-  const tryMove = (nx, nt) => {
-    nx = Math.max(0.3, Math.min(L.W - 0.3, nx));
-    nt = Math.max(-0.5, Math.min(L.T + 0.5, nt));
-    const g = footGround(L, pieces, nx, nt, h.y);
-    if (g - h.y <= HERO.step) { h.x = nx; h.t = nt; if (h.grounded && g > h.y) h.y = g; return; }
-    if (!h.grounded && g - h.y <= HERO.mantle) { h.x = nx; h.t = nt; h.y = g; h.vy = 0; h.grounded = true; h.mantle = 0.25; }
-  };
+  // 横と奥行き: 段や壁でとまらない（浮かんでこえる）。左右の見えない壁と、時間のはしでとまる
   const sp = HERO.speed * (running ? HERO.run : 1);
-  tryMove(h.x + mx * sp * dt, h.t);
-  tryMove(h.x, h.t + mt * sp * dt);
-
-  // 上下
-  const g0 = footGround(L, pieces, h.x, h.t, h.y);
-  if (h.grounded) {
-    if (g0 < h.y - 0.35 || g0 === -Infinity) { h.grounded = false; h.coyote = HERO.coyote; h.vy = 0; }
-    else h.y = g0;
+  h.x = Math.max(0.3, Math.min(L.W - 0.3, h.x + mx * sp * dt));
+  h.t = Math.max(-0.5, Math.min(L.T + 0.5, h.t + mt * sp * dt));
+  // 高さ: 足もと（足の大きさぶん）の面へ、ばねで寄る。奈落なら、さっきの高さのまま
+  const g = footGround(L, pieces, h.x, h.t, Infinity);
+  if (Number.isFinite(g)) h.floor = g;
+  // 進む先の高い面を先読みして、段の手前から浮かび上がる（のぼりで、ぱっと持ち上がらないように）。下りは足もとまで来てから
+  let target = h.floor;
+  const ahead = len > 0.05 ? Math.max(0.8, sp * Math.min(1, len) * HERO.look) : 0;
+  for (let u = 0.4; u <= ahead; u += 0.4) {
+    const ga = footGround(L, pieces, h.x + mx / Math.max(len, 1e-6) * u, h.t + mt / Math.max(len, 1e-6) * u, Infinity);
+    if (Number.isFinite(ga) && ga > target) target = ga;
   }
-  if ((h.grounded || h.coyote > 0) && h.buffer > 0) {
-    h.vy = HERO.jumpV; h.grounded = false; h.coyote = 0; h.buffer = 0;
-  }
-  if (!h.grounded) {
-    h.coyote = Math.max(0, h.coyote - dt);
-    h.vy -= HERO.g * dt;
-    h.y += h.vy * dt;
-    const g1 = footGround(L, pieces, h.x, h.t, h.y - h.vy * dt);
-    if (h.vy <= 0 && h.y <= g1) { h.landV = -h.vy; h.y = g1; h.vy = 0; h.grounded = true; h.landT = 0.25; }
-  }
-  if (h.grounded && Number.isFinite(g0)) h.safe = { x: h.x, t: h.t, y: h.y };
-  // 底なしへ落ちたら、さっき立っていた所へ戻す
-  if (h.y < -6) { h.x = h.safe.x; h.t = h.safe.t; h.y = h.safe.y + 0.5; h.vy = 0; h.grounded = false; return 'respawn'; }
+  h.vy += (HERO.k * (target - h.y) - HERO.c * h.vy) * dt;
+  h.y += h.vy * dt;
+  // それでも面に深くめりこむときだけ、ゆっくり押し上げる
+  if (h.y < h.floor - HERO.sink) { h.y += (h.floor - HERO.sink - h.y) * Math.min(1, dt * 12); if (h.vy < 0) h.vy = 0; }
+  h.grounded = true;
   return '';
 }

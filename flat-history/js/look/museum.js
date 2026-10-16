@@ -1,7 +1,7 @@
 // 見た目「図鑑の銅版画と標本室」: 線で彫った博物画の大地と、標本室。住人と主人公は residents.js・heroes.js（設定で選ぶ）
 import * as THREE from 'three';
-import { rng, canvasTexture } from './util.js?v=50';
-import { INK, hatch } from './ink.js?v=50';
+import { rng, canvasTexture } from './util.js?v=53';
+import { INK, hatch } from './ink.js?v=53';
 
 function drawTerrain(g, L, S, res) {
   const R = rng(23);
@@ -129,7 +129,8 @@ function drawSection(g, L, s, S, color) {
 // v037: 舞台。床（図書館・標本室の寄せ木）と真鍮の手すりはやめて、ページの束の下は奈落（ユーザー「図書館的な見た目にしない」）。
 // 上は古い紙の光のもや、下へいくほど暗いセピアの深み。奈落には、もやの層と、ゆっくり昇るほこり。
 // 左右の見えない壁（主人公が出られない x=0・x=W）は、紙の透かしのような、ほとんど見えない光の幕。近づくと浮かび、ふれると波紋が広がる
-const SKY = [[1, '#f6ecd4'], [0.18, '#eadbb8'], [0.02, '#d2bc94'], [-0.06, '#6e5234'], [-0.2, '#2a1c10'], [-1, '#0c0704']];
+// v038: 3D世界の色は、2D世界（紙とセピア）の暖色に、主人公たちの青みの緑を足す。上は金色がかった光、地平は緑がかったもや、奈落は深い青緑
+const SKY = [[1, '#f4ead0'], [0.2, '#e3dcb4'], [0.03, '#b9c7a0'], [-0.05, '#4f7a66'], [-0.2, '#173c37'], [-1, '#04110f']];
 function skyColor(u) {
   for (let i = 0; i < SKY.length - 1; i++) {
     const [a, ca] = SKY[i], [b, cb] = SKY[i + 1];
@@ -162,7 +163,7 @@ function ringTexture() {
   const cv = document.createElement('canvas'); cv.width = cv.height = 128;
   const g = cv.getContext('2d');
   const gr = g.createRadialGradient(64, 64, 30, 64, 64, 62);
-  gr.addColorStop(0, 'rgba(255,240,200,0)'); gr.addColorStop(0.75, 'rgba(255,240,200,.9)'); gr.addColorStop(1, 'rgba(255,240,200,0)');
+  gr.addColorStop(0, 'rgba(190,250,225,0)'); gr.addColorStop(0.75, 'rgba(210,250,225,.9)'); gr.addColorStop(1, 'rgba(190,250,225,0)');
   g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -184,7 +185,7 @@ function makeEnv(L) {
     gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = gr; g.fillRect(0, 0, w, h);
   });
-  [[-6, '#a88a5e', 0.16, 150], [-16, '#5e432a', 0.18, 220], [-30, '#2e1f12', 0.2, 300]].forEach(([y, c, op, size]) => {
+  [[-6, '#9fc2a6', 0.16, 150], [-16, '#3f7a6c', 0.18, 220], [-30, '#14403a', 0.2, 300]].forEach(([y, c, op, size]) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ map: mistTex, color: c, transparent: true, opacity: op, depthWrite: false }));
     m.rotation.x = -Math.PI / 2; m.position.set(cx, y, cz); grp.add(m);
   });
@@ -192,17 +193,17 @@ function makeEnv(L) {
   const N = 500, dp = new Float32Array(N * 3), R = rng(7);
   for (let i = 0; i < N; i++) { dp[i * 3] = cx + (R() - 0.5) * 120; dp[i * 3 + 1] = -2 - R() * 40; dp[i * 3 + 2] = cz + (R() - 0.5) * (L.T + 60); }
   const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(dp, 3));
-  const dust = new THREE.Points(dg, new THREE.PointsMaterial({ color: '#f3dfb0', size: 0.18, transparent: true, opacity: 0.55, depthWrite: false }));
+  const dust = new THREE.Points(dg, new THREE.PointsMaterial({ color: '#f6dc8e', size: 0.18, transparent: true, opacity: 0.55, depthWrite: false }));
   grp.add(dust);
   // 左右の見えない壁: ふだんは、ふちに細い光の線がうっすら。主人公が近づくと、そのまわりだけ光の幕が浮かぶ
-  const edgeMat = new THREE.LineBasicMaterial({ color: '#fff1c8', transparent: true, opacity: 0.18, depthWrite: false });
+  const edgeMat = new THREE.LineBasicMaterial({ color: '#9ff0d4', transparent: true, opacity: 0.22, depthWrite: false });
   for (const x of [0, L.W]) for (const y of [-0.6, L.H + 0.6]) {
     grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, y, 1), new THREE.Vector3(x, y, -L.T - 1)]), edgeMat));
   }
   const ltex = curtainTexture(true);
   const walls = [0, L.W].map((x) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(7, 7), new THREE.MeshBasicMaterial({
-      map: ltex, color: '#fff3d0', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+      map: ltex, color: '#b8f5dc', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
     m.rotation.y = Math.PI / 2; m.position.x = x;
     grp.add(m);
     return m;
@@ -250,11 +251,11 @@ export default {
   kindNamesEn: { beam: 'long specimen board', plank: 'specimen board', short: 'thin specimen board', lift: 'brass slanted board', wall: 'plaster pillar', slide: 'parallelogram board', diamond: 'diamond board' },
   kindNames: { beam: '長い標本の板', plank: '標本の板', short: 'うすい標本の板', lift: '真鍮のななめ板', wall: '石膏の柱', slide: '平行四辺形の板', diamond: 'ひし形の板' },
   kindColors: { beam: '#c9732f', plank: '#c9732f', short: '#d9893f', lift: '#e8a91c', wall: '#e9eef2', slide: '#4f9a86', diamond: '#a0628f' },
-  bg: 'linear-gradient(180deg, #f1e4c6 0%, #d8c39c 45%, #3b2817 100%)',
-  fog: '#ddcca8', fogNear: 38, fogFar: 100, paper: ['#f4ead2', '#eadcbc'], paperTint: '#f8efd8',
-  edge: '#b29a6c', focus: '#a8742a',
+  bg: 'linear-gradient(180deg, #f2e8cc 0%, #b9c7a0 45%, #173c37 100%)',
+  fog: '#cfd2ae', fogNear: 38, fogFar: 100, paper: ['#f4ead2', '#eadcbc'], paperTint: '#f8efd8',
+  edge: '#8aa98a', focus: '#c9952e',
   labelColor: 'rgba(74,51,32,.85)',
   ribbon: { line: '#5a3d22', gold: '#c9942e', dead: '#8f3b2b', old: '#a0634f' },
-  light: { sky: '#fff2d8', ground: '#7a5a3a', sun: '#ffe2b5' },
+  light: { sky: '#fff2d8', ground: '#2f5a4e', sun: '#ffe2b5' },
   drawTerrain, drawBackdrop, drawSection, drawStone, makeEnv,
 };

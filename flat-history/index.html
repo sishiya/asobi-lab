@@ -9,7 +9,7 @@
 <script>/* 言語 ja／en（まなびラボの I18N.md・edge-falls と同じ決め方。localStorage の manabi-lang はまなびラボ・あそびラボで共通）: ?lang= → 前に選んだもの → ブラウザの言語。js の中の文は TX(日本語, 英語) */var LANG=(function(){var q=new URLSearchParams(location.search).get('lang'),s=null;try{s=localStorage.getItem('manabi-lang');}catch(e){}var l=q==='en'||q==='ja'?q:s==='en'||s==='ja'?s:/^ja\b/i.test(navigator.language||'ja')?'ja':'en';document.documentElement.lang=l;if(l==='en')document.title='Keeper of the Flat World';return l;})();function TX(ja,en){return LANG==='en'?en:ja;}function setLang(l){try{localStorage.setItem('manabi-lang',l);}catch(e){}var u=new URL(location.href);u.searchParams.set('lang',l);location.href=u.href;}</script>
 <meta name="description" content="1秒ずつのぺらぺらな世界が、ページのように並んでいる。形を置くと、その世界には断面だけが現れて、歴史が書きかわる。">
 <meta name="theme-color" content="#e2d2b0">
-<link rel="stylesheet" href="css/style.css?v=61">
+<link rel="stylesheet" href="css/style.css?v=62">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body class="menu">
@@ -28,7 +28,7 @@
       <button type="button" id="tHelp" class="act big"><span lang="ja">あそびかた</span><span lang="en">How to play</span></button>
       <button type="button" id="tSettings" class="act big"><span lang="ja">設定</span><span lang="en">Settings</span></button>
     </div>
-    <p class="t-foot"><span class="t-dev"><span lang="ja">キーボードとマウスで遊びます</span><span lang="en">Play with keyboard and mouse</span></span><span class="t-touch"><span lang="ja">指で遊べます（横向きがおすすめ）</span><span lang="en">Touch controls (landscape recommended)</span></span> ・ <span class="ver">v037</span> ・ <a href="../"><span lang="ja">あそびラボへ</span><span lang="en">To Asobi Lab</span></a></p>
+    <p class="t-foot"><span class="t-dev"><span lang="ja">キーボードとマウスで遊びます</span><span lang="en">Play with keyboard and mouse</span></span><span class="t-touch"><span lang="ja">指で遊べます（横向きがおすすめ）</span><span lang="en">Touch controls (landscape recommended)</span></span> ・ <span class="ver">v038</span> ・ <a href="../"><span lang="ja">あそびラボへ</span><span lang="en">To Asobi Lab</span></a></p>
   </div>
 </section>
 
@@ -71,7 +71,6 @@
     <button type="button" id="tRot" class="tb" hidden><span lang="ja">回す</span><span lang="en">Rotate</span></button>
     <button type="button" id="tCancel" class="tb" hidden><span lang="ja">やめる</span><span lang="en">Cancel</span></button>
     <button type="button" id="tPlace" class="tb" hidden><span lang="ja">置く</span><span lang="en">Place</span></button>
-    <button type="button" id="tJump" class="tb big"><span lang="ja">跳ぶ</span><span lang="en">Jump</span></button>
   </div>
 </div>
 
@@ -172,8 +171,7 @@
     <p class="help-touch" lang="ja"><b>指で</b>: タップした所へ歩く。パレットの形をえらんで置きたい所をタップ、もう一度タップで置く。置いた形はタップで持ち上げる。ドラッグで見回す。</p>
     <p class="help-touch" lang="en"><b>Touch</b>: tap to walk. Pick a shape, tap where it goes, tap again to place. Tap a placed shape to pick it up. Drag to look around.</p>
     <table class="keys">
-      <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td><span lang="ja">歩く（<kbd>Shift</kbd> で走る・歩くを切りかえ）</span><span lang="en">Walk (<kbd>Shift</kbd> switches run/walk)</span></td></tr>
-      <tr><td><kbd>Space</kbd></td><td><span lang="ja">跳ぶ</span><span lang="en">Jump</span></td></tr>
+      <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td><span lang="ja">進む（浮かんで、段も崖もこえる。<kbd>Shift</kbd> で速さを切りかえ）</span><span lang="en">Move (you float over steps and chasms; <kbd>Shift</kbd> switches speed)</span></td></tr>
       <tr><td><span lang="ja">パレット</span><span lang="en">Palette</span> ／ <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></td><td><span lang="ja">形をえらぶ</span><span lang="en">Choose a shape</span></td></tr>
       <tr><td><span lang="ja">クリック</span><span lang="en">Click</span></td><td><span lang="ja">置く ／ 置いた形を持ち上げる</span><span lang="en">Place / pick up a placed shape</span></td></tr>
       <tr><td><kbd>Q</kbd> ／ <span lang="ja">右クリック</span><span lang="en">Right-click</span></td><td><span lang="ja">回す</span><span lang="en">Rotate</span></td></tr>
@@ -186,6 +184,6 @@
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=62"></script>
+<script type="module" src="js/main.js?v=63"></script>
 </body>
 </html>

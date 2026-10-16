@@ -671,3 +671,7 @@ body.touch .inset { left: 12px; right: auto; top: 120px; }
   .headgroup { max-width: calc(70vw - 120px); }
   .inset, body.touch .inset { top: 8px; left: auto; right: 96px; width: 30vw; }
 }
+
+/* v038: 跳ぶボタンはやめた。スマホの右下は、持っているときだけ「回す・やめる」と大きな「置く」 */
+.tbtns { grid-template-columns: 64px 64px; grid-template-areas: "rot cancel" "place place"; }
+#tPlace { grid-area: place; width: 84px; height: 84px; font-size: 16px; background: var(--ink); color: var(--paper); justify-self: center; }

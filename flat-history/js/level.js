@@ -52,7 +52,7 @@ export const LEVELS = [
     tops: tops([[14, 18, 3], [19, 35, 7]]), start: { x: 1.6, dir: 1 }, goal: { x: 31 },
     stock: { lift: 1 },
     hints: [
-      { text: TX('この段は、キーウィには高すぎる（あなたは跳んで、よじ登れる）', 'This step is too high for the kiwi (you can jump and climb up)'), when: (c) => c.placed },
+      { text: TX('この段は、キーウィには高すぎる（あなたは浮かんでこえられる）', 'This step is too high for the kiwi (you can float over it)'), when: (c) => c.placed },
     ],
     fail: TX('板の上で、キーウィはどうなった？', 'What happened to the kiwi on the board?'),
   },

@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・主人公・置いた形・置き場所のゴースト・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=52';
-import { radialTexture } from './look/util.js?v=50';
-import { S, drawSheet } from './sheet.js?v=50';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=50';
-import { groundAt } from './hero.js?v=50';
+import { look, kindColor } from './look/index.js?v=53';
+import { radialTexture } from './look/util.js?v=53';
+import { S, drawSheet } from './sheet.js?v=53';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=53';
+import { groundAt } from './hero.js?v=54';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -586,7 +586,8 @@ export function createStage(canvas, L) {
     // 舞台（奈落のほこり・左右の見えない壁）
     if (env.userData.update) env.userData.update(dt, h);
     // 主人公
-    hero.position.set(h.x, visY, hz);
+    // 浮かんでいる: 足もとの面から少し上に（v038）
+    hero.position.set(h.x, visY + 0.3, hz);
     const ud = hero.userData;
     const want = Math.atan2(h.ft, h.fx);
     let d = want - ud.body.rotation.y; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
