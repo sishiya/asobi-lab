@@ -1,0 +1,383 @@
+// 3Dの舞台: ページの束・ガラスの棚・主人公・置いた形・世界線・描きかえの波
+import * as THREE from 'three';
+import { KINDS } from './level.js';
+import { S, drawSheet } from './sheet.js';
+import { sectionsAt, DT } from './sim.js';
+
+export const GAP = 1.0; // 1秒あたりの奥行き
+
+const BG = new THREE.Color('#dde7ee');
+
+function textSprite(text, size = 0.9, color = '#3d4c66') {
+  const cv = document.createElement('canvas');
+  cv.width = 128; cv.height = 64;
+  const g = cv.getContext('2d');
+  g.font = 'bold 34px system-ui, sans-serif';
+  g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(text, 64, 34);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  sp.scale.set(size * 2, size, 1);
+  return sp;
+}
+
+function radialTexture(inner, outer) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 128;
+  const g = cv.getContext('2d');
+  const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, inner); gr.addColorStop(1, outer);
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// 3Dの形の立体（手前へ進むほど slope だけ上がる、ななめの直方体）
+export function pieceGeometry(kind) {
+  const k = KINDS[kind];
+  const g = new THREE.BoxGeometry(k.w, k.h, k.d * GAP, 1, 1, Math.max(1, k.d));
+  g.translate(k.w / 2, k.h / 2, (k.d * GAP) / 2);
+  const pos = g.attributes.position;
+  for (let i = 0; i < pos.count; i++) pos.setY(i, pos.getY(i) + k.slope * (pos.getZ(i) / GAP));
+  g.computeVertexNormals();
+  return g;
+}
+
+function makeHero() {
+  const hero = new THREE.Group();
+  const body = new THREE.Group();
+  hero.add(body);
+  const robeMat = new THREE.MeshStandardMaterial({ color: '#f3eee6', roughness: 0.75 });
+  const deepMat = new THREE.MeshStandardMaterial({ color: '#2e4a7a', roughness: 0.5 });
+  const pts = [[0, 0], [0.46, 0], [0.43, 0.12], [0.34, 0.6], [0.27, 1.0], [0.22, 1.18], [0.12, 1.3], [0, 1.32]]
+    .map(([r, y]) => new THREE.Vector2(r, y));
+  const robe = new THREE.Mesh(new THREE.LatheGeometry(pts, 28), robeMat);
+  body.add(robe);
+  const hem = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.035, 8, 32), deepMat);
+  hem.rotation.x = Math.PI / 2; hem.position.y = 0.06; body.add(hem);
+  const sash = new THREE.Mesh(new THREE.TorusGeometry(0.29, 0.045, 8, 32), deepMat);
+  sash.rotation.x = Math.PI / 2; sash.position.y = 0.82; body.add(sash);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.21, 24, 18), robeMat);
+  head.position.y = 1.5; body.add(head);
+  // 顔のかわりの、横長の帯（向きがわかる）
+  const visor = new THREE.Mesh(new THREE.CylinderGeometry(0.215, 0.215, 0.07, 24, 1, true, -0.9, 1.8), deepMat);
+  visor.position.y = 1.52; body.add(visor);
+  const armGeo = new THREE.CapsuleGeometry(0.055, 0.42, 4, 8);
+  const armL = new THREE.Mesh(armGeo, robeMat), armR = new THREE.Mesh(armGeo, robeMat);
+  armL.position.set(0, 1.08, -0.26); armR.position.set(0, 1.08, 0.26);
+  armL.geometry.translate(0, -0.25, 0);
+  body.add(armL, armR);
+  // 手もとの光の玉
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12),
+    new THREE.MeshStandardMaterial({ color: '#fff3c4', emissive: '#ffd36b', emissiveIntensity: 1.6 }));
+  orb.position.set(0.35, 1.0, 0.35); hero.add(orb);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: radialTexture('rgba(255,220,130,.9)', 'rgba(255,220,130,0)'), transparent: true, depthWrite: false }));
+  glow.scale.set(0.7, 0.7, 1); orb.add(glow);
+  hero.scale.setScalar(1.25);
+  hero.userData = { body, armL, armR, orb };
+  return hero;
+}
+
+export function createStage(canvas, L) {
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(BG, 26, 70);
+  const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 400);
+  scene.add(new THREE.HemisphereLight('#ffffff', '#b4a38c', 1.25));
+  const sun = new THREE.DirectionalLight('#fff3df', 1.5);
+  sun.position.set(-12, 30, 24); scene.add(sun);
+
+  // ---- ページの束 ----
+  const planeGeo = new THREE.PlaneGeometry(L.W, L.H);
+  const sheets = [];
+  for (let t = 0; t <= L.T; t++) {
+    const cv = document.createElement('canvas');
+    cv.width = L.W * S; cv.height = L.H * S;
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(planeGeo, mat);
+    mesh.position.set(L.W / 2, L.H / 2, t * GAP);
+    scene.add(mesh);
+    sheets.push({ t, cv, g: cv.getContext('2d'), tex, mat, mesh, pending: false });
+  }
+  // ページのふち（全部まとめて1本の線）
+  {
+    const v = [];
+    for (let t = 0; t <= L.T; t++) {
+      const z = t * GAP, big = t % 5 === 0;
+      if (!big) { v.push(0, L.H, z, L.W, L.H, z); continue; }
+      v.push(0, 0, z, 0, L.H, z, 0, L.H, z, L.W, L.H, z, L.W, L.H, z, L.W, 0, z);
+    }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+    scene.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: '#9fb0c4', transparent: true, opacity: 0.55 })));
+  }
+  // いまのページ: 紙の地と光るふち
+  const paper = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ color: '#fffaf0', transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }));
+  scene.add(paper);
+  const frameGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, L.H, 0), new THREE.Vector3(L.W, L.H, 0), new THREE.Vector3(L.W, 0, 0)]);
+  const frame = new THREE.LineLoop(frameGeo, new THREE.LineBasicMaterial({ color: '#f2a93b' }));
+  scene.add(frame);
+
+  // ---- ガラスの棚（主人公が歩く、2D世界のブロックの外） ----
+  const shelfLen = L.T * GAP + 6;
+  const shelf = new THREE.Mesh(new THREE.PlaneGeometry(L.W + 4, shelfLen),
+    new THREE.MeshBasicMaterial({ color: '#cfe3f2', transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide }));
+  shelf.rotation.x = -Math.PI / 2;
+  shelf.position.set(L.W / 2, L.H + 0.02, L.T * GAP / 2);
+  scene.add(shelf);
+  {
+    const v = [];
+    v.push(-2, L.H + 0.03, -3, -2, L.H + 0.03, L.T * GAP + 3, L.W + 2, L.H + 0.03, -3, L.W + 2, L.H + 0.03, L.T * GAP + 3);
+    for (let t = 0; t <= L.T; t += 5) v.push(-2, L.H + 0.03, t * GAP, -0.6, L.H + 0.03, t * GAP);
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+    scene.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: '#7f9bb8', transparent: true, opacity: 0.8 })));
+    for (let t = 0; t <= L.T; t += 5) {
+      const sp = textSprite(t + '秒', 0.8);
+      sp.position.set(-3.2, L.H + 0.4, t * GAP);
+      scene.add(sp);
+    }
+    const a = textSprite('← 昔', 0.9, '#6a7891'); a.position.set(L.W + 3.5, L.H + 0.4, -1.5); scene.add(a);
+    const b = textSprite('未来 →', 0.9, '#6a7891'); b.position.set(L.W + 3.5, L.H + 0.4, L.T * GAP + 1.5); scene.add(b);
+  }
+
+  // ---- 主人公 ----
+  const hero = makeHero();
+  scene.add(hero);
+  const blob = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6),
+    new THREE.MeshBasicMaterial({ map: radialTexture('rgba(40,60,90,.38)', 'rgba(40,60,90,0)'), transparent: true, depthWrite: false }));
+  blob.rotation.x = -Math.PI / 2;
+  scene.add(blob);
+  // 主人公から下の形へ下ろす糸
+  const dropLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+    new THREE.LineDashedMaterial({ color: '#ffffff', dashSize: 0.3, gapSize: 0.2, transparent: true, opacity: 0.85 }));
+  scene.add(dropLine);
+
+  // ---- 置いた形とゴースト ----
+  const pieceObjs = new Map();
+  const geoCache = {};
+  const geoOf = (kind) => (geoCache[kind] ||= pieceGeometry(kind));
+  function makePieceObj(kind, ghost) {
+    const k = KINDS[kind];
+    const grp = new THREE.Group();
+    const fill = new THREE.Mesh(geoOf(kind), new THREE.MeshStandardMaterial({
+      color: k.color, transparent: true, opacity: ghost ? 0.18 : 0.42, roughness: 0.25, metalness: 0.05, depthWrite: false,
+    }));
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geoOf(kind)),
+      new THREE.LineBasicMaterial({ color: ghost ? '#ffffff' : new THREE.Color(k.color).multiplyScalar(0.7), transparent: true, opacity: ghost ? 0.9 : 1 }));
+    grp.add(fill, edges);
+    grp.userData = { fill, edges };
+    return grp;
+  }
+  let ghost = null, ghostKind = null;
+
+  // ---- 世界線のリボン ----
+  let ribbon = null, oldRibbons = [], endMark = null;
+  const ribbonMat = (color, op) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, depthWrite: false });
+
+  // ---- 描きかえの波 ----
+  const wave = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({
+    color: '#ffe3a0', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+  }));
+  scene.add(wave);
+  let waveT = null, waveFrom = 0, hist = null, pieces = [];
+
+  function drawOne(sh) {
+    const fr = hist.frames[Math.round(sh.t / DT)];
+    drawSheet(sh.g, L, sh.t, fr, sectionsAt(pieces, sh.t));
+    sh.tex.needsUpdate = true;
+    sh.pending = false;
+  }
+
+  function buildRibbon(h) {
+    const pts = [];
+    const fr = h.frames;
+    for (let k = 0; k < fr.length; k += 2) {
+      if (fr[k].st === 'dead') break;
+      pts.push(new THREE.Vector3(fr[k].x, fr[k].y + 0.45, k * DT * GAP));
+    }
+    if (h.end.type !== 'goal' && h.end.type !== 'time') {
+      const e = h.end;
+      pts.push(new THREE.Vector3(e.x, Math.max(e.y, -2.5) + 0.45, e.t * GAP));
+    }
+    if (pts.length < 2) pts.push(pts[0].clone().add(new THREE.Vector3(0, 0, 0.01)));
+    const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
+    const seg = pts.length * 2;
+    const geo = new THREE.TubeGeometry(curve, seg, 0.075, 6, false);
+    const gold = h.end.type === 'goal';
+    const m = new THREE.Mesh(geo, ribbonMat(gold ? '#f5b82e' : '#3f7fd6', 0.95));
+    m.userData = { seg, tEnd: pts[pts.length - 1].z / GAP };
+    return m;
+  }
+
+  function setEndMark(h) {
+    if (endMark) { scene.remove(endMark); endMark = null; }
+    const e = h.end;
+    if (e.type === 'goal') {
+      endMark = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.07, 8, 24), new THREE.MeshBasicMaterial({ color: '#f5b82e' }));
+      endMark.position.set(e.x, e.y + 0.5, e.t * GAP);
+    } else if (e.type !== 'time') {
+      endMark = new THREE.Mesh(new THREE.OctahedronGeometry(0.32), new THREE.MeshBasicMaterial({ color: '#e0453a' }));
+      endMark.position.set(e.x, Math.max(e.y, -2.5) + 0.45, e.t * GAP);
+    }
+    if (endMark) { endMark.visible = false; scene.add(endMark); }
+  }
+
+  // 歴史を入れかえる。fromT から手前へ波を走らせる（animate=false なら一度に）
+  function setHistory(h, ps, fromT, animate) {
+    hist = h; pieces = ps;
+    // 置いた形の立体
+    const ids = new Set(ps.map((p) => p.id));
+    for (const [id, o] of pieceObjs) if (!ids.has(id)) { scene.remove(o); pieceObjs.delete(id); }
+    for (const p of ps) {
+      if (pieceObjs.has(p.id)) continue;
+      const o = makePieceObj(p.kind, false);
+      o.position.set(p.x0, p.y0, p.t0 * GAP);
+      o.userData.drop = animate ? 1 : 0;
+      o.userData.y0 = p.y0;
+      scene.add(o); pieceObjs.set(p.id, o);
+    }
+    // リボン
+    if (ribbon) {
+      ribbon.material = ribbonMat('#d06a5a', 0.5);
+      ribbon.userData.fade = 1;
+      oldRibbons.push(ribbon);
+    }
+    ribbon = buildRibbon(h);
+    scene.add(ribbon);
+    setEndMark(h);
+    if (!animate) {
+      for (const sh of sheets) drawOne(sh);
+      waveT = null;
+      ribbon.geometry.setDrawRange(0, Infinity);
+      if (endMark) endMark.visible = true;
+      for (const r of oldRibbons) { scene.remove(r); r.geometry.dispose(); }
+      oldRibbons = [];
+      return;
+    }
+    for (const sh of sheets) if (sh.t >= Math.floor(fromT)) sh.pending = true;
+    waveFrom = Math.floor(fromT);
+    waveT = waveFrom - 0.0001 - 0.35; // 形が下りきってから走りだす
+  }
+
+  function ribbonRange(tNow) {
+    const u = ribbon.userData;
+    const frac = Math.max(0, Math.min(1, tNow / Math.max(0.01, u.tEnd)));
+    ribbon.geometry.setDrawRange(0, Math.floor(frac * u.seg) * 6 * 6);
+  }
+
+  // ---- 毎フレーム ----
+  const target = new THREE.Vector3(), camPos = new THREE.Vector3();
+  let camInit = false;
+  let ghostMsgOk = true;
+
+  function update(dt, view) {
+    const { heroX, heroT, heroY, focus, facing, cand, candOk, walking, reach } = view;
+    // 波
+    if (waveT !== null) {
+      waveT += dt * 38;
+      for (const sh of sheets) if (sh.pending && sh.t <= waveT) drawOne(sh);
+      const wz = Math.max(waveFrom, waveT);
+      wave.position.set(L.W / 2, L.H / 2, wz * GAP + 0.05);
+      wave.material.opacity = waveT < waveFrom ? 0 : 0.35;
+      ribbonRange(Math.max(waveFrom, waveT));
+      if (waveT > L.T + 1) {
+        waveT = null; wave.material.opacity = 0;
+        ribbon.geometry.setDrawRange(0, Infinity);
+        if (endMark) endMark.visible = true;
+      }
+    } else wave.material.opacity = Math.max(0, wave.material.opacity - dt * 2);
+    for (let i = oldRibbons.length - 1; i >= 0; i--) {
+      const r = oldRibbons[i];
+      r.userData.fade -= dt * 0.45;
+      r.material.opacity = Math.max(0, r.userData.fade * 0.5);
+      if (r.userData.fade <= 0) { scene.remove(r); r.geometry.dispose(); oldRibbons.splice(i, 1); }
+    }
+    // 形が下りてくる
+    for (const [, o] of pieceObjs) {
+      if (o.userData.drop > 0) {
+        o.userData.drop = Math.max(0, o.userData.drop - dt * 3.2);
+        const u = o.userData.drop;
+        o.position.y = o.userData.y0 + u * u * (L.H - 2);
+      }
+    }
+    // ページの見え方: 昔は不透明な切り絵（霧で遠のく）、未来はうすく
+    for (const sh of sheets) {
+      const d = sh.t - heroT;
+      const m = sh.mat;
+      if (d > 0.5) {
+        m.alphaTest = 0.01; m.depthWrite = false;
+        m.opacity = Math.max(0.1, 0.5 - (d - 0.5) * 0.02);
+        sh.mesh.visible = m.opacity > 0.01;
+      } else {
+        m.alphaTest = 0.5; m.depthWrite = true; m.opacity = 1; sh.mesh.visible = true;
+      }
+      const c = sh.t === focus ? 1 : Math.max(0.78, 0.97 - Math.abs(d) * 0.004);
+      m.color.setRGB(c, c, c);
+    }
+    paper.position.set(L.W / 2, L.H / 2, focus * GAP - 0.03);
+    frame.position.z = focus * GAP + 0.01;
+
+    // 主人公
+    hero.position.set(heroX, L.H + heroY, heroT * GAP);
+    const ud = hero.userData;
+    const want = Math.atan2(facing.z, facing.x);
+    let cur = ud.body.rotation.y;
+    const goal = -want;
+    let diff = goal - cur; while (diff > Math.PI) diff -= Math.PI * 2; while (diff < -Math.PI) diff += Math.PI * 2;
+    ud.body.rotation.y = cur + diff * Math.min(1, dt * 10);
+    const tm = performance.now() / 1000;
+    ud.body.position.y = walking ? Math.abs(Math.sin(tm * 9)) * 0.06 : Math.sin(tm * 2) * 0.02;
+    ud.armL.rotation.z = walking ? Math.sin(tm * 9) * 0.5 : 0;
+    ud.armR.rotation.z = reach > 0 ? -1.6 * reach : (walking ? -Math.sin(tm * 9) * 0.5 : 0);
+    ud.orb.position.set(Math.cos(tm * 1.7) * 0.42, 1.05 + Math.sin(tm * 2.3) * 0.08, Math.sin(tm * 1.7) * 0.42);
+    blob.position.set(heroX, L.H + 0.04, heroT * GAP);
+    blob.scale.setScalar(1 / (1 + heroY * 0.4));
+
+    // ゴースト
+    if (cand) {
+      if (ghostKind !== cand.kind) {
+        if (ghost) scene.remove(ghost);
+        ghost = makePieceObj(cand.kind, true); ghostKind = cand.kind; scene.add(ghost);
+      }
+      ghost.visible = true;
+      const y = cand.y0 === -Infinity ? 1 : cand.y0;
+      ghost.position.set(cand.x0, y, cand.t0 * GAP);
+      const col = candOk ? '#ffffff' : '#ff5a4a';
+      ghost.userData.edges.material.color.set(col);
+      ghost.userData.fill.material.color.set(candOk ? KINDS[cand.kind].color : '#ff5a4a');
+      const k = KINDS[cand.kind];
+      const pos = dropLine.geometry.attributes.position;
+      pos.setXYZ(0, heroX, L.H, heroT * GAP);
+      pos.setXYZ(1, cand.x0 + k.w / 2, y + k.h, cand.t0 * GAP);
+      pos.needsUpdate = true;
+      dropLine.computeLineDistances();
+      dropLine.visible = true;
+    } else {
+      if (ghost) ghost.visible = false;
+      dropLine.visible = false;
+    }
+
+    // カメラ: 手前ななめ上から
+    target.set(L.W / 2 + (heroX - L.W / 2) * 0.35, L.H * 0.5, heroT * GAP - 1);
+    camPos.set(target.x + 11, target.y + 19, target.z + 32);
+    if (!camInit) { camera.position.copy(camPos); camInit = true; }
+    camera.position.lerp(camPos, Math.min(1, dt * 4));
+    camera.lookAt(target.x, target.y, target.z);
+    renderer.render(scene, camera);
+  }
+
+  function resize() {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.fov = w / h < 1 ? 52 : 36;
+    camera.updateProjectionMatrix();
+  }
+
+  return { setHistory, update, resize, waving: () => waveT !== null };
+}
