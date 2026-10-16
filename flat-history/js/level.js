@@ -4,7 +4,7 @@
 export const KINDS = {
   beam: {
     name: '角材', w: 7, h: 1, d: 12, slope: 0, color: '#d39a5c',
-    desc: '奥行き12秒の長い角材。2D世界には12秒だけ橋が出る。',
+    desc: '奥行き12秒の長い板。2D世界には12秒だけ橋が出る。',
   },
   lift: {
     name: '斜めの板', w: 5, h: 1, d: 10, slope: 0.75, color: '#4fb0a5',
@@ -12,7 +12,7 @@ export const KINDS = {
   },
   wall: {
     name: '縦の板', w: 1, h: 3, d: 6, slope: 0, color: '#9a84d8',
-    desc: '2D世界に6秒だけ壁が出る。2D人はそこで引き返す。',
+    desc: '2D世界に6秒だけ壁が出る。住人はそこで引き返す。',
   },
 };
 

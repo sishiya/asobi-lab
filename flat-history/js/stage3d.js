@@ -1,12 +1,13 @@
 // 3Dの舞台: ページの束・ガラスの棚・主人公・置いた形・世界線・描きかえの波
 import * as THREE from 'three';
 import { KINDS } from './level.js';
+import { look, kindColor } from './look/index.js';
+import { radialTexture } from './look/util.js';
 import { S, drawSheet } from './sheet.js';
 import { sectionsAt, DT } from './sim.js';
 
 export const GAP = 1.0; // 1秒あたりの奥行き
 
-const BG = new THREE.Color('#dde7ee');
 
 function textSprite(text, size = 0.9, color = '#3d4c66') {
   const cv = document.createElement('canvas');
@@ -21,17 +22,6 @@ function textSprite(text, size = 0.9, color = '#3d4c66') {
   return sp;
 }
 
-function radialTexture(inner, outer) {
-  const cv = document.createElement('canvas');
-  cv.width = cv.height = 128;
-  const g = cv.getContext('2d');
-  const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  gr.addColorStop(0, inner); gr.addColorStop(1, outer);
-  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-
 // 3Dの形の立体（手前へ進むほど slope だけ上がる、ななめの直方体）
 export function pieceGeometry(kind) {
   const k = KINDS[kind];
@@ -43,49 +33,15 @@ export function pieceGeometry(kind) {
   return g;
 }
 
-function makeHero() {
-  const hero = new THREE.Group();
-  const body = new THREE.Group();
-  hero.add(body);
-  const robeMat = new THREE.MeshStandardMaterial({ color: '#f3eee6', roughness: 0.75 });
-  const deepMat = new THREE.MeshStandardMaterial({ color: '#2e4a7a', roughness: 0.5 });
-  const pts = [[0, 0], [0.46, 0], [0.43, 0.12], [0.34, 0.6], [0.27, 1.0], [0.22, 1.18], [0.12, 1.3], [0, 1.32]]
-    .map(([r, y]) => new THREE.Vector2(r, y));
-  const robe = new THREE.Mesh(new THREE.LatheGeometry(pts, 28), robeMat);
-  body.add(robe);
-  const hem = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.035, 8, 32), deepMat);
-  hem.rotation.x = Math.PI / 2; hem.position.y = 0.06; body.add(hem);
-  const sash = new THREE.Mesh(new THREE.TorusGeometry(0.29, 0.045, 8, 32), deepMat);
-  sash.rotation.x = Math.PI / 2; sash.position.y = 0.82; body.add(sash);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.21, 24, 18), robeMat);
-  head.position.y = 1.5; body.add(head);
-  // 顔のかわりの、横長の帯（向きがわかる）
-  const visor = new THREE.Mesh(new THREE.CylinderGeometry(0.215, 0.215, 0.07, 24, 1, true, -0.9, 1.8), deepMat);
-  visor.position.y = 1.52; body.add(visor);
-  const armGeo = new THREE.CapsuleGeometry(0.055, 0.42, 4, 8);
-  const armL = new THREE.Mesh(armGeo, robeMat), armR = new THREE.Mesh(armGeo, robeMat);
-  armL.position.set(0, 1.08, -0.26); armR.position.set(0, 1.08, 0.26);
-  armL.geometry.translate(0, -0.25, 0);
-  body.add(armL, armR);
-  // 手もとの光の玉
-  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12),
-    new THREE.MeshStandardMaterial({ color: '#fff3c4', emissive: '#ffd36b', emissiveIntensity: 1.6 }));
-  orb.position.set(0.35, 1.0, 0.35); hero.add(orb);
-  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: radialTexture('rgba(255,220,130,.9)', 'rgba(255,220,130,0)'), transparent: true, depthWrite: false }));
-  glow.scale.set(0.7, 0.7, 1); orb.add(glow);
-  hero.scale.setScalar(1.25);
-  hero.userData = { body, armL, armR, orb };
-  return hero;
-}
-
 export function createStage(canvas, L) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(BG, 26, 70);
+  scene.fog = new THREE.Fog('#dde7ee', 26, 70);
   const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 400);
-  scene.add(new THREE.HemisphereLight('#ffffff', '#b4a38c', 1.25));
+  const hemi = new THREE.HemisphereLight('#ffffff', '#b4a38c', 1.25);
+  scene.add(hemi);
   const sun = new THREE.DirectionalLight('#fff3df', 1.5);
   sun.position.set(-12, 30, 24); scene.add(sun);
 
@@ -113,7 +69,8 @@ export function createStage(canvas, L) {
       v.push(0, 0, z, 0, L.H, z, 0, L.H, z, L.W, L.H, z, L.W, L.H, z, L.W, 0, z);
     }
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
-    scene.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: '#9fb0c4', transparent: true, opacity: 0.55 })));
+    var edgeLines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: '#9fb0c4', transparent: true, opacity: 0.55 }));
+    scene.add(edgeLines);
   }
   // いまのページ: 紙の地と光るふち
   const paper = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ color: '#fffaf0', transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }));
@@ -135,7 +92,8 @@ export function createStage(canvas, L) {
     v.push(-2, L.H + 0.03, -3, -2, L.H + 0.03, L.T * GAP + 3, L.W + 2, L.H + 0.03, -3, L.W + 2, L.H + 0.03, L.T * GAP + 3);
     for (let t = 0; t <= L.T; t += 5) v.push(-2, L.H + 0.03, t * GAP, -0.6, L.H + 0.03, t * GAP);
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
-    scene.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: '#7f9bb8', transparent: true, opacity: 0.8 })));
+    var shelfLines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: '#7f9bb8', transparent: true, opacity: 0.8 }));
+    scene.add(shelfLines);
     for (let t = 0; t <= L.T; t += 5) {
       const sp = textSprite(t + '秒', 0.8);
       sp.position.set(-3.2, L.H + 0.4, t * GAP);
@@ -146,8 +104,10 @@ export function createStage(canvas, L) {
   }
 
   // ---- 主人公 ----
-  const hero = makeHero();
+  let hero = look().makeHero();
   scene.add(hero);
+  let env = look().makeEnv(L);
+  scene.add(env);
   const blob = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6),
     new THREE.MeshBasicMaterial({ map: radialTexture('rgba(40,60,90,.38)', 'rgba(40,60,90,0)'), transparent: true, depthWrite: false }));
   blob.rotation.x = -Math.PI / 2;
@@ -162,13 +122,13 @@ export function createStage(canvas, L) {
   const geoCache = {};
   const geoOf = (kind) => (geoCache[kind] ||= pieceGeometry(kind));
   function makePieceObj(kind, ghost) {
-    const k = KINDS[kind];
+    const col = kindColor(kind);
     const grp = new THREE.Group();
     const fill = new THREE.Mesh(geoOf(kind), new THREE.MeshStandardMaterial({
-      color: k.color, transparent: true, opacity: ghost ? 0.18 : 0.42, roughness: 0.25, metalness: 0.05, depthWrite: false,
+      color: col, transparent: true, opacity: ghost ? 0.18 : 0.42, roughness: 0.25, metalness: 0.05, depthWrite: false,
     }));
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geoOf(kind)),
-      new THREE.LineBasicMaterial({ color: ghost ? '#ffffff' : new THREE.Color(k.color).multiplyScalar(0.7), transparent: true, opacity: ghost ? 0.9 : 1 }));
+      new THREE.LineBasicMaterial({ color: ghost ? '#ffffff' : new THREE.Color(col).multiplyScalar(0.7), transparent: true, opacity: ghost ? 0.9 : 1 }));
     grp.add(fill, edges);
     grp.userData = { fill, edges };
     return grp;
@@ -348,9 +308,10 @@ export function createStage(canvas, L) {
     ud.body.rotation.y = cur + diff * Math.min(1, dt * 10);
     const tm = performance.now() / 1000;
     ud.body.position.y = walking ? Math.abs(Math.sin(tm * 9)) * 0.06 : Math.sin(tm * 2) * 0.02;
-    ud.armL.rotation.z = walking ? Math.sin(tm * 9) * 0.5 : 0;
-    ud.armR.rotation.z = reach > 0 ? -1.6 * reach : (walking ? -Math.sin(tm * 9) * 0.5 : 0);
-    ud.orb.position.set(Math.cos(tm * 1.7) * 0.42, 1.05 + Math.sin(tm * 2.3) * 0.08, Math.sin(tm * 1.7) * 0.42);
+    if (ud.armL) ud.armL.rotation.z = walking ? Math.sin(tm * 9) * 0.5 : 0;
+    if (ud.armR) ud.armR.rotation.z = reach > 0 ? -1.6 * reach : (walking ? -Math.sin(tm * 9) * 0.5 : 0);
+    if (ud.orb && ud.orbMode !== 'hold') ud.orb.position.set(Math.cos(tm * 1.7) * 0.42, 1.05 + Math.sin(tm * 2.3) * 0.08, Math.sin(tm * 1.7) * 0.42);
+    if (ud.tick) ud.tick(tm, walking, reach);
     blob.position.set(heroX, L.H + 0.04, heroT * GAP);
     blob.scale.setScalar(1 / (1 + heroY * 0.4));
 
@@ -365,7 +326,7 @@ export function createStage(canvas, L) {
       ghost.position.set(cand.x0, y, cand.t0 * GAP);
       const col = candOk ? '#ffffff' : '#ff5a4a';
       ghost.userData.edges.material.color.set(col);
-      ghost.userData.fill.material.color.set(candOk ? KINDS[cand.kind].color : '#ff5a4a');
+      ghost.userData.fill.material.color.set(candOk ? kindColor(cand.kind) : '#ff5a4a');
       const k = KINDS[cand.kind];
       const pos = dropLine.geometry.attributes.position;
       pos.setXYZ(0, heroX, L.H, heroT * GAP);
@@ -388,6 +349,30 @@ export function createStage(canvas, L) {
     renderer.render(scene, camera);
   }
 
+  // 見た目を入れかえる（舞台の色・主人公・台・置いた形・ページの絵）
+  function applyLook() {
+    const lk = look();
+    scene.fog.color.set(lk.fog);
+    hemi.color.set(lk.light.sky); hemi.groundColor.set(lk.light.ground); sun.color.set(lk.light.sun);
+    edgeLines.material.color.set(lk.edge);
+    paper.material.color.set(lk.paperTint);
+    frame.material.color.set(lk.focus);
+    shelf.material.color.set(lk.shelf);
+    shelfLines.material.color.set(lk.shelfLine);
+    scene.remove(hero); hero = lk.makeHero(); scene.add(hero);
+    scene.remove(env); env = lk.makeEnv(L); scene.add(env);
+    for (const [id, o] of pieceObjs) { scene.remove(o); pieceObjs.delete(id); }
+    for (const p of pieces) {
+      const o = makePieceObj(p.kind, false);
+      o.position.set(p.x0, p.y0, p.t0 * GAP);
+      o.userData.drop = 0; o.userData.y0 = p.y0;
+      scene.add(o); pieceObjs.set(p.id, o);
+    }
+    if (ghost) { scene.remove(ghost); ghost = null; ghostKind = null; }
+    if (hist) for (const sh of sheets) drawOne(sh);
+    document.body.style.background = lk.bg;
+  }
+
   function resize() {
     const w = canvas.clientWidth, h = canvas.clientHeight;
     renderer.setSize(w, h, false);
@@ -396,5 +381,5 @@ export function createStage(canvas, L) {
     camera.updateProjectionMatrix();
   }
 
-  return { setHistory, update, resize, waving: () => waveT !== null };
+  return { setHistory, update, resize, applyLook, waving: () => waveT !== null };
 }

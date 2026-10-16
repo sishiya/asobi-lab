@@ -3,6 +3,7 @@ import { LEVEL as L, KINDS } from './level.js';
 import { simulate, sectionsAt, frameAt, restHeight, canPlace, section } from './sim.js';
 import { drawSheet } from './sheet.js';
 import { createStage } from './stage3d.js';
+import { LOOKS, look, setLook, kindName, kindColor } from './look/index.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -19,10 +20,11 @@ st.hist = st.base;
 
 const stage = createStage($('view'), L);
 stage.setHistory(st.hist, st.pieces, 0, false);
+stage.applyLook();
 
 // ---- 形のトレイ ----
 function kindIcon(kind) {
-  const k = KINDS[kind];
+  const k = { ...KINDS[kind], color: kindColor(kind) };
   // 斜めから見た立体の小さな絵
   const w = k.w * 4.2, h = k.h * 5, d = Math.min(18, k.d * 1.3), rise = k.slope * k.d * 2.2;
   const ox = 4, oy = 30 - h;
@@ -42,7 +44,7 @@ function renderTray() {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'kind' + (st.sel === kind ? ' sel' : '') + (left(kind) <= 0 ? ' empty' : '');
-    b.innerHTML = `${kindIcon(kind)}<span><span class="nm">${i + 1}. ${k.name}</span><br><span class="ds">${k.desc}</span></span><span class="ct">×${left(kind)}</span>`;
+    b.innerHTML = `${kindIcon(kind)}<span><span class="nm">${i + 1}. ${kindName(kind)}</span><br><span class="ds">${k.desc}</span></span><span class="ct">×${left(kind)}</span>`;
     b.addEventListener('click', () => select(kind));
     box.appendChild(b);
   });
@@ -69,7 +71,7 @@ function recompute(fromT) {
 function place() {
   const c = candidate();
   if (!c) { flash('形をえらんでください（1〜3）'); return; }
-  if (left(c.kind) <= 0) { flash(`${KINDS[c.kind].name}はもう置いてある（X で持ち上げられる）`); return; }
+  if (left(c.kind) <= 0) { flash(`${kindName(c.kind)}はもう置いてある（X で持ち上げられる）`); return; }
   const why = canPlace(L, c, st.pieces);
   if (why) { flash('置けない: ' + why); return; }
   st.pieces.push({ id: st.nextId++, ...c });
@@ -153,15 +155,16 @@ function insetPlay(dt) {
   const t = ins.t;
   drawSheet(insetG, L, t, frameAt(st.hist.frames, t), sectionsAt(st.pieces, t), { paper: true, label: t.toFixed(1) + '秒' });
   const e = st.hist.end;
-  const tail = e.type === 'goal' ? '小屋に着く' : e.type === 'time' ? '着かない' : '落ちてしまう';
+  const tail = e.type === 'goal' ? 'ゴールに着く' : e.type === 'time' ? '着かない' : '落ちてしまう';
   $('insetCap').textContent = `いまの歴史を再生中（${e.type === 'goal' ? Math.round(e.t) : Math.floor(e.t)}秒目に${tail}）・P で大きく`;
 }
 function drawInset(focus) {
   const fr = st.hist.frames[Math.round(focus / 0.1)];
   drawSheet(insetG, L, focus, fr, sectionsAt(st.pieces, focus), { paper: true, label: focus + '秒' });
-  let cap = `${focus}秒目のページ（2D人から見た世界）`;
-  if (fr.st === 'dead') cap = 'このページには、もう2D人はいない';
-  else if (fr.st === 'goal') cap = 'このページでは、2D人は小屋に着いている';
+  const who = look().who;
+  let cap = `${focus}秒目のページ（${who}から見た世界）`;
+  if (fr.st === 'dead') cap = `このページには、もう${who}はいない`;
+  else if (fr.st === 'goal') cap = `このページでは、${who}はゴールに着いている`;
   $('insetCap').textContent = cap;
 }
 
@@ -185,7 +188,7 @@ function drawTimeline(focus) {
   // 置いた形の期間
   st.pieces.forEach((p, i) => {
     const k = KINDS[p.kind];
-    tg.fillStyle = k.color;
+    tg.fillStyle = kindColor(p.kind);
     const y = 4 + (i % 3) * 9;
     tg.fillRect(X(p.t0), y, X(Math.min(L.T, p.t0 + k.d)) - X(p.t0), 7);
   });
@@ -215,10 +218,10 @@ function drawTimeline(focus) {
 function statusText() {
   const e = st.hist.end, el = $('status');
   el.classList.toggle('goal', e.type === 'goal');
-  if (e.type === 'goal') return `${e.t.toFixed(0)}秒目に小屋に着く ― 正史ができた（形 ${st.pieces.length} つ）`;
+  if (e.type === 'goal') return `${e.t.toFixed(0)}秒目に${look().who}がゴールに着く ― 正史ができた（形 ${st.pieces.length} つ）`;
   if (e.type === 'abyss') return `${Math.floor(e.t)}秒目、崖に落ちてしまう（${e.x.toFixed(0)}マスのあたり）`;
   if (e.type === 'fall') return `${Math.floor(e.t)}秒目、高い所から落ちてしまう（${e.x.toFixed(0)}マスのあたり）`;
-  return `${L.T}秒たっても小屋に着かない`;
+  return `${L.T}秒たってもゴールに着かない`;
 }
 
 // ---- くらべて再生 ----
@@ -276,7 +279,7 @@ function loop(now) {
   const cand = candidate();
   let candOk = false;
   if (cand) {
-    const why = left(cand.kind) <= 0 ? `${KINDS[cand.kind].name}はもう置いてある` : canPlace(L, cand, st.pieces);
+    const why = left(cand.kind) <= 0 ? `${kindName(cand.kind)}はもう置いてある` : canPlace(L, cand, st.pieces);
     candOk = !why;
     if (performance.now() > flashUntil) $('candMsg').textContent = why ? '置けない: ' + why : '';
   } else if (performance.now() > flashUntil) $('candMsg').textContent = '';
@@ -298,12 +301,36 @@ function loop(now) {
 
   if (st.hist.end.type === 'goal' && !st.solvedShown && !stage.waving()) {
     st.solvedShown = true;
-    $('winText').textContent = `2D人は ${st.hist.end.t.toFixed(0)} 秒目に小屋に着きます。使った形は ${st.pieces.length} つ。`;
+    $('winText').textContent = `${look().who}は ${st.hist.end.t.toFixed(0)} 秒目にゴールに着きます。使った形は ${st.pieces.length} つ。`;
     $('win').hidden = false;
   }
   if (st.hist.end.type !== 'goal') { st.solvedShown = false; $('win').hidden = true; }
   requestAnimationFrame(loop);
 }
+
+// ---- 見た目の切りかえ ----
+const lookSel = $('lookSel');
+for (const lk of LOOKS) {
+  const o = document.createElement('option');
+  o.value = lk.id; o.textContent = lk.name;
+  lookSel.appendChild(o);
+}
+lookSel.value = look().id;
+function changeLook(id) {
+  setLook(id);
+  lookSel.value = look().id;
+  stage.applyLook();
+  renderTray();
+  insetDirty = true; insetFocus = -1;
+  if (st.hist.end.type === 'goal') $('winText').textContent = `${look().who}は ${st.hist.end.t.toFixed(0)} 秒目にゴールに着きます。使った形は ${st.pieces.length} つ。`;
+}
+lookSel.addEventListener('change', () => { changeLook(lookSel.value); lookSel.blur(); });
+window.addEventListener('keydown', (e) => {
+  if ((e.key === 'l' || e.key === 'L') && !modalOpen()) {
+    const i = LOOKS.indexOf(look());
+    changeLook(LOOKS[(i + 1) % LOOKS.length].id);
+  }
+});
 
 function onResize() { stage.resize(); }
 window.addEventListener('resize', onResize);

@@ -8,7 +8,7 @@
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="description" content="1秒ずつの2D世界が奥と手前に並んでいる。3Dの形を置くと、2D世界にはその断面が現れて、歴史が書きかわる。">
 <meta name="theme-color" content="#dde7ee">
-<link rel="stylesheet" href="css/style.css?v=2">
+<link rel="stylesheet" href="css/style.css?v=3">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body>
@@ -17,6 +17,7 @@
 <header class="top">
   <a class="back" href="../archive.html" aria-label="あそびラボの保管庫へ戻る">←</a>
   <h1>ぺらぺら世界の歴史係<span class="proto">試作</span></h1>
+  <label class="look-pick">見た目 <select id="lookSel" aria-label="見た目"></select></label>
   <button type="button" class="icon-btn" id="btnHelp" aria-label="あそびかた">?</button>
 </header>
 
@@ -56,7 +57,7 @@
 
 <div id="replay" class="modal" hidden>
   <div class="modal-card replay-card">
-    <div class="rp-head"><b>くらべて再生</b><span class="rp-sub">2D人から見た歴史</span><button type="button" id="rpClose" class="icon-btn" aria-label="閉じる">×</button></div>
+    <div class="rp-head"><b>くらべて再生</b><span class="rp-sub">住人から見た歴史</span><button type="button" id="rpClose" class="icon-btn" aria-label="閉じる">×</button></div>
     <div class="rp-row"><div class="rp-label">はじめの歴史</div><canvas id="rpA" width="720" height="280"></canvas></div>
     <div class="rp-row"><div class="rp-label now">いまの歴史</div><canvas id="rpB" width="720" height="280"></canvas></div>
     <div class="rp-ctrl">
@@ -71,9 +72,9 @@
 <div id="help" class="modal" hidden>
   <div class="modal-card help-card">
     <h2>あそびかた</h2>
-    <p>ここには <b>1秒ずつの2D世界</b> が、ページのように並んでいます。<b>奥が昔、手前が未来</b>。左はしのほら穴から出た2D人は、右の小屋をめざして歩きますが、このままでは崖に落ちてしまいます。</p>
-    <p>あなたは2D世界の外（空の上のガラスの棚）にいる3Dの存在です。2D世界の物にはさわれません。そのかわり <b>3Dの形</b> をページの束の中に下ろせます。2D人にさわれるのは、形とページが重なった <b>断面</b> だけ。だから <b>3Dの形は、2D世界では「動き」になります</b>。奥行きの長い角材はしばらくだけある橋に、手前へ上がる板はだんだん上がる足場に。</p>
-    <p>未来のページを見て、どこで何が起きるかをたしかめ、昔のページに形を置いて、2D人が小屋に着く <b>正史</b> を作ってください。</p>
+    <p>ここには <b>1秒ずつの2D世界</b> が、ページのように並んでいます。<b>奥が昔、手前が未来</b>。左はしの家から出た住人は、右のゴールをめざして歩きますが、このままでは崖に落ちてしまいます。</p>
+    <p>あなたは2D世界の外（空の上のガラスの棚）にいる3Dの存在です。2D世界の物にはさわれません。そのかわり <b>3Dの形</b> をページの束の中に下ろせます。住人にさわれるのは、形とページが重なった <b>断面</b> だけ。だから <b>3Dの形は、2D世界では「動き」になります</b>。奥行きの長い角材はしばらくだけある橋に、手前へ上がる板はだんだん上がる足場に。</p>
+    <p>未来のページを見て、どこで何が起きるかをたしかめ、昔のページに形を置いて、住人がゴールに着く <b>正史</b> を作ってください。</p>
     <table class="keys">
       <tr><td><kbd>←</kbd><kbd>→</kbd></td><td>横へ歩く</td></tr>
       <tr><td><kbd>↑</kbd><kbd>↓</kbd></td><td>奥（昔）・手前（未来）へ。<kbd>Shift</kbd> でゆっくり</td></tr>
@@ -82,6 +83,7 @@
       <tr><td><kbd>Z</kbd></td><td>えらんだ形を、いまのページから奥行きの方向へ置く</td></tr>
       <tr><td><kbd>X</kbd></td><td>足もとの形を持ち上げる</td></tr>
       <tr><td><kbd>P</kbd></td><td>はじめの歴史といまの歴史をくらべて再生</td></tr>
+      <tr><td><kbd>L</kbd></td><td>見た目を切りかえる（左上のメニューでも）</td></tr>
       <tr><td>マウス</td><td>ドラッグで見る向きを回す・ホイールで寄る／引く・ダブルクリックでもとの向き</td></tr>
     </table>
     <p class="small">下の時間の帯をクリックすると、その秒へとべます。</p>
@@ -89,6 +91,6 @@
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=2"></script>
+<script type="module" src="js/main.js?v=3"></script>
 </body>
 </html>

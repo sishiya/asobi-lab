@@ -31,20 +31,22 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .top h1 { margin: 0; font-size: 16px; letter-spacing: .04em; }
 .proto { margin-left: 8px; padding: 1px 7px; border-radius: 99px; background: #e9eef4; color: var(--sub); font-size: 11px; vertical-align: 2px; }
+.look-pick { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--sub); }
+.look-pick select { font: inherit; font-size: 13px; color: var(--ink); padding: 4px 6px; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
 .back, .icon-btn {
   display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px;
   background: #fff; border: 1px solid var(--line); text-decoration: none; color: var(--ink); font-weight: 700;
 }
 
 .clock {
-  position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 4;
+  position: fixed; top: 12px; right: 12px; z-index: 4;
   padding: 6px 18px 8px; border-radius: 16px; background: var(--card); backdrop-filter: blur(10px);
   box-shadow: 0 2px 14px rgba(40, 60, 90, .12); text-align: center; pointer-events: none;
 }
 .clock span { font: 700 34px/1 system-ui, sans-serif; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
 .clock small { margin-left: 6px; font-size: 13px; color: var(--sub); }
 .status {
-  position: fixed; top: 74px; left: 50%; transform: translateX(-50%); z-index: 4;
+  position: fixed; top: 74px; right: 12px; z-index: 4;
   padding: 6px 14px; border-radius: 99px; background: rgba(38, 50, 74, .82); color: #fff; font-size: 14px;
   white-space: nowrap; pointer-events: none; transition: background .3s;
 }
@@ -131,5 +133,5 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .inset { display: none; }
   .top h1 { font-size: 14px; }
   .clock { top: 60px; }
-  .status { top: 118px; }
+  .status { top: 118px; white-space: normal; max-width: calc(100vw - 24px); }
 }
