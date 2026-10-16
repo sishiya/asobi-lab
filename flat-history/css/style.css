@@ -960,3 +960,18 @@ kbd { background: rgba(26, 163, 155, .12); color: var(--d-gold2); border-color: 
 /* v064: 回答するボタンは、紙のページの色にまぎれないよう、多面体の旅人の青緑（宝石の色）に。ふちは金、字はクリーム */
 .headgroup .bind-btn { --edge: #f0cf7a; --fill: linear-gradient(180deg, #23b5a9, #0f6f68); color: #fbf3dc; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
 .headgroup .bind-btn:hover { --edge: #fff0bf; --fill: linear-gradient(180deg, #2cc6b9, #13807a); }
+
+/* v065: やること2つ（パレットの形を置く・回答する）を、同じ青緑の宝石の色でそろえる。ほかは補足（深い青緑のガラス）。
+   PC のパレットは時間のしおりから、もう少しはなす */
+.palette {
+  background: linear-gradient(180deg, rgba(35, 181, 169, .95), rgba(15, 111, 104, .95)); border: 1px solid #f0cf7a;
+  box-shadow: inset 0 0 0 3px rgba(15, 111, 104, .9), inset 0 0 0 4px rgba(240, 207, 122, .45), 0 4px 18px rgba(0, 0, 0, .35);
+}
+.palette .kind { --edge: rgba(240, 207, 122, .7); --fill: #0f5f59; }
+.palette .kind:hover { --edge: #fff0bf; --fill: #167f76; }
+.palette .kind.sel { --edge: #fff0bf; --fill: #2a9a86; }
+.palette .kind.empty { opacity: .45; }
+@media (min-width: 761px) and (min-height: 521px) {
+  .palette { bottom: 100px; }
+  .prompt { bottom: 192px; }
+}
