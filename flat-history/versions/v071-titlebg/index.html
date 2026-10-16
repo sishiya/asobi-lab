@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ぺらぺら世界の歴史係</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='10' fill='%23f2e6cb'/><rect x='4' y='4' width='56' height='56' rx='6' fill='none' stroke='%234a3320' stroke-width='2'/><g fill='%23f8efd8' stroke='%234a3320' stroke-width='2.4'><path d='M12 46V24l10-8v22z'/><path d='M22 48V26l10-8v22z'/><path d='M32 50V28l10-8v22z'/></g><path d='M10 52L54 16' stroke='%23a8742a' stroke-width='4' stroke-linecap='round'/></svg>">
+<script>/* 言語 ja／en（まなびラボの I18N.md・edge-falls と同じ決め方。localStorage の manabi-lang はまなびラボ・あそびラボで共通）: ?lang= → 前に選んだもの → ブラウザの言語。js の中の文は TX(日本語, 英語) */var LANG=(function(){var q=new URLSearchParams(location.search).get('lang'),s=null;try{s=localStorage.getItem('manabi-lang');}catch(e){}var l=q==='en'||q==='ja'?q:s==='en'||s==='ja'?s:/^ja\b/i.test(navigator.language||'ja')?'ja':'en';document.documentElement.lang=l;if(l==='en')document.title='Keeper of the Flat World';return l;})();function TX(ja,en){return LANG==='en'?en:ja;}function setLang(l){try{localStorage.setItem('manabi-lang',l);}catch(e){}var u=new URL(location.href);u.searchParams.set('lang',l);location.href=u.href;}</script>
+<meta name="description" content="1秒ずつのぺらぺらな世界が、ページのように並んでいる。形を置くと、その世界には断面だけが現れて、歴史が書きかわる。">
+<meta name="theme-color" content="#e2d2b0">
+<link rel="stylesheet" href="css/style.css?v=87">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+</head>
+<body class="menu">
+<canvas id="view" aria-label="ページの束と主人公"></canvas>
+
+<!-- タイトル -->
+<section id="title" class="screen title-screen">
+  <div class="title-card">
+    <div class="langsw" role="group" aria-label="言語 Language"><button type="button" data-lang="ja" aria-label="日本語">JP</button><button type="button" data-lang="en" aria-label="English">EN</button></div>
+    <p class="t-kicker"><span lang="ja">Pl. — 2次元＋時間の博物誌</span><span lang="en">Pl. — A natural history of 2D + time</span></p>
+    <h1 class="t-name"><span lang="ja">ぺらぺら世界の歴史係</span><span lang="en">Keeper of the Flat World</span></h1>
+    <div class="t-acts">
+      <button type="button" id="tStart" class="act primary big"><span lang="ja">はじめから</span><span lang="en">New game</span></button>
+      <button type="button" id="tCont" class="act big" hidden>つづきから</button>
+      <button type="button" id="tSelect" class="act big"><span lang="ja">図版をえらぶ</span><span lang="en">Choose a plate</span></button>
+      <div class="t-sep" aria-hidden="true"></div>
+      <button type="button" id="tHelp" class="act big"><span lang="ja">あそびかた</span><span lang="en">How to play</span></button>
+      <button type="button" id="tSettings" class="act big"><span lang="ja">設定</span><span lang="en">Settings</span></button>
+    </div>
+    <p class="t-foot"><span class="t-dev"><span lang="ja">キーボードとマウスで遊びます</span><span lang="en">Play with keyboard and mouse</span></span><span class="t-touch"><span lang="ja">指で遊べます（横向きがおすすめ）</span><span lang="en">Touch controls (landscape recommended)</span></span> ・ <span class="ver">v071</span> ・ <a href="../"><span lang="ja">あそびラボへ</span><span lang="en">To Asobi Lab</span></a></p>
+  </div>
+</section>
+
+<!-- 図版えらび -->
+<section id="select" class="screen" hidden>
+  <div class="select-card">
+    <div class="sel-head"><h2><span lang="ja">図版をえらぶ</span><span lang="en">Choose a plate</span></h2><button type="button" id="selClose" class="icon-btn" aria-label="もどる Back">×</button></div>
+    <p class="sel-group"><span lang="ja">はじめの図版（ひとつずつ覚える）</span><span lang="en">First plates (learn one idea at a time)</span></p>
+    <div id="selTut" class="plates"></div>
+    <p class="sel-group"><span lang="ja">本番の図版</span><span lang="en">Main plates</span></p>
+    <div id="selMain" class="plates"></div>
+    <p class="sel-note"><span lang="ja">図版の住人は、ひとつ前の図版でかえったひな。正史を綴じるほど、家系がつながっていく。</span><span lang="en">Each plate’s resident hatched on the plate before. The more true histories you bind, the longer the family line grows.</span></p>
+    <button type="button" id="selEnding" class="act ghost" hidden><span lang="ja">おわりの図版をもう一度</span><span lang="en">See the last plate again</span></button>
+  </div>
+</section>
+
+<button type="button" id="btnMenu" class="menu-btn hud" aria-label="メニュー Menu" title="メニュー"><span class="burger" aria-hidden="true"></span></button>
+<div class="foot-band hud" aria-hidden="true"></div>
+<div class="chapter-band hud" aria-live="polite"><span class="band-rule" aria-hidden="true"></span><span id="lvPlate" class="band-plate">Pl. I</span><span id="lvName" class="band-name"></span><span class="band-rule" aria-hidden="true"></span></div>
+<header class="headgroup hud">
+  <div id="coach" class="coach" aria-live="polite"></div>
+  <button type="button" id="btnBind" class="bind-btn" aria-label="回答する Answer">回答する</button>
+</header>
+
+<div class="edge-shade"></div>
+<div id="intro" class="intro" hidden></div>
+<div id="prompt" class="prompt hud" aria-live="polite"></div>
+
+<aside id="palette" class="palette hud" aria-label="形のパレット Shapes">
+  <div id="palList" class="pal-list"></div>
+</aside>
+
+<div class="bottom hud">
+  <canvas id="timeline" height="40" aria-label="時間のしおり Timeline"></canvas>
+</div>
+
+<!-- スマホ: スティックとボタン -->
+<div id="touch" class="touch-ui hud">
+  <div class="tbtns">
+    <button type="button" id="tRot" class="tb" hidden><span lang="ja">回す</span><span lang="en">Rotate</span></button>
+    <button type="button" id="tCancel" class="tb" hidden><span lang="ja">やめる</span><span lang="en">Cancel</span></button>
+    <button type="button" id="tPlace" class="tb" hidden><span lang="ja">置く</span><span lang="en">Place</span></button>
+  </div>
+</div>
+
+<figure id="insetBox" class="inset hud">
+  <canvas id="inset" width="720" height="280"></canvas>
+  <figcaption id="insetCap"></figcaption>
+</figure>
+
+<!-- 図版のはじめ: はじめの歴史を見せる -->
+<div id="preview" class="modal" hidden>
+  <div class="modal-card preview-card">
+    <div class="pv-head"><span id="pvPlate" class="pv-plate">Pl. I</span><b id="pvName"></b></div>
+    <p class="pv-sub"><span lang="ja">このままだと、こうなる。</span><span lang="en">Left alone, this is what happens.</span></p>
+    <canvas id="pvCanvas" width="720" height="280"></canvas>
+    <div class="rp-ctrl">
+      <button type="button" id="pvPlay" class="act" aria-label="再生・一時停止 Play/Pause">❚❚</button>
+      <input id="pvSeek" type="range" min="0" max="60" step="0.05" value="0" aria-label="シーク Seek">
+    </div>
+    <div class="win-acts"><button type="button" id="pvStart" class="act primary big"><span lang="ja">はじめる</span><span lang="en">Start</span></button></div>
+  </div>
+</div>
+
+<!-- 設定 -->
+<div id="settings" class="modal" hidden>
+  <div class="modal-card settings-card">
+    <h2><span lang="ja">設定</span><span lang="en">Settings</span></h2>
+    <div class="set-grid">
+      <label for="sBgmVol"><span lang="ja">音楽の大きさ</span><span lang="en">Music volume</span></label><input id="sBgmVol" type="range" min="0" max="100" step="1">
+      <label for="sSeVol"><span lang="ja">効果音の大きさ</span><span lang="en">Sound volume</span></label><input id="sSeVol" type="range" min="0" max="100" step="1">
+      <label for="sBgm"><span lang="ja">音楽</span><span lang="en">Music</span></label><select id="sBgm"></select>
+      <label for="sMoveSe"><span lang="ja">動く音</span><span lang="en">Move sound</span></label><select id="sMoveSe"><option value="chimeSoft">鈴（やわらかく） / Soft bell</option><option value="chime">鈴（もとの音） / Bell (original)</option><option value="sparkle">きらきら / Sparkle</option></select>
+      <label for="sHero"><span lang="ja">あなた（3D）</span><span lang="en">You (3D)</span></label><select id="sHero"></select>
+      <label for="sRes"><span lang="ja">住人（2D）</span><span lang="en">Resident (2D)</span></label><select id="sRes"></select>
+    </div>
+    <div class="set-checks">
+      <label><input id="sRun" type="checkbox"> <span lang="ja">ふだんは走る（Shift を押すと歩く）</span><span lang="en">Run by default (hold Shift to walk)</span></label>
+      <label><input id="sInvX" type="checkbox"> <span lang="ja">カメラを回す向きを左右さかさに</span><span lang="en">Invert camera left/right</span></label>
+      <label><input id="sInvY" type="checkbox"> <span lang="ja">カメラを回す向きを上下さかさに</span><span lang="en">Invert camera up/down</span></label>
+      <label><input id="sInset" type="checkbox"> <span lang="ja">いま立っているページの小窓を出す（V）</span><span lang="en">Show the current page window (V)</span></label>
+    </div>
+    <div class="win-acts"><button type="button" id="sClose" class="act primary"><span lang="ja">とじる</span><span lang="en">Close</span></button></div>
+  </div>
+</div>
+
+<!-- Esc のメニュー -->
+<div id="menu" class="modal" hidden>
+  <div class="modal-card menu-card">
+    <h2 id="menuTitle"><span lang="ja">メニュー</span><span lang="en">Menu</span></h2>
+    <div class="menu-list">
+      <button type="button" id="mResume" class="act primary"><span lang="ja">つづける</span><span lang="en">Resume</span></button>
+      <button type="button" id="mRetry" class="act"><span lang="ja">この図版をはじめから</span><span lang="en">Restart this plate</span></button>
+      <button type="button" id="mSelect" class="act"><span lang="ja">図版をえらぶ</span><span lang="en">Choose a plate</span></button>
+    </div>
+    <div class="menu-sub">
+      <button type="button" id="mHelp" class="act ghost"><span lang="ja">あそびかた</span><span lang="en">How to play</span></button>
+      <button type="button" id="mSettings" class="act ghost"><span lang="ja">設定</span><span lang="en">Settings</span></button>
+      <button type="button" id="mTitle" class="act ghost"><span lang="ja">タイトルへ</span><span lang="en">Title</span></button>
+    </div>
+  </div>
+</div>
+
+<div id="replay" class="modal" hidden>
+  <div class="modal-card replay-card">
+    <div class="rp-head"><b id="rpTitle">この歴史で回答する</b><span class="rp-sub"><span lang="ja">住人から見た、はじめの歴史と いまの歴史</span><span lang="en">The first history and the history now, as the resident sees them</span></span></div>
+    <div class="rp-row rp-orig"><div class="rp-label"><span lang="ja">はじめの歴史</span><span lang="en">First history</span></div><canvas id="rpA" width="720" height="280"></canvas></div>
+    <div class="rp-row"><div class="rp-label now"><span lang="ja">いまの歴史</span><span lang="en">History now</span></div><canvas id="rpB" width="720" height="280"></canvas></div>
+    <div class="rp-ctrl">
+      <button type="button" id="rpPlay" class="act" aria-label="再生・一時停止 Play/Pause">❚❚</button>
+      <input id="rpSeek" type="range" min="0" max="60" step="0.05" value="0" aria-label="シーク Seek">
+    </div>
+    <div class="rp-foot">
+      <div id="rpResult" class="rp-result" hidden></div>
+      <div id="rpWhy" class="rp-why" hidden>
+        <figure><canvas id="rpWhyA" width="720" height="280"></canvas><figcaption id="rpWhyCapA"></figcaption></figure>
+        <figure><canvas id="rpWhyB" width="720" height="280"></canvas><figcaption id="rpWhyCapB"></figcaption></figure>
+      </div>
+      <div class="win-acts">
+        <button type="button" id="rpNext" class="act primary">次の図版へ</button>
+        <button type="button" id="rpClose" class="act">考えなおす</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- エンディング -->
+<div id="ending" class="modal" hidden>
+  <div class="modal-card ending-card">
+    <canvas id="edCanvas" width="720" height="280"></canvas>
+    <div class="win-acts"><button type="button" id="edClose" class="act primary" hidden><span lang="ja">図鑑をとじる</span><span lang="en">Close the book</span></button></div>
+  </div>
+</div>
+
+<div id="help" class="modal" hidden>
+  <div class="modal-card help-card">
+    <h2><span lang="ja">あそびかた</span><span lang="en">How to play</span></h2>
+    <p class="help-lead" lang="ja">ページの一枚一枚が、1秒の世界。<br>前へ歩けば未来、うしろへ歩けば昔。<br>住人にはさわれない。置けるのは、形だけ。<br>住人を、巣へ。</p>
+    <p class="help-lead" lang="en">Each page is one second of a world.<br>Walk forward into the future, back into the past.<br>You can’t touch the residents. You can only place shapes.<br>Get the resident home.</p>
+    <p class="help-touch" lang="ja"><b>指で</b>: タップした所へ歩く。パレットの形をえらんで置きたい所をタップ、もう一度タップで置く。置いた形はタップで持ち上げる。ドラッグで見回す。</p>
+    <p class="help-touch" lang="en"><b>Touch</b>: tap to walk. Pick a shape, tap where it goes, tap again to place. Tap a placed shape to pick it up. Drag to look around.</p>
+    <table class="keys">
+      <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td><span lang="ja">進む（浮かんで、段も崖もこえる。<kbd>Shift</kbd> で速さを切りかえ）</span><span lang="en">Move (you float over steps and chasms; <kbd>Shift</kbd> switches speed)</span></td></tr>
+      <tr><td><span lang="ja">パレット</span><span lang="en">Palette</span> ／ <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></td><td><span lang="ja">形をえらぶ</span><span lang="en">Choose a shape</span></td></tr>
+      <tr><td><span lang="ja">クリック</span><span lang="en">Click</span></td><td><span lang="ja">置く ／ 置いた形を持ち上げる</span><span lang="en">Place / pick up a placed shape</span></td></tr>
+      <tr><td><kbd>Q</kbd> ／ <span lang="ja">右クリック</span><span lang="en">Right-click</span></td><td><span lang="ja">回す</span><span lang="en">Rotate</span></td></tr>
+      <tr><td><span lang="ja">ドラッグ ／ ホイール</span><span lang="en">Drag / wheel</span></td><td><span lang="ja">見回す ／ 寄る・引く</span><span lang="en">Look around / zoom</span></td></tr>
+      <tr><td><kbd>Enter</kbd></td><td><span lang="ja">回答する</span><span lang="en">Answer</span></td></tr>
+      <tr><td><kbd>Esc</kbd></td><td><span lang="ja">やめる ／ メニュー</span><span lang="en">Cancel / menu</span></td></tr>
+      <tr><td><kbd>V</kbd></td><td><span lang="ja">いまのページの小窓</span><span lang="en">Current page window</span></td></tr>
+    </table>
+    <div class="win-acts"><button type="button" id="helpClose" class="act primary"><span lang="ja">とじる</span><span lang="en">Close</span></button></div>
+  </div>
+</div>
+
+<script type="module" src="js/main.js?v=76"></script>
+</body>
+</html>
