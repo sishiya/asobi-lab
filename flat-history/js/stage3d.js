@@ -523,7 +523,7 @@ export function createStage(canvas, L) {
 
   // ---- 綴じる: ページの束が閉じて、一枚になる ----
   let book = 0, bookTo = 0, bookAt = 0, bookDone = null;
-  let runVis = false, titleT = 0;
+  let runVis = false, titleT = 0, shot = null;
   function closeBook(atT, done) { bookTo = 1; bookAt = atT; bookDone = done; }
   function openBook() { bookTo = 0; bookDone = null; }
 
@@ -605,12 +605,14 @@ export function createStage(canvas, L) {
     if (!camInit) { camera.position.copy(camPos); camInit = true; }
     camera.position.lerp(camPos, Math.min(1, dt * (v.titleCam ? 1.5 : drag ? 16 : 7)));
     camera.lookAt(target);
+    // サムネイルを撮るときの、決めたカメラ（v072。?thumb）
+    if (shot) { camera.position.set(shot[0], shot[1], shot[2]); camera.lookAt(shot[3], shot[4], shot[5]); }
 
     // ページの見え方: カメラと主人公のあいだのページはうすく（主人公をかくさない）。正面から見ているほどうすく
     const cz = camera.position.z, face = Math.abs(Math.cos(orbit.yaw));
     for (const sh of sheets) {
       const z = Z(sh.t), m = sh.mat;
-      const between = !v.titleCam && (z - hz) * (cz - hz) > 0 && Math.abs(z - hz) > 0.5;
+      const between = !v.titleCam && !shot && (z - hz) * (cz - hz) > 0 && Math.abs(z - hz) > 0.5;
       if (between) {
         m.alphaTest = 0.01; m.depthWrite = false;
         m.opacity = Math.max(0.06, 1 - face * (0.75 + Math.min(0.2, Math.abs(z - hz) * 0.03)));
@@ -622,7 +624,8 @@ export function createStage(canvas, L) {
     }
     paper.position.set(L.W / 2, L.H / 2, Z(focus) + 0.03);
     frame.position.z = Z(focus) + 0.01;
-    paper.visible = frame.visible = !v.titleCam; // タイトルでは、いまのページの印は出さない
+    paper.visible = frame.visible = !v.titleCam && !shot; // タイトル・サムネでは、いまのページの印は出さない
+    if (shot) edgeLines.visible = false; // サムネでは、ページのふちの線（箱のように見える）も出さない
 
     // 舞台（奈落のほこり・左右の見えない壁）
     if (env.userData.update) env.userData.update(dt, h);
@@ -741,5 +744,6 @@ export function createStage(canvas, L) {
   function skipWave() { if (waveT === null) return; for (const sh of sheets) if (sh.pending) drawOne(sh); waveT = null; }
 
   const setInvert = (x, y) => { invX = !!x; invY = !!y; };
-  return { setInvert, setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, heroPortrait, pickGround, set onTap(f) { onTap = f; }, set onHover(f) { onHover = f; }, set onRight(f) { onRight = f; }, setCursor: (c) => { if (!drag && canvas.style.cursor !== c) canvas.style.cursor = c; }, closeBook, openBook, waving: () => waveT !== null };
+  const setShot = (a) => { shot = a; };
+  return { setShot, setInvert, setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, heroPortrait, pickGround, set onTap(f) { onTap = f; }, set onHover(f) { onHover = f; }, set onRight(f) { onRight = f; }, setCursor: (c) => { if (!drag && canvas.style.cursor !== c) canvas.style.cursor = c; }, closeBook, openBook, waving: () => waveT !== null };
 }

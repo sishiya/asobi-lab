@@ -3,7 +3,7 @@
 import { LEVELS } from './level.js?v=61';
 import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=61';
 import { drawSheet } from './sheet.js?v=61';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=62';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=64';
 import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=61';
 import { makeHero, stepHero, groundAt } from './hero.js?v=61';
 import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=63';
@@ -913,6 +913,12 @@ if (new URLSearchParams(location.search).has('thumb')) {
   stage.setHistory(st.hist, st.pieces, null, false); stage.skipWave();
   Object.assign(st.hero, { x: 7.2, t: 0.6, y: 4, fx: 0.5, ft: 1 });
   st.revealT = L.T;
+  // v072: サムネイル用の決めたカメラ（?cam=カメラx,y,z,見る先x,y,z で変えられる。z は -秒）
+  const cam = (new URLSearchParams(location.search).get('cam') || '').split(',').map(Number);
+  stage.setShot(cam.length === 6 && cam.every(Number.isFinite) ? cam : [0, 8.2, 6.5, 13, 3.6, -11]); // 住人の列が板へ向かい、主人公がまん中に浮かぶ構図
+  const hp = (new URLSearchParams(location.search).get('hero') || '').split(',').map(Number);
+  Object.assign(st.hero, hp.length === 2 && hp.every(Number.isFinite) ? { x: hp[0], t: hp[1] } : { x: 8.6, t: 2.4 });
+  st.hero.y = st.hero.floor = groundAt(L, st.pieces, st.hero.x, st.hero.t, Infinity);
 }
 requestAnimationFrame(loop);
 // 確認用
