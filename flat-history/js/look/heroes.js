@@ -14,8 +14,10 @@
 // userData.sliceHatch: 断面にハッチングの線をのせる（銅版画になじませる）
 // userData.animate(dt, s) で動く。s = { speed(0〜), run, grounded, vy, carry, landT }
 import * as THREE from 'three';
-import { radialTexture } from './util.js?v=39';
+import { radialTexture } from './util.js?v=41';
 
+// 言語（index.html の TX(日本語, 英語)。ノードでの試験のときは日本語）
+const TX = globalThis.TX || ((ja) => ja);
 const lerp = (a, b, u) => a + (b - a) * u;
 
 // ---------------- 多面体の旅人 ----------------
@@ -586,15 +588,15 @@ function makeBalloon() {
 
 export const HEROES = { jelly: makeJelly, top: makeTop, balloon: makeBalloon, poly: makePoly, star: makeStar, cloud: makeCloud, wind: makeWind, agate: makeAgate, hourglass: makeHourglass, crane: makeCrane, curator: makeCurator };
 export const HERO_LIST = [
-  { id: 'poly', name: '多面体の旅人' },
-  { id: 'star', name: '星の精' },
-  { id: 'cloud', name: '雲の精' },
-  { id: 'wind', name: '風の精' },
-  { id: 'agate', name: '瑪瑙の精' },
-  { id: 'hourglass', name: '砂時計の精' },
-  { id: 'crane', name: '折り鶴の精' },
-  { id: 'jelly', name: 'クラゲの精' },
-  { id: 'top', name: 'こまの精' },
-  { id: 'balloon', name: '紙ふうせんの精' },
-  { id: 'curator', name: '学芸員' },
+  { id: 'poly', name: TX('多面体の旅人', 'Polyhedron Traveler') },
+  { id: 'star', name: TX('星の精', 'Star Spirit') },
+  { id: 'cloud', name: TX('雲の精', 'Cloud Spirit') },
+  { id: 'wind', name: TX('風の精', 'Wind Spirit') },
+  { id: 'agate', name: TX('瑪瑙の精', 'Agate Spirit') },
+  { id: 'hourglass', name: TX('砂時計の精', 'Hourglass Spirit') },
+  { id: 'crane', name: TX('折り鶴の精', 'Paper Crane Spirit') },
+  { id: 'jelly', name: TX('クラゲの精', 'Jellyfish Spirit') },
+  { id: 'top', name: TX('こまの精', 'Spinning Top Spirit') },
+  { id: 'balloon', name: TX('紙ふうせんの精', 'Paper Balloon Spirit') },
+  { id: 'curator', name: TX('学芸員', 'Curator') },
 ];

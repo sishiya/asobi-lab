@@ -524,3 +524,14 @@ body.touch .inset { top: 120px; left: 12px; right: auto; bottom: auto; width: mi
 @media (max-height: 520px) { body.touch .inset { top: 46px; left: 6px; right: auto; width: 30vw; } }
 /* PC: 案内の帯は左下へ（右下の小窓と重ならない） */
 .prompt { left: 16px; transform: none; bottom: 70px; }
+
+/* v027: 日本語／英語（index.html の LANG。片方の言葉をしまう） */
+:root[lang=en] [lang=ja], :root:not([lang=en]) [lang=en] { display: none !important; }
+.title-card { position: relative; }
+.langsw { position: absolute; top: 12px; right: 14px; display: flex; gap: 2px; padding: 2px; border: 1px solid var(--rule); border-radius: 4px; background: rgba(251,245,230,.8); }
+.langsw button { border: 0; background: transparent; font: 12px var(--serif); letter-spacing: .08em; padding: 3px 8px; border-radius: 3px; color: var(--sub); cursor: pointer; }
+.langsw button[aria-pressed=true] { background: var(--ink); color: var(--paper); }
+:root[lang=en] .t-name { letter-spacing: .04em; font-size: clamp(24px, 4.4vw, 34px); }
+:root[lang=en] .t-name-sub { letter-spacing: .12em; }
+:root[lang=en] .intro .nm { letter-spacing: .06em; }
+:root[lang=en] .bind-btn { letter-spacing: .02em; font-size: 16px; }

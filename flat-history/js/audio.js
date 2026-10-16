@@ -1,4 +1,6 @@
 // 音: 標本室に合う古い楽器のBGM（5曲から選ぶ）と、紙・木・オルゴールの効果音。すべて WebAudio で作る（音の素材ファイルは使わない）
+// 言語（index.html の TX(日本語, 英語)。ノードでの試験のときは日本語）
+const TX = globalThis.TX || ((ja) => ja);
 let ctx = null, master = null, bgmBus = null, seBus = null, verb = null;
 // 音量（設定画面のスライダー 0〜1）。BGM は 0.26 倍、効果音は 0.8 倍をいちばん大きい音にする
 let bgmVol = 0.6, seVol = 0.7;
@@ -174,7 +176,7 @@ function melody(t, mel, step, play) {
 
 const TRACKS = [
   {
-    id: 'minuet', name: 'チェンバロのメヌエット', beat: 60 / 80, beats: 3, key: [57, 'minor'],
+    id: 'minuet', name: TX('チェンバロのメヌエット', 'Harpsichord Minuet'), beat: 60 / 80, beats: 3, key: [57, 'minor'],
     bars: [
       ['Am', [76, 74, 72]], ['Dm', [74, 72, 69]], ['G', [71, 74, 79]], ['C', [76, 72, null]],
       ['F', [77, 76, 74]], ['Dm', [72, 74, 77]], ['E', [76, 71, 68]], ['Am', [69, null, null]],
@@ -190,7 +192,7 @@ const TRACKS = [
     },
   },
   {
-    id: 'musicbox', name: '夜のオルゴール', beat: 60 / 66, beats: 3, key: [62, 'minor'],
+    id: 'musicbox', name: TX('夜のオルゴール', 'Night Music Box'), beat: 60 / 66, beats: 3, key: [62, 'minor'],
     bars: [
       ['Dm', [74, 77, 81]], ['Bb', [79, 77, 74]], ['F', [72, 77, 81]], ['C', [79, 76, 72]],
       ['Gm', [74, 79, 82]], ['Dm', [81, 77, 74]], ['A', [76, 73, 69]], ['Dm', [74, null, null]],
@@ -203,7 +205,7 @@ const TRACKS = [
     },
   },
   {
-    id: 'pavane', name: '古時計のパヴァーヌ', beat: 60 / 62, beats: 4, key: [57, 'minor'],
+    id: 'pavane', name: TX('古時計のパヴァーヌ', 'Pavane of the Old Clock'), beat: 60 / 62, beats: 4, key: [57, 'minor'],
     bars: [
       ['Am', [76, null, 74, 72]], ['G', [74, null, 71, 67]], ['F', [72, 69, 72, 77]], ['G', [74, null, null, null]],
       ['Am', [72, 74, 76, 79]], ['Em', [79, 77, 76, 74]], ['F', [72, null, 74, 72]], ['E', [71, null, 68, null]],
@@ -216,7 +218,7 @@ const TRACKS = [
     },
   },
   {
-    id: 'stroll', name: '標本室のおさんぽ', beat: 60 / 104, beats: 2, key: [60, 'major'],
+    id: 'stroll', name: TX('標本室のおさんぽ', 'A Stroll in the Specimen Room'), beat: 60 / 104, beats: 2, key: [60, 'major'],
     bars: [
       ['C', [72, 76, 79, 76]], ['Am', [72, 76, 81, 79]], ['F', [77, 76, 74, 72]], ['G', [74, null, 71, 74]],
       ['C', [76, 79, 84, 79]], ['F', [81, 77, 74, 77]], ['G', [79, 77, 74, 71]], ['C', [72, null, null, null]],
@@ -231,7 +233,7 @@ const TRACKS = [
     },
   },
   {
-    id: 'fog', name: '霧のなかの図版', beat: 60 / 52, beats: 4, key: [57, 'minor'],
+    id: 'fog', name: TX('霧のなかの図版', 'Plates in the Fog'), beat: 60 / 52, beats: 4, key: [57, 'minor'],
     bars: [['Am', 0], ['Am', 1], ['F', 2], ['F', 3], ['C', 4], ['C', 5], ['G', 6], ['Em', 7]],
     play(t, [name, seed], B) {
       const c = CH[name];

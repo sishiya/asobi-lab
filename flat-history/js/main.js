@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=39';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=39';
-import { drawSheet } from './sheet.js?v=39';
-import { createStage, misprintOf } from './stage3d.js?v=39';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=39';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=39';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=39';
+import { LEVELS } from './level.js?v=41';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=41';
+import { drawSheet } from './sheet.js?v=41';
+import { createStage, misprintOf } from './stage3d.js?v=41';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=41';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=41';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=41';
 
 const $ = (id) => document.getElementById(id);
 
@@ -16,7 +16,7 @@ try { progress = JSON.parse(localStorage.getItem('flat-history.progress') || '{}
 function saveProgress() { try { localStorage.setItem('flat-history.progress', JSON.stringify(progress)); } catch (e) { /* なし */ } }
 
 // ---- 設定（このブラウザだけに覚える） ----
-const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'minuet', showRoute: false, runDefault: true, inset: true, hero: 'poly', res: 'kiwi' };
+const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'minuet', showRoute: false, runDefault: true, inset: true, invX: false, invY: false, hero: 'poly', res: 'kiwi' };
 let cfg = { ...DEF };
 try { cfg = { ...DEF, ...JSON.parse(localStorage.getItem('flat-history.settings2') || '{}') }; } catch (e) { cfg = { ...DEF }; }
 function saveCfg() { try { localStorage.setItem('flat-history.settings2', JSON.stringify(cfg)); } catch (e) { /* なし */ } }
@@ -24,7 +24,11 @@ setHero(cfg.hero); setRes(cfg.res);
 setVolumes(cfg.bgmVol, cfg.seVol);
 setBgm(cfg.bgm);
 // 図版の文の「キーウィ」「巣」を、いまの住人に合わせる
-const tx = (str) => str.replaceAll('キーウィ', look().who).replaceAll('巣', look().goalName).replaceAll('卵', look().goalThing);
+// 住人ごとに言葉を入れかえる（日本語は「キーウィ・巣・卵」、英語は kiwi・nest を入れかえる）
+const tx = (str) => LANG === 'en'
+  ? str.replace(/\bkiwi\b/g, look().who).replace(/\bnest\b/g, look().goalName)
+  : str.replaceAll('キーウィ', look().who).replaceAll('巣', look().goalName).replaceAll('卵', look().goalThing);
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 let L = LEVELS[0];
 const st = {
@@ -35,6 +39,7 @@ const st = {
 };
 const stage = createStage($('view'), L);
 stage.onTap = (x, t) => tapAt(x, t);
+stage.setInvert(!!cfg.invX, !!cfg.invY);
 const inBlock = (p) => p.x0 + pieceDims(p).wx > 0;
 const blockPieces = () => st.pieces.filter(inBlock);
 
@@ -67,7 +72,7 @@ function loadLevel(i) {
 }
 function showIntro() {
   const el = $('intro');
-  el.innerHTML = `<span class="pn">Pl. ${L.plate} ・ ${look().who}の ${st.lv + 1}代目</span><span class="nm">${L.name}</span>`;
+  el.innerHTML = `<span class="pn">Pl. ${L.plate} ・ ${TX(`${look().who}の ${st.lv + 1}代目`, `${cap(look().who)}, generation ${st.lv + 1}`)}</span><span class="nm">${L.name}</span>`;
   el.hidden = false;
   el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
   clearTimeout(showIntro.t);
@@ -107,7 +112,7 @@ function drawPreview(dt) {
   const t = Math.min(pv.t, endT);
   if (t < (pv.lastT || 0)) { pv.lastT = t; pv.walk = 0; }
   replaySounds(st.base, pv, t);
-  drawSheet(pv.g, L, t, frameAt(st.base.frames, t), [], { paper: true, label: t.toFixed(1) + '秒', misprintAfter: misprintOf(st.base) });
+  drawSheet(pv.g, L, t, frameAt(st.base.frames, t), [], { paper: true, label: t.toFixed(1) + TX('秒', 's'), misprintAfter: misprintOf(st.base) });
   $('pvSeek').value = t;
 }
 $('pvPlay').addEventListener('click', () => { pv.playing = !pv.playing; $('pvPlay').textContent = pv.playing ? '❚❚' : '▶'; });
@@ -118,7 +123,7 @@ const hasProgress = () => LEVELS.some((l) => progress[l.id]) && LEVELS.some((l) 
 function updateTitle() {
   const c = $('tCont');
   c.hidden = !hasProgress();
-  if (!c.hidden) c.textContent = `つづきから（Pl. ${LEVELS[firstUnsolved()].plate}）`;
+  if (!c.hidden) c.textContent = TX(`つづきから（Pl. ${LEVELS[firstUnsolved()].plate}）`, `Continue (Pl. ${LEVELS[firstUnsolved()].plate})`);
 }
 function firstUnsolved() { const i = LEVELS.findIndex((l) => !progress[l.id]); return i < 0 ? 0 : i; }
 let selectFrom = 'title';
@@ -133,7 +138,7 @@ function renderSelect(from) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'plate' + (p ? ' done' : '');
-      b.innerHTML = `<span class="pn">Pl. ${l.plate} ・ ${i + 1}代目</span><span class="nm">${l.name}</span><span class="st">${p ? `正史ずみ・ひながかえった（形 ${p.best} つ）` : 'まだ'}</span>`;
+      b.innerHTML = `<span class="pn">Pl. ${l.plate} ・ ${TX(`${i + 1}代目`, `Gen. ${i + 1}`)}</span><span class="nm">${l.name}</span><span class="st">${p ? TX(`正史ずみ・ひながかえった（形 ${p.best} つ）`, `True history ✓ (${p.best} shape${p.best > 1 ? 's' : ''})`) : TX('まだ', 'Not yet')}</span>`;
       b.addEventListener('click', () => { se.click(); startGame(i); });
       box.appendChild(b);
     });
@@ -166,7 +171,9 @@ function drawEnding(dt) {
   // 係（あなた）も、ただ一度だけ、この本に刷られる
   // 係は刷られない。最後のページを光にかざしたときだけ、透かしとして見える
   if (t > 6) { g.save(); g.globalAlpha = 0.5 * Math.min(1, (t - 6) / 2) * (0.85 + 0.15 * Math.sin(t * 1.5)); stage.heroPortrait(g, 33.6, 4); g.restore(); }
-  const lines = ['図鑑が、一冊になった。', `${look().who}の ${n}代の正史が、ここに綴じられている。`, '光にかざすと、すみに見なれない形の透かしがひとつ。'];
+  const lines = LANG === 'en'
+    ? ['The field guide is now one complete book.', `${n} generations of the ${look().who}’s true history are bound here.`, 'Held up to the light, a strange shape shows as a watermark in the corner.']
+    : ['図鑑が、一冊になった。', `${look().who}の ${n}代の正史が、ここに綴じられている。`, '光にかざすと、すみに見なれない形の透かしがひとつ。'];
   lines.forEach((s2, i) => { const a = Math.max(0, Math.min(1, (t - 1.5 - i * 2.2) / 1.2)); g.fillStyle = `rgba(74,51,32,${a})`; g.font = '18px "Yu Mincho", serif'; g.textAlign = 'center'; g.fillText(s2, 360, 46 + i * 28); });
   g.textAlign = 'left';
   $('edClose').hidden = t < 1.5;
@@ -282,7 +289,7 @@ function nudge(k) {
 function tapAt(x, t) {
   if (!playing() || !st.carry) return;
   const h = st.hero;
-  if (Math.hypot(x - h.x, t - h.t) > 7) { flashPrompt('もっと近くへ運ぼう'); se.no(); return; }
+  if (Math.hypot(x - h.x, t - h.t) > 7) { flashPrompt(TX('もっと近くへ運ぼう', 'Carry it closer')); se.no(); return; }
   const list = socketsAround(x, t, 2);
   lockTo(list.length ? list[0] : sockCache.base);
   se.click();
@@ -429,6 +436,10 @@ window.addEventListener('contextmenu', (e) => { keys.clear(); if (e.target.close
 window.addEventListener('pointerdown', () => { initAudio(); startBgm(); });
 
 // タイトル・図版えらび・メニュー
+document.querySelectorAll('.langsw [data-lang]').forEach((b) => {
+  b.setAttribute('aria-pressed', b.dataset.lang === LANG);
+  b.onclick = () => { if (b.dataset.lang !== LANG) setLang(b.dataset.lang); };
+});
 $('tStart').addEventListener('click', () => { se.click(); startGame(0); });
 $('tCont').addEventListener('click', () => { se.click(); startGame(firstUnsolved()); });
 $('tSelect').addEventListener('click', () => { se.click(); renderSelect('title'); });
@@ -455,6 +466,7 @@ function openSettings(from) {
   $('sRoute').checked = cfg.showRoute;
   $('sRun').checked = cfg.runDefault;
   $('sInset').checked = cfg.inset;
+  $('sInvX').checked = !!cfg.invX; $('sInvY').checked = !!cfg.invY;
   $('sHero').value = cfg.hero;
   $('sRes').value = cfg.res;
   $('settings').hidden = false;
@@ -470,6 +482,8 @@ $('sSeVol').addEventListener('change', () => { initAudio(); se.goal(); });
 $('sBgm').addEventListener('change', (e) => { cfg.bgm = e.target.value; initAudio(); setBgm(cfg.bgm); startBgm(); saveCfg(); });
 $('sRoute').addEventListener('change', (e) => { cfg.showRoute = e.target.checked; saveCfg(); });
 $('sRun').addEventListener('change', (e) => { cfg.runDefault = e.target.checked; saveCfg(); });
+$('sInvX').addEventListener('change', (e) => { cfg.invX = e.target.checked; saveCfg(); stage.setInvert(cfg.invX, cfg.invY); });
+$('sInvY').addEventListener('change', (e) => { cfg.invY = e.target.checked; saveCfg(); stage.setInvert(cfg.invX, cfg.invY); });
 $('sInset').addEventListener('change', (e) => { cfg.inset = e.target.checked; saveCfg(); applyInset(); });
 $('sHero').addEventListener('change', (e) => { cfg.hero = e.target.value; saveCfg(); setHero(cfg.hero); stage.applyLook(); });
 $('sRes').addEventListener('change', (e) => { cfg.res = e.target.value; saveCfg(); setRes(cfg.res); stage.applyLook(); });
@@ -497,7 +511,7 @@ function drawInset(focus, cand, ok) {
   if (k === insetKey) return;
   insetKey = k;
   const fr = st.hist.frames[Math.round(focus / 0.1)];
-  drawSheet(insetG, L, focus, fr, sectionsAt(blockPieces(), focus), { paper: true, label: focus + '秒', goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null, misprintAfter: misprintOf(st.hist) });
+  drawSheet(insetG, L, focus, fr, sectionsAt(blockPieces(), focus), { paper: true, label: focus + TX('秒', 's'), goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null, misprintAfter: misprintOf(st.hist) });
   // 持っている形を置いたら、このページに出る断面（点線）
   if (cand && Number.isFinite(cand.y0) && cand.x0 + pieceDims(cand).wx > 0) {
     const S = insetG.canvas.width / L.W;
@@ -506,7 +520,7 @@ function drawInset(focus, cand, ok) {
     for (const r of sectionRects(cand, focus + 0.001)) { insetG.fillRect(r.x0 * S, (L.H - r.y1) * S, (r.x1 - r.x0) * S, (r.y1 - r.y0) * S); insetG.strokeRect(r.x0 * S, (L.H - r.y1) * S, (r.x1 - r.x0) * S, (r.y1 - r.y0) * S); }
     insetG.restore();
   }
-  $('insetCap').textContent = focus + '秒目のページ（V でしまう）';
+  $('insetCap').textContent = TX(focus + '秒目のページ（V でしまう）', `Page at ${focus}s (V to hide)`);
 }
 applyInset();
 
@@ -533,7 +547,7 @@ function drawTimeline() {
   if (tl.width !== Math.round(w * dpr)) { tl.width = Math.round(w * dpr); tl.height = Math.round(h * dpr); }
   tg.setTransform(dpr, 0, 0, dpr, 0, 0);
   tg.clearRect(0, 0, w, h);
-  const pad = 30, X = (t) => pad + (t / L.T) * (w - pad * 2);
+  const pad = TX(30, 46), X = (t) => pad + (t / L.T) * (w - pad * 2);
   // 見に行ったところまで、紙を明るく
   tg.fillStyle = 'rgba(255,248,226,.85)';
   tg.fillRect(X(0), 10, X(Math.min(L.T, st.revealT)) - X(0), 14);
@@ -546,7 +560,7 @@ function drawTimeline() {
     if (big) tg.fillText(t + '', X(t), 36);
   }
   tg.font = '11px "Yu Mincho", serif';
-  tg.textAlign = 'left'; tg.fillText('昔', 4, 28); tg.textAlign = 'right'; tg.fillText('未来', w - 2, 28);
+  tg.textAlign = 'left'; tg.fillText(TX('昔', 'Past'), 4, 28); tg.textAlign = 'right'; tg.fillText(TX('未来', 'Future'), w - 2, 28);
   // 結末は、見に行っていれば
   const e = st.hist.end;
   if (e.type !== 'time' && e.t <= st.revealT && !stage.waving()) {
@@ -561,8 +575,8 @@ function drawTimeline() {
 
 // ---- ひとことの導き ----
 function coachText() {
-  if (st.solved) return '正史ができた。もう一度見るなら「結果を見る」';
-  if (st.lv === 0 && !st.boundOnce && !st.carry && blockPieces().length && st.hintIdx >= (L.hints || []).length) return tx('これで巣に着くと思ったら、「回答する」（Enter）で答えよう');
+  if (st.solved) return TX('正史ができた。もう一度見るなら「結果を見る」', 'A true history! Press “See result” to watch it again');
+  if (st.lv === 0 && !st.boundOnce && !st.carry && blockPieces().length && st.hintIdx >= (L.hints || []).length) return tx(TX('これで巣に着くと思ったら、「回答する」（Enter）で答えよう', 'If you think the kiwi will reach the nest now, press “Answer” (Enter)'));
   const hs = L.hints || [];
   const c = { walked: st.walked, seenEnd: st.revealT >= st.base.end.t, placed: blockPieces().length > 0, rotated: !!st.rotatedOnce };
   while (st.hintIdx < hs.length && hs[st.hintIdx].when(c)) st.hintIdx++;
@@ -574,6 +588,8 @@ let coachShown = null;
 // スマホでは、キーの名前をボタンの名前に言いかえる
 function touchText(t) {
   if (!isTouch || !t) return t;
+  if (LANG === 'en') return t.replace('Press W to go forward', 'Push the stick up to go forward').replace(/with E, carry it, and place it with E/, 'with “Grab”, carry it, and place it with “Place”')
+    .replace('pick it up with E', 'pick it up with “Grab”').replace(' (Enter)', '');
   return t.replace('W で前へ', 'スティックを上へ倒して前へ').replace(/E でつかみ/g, '「つかむ」でつかみ').replace(/E で置いて/g, '「置く」で置いて')
     .replace(/E で持ち上げて/g, '「つかむ」で持ち上げて').replace(/Q で/g, '「回す」で').replace('（Enter）', '').replace(/Enter で/g, '');
 }
@@ -591,9 +607,9 @@ function renderPrompt(why) {
   let html = '';
   const g = grabbable();
   if (performance.now() < flashUntil) html = flashMsg;
-  else if (st.carry) html = `<button type="button" class="pbtn" data-act="place"><kbd>E</kbd> 置く</button><button type="button" class="pbtn" data-act="rot"><kbd>Q</kbd> 回す</button><button type="button" class="pbtn" data-act="next"><kbd>Tab</kbd> となり</button>` + (why ? `<span class="bad">${why}</span>` : '');
-  else if (g) html = `<button type="button" class="pbtn" data-act="grab"><kbd>E</kbd> ${kindName(g.kind)}をつかむ</button>`;
-  else if (st.walked < 2 && st.lv === 0) html = `<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ${cfg.runDefault ? '走る' : '歩く'}　<kbd>Shift</kbd> ${cfg.runDefault ? '歩く' : '走る'}　<kbd>Space</kbd> 跳ぶ　ドラッグ 見回す`;
+  else if (st.carry) html = `<button type="button" class="pbtn" data-act="place"><kbd>E</kbd> ${TX('置く', 'Place')}</button><button type="button" class="pbtn" data-act="rot"><kbd>Q</kbd> ${TX('回す', 'Rotate')}</button><button type="button" class="pbtn" data-act="next"><kbd>Tab</kbd> ${TX('となり', 'Next spot')}</button>` + (why ? `<span class="bad">${why}</span>` : '');
+  else if (g) html = `<button type="button" class="pbtn" data-act="grab"><kbd>E</kbd> ${TX(`${kindName(g.kind)}をつかむ`, `Grab the ${kindName(g.kind)}`)}</button>`;
+  else if (st.walked < 2 && st.lv === 0) html = `<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ${cfg.runDefault ? TX('走る', 'Run') : TX('歩く', 'Walk')}　<kbd>Shift</kbd> ${cfg.runDefault ? TX('歩く', 'Walk') : TX('走る', 'Run')}　<kbd>Space</kbd> ${TX('跳ぶ', 'Jump')}　${TX('ドラッグ 見回す', 'Drag: look around')}`;
   if (isTouch) html = performance.now() < flashUntil ? flashMsg : (st.carry && why ? `<span class="bad">${why}</span>` : '');
   const el = $('prompt');
   if (el.innerHTML !== html) el.innerHTML = html;
@@ -648,7 +664,7 @@ function bind() {
 }
 let bindingNow = false;
 function showBindReplay() {
-  $('rpTitle').textContent = 'この歴史で回答する';
+  $('rpTitle').textContent = TX('この歴史で回答する', 'Answering with this history');
   $('rpResult').hidden = true;
   $('rpWhy').hidden = true;
   document.querySelector('.replay-card').classList.remove('with-why');
@@ -676,16 +692,16 @@ function judge() {
     const prev = progress[L.id];
     progress[L.id] = { best: prev ? Math.min(prev.best, n) : n };
     saveProgress();
-    el.innerHTML = '<span class="stamp">正史</span><p>' + tx('キーウィは巣に着いた。この歴史が正史になった。') + '</p>';
-    $('rpTitle').textContent = '正史ができた';
+    el.innerHTML = `<span class="stamp">${TX('正史', 'True history')}</span><p>` + tx(TX('キーウィは巣に着いた。この歴史が正史になった。', 'The kiwi reached the nest. This history is now the true history.')) + '</p>';
+    $('rpTitle').textContent = TX('正史ができた', 'A true history!');
     setTimeout(() => se.goal(), 120);
   } else {
     const np = st.hist.nestPass;
     // 巣を通りすぎたなら、そのことをいちばんに伝える（時刻の窓のヒント）
     const why = np ? (np.early ? look().earlyMsg : look().lateMsg)
-      : e.type === 'abyss' ? '崖に落ちてしまった' : e.type === 'fall' ? '高い所から落ちてしまった' : '巣に着かなかった';
-    el.innerHTML = '<span class="stamp">まだ</span><p>' + (np ? tx('キーウィは') + why : tx('キーウィは' + why)) + '。考えなおそう。</p>';
-    $('rpTitle').textContent = 'まだ正史ではない';
+      : e.type === 'abyss' ? TX('崖に落ちてしまった', 'fell into the chasm') : e.type === 'fall' ? TX('高い所から落ちてしまった', 'fell from a high place') : TX('巣に着かなかった', 'did not reach the nest');
+    el.innerHTML = `<span class="stamp">${TX('まだ', 'Not yet')}</span><p>` + (np ? tx(TX('キーウィは', 'The kiwi ')) + why : tx(TX('キーウィは', 'The kiwi ') + why)) + TX('。考えなおそう。', '. Think again.') + '</p>';
+    $('rpTitle').textContent = TX('まだ正史ではない', 'Not the true history yet');
     st.failedOnce = true;
     showWhy(e, np);
     setTimeout(() => se.notyet(), 120);
@@ -694,9 +710,9 @@ function judge() {
   el.hidden = false;
   el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   $('rpNext').hidden = !(ok && (hasNext() || allSolved()));
-  $('rpNext').innerHTML = ok && allSolved() && !progress._ending ? 'おわりの図版へ <kbd>Enter</kbd>' : '次の図版へ <kbd>Enter</kbd>';
+  $('rpNext').innerHTML = ok && allSolved() && !progress._ending ? TX('おわりの図版へ', 'To the last plate') + ' <kbd>Enter</kbd>' : TX('次の図版へ', 'Next plate') + ' <kbd>Enter</kbd>';
   $('rpClose').hidden = false;
-  $('rpClose').innerHTML = ok ? 'この図版にもどる <kbd>Esc</kbd>' : '考えなおす <kbd>Esc</kbd>';
+  $('rpClose').innerHTML = (ok ? TX('この図版にもどる', 'Back to this plate') : TX('考えなおす', 'Think again')) + ' <kbd>Esc</kbd>';
 }
 // 「まだ」のわけを2枚の絵で: 住人がつまずいたページと、いちばん近い形の、出ていた（いなかった）ページ
 function showWhy(e, np) {
@@ -704,7 +720,7 @@ function showWhy(e, np) {
   const tFail = np ? np.t : Math.max(0, Math.min(L.T, e.t - 0.3));
   const draw = (g, t) => drawSheet(g, L, t, frameAt(st.hist.frames, t), sectionsAt(inb, t), { paper: true, label: '' });
   draw($('rpWhyA').getContext('2d'), tFail);
-  $('rpWhyCapA').textContent = np ? tx(np.early ? 'キーウィが巣に着いたとき（卵はまだ）' : 'キーウィが巣に着いたとき（卵はもう）') : tx('キーウィがつまずいたとき');
+  $('rpWhyCapA').textContent = np ? tx(np.early ? TX('キーウィが巣に着いたとき（卵はまだ）', 'When the kiwi reached the nest (too early)') : TX('キーウィが巣に着いたとき（卵はもう）', 'When the kiwi reached the nest (too late)')) : tx(TX('キーウィがつまずいたとき', 'When the kiwi stumbled'));
   // つまずいた場所にかかる形のうち、時刻がいちばん近いもの
   let best = null, bd = Infinity;
   for (const p of inb) {
@@ -712,12 +728,12 @@ function showWhy(e, np) {
     if (!np && (e.x < p.x0 - 1 || e.x > p.x0 + d.wx + 1)) continue;
     const a = p.t0, b = p.t0 + d.dz;
     const dist = tFail < a ? a - tFail : tFail > b ? tFail - b : 0;
-    if (dist < bd) { bd = dist; best = { p, t: tFail < a ? a : tFail > b ? b - 0.05 : tFail, when: tFail < a ? 'まだ出ていなかった' : tFail > b ? 'もう消えていた' : 'あった' }; }
+    if (dist < bd) { bd = dist; best = { p, t: tFail < a ? a : tFail > b ? b - 0.05 : tFail, when: tFail < a ? 'before' : tFail > b ? 'after' : 'on' }; }
   }
   const box = $('rpWhy').children[1];
-  if (best && best.when !== 'あった') {
+  if (best && best.when !== 'on') {
     draw($('rpWhyB').getContext('2d'), best.t);
-    $('rpWhyCapB').textContent = `${kindName(best.p.kind)}が出ていたのは、このころ（そのときは${best.when}）`;
+    $('rpWhyCapB').textContent = TX(`${kindName(best.p.kind)}が出ていたのは、このころ（そのときは${best.when === 'before' ? 'まだ出ていなかった' : 'もう消えていた'}）`, `The ${kindName(best.p.kind)} was here around this time (at that moment it ${best.when === 'before' ? 'had not appeared yet' : 'was already gone'})`);
     box.hidden = false;
   } else box.hidden = true;
   $('rpWhy').hidden = false;
@@ -734,11 +750,11 @@ $('rpPlay').addEventListener('click', togglePlay);
 $('rpSeek').addEventListener('input', (e) => { rp.t = +e.target.value; });
 $('rpSpeed').addEventListener('change', (e) => { rp.speed = +e.target.value; });
 function drawReplay() {
-  const t = rp.t, lab = t.toFixed(1) + '秒';
+  const t = rp.t, lab = t.toFixed(1) + TX('秒', 's');
   drawSheet(rp.gA, L, t, frameAt(st.base.frames, t), [], { paper: true, label: lab, misprintAfter: misprintOf(st.base) });
   drawSheet(rp.gB, L, t, frameAt(st.hist.frames, t), sectionsAt(blockPieces(), t), { paper: true, label: lab, goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null, misprintAfter: misprintOf(st.hist) });
   $('rpSeek').value = t;
-  $('rpTime').textContent = t.toFixed(1) + ' 秒';
+  $('rpTime').textContent = t.toFixed(1) + TX(' 秒', ' s');
 }
 
 // ---- 毎フレーム ----
@@ -774,7 +790,7 @@ function loop(now) {
   const h = st.hero;
   const before = h.t;
   const running = act && (joy.id !== null ? Math.hypot(joy.x, joy.y) > 0.8 : cfg.runDefault ? !keys.has('Shift') : keys.has('Shift'));
-  if (stepHero(h, L, st.pieces, mx, mt, act && jumpQueued, act ? dt : 0, running) === 'respawn') flashPrompt('底なしに落ちた。さっきの場所へもどる');
+  if (stepHero(h, L, st.pieces, mx, mt, act && jumpQueued, act ? dt : 0, running) === 'respawn') flashPrompt(TX('底なしに落ちた。さっきの場所へもどる', 'You fell into the abyss. Back to where you were'));
   jumpQueued = false;
   st.walked += Math.abs(h.t - before);
   // 主人公の足音（地面を歩いた距離ごと）と着地
@@ -812,12 +828,12 @@ function loop(now) {
     renderPrompt(why);
     drawInset(focus, cand, !why);
     if (isTouch) {
-      $('tGrab').textContent = st.carry ? '置く' : 'つかむ';
+      $('tGrab').textContent = st.carry ? TX('置く', 'Place') : TX('つかむ', 'Grab');
       $('tGrab').classList.toggle('dim', !st.carry && !grabbable());
       $('tRot').hidden = !st.carry;
       $('tNext').hidden = !st.carry;
     }
-    const bindHtml = st.solved ? '結果を<br>見る <kbd>Enter</kbd>' : '回答<br>する <kbd>Enter</kbd>';
+    const bindHtml = st.solved ? TX('結果を<br>見る', 'See<br>result') + ' <kbd>Enter</kbd>' : TX('回答<br>する', 'Answer') + ' <kbd>Enter</kbd>';
     if ($('btnBind').innerHTML !== bindHtml) $('btnBind').innerHTML = bindHtml;
     // 形を置いて歴史が変わったのに、まだ回答していないあいだは、ボタンが脈打つ
     $('btnBind').classList.toggle('ready', !st.solved && st.dirty && blockPieces().length > 0);

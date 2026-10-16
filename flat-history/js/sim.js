@@ -1,6 +1,8 @@
 // 2D世界の決まったルール。置いた3Dの形は、その秒の断面（長方形）として2D世界に現れる。
-import { KINDS } from './level.js?v=39';
+import { KINDS } from './level.js?v=41';
 
+// 言語（index.html の TX(日本語, 英語)。ノードでの試験のときは日本語）
+const TX = globalThis.TX || ((ja) => ja);
 export const DT = 0.1;          // 1コマ＝0.1秒
 const SPEED = 1.5;              // 2D人の歩く速さ（マス/秒）
 const HALF = 0.15;              // 足もとの半分の幅
@@ -236,7 +238,7 @@ export function restHeight(L, cand, tableY) {
 
 // 置けるか（理由つき）。3Dの形どうしは重ならない
 export function canPlace(L, cand, pieces) {
-  return canPlaceQuick(L, cand, pieces) || (overlapsWalker(L, cand, pieces) ? '住人のいる所には置けない' : '');
+  return canPlaceQuick(L, cand, pieces) || (overlapsWalker(L, cand, pieces) ? TX('住人のいる所には置けない', 'You can’t place it where the resident is') : '');
 }
 // 住人のいる所に、背より高い形が現れる置き方か（歴史を計算しなおすので、結果をおぼえておく）
 const ovCache = new Map();
@@ -248,18 +250,18 @@ export function overlapsWalker(L, cand, pieces) {
 }
 export function canPlaceQuick(L, cand, pieces) {
   const d = pieceDims(cand);
-  if (cand.y0 === -Infinity) return '下に支えがない';
-  if (cand.x0 + d.wx > L.W || cand.x0 < -7) return 'ここには置けない';
+  if (cand.y0 === -Infinity) return TX('下に支えがない', 'Nothing to rest on');
+  if (cand.x0 + d.wx > L.W || cand.x0 < -7) return TX('ここには置けない', 'You can’t place it here');
   const top = cand.y0 + d.h + (d.along === 'z' ? d.slope * d.dz : d.slope * d.wx);
-  if (top > L.H + 0.01) return '空の上につき出てしまう';
+  if (top > L.H + 0.01) return TX('空の上につき出てしまう', 'It would stick out above the sky');
   // 2D世界（ページ）にかかる形は、0〜60秒の外へはみ出せない
-  if (cand.x0 + d.wx > 0 && (cand.t0 < 0 || cand.t0 + d.dz > L.T)) return 'ページの外へはみ出してしまう';
+  if (cand.x0 + d.wx > 0 && (cand.t0 < 0 || cand.t0 + d.dz > L.T)) return TX('ページの外へはみ出してしまう', 'It would stick out of the pages');
   for (const p of pieces) {
     const dp = pieceDims(p);
     const a = Math.max(cand.t0, p.t0), b = Math.min(cand.t0 + d.dz, p.t0 + dp.dz);
     for (let t = a; t < b; t += 0.25) {
       for (const s1 of sectionRects(cand, t)) for (const s2 of sectionRects(p, t)) {
-        if (s1.x0 < s2.x1 - 1e-6 && s2.x0 < s1.x1 - 1e-6 && s1.y0 < s2.y1 - 1e-6 && s2.y0 < s1.y1 - 1e-6) return 'ほかの形とぶつかる';
+        if (s1.x0 < s2.x1 - 1e-6 && s2.x0 < s1.x1 - 1e-6 && s1.y0 < s2.y1 - 1e-6 && s2.y0 < s1.y1 - 1e-6) return TX('ほかの形とぶつかる', 'It would hit another shape');
       }
     }
   }

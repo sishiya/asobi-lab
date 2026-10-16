@@ -2,7 +2,7 @@
 //   kiwi: 実在の生き物（飛べない鳥キーウィ。巣穴から卵の巣へ）
 //   penguin: アデリーペンギン（小石の巣）／pillbug: ダンゴムシ（しめった石の下）／snail: カタツムリ（雨つぶの葉）
 //   flat: 低い次元の住人（『フラットランド』のような図形の生き物「サンカク」。五角形の家から家族の家へ）
-import { INK, hatch } from './ink.js?v=39';
+import { INK, hatch } from './ink.js?v=41';
 
 // 4つの光の星（彫った線の星）
 export function sparkle(g, x, y, r, a) {
@@ -28,6 +28,7 @@ const kiwi = {
   windowHint: '卵が光ってゆれるのは、ひなが中から殻をつつく「嘴打ち」のあいだだけ',
   earlyMsg: '巣に着いたけれど、ひなはまだ眠っていた（早すぎた）',
   lateMsg: '巣に着いたけれど、ひなは待ちくたびれて、また眠ってしまった（遅すぎた）', plate: 'Apteryx',
+  en: { who: 'kiwi', goalName: 'nest', windowHint: 'The egg glows and wobbles only while the chick is pecking at the shell from inside (pipping)', earlyMsg: 'reached the nest, but the chick was still asleep (too early)', lateMsg: 'reached the nest, but the chick got tired of waiting and fell asleep again (too late)' },
   drawHome(g, L, S) {
     const hy = py(L, S, L.tops[Math.floor(L.start.x)]);
     g.save(); g.translate(Math.max(0, L.start.x * S - 27), 0);
@@ -149,6 +150,7 @@ const flat = {
   windowHint: '家族が窓に明かりをともして待っているのは、少しのあいだだけ',
   earlyMsg: '家に着いたけれど、まだ明かりはついていなかった（早すぎた）',
   lateMsg: '家に着いたけれど、明かりはもう消えていた（遅すぎた）', plate: 'Trigonum',
+  en: { who: 'Triangle', goalName: 'family home', windowHint: 'The family keeps a light in the window for only a short while', earlyMsg: 'reached home, but the light was not on yet (too early)', lateMsg: 'reached home, but the light had already gone out (too late)' },
   drawHome(g, L, S) {
     const hy = py(L, S, L.tops[Math.floor(L.start.x)]);
     pentagonHouse(g, L.start.x * S - 4, hy, 16);
@@ -202,6 +204,7 @@ const penguin = {
   windowHint: '卵が光ってゆれるのは、ひなが中から殻をつつく「嘴打ち」のあいだだけ',
   earlyMsg: '小石の巣に着いたけれど、ひなはまだ眠っていた（早すぎた）',
   lateMsg: '小石の巣に着いたけれど、ひなは待ちくたびれて、また眠ってしまった（遅すぎた）', plate: 'Pygoscelis',
+  en: { who: 'penguin', goalName: 'pebble nest', windowHint: 'The egg glows and wobbles only while the chick is pecking at the shell from inside (pipping)', earlyMsg: 'reached the pebble nest, but the chick was still asleep (too early)', lateMsg: 'reached the pebble nest, but the chick got tired of waiting and fell asleep again (too late)' },
   drawHome(g, L, S) {
     // 雪をかぶった岩かげ
     const hy = py(L, S, L.tops[Math.floor(L.start.x)]), x = Math.max(0, L.start.x * S - 26);
@@ -287,6 +290,7 @@ const pillbugRes = {
   windowHint: '石の下がしめっているのは、朝つゆがおりた少しのあいだだけ',
   earlyMsg: '石の下に着いたけれど、まだつゆはおりていなかった（早すぎた）',
   lateMsg: '石の下に着いたけれど、つゆはもう乾いていた（遅すぎた）', plate: 'Armadillidium',
+  en: { who: 'pill bug', goalName: 'stone', windowHint: 'Under the stone it stays damp only for a short while after the morning dew', earlyMsg: 'reached the stone, but the dew had not settled yet (too early)', lateMsg: 'reached the stone, but the dew had already dried (too late)' },
   drawHome(g, L, S) {
     // 落ち葉の山
     const hy = py(L, S, L.tops[Math.floor(L.start.x)]), x = Math.max(4, L.start.x * S - 20);
@@ -343,6 +347,7 @@ const snail = {
   windowHint: '葉に雨つぶが光っているのは、にわか雨のあとの少しのあいだだけ',
   earlyMsg: '葉のかげに着いたけれど、まだ雨はふっていなかった（早すぎた）',
   lateMsg: '葉のかげに着いたけれど、雨つぶはもう乾いていた（遅すぎた）', plate: 'Euhadra',
+  en: { who: 'snail', goalName: 'leaf', windowHint: 'Raindrops sparkle on the leaf only for a short while after a passing shower', earlyMsg: 'reached the leaf, but it had not rained yet (too early)', lateMsg: 'reached the leaf, but the raindrops had already dried (too late)' },
   drawHome(g, L, S) {
     // 古い植木ばち
     const hy = py(L, S, L.tops[Math.floor(L.start.x)]), x = Math.max(2, L.start.x * S - 24);

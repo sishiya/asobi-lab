@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・標本台・主人公・置いた形・持っている形・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=39';
-import { radialTexture } from './look/util.js?v=39';
-import { S, drawSheet } from './sheet.js?v=39';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=39';
-import { TABLE, tableY } from './hero.js?v=39';
+import { look, kindColor } from './look/index.js?v=41';
+import { radialTexture } from './look/util.js?v=41';
+import { S, drawSheet } from './sheet.js?v=41';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=41';
+import { TABLE, tableY } from './hero.js?v=41';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -14,14 +14,17 @@ const Z = (t) => -t * GAP;
 
 function textSprite(text, size = 0.9, color = '#5a4430') {
   const cv = document.createElement('canvas');
-  cv.width = 128; cv.height = 64;
+  // 字の長さに合わせて横を広げる（英語の長い言葉も切れないように）
+  const m = document.createElement('canvas').getContext('2d'); m.font = 'italic 34px Georgia, serif';
+  const k = Math.max(1, Math.ceil((m.measureText(text).width + 16) / 128));
+  cv.width = 128 * k; cv.height = 64;
   const g = cv.getContext('2d');
   g.font = 'italic 34px Georgia, serif';
   g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(text, 64, 34);
+  g.fillText(text, cv.width / 2, 34);
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-  sp.scale.set(size * 2, size, 1);
+  sp.scale.set(size * 2 * k, size, 1);
   return sp;
 }
 
@@ -189,7 +192,7 @@ export function createStage(canvas, L) {
     const brass = new THREE.MeshStandardMaterial({ color: '#c9973d', roughness: 0.3, metalness: 0.85 });
     const rim = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, len), brass);
     rim.position.set(TABLE.x0 + 0.06, ty + 0.02, top.position.z);
-    const label = textSprite('標本台', 1.0, '#4a3320');
+    const label = textSprite(globalThis.TX ? TX('標本台', 'Specimen table') : '標本台', 1.0, '#4a3320');
     label.position.set((TABLE.x0 + TABLE.x1) / 2, ty + 0.6, Z(TABLE.t0) - 0.3);
     table.add(top, body, rim, label);
     scene.add(table);
@@ -349,7 +352,7 @@ export function createStage(canvas, L) {
   // ---- カメラ: 主人公を追いかける。ドラッグで回す、ホイールで寄る、ダブルクリックでもと ----
   const ORBIT0 = { yaw: 0.35, pitch: 0.52, dist: 17 };
   const orbit = { ...ORBIT0 };
-  let drag = null, lastManual = -10;
+  let drag = null, lastManual = -10, invX = false, invY = false; // 設定: 回す向きをさかさに
   const touches = new Map(); let pinch0 = 0;
   canvas.addEventListener('pointerdown', (e) => {
     if (e.button === 1) e.preventDefault();
@@ -373,8 +376,8 @@ export function createStage(canvas, L) {
       }
     }
     if (!drag) return;
-    orbit.yaw -= (e.clientX - drag.x) * 0.006;
-    orbit.pitch = Math.max(0.08, Math.min(1.35, orbit.pitch + (e.clientY - drag.y) * 0.005));
+    orbit.yaw -= (e.clientX - drag.x) * 0.006 * (invX ? -1 : 1);
+    orbit.pitch = Math.max(0.08, Math.min(1.35, orbit.pitch + (e.clientY - drag.y) * 0.005 * (invY ? -1 : 1)));
     drag.x = e.clientX; drag.y = e.clientY;
     lastManual = performance.now() / 1000;
   });
@@ -645,5 +648,6 @@ export function createStage(canvas, L) {
   // 確認用: 波を終わらせる
   function skipWave() { if (waveT === null) return; for (const sh of sheets) if (sh.pending) drawOne(sh); waveT = null; }
 
-  return { setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, heroPortrait, pickGround, set onTap(f) { onTap = f; }, closeBook, openBook, waving: () => waveT !== null };
+  const setInvert = (x, y) => { invX = !!x; invY = !!y; };
+  return { setInvert, setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, heroPortrait, pickGround, set onTap(f) { onTap = f; }, closeBook, openBook, waving: () => waveT !== null };
 }
