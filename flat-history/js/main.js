@@ -3,7 +3,7 @@
 import { LEVELS } from './level.js?v=57';
 import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=57';
 import { drawSheet } from './sheet.js?v=57';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=59';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=60';
 import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=57';
 import { makeHero, stepHero, groundAt } from './hero.js?v=57';
 import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=57';

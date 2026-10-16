@@ -196,67 +196,38 @@ export function createStage(canvas, L) {
     const mesh = new THREE.Mesh(planeGeo, mat);
     mesh.position.set(L.W / 2, L.H / 2, Z(t));
     scene.add(mesh);
-    sheets.push({ t, cv, g: cv.getContext('2d', { willReadFrequently: true }), tex, mat, mesh, pending: false });
+    sheets.push({ t, cv, g: cv.getContext('2d'), tex, mat, mesh, pending: false });
   }
-  // ---- ページの厚み（v042）: 2D世界の絵（地形・住人・巣・卵・形の断面・石…）を、真上から見ても見えるように少し厚くする ----
-  // ページを描くたびに、絵のいちばん上のふち（りんかく）を読み取り、そこに厚さ THICK の紙の面と段の面を作る。色はその場所の絵の色
-  const THICK = 0.16, SEG = 2, CLIFF = 0.45; // 2px（0.1マス）ごとに読む。これより大きい高さのちがいだけを段（たての面）にする
+  // ---- ページの厚み（v039。v045 で地形だけにもどした）: 真上から見ても地形が見えるよう、地形の上の面と段差に、うすい紙の厚みをつける ----
+  // 地形はどのページも同じなので、ひとつの形を61枚ぶん並べる（InstancedMesh）。上の面は明るい紙、段差の面は少し暗い紙
+  const THICK = 0.16;
   const slabMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, side: THREE.DoubleSide });
-  function buildSlab(sh) {
-    const W = sh.cv.width, H = sh.cv.height, img = sh.g.getImageData(0, 0, W, H).data;
-    const n = Math.floor(W / SEG), top = new Array(n).fill(null);
-    for (let i = 0; i < n; i++) {
-      const cx = i * SEG + (SEG >> 1);
-      for (let y = 0; y < H; y++) {
-        if (img[(y * W + cx) * 4 + 3] < 200) continue;
-        // 色は、ふちの線より少し内側（塗りの色）
-        let yy = Math.min(H - 1, y + 3); if (img[(yy * W + cx) * 4 + 3] < 200) yy = y;
-        const k = (yy * W + cx) * 4;
-        top[i] = { x: cx / S, y: L.H - y / S, c: [img[k] / 255, img[k + 1] / 255, img[k + 2] / 255] };
-        break;
-      }
-    }
-    // 草の先など、細いとげは消す（まわり5点の高さのまんなか）
-    const ys = top.map((q) => (q ? q.y : null));
-    for (let i = 0; i < n; i++) {
-      if (!top[i]) continue;
-      const w = [];
-      for (let j = i - 2; j <= i + 2; j++) if (ys[j] != null) w.push(ys[j]);
-      if (w.length >= 3) { w.sort((p, q) => p - q); top[i].y = w[w.length >> 1]; }
-    }
-    // v043: 上の面は、となりの点とななめにつないだ、なめらかな帯（階段にしない）。大きな高さのちがい（段・もののはし）だけ、たての面
+  let slabs = null;
+  const _m4 = new THREE.Matrix4();
+  function buildSlabs() {
+    if (slabs) { scene.remove(slabs); slabs.geometry.dispose(); }
     const v = [], col = [];
+    const TOP = new THREE.Color('#f4ead0'), SIDE = new THREE.Color('#c7b289');
+    const quad = (a, b, c, d, cc) => { v.push(...a, ...b, ...c, ...a, ...c, ...d); for (let i = 0; i < 6; i++) col.push(cc.r, cc.g, cc.b); };
     const z0 = -THICK / 2, z1 = THICK / 2;
-    const dark = (c) => c.map((q) => q * 0.72);
-    const strip = (xa, ya, ca, xb, yb, cb) => { // 上の面（xa→xb のななめの帯）
-      v.push(xa, ya, z1, xb, yb, z1, xb, yb, z0, xa, ya, z1, xb, yb, z0, xa, ya, z0);
-      col.push(...ca, ...cb, ...cb, ...ca, ...cb, ...ca);
-    };
-    const wall = (x, lo, hi, c) => { // たての面
-      v.push(x, lo, z0, x, lo, z1, x, hi, z1, x, lo, z0, x, hi, z1, x, hi, z0);
-      for (let k = 0; k < 6; k++) col.push(...c);
-    };
-    const half = SEG / S / 2;
-    for (let i = 0; i < n; i++) {
-      const a = top[i]; if (!a) continue;
-      const b = top[i + 1], p = top[i - 1];
-      if (!p) { strip(a.x - half, a.y, a.c, a.x, a.y, a.c); wall(a.x - half, a.y - 0.3, a.y, dark(a.c)); }
-      if (!b) { strip(a.x, a.y, a.c, a.x + half, a.y, a.c); wall(a.x + half, a.y - 0.3, a.y, dark(a.c)); continue; }
-      if (Math.abs(b.y - a.y) < CLIFF) strip(a.x, a.y, a.c, b.x, b.y, b.c);
-      else {
-        const m = (a.x + b.x) / 2, hi = a.y > b.y ? a : b;
-        strip(a.x, a.y, a.c, m, a.y, a.c); strip(m, b.y, b.c, b.x, b.y, b.c);
-        wall(m, Math.min(a.y, b.y), Math.max(a.y, b.y), dark(hi.c));
-      }
+    const topAt = (c) => (c < 0 || c >= L.W || !Number.isFinite(L.tops[c]) ? 0 : L.tops[c]);
+    for (let c = 0; c < L.W; c++) {
+      const top = L.tops[c];
+      if (!Number.isFinite(top)) continue;
+      quad([c, top, z1], [c + 1, top, z1], [c + 1, top, z0], [c, top, z0], TOP);
+      const lt = topAt(c - 1), rt = topAt(c + 1);
+      if (lt < top) quad([c, lt, z0], [c, lt, z1], [c, top, z1], [c, top, z0], SIDE);
+      if (rt < top) quad([c + 1, rt, z1], [c + 1, rt, z0], [c + 1, top, z0], [c + 1, top, z1], SIDE);
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     geo.computeVertexNormals();
-    if (sh.slab) { sh.slab.geometry.dispose(); sh.slab.geometry = geo; }
-    else { sh.slab = new THREE.Mesh(geo, slabMat); scene.add(sh.slab); }
-    sh.slab.position.z = sh.mesh.position.z;
+    slabs = new THREE.InstancedMesh(geo, slabMat, sheets.length);
+    sheets.forEach((sh, i) => slabs.setMatrixAt(i, _m4.makeTranslation(0, 0, sh.mesh.position.z)));
+    scene.add(slabs);
   }
+  buildSlabs();
 
   // ページのふち（5秒ごとに外わく、ほかは上のふち）
   const edgeGeo = new THREE.BufferGeometry();
@@ -396,7 +367,6 @@ export function createStage(canvas, L) {
     const fr = hist.frames[Math.round(sh.t / DT)];
     drawSheet(sh.g, L, sh.t, fr, sectionsAt(pieces, sh.t), { goalT: hist.end.type === 'goal' ? hist.end.t : null, misprintAfter: misprintOf(hist) });
     if (trails.has(sh.t)) sh.g.drawImage(trails.get(sh.t), 0, 0);
-    buildSlab(sh);
     sh.tex.needsUpdate = true;
     sh.pending = false;
   }
@@ -603,7 +573,7 @@ export function createStage(canvas, L) {
     {
       const e = book * book * (3 - 2 * book), az = Z(bookAt);
       for (const sh of sheets) sh.mesh.position.z = Z(sh.t) + (az - Z(sh.t)) * e + (sh.t - bookAt) * 0.002 * e;
-      for (const sh of sheets) if (sh.slab) sh.slab.position.z = sh.mesh.position.z;
+      if (slabs) { sheets.forEach((sh, i) => slabs.setMatrixAt(i, _m4.makeTranslation(0, 0, sh.mesh.position.z))); slabs.instanceMatrix.needsUpdate = true; }
       const show = book < 0.05;
       edgeLines.visible = show; hero.visible = show; blob.visible = blob.visible && show;
       for (const [, o] of pieceObjs) o.visible = show;
@@ -745,6 +715,7 @@ export function createStage(canvas, L) {
     trails.clear(); trailLast = new Map();
     for (const [id, o] of pieceObjs) { scene.remove(o); pieceObjs.delete(id); }
     pieces = [];
+    buildSlabs();
   }
 
   const camYaw = () => orbit.yaw;
