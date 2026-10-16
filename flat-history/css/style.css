@@ -675,3 +675,8 @@ body.touch .inset { left: 12px; right: auto; top: 120px; }
 /* v038: 跳ぶボタンはやめた。スマホの右下は、持っているときだけ「回す・やめる」と大きな「置く」 */
 .tbtns { grid-template-columns: 64px 64px; grid-template-areas: "rot cancel" "place place"; }
 #tPlace { grid-area: place; width: 84px; height: 84px; font-size: 16px; background: var(--ink); color: var(--paper); justify-self: center; }
+
+/* v043: メニューの下の3つ（あそびかた・設定・タイトルへ）も、上のボタンと同じ大きさで、たて一列。区切り線はそのまま */
+.menu-sub { display: flex; flex-direction: column; gap: 8px; }
+.menu-sub .act { width: 100%; padding: 10px; font-size: 15px; background: #fbf5e6; }
+.menu-sub .act:hover { background: #fffaf0; }
