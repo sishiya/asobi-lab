@@ -400,11 +400,12 @@ export const se = {
     else if (res === 'snail') { tone(t, 'sine', 1200, 1000, 0.04, 0.03); } // 貝は鳴かない（小さな向きかえの音だけ）
     else { tone(t, 'sine', 1900, 2600, 0.07, 0.08); tone(t + 0.09, 'sine', 2300, 1800, 0.08, 0.06); } // キーウィの短い鳴き声
   },
-  // 住人が形の断面にふれたとき: うまくいきそう、と匂わせる、やわらかく上がっていく3音（判定画面）
+  // 住人が形の断面にふれたとき: うまくいきそう、と小さく匂わせる。すぐ立ち上がる短い2つの粒（v066: 速く・短く・控えめに）
   kiwiTouch() {
     if (!ctx) return;
-    const [r, mode] = keyOf(), t = ctx.currentTime + 0.02, third = mode === 'major' ? 4 : 3;
-    [r + 12, r + 12 + third, r + 19].forEach((m, i) => softBell(t + i * 0.09, m + 12, 0.07 - i * 0.012, 1.1));
+    const [r] = keyOf(), t = ctx.currentTime;
+    bell(t, r + 24, 0.032, 0.28);
+    bell(t + 0.045, r + 31, 0.026, 0.24);
   },
   kiwiFall() {
     if (!ctx) return;

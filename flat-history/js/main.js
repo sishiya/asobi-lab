@@ -6,7 +6,7 @@ import { drawSheet } from './sheet.js?v=61';
 import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=61';
 import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=61';
 import { makeHero, stepHero, groundAt } from './hero.js?v=61';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=61';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=62';
 
 const $ = (id) => document.getElementById(id);
 
