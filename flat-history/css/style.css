@@ -749,3 +749,29 @@ body.touch .inset { left: 12px; right: auto; top: 120px; }
   .tb { width: 52px; height: 52px; font-size: 11px; white-space: nowrap; letter-spacing: 0; }
   #tPlace { width: 68px; height: 68px; font-size: 14px; }
 }
+
+/* v053: 上は図版の名前だけの帯（ヘッダ）。3D世界の深い青緑から透明へのグラデーションに、金とクリームの字。
+   メニュー・説明・回答するボタン・小窓は、帯の下から並べる */
+:root { --band: 64px; }
+.chapter-band { position: fixed; top: 0; left: 0; right: 0; height: var(--band); z-index: 5; pointer-events: none;
+  display: flex; align-items: center; justify-content: center; gap: 14px; padding: 0 16px;
+  background: linear-gradient(180deg, rgba(8, 30, 27, .92) 0%, rgba(12, 42, 38, .7) 55%, rgba(12, 42, 38, 0) 100%); }
+.band-plate { font: italic 15px Georgia, serif; color: #d9b45f; letter-spacing: .18em; }
+.band-name { font: 700 21px var(--serif); color: #f6ecd2; letter-spacing: .32em; text-shadow: 0 1px 8px rgba(0, 0, 0, .45); white-space: nowrap; }
+.band-rule { width: min(90px, 8vw); height: 1px; background: linear-gradient(90deg, rgba(217, 180, 95, 0), rgba(217, 180, 95, .8), rgba(217, 180, 95, 0)); }
+.menu-btn { top: calc(var(--band) + 8px); }
+.headgroup { top: calc(var(--band) + 8px); }
+.inset { top: calc(var(--band) + 8px); }
+@media (max-width: 760px), (max-height: 520px) {
+  :root { --band: 44px; }
+  .band-plate { font-size: 12px; letter-spacing: .1em; }
+  .band-name { font-size: 16px; letter-spacing: .2em; }
+  .band-rule { display: none; }
+  .menu-btn { top: calc(var(--band) + 6px); }
+  .headgroup { top: calc(var(--band) + 6px); }
+}
+@media (max-height: 520px) {
+  .inset, body.touch .inset { top: calc(var(--band) + 50px); }
+}
+/* 上のふちの暗い影は、帯とかさならないよう弱める */
+.edge-shade { background: linear-gradient(180deg, rgba(40,25,10,0) 0%, rgba(40,25,10,0) 74%, rgba(40,25,10,.45) 100%); }
