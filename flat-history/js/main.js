@@ -3,7 +3,7 @@
 import { LEVELS } from './level.js?v=61';
 import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=61';
 import { drawSheet } from './sheet.js?v=61';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=61';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=62';
 import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=61';
 import { makeHero, stepHero, groundAt } from './hero.js?v=61';
 import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=63';
@@ -138,7 +138,20 @@ function cancelCarry() { if (!st.carry) return; st.carry = null; st.lock = null;
 
 // ---- 画面の切りかえ ----
 let screen = 'title';
+// タイトルのうしろの場面（v071）: 図版 I に板をかけて、キーウィが巣に着く正史。主人公は束のそばに浮かぶ。音は鳴らさない
+function setupTitleScene() {
+  loadLevel(0);
+  const p = { id: st.nextId++, kind: 'plank', rot: 0, x0: 9, t0: 3 };
+  p.y0 = restHeight(L, p);
+  st.pieces = [p];
+  st.hist = simulate(L, st.pieces);
+  stage.setHistory(st.hist, st.pieces, 0, false);
+  Object.assign(st.hero, { x: 7.5, t: 8.5, vx: 0, vt: 0, fx: 0.4, ft: 1 });
+  st.hero.y = st.hero.floor = groundAt(L, st.pieces, st.hero.x, st.hero.t, Infinity);
+  st.revealT = L.T;
+}
 function showScreen(name) {
+  if (name === 'title' && screen === 'game') setupTitleScene();
   screen = name;
   if (name === 'title') updateTitle();
   $('title').hidden = name !== 'title';
@@ -861,7 +874,7 @@ function loop(now) {
     hero: h, walking: Math.hypot(mx, mt) > 0.05, moveX: mx, moveT: mt,
     cand, candOk: !why, revealT: st.revealT, focus, sockets: [],
     running: running && Math.hypot(mx, mt) > 0.05, showRoute: false, grab: act ? hovered() : null,
-    groundY: groundAt(L, st.pieces, h.x, h.t, h.y), walkTo: walk.to, heroSlice: false, flip: flip.t === null ? null : Math.round(flip.t),
+    titleCam: screen !== 'game', groundY: groundAt(L, st.pieces, h.x, h.t, h.y), walkTo: walk.to, heroSlice: false, flip: flip.t === null ? null : Math.round(flip.t),
   });
 
   if (screen === 'game') {
@@ -889,7 +902,7 @@ function onResize() { stage.resize(); }
 window.addEventListener('resize', onResize);
 onResize();
 stage.applyLook();
-loadLevel(firstUnsolved());
+setupTitleScene();
 showScreen('title');
 // サムネイル（tools/make-thumbs.ps1 が ?thumb で撮る）: 図版 I に板をかけ、キーウィがページをまたいで崖をわたる場面。画面の飾りはしまう（ネタバレなし）
 if (new URLSearchParams(location.search).has('thumb')) {

@@ -1006,3 +1006,6 @@ kbd { background: rgba(26, 163, 155, .12); color: var(--d-gold2); border-color: 
   .prompt { bottom: 140px; }
 }
 @media (max-width: 420px) { .palette .kind canvas { width: 56px; height: 41px; } }
+
+/* v071: タイトル・図版えらびのうしろは、タイトル専用の場面（ページの束を見わたすカメラ）。まん中はすかして、ふちだけ暗く */
+.screen { background: radial-gradient(75% 65% at 50% 50%, rgba(4, 16, 14, .12), rgba(4, 16, 14, .58)); }

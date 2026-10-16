@@ -523,7 +523,7 @@ export function createStage(canvas, L) {
 
   // ---- 綴じる: ページの束が閉じて、一枚になる ----
   let book = 0, bookTo = 0, bookAt = 0, bookDone = null;
-  let runVis = false;
+  let runVis = false, titleT = 0;
   function closeBook(atT, done) { bookTo = 1; bookAt = atT; bookDone = done; }
   function openBook() { bookTo = 0; bookDone = null; }
 
@@ -595,15 +595,22 @@ export function createStage(canvas, L) {
     target.set(h.x, visY + 1.6, hz);
     const cp = Math.cos(orbit.pitch);
     camPos.set(target.x + Math.sin(orbit.yaw) * cp * orbit.dist, target.y + Math.sin(orbit.pitch) * orbit.dist, target.z + Math.cos(orbit.yaw) * cp * orbit.dist);
+    // タイトル画面だけのカメラ（v071）: ページの束をななめ上から、ゆっくり左右にゆれながら見わたす
+    if (v.titleCam) {
+      titleT += dt;
+      const a = 0.62 + Math.sin(titleT * 0.06) * 0.32;
+      target.set(L.W * 0.5, 4.2, Z(L.T * 0.3));
+      camPos.set(target.x + Math.sin(a) * 31, target.y + 12.5 + Math.sin(titleT * 0.09) * 1.2, target.z + Math.cos(a) * 31);
+    }
     if (!camInit) { camera.position.copy(camPos); camInit = true; }
-    camera.position.lerp(camPos, Math.min(1, dt * (drag ? 16 : 7)));
+    camera.position.lerp(camPos, Math.min(1, dt * (v.titleCam ? 1.5 : drag ? 16 : 7)));
     camera.lookAt(target);
 
     // ページの見え方: カメラと主人公のあいだのページはうすく（主人公をかくさない）。正面から見ているほどうすく
     const cz = camera.position.z, face = Math.abs(Math.cos(orbit.yaw));
     for (const sh of sheets) {
       const z = Z(sh.t), m = sh.mat;
-      const between = (z - hz) * (cz - hz) > 0 && Math.abs(z - hz) > 0.5;
+      const between = !v.titleCam && (z - hz) * (cz - hz) > 0 && Math.abs(z - hz) > 0.5;
       if (between) {
         m.alphaTest = 0.01; m.depthWrite = false;
         m.opacity = Math.max(0.06, 1 - face * (0.75 + Math.min(0.2, Math.abs(z - hz) * 0.03)));
@@ -615,6 +622,7 @@ export function createStage(canvas, L) {
     }
     paper.position.set(L.W / 2, L.H / 2, Z(focus) + 0.03);
     frame.position.z = Z(focus) + 0.01;
+    paper.visible = frame.visible = !v.titleCam; // タイトルでは、いまのページの印は出さない
 
     // 舞台（奈落のほこり・左右の見えない壁）
     if (env.userData.update) env.userData.update(dt, h);
