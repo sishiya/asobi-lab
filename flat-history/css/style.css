@@ -955,3 +955,6 @@ kbd { background: rgba(26, 163, 155, .12); color: var(--d-gold2); border-color: 
   --edge: #f6dc8e; --fill: linear-gradient(180deg, #f3d488, #c9952e);
 }
 .act.primary:hover, .headgroup .bind-btn:hover { --edge: #fff0bf; --fill: linear-gradient(180deg, #f8de98, #d5a43c); }
+
+/* v061: 題のふりがな（時守＝ときもり） */
+.t-name ruby rt { font-size: .32em; font-weight: 400; letter-spacing: .3em; color: var(--d-gold); }
