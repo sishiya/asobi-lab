@@ -1,11 +1,11 @@
 // 主人公の動き方。時空の大地（ページの上のふちが奥行きに並んだ地形）の上を、浮かんで進む（v038）。
 // 座標: x＝2D世界の横（マス）、t＝時間（秒。3Dの奥行き）、y＝高さ（マス）。
 // 主人公の体はページの間隔（1秒）より薄いので、ページのあいだを歩くかぎり2D世界とは交わらない（REDESIGN 3-1）
-import { pieceDims, sectionRects } from './sim.js?v=55';
+import { pieceDims, sectionRects } from './sim.js?v=57';
 
 // v038: 主人公は浮かんでいる。跳ぶ・よじ登る・落ちるはやめた。足もとの高さへ、ばねのようにふわりと寄る（少しゆれて、ぴたりとは張りつかない）
 // 奈落の上では、さっきの高さのまま浮かんでいる（落ちない）
-export const HERO = { speed: 5.2, run: 1.9, k: 34, c: 9.5, sink: 0.9, look: 0.4, accel: 7, settle: 3 };
+export const HERO = { speed: 5.2, run: 1.9, k: 34, c: 9.5, sink: 0.9, look: 0.4, accel: 7, settle: 4 };
 
 // (x, t) の足もとの高さ。yRef より 1 以上うえにある形の底は、床にしない（頭の上の形）
 export function groundAt(L, pieces, x, t, yRef = Infinity) {
@@ -52,8 +52,10 @@ export function stepHero(h, L, pieces, mx, mt, dt, running = false) {
   h.x = Math.max(0.3, Math.min(L.W - 0.3, nx)); if (h.x !== nx) h.vx = 0;
   h.t = Math.max(-0.5, Math.min(L.T + 0.5, nt)); if (h.t !== nt) h.vt = 0;
   // 見た目の動き（ゆれ・前のめり・回り）に使う速さ。止まったあとも、少しずつ落ちていく
+  // はなした瞬間から待機へ移りはじめる（v042: 走りの速さぶんを先に落として、待ちが見えないように）
   const real = Math.hypot(h.vx, h.vt) / HERO.speed;
-  h.speed = real >= (h.speed || 0) ? real : h.speed + (real - h.speed) * Math.min(1, dt * HERO.settle);
+  if (real >= (h.speed || 0)) h.speed = real;
+  else { if (len <= 0.05) h.speed = Math.min(h.speed, 1); h.speed += (real - h.speed) * Math.min(1, dt * HERO.settle); }
   // 高さ: 足もと（足の大きさぶん）の面へ、ばねで寄る。奈落なら、さっきの高さのまま
   const g = footGround(L, pieces, h.x, h.t, Infinity);
   if (Number.isFinite(g)) h.floor = g;

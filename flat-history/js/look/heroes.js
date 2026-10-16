@@ -9,7 +9,7 @@
 // userData.sliceHatch: 断面にハッチングの線をのせる（銅版画になじませる）
 // userData.animate(dt, s) で動く。s = { speed(0〜), run, grounded, vy, carry, landT }
 import * as THREE from 'three';
-import { radialTexture } from './util.js?v=55';
+import { radialTexture } from './util.js?v=57';
 
 // 言語（index.html の TX(日本語, 英語)。ノードでの試験のときは日本語）
 const TX = globalThis.TX || ((ja) => ja);
@@ -64,7 +64,7 @@ function makePoly() {
       ico.rotation.set(spin * 0.7, spin, spin * 0.4);
       head.position.y = torso.position.y + 0.8 + (air ? 0.12 : 0);
       oct.rotation.y = -spin * 1.3; oct.rotation.z = Math.sin(tm * 1.5) * 0.2;
-      body.rotation.z = -Math.min(0.35, s.speed * (s.run ? 0.3 : 0.15)); // 進む向きへ前のめり
+      body.rotation.z += (-Math.min(0.35, s.speed * (s.run ? 0.3 : 0.15)) - body.rotation.z) * Math.min(1, dt * 6); // 進む向きへ前のめり（なめらかに）
       core.scale.setScalar(1 + Math.sin(tm * 3) * 0.12);
       ring.scale.setScalar(1 + Math.sin(tm * 2) * 0.08 + (air ? 0.4 : 0));
       ring.material.opacity = air ? 0.25 : 0.6;
@@ -299,7 +299,7 @@ function makeGeo(o) {
       o.spinBody(shell, spin, tm);
       head.position.y = torso.position.y + 0.8 + Math.sin(tm * 1.7) * 0.03;
       cap.rotation.y = -spin * 1.2; cap.rotation.x = Math.sin(tm * 1.3) * 0.25;
-      body.rotation.z = -Math.min(0.3, s.speed * (s.run ? 0.25 : 0.12));
+      body.rotation.z += (-Math.min(0.3, s.speed * (s.run ? 0.25 : 0.12)) - body.rotation.z) * Math.min(1, dt * 6);
       core.scale.setScalar(1 + Math.sin(tm * 3) * 0.12);
       ring.scale.setScalar(1 + Math.sin(tm * 2) * 0.08);
       sats.forEach((h, i) => {

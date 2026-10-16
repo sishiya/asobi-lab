@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・主人公・置いた形・置き場所のゴースト・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=55';
-import { radialTexture } from './look/util.js?v=55';
-import { S, drawSheet } from './sheet.js?v=55';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=55';
-import { groundAt } from './hero.js?v=56';
+import { look, kindColor } from './look/index.js?v=57';
+import { radialTexture } from './look/util.js?v=57';
+import { S, drawSheet } from './sheet.js?v=57';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=57';
+import { groundAt } from './hero.js?v=57';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -196,38 +196,46 @@ export function createStage(canvas, L) {
     const mesh = new THREE.Mesh(planeGeo, mat);
     mesh.position.set(L.W / 2, L.H / 2, Z(t));
     scene.add(mesh);
-    sheets.push({ t, cv, g: cv.getContext('2d'), tex, mat, mesh, pending: false });
+    sheets.push({ t, cv, g: cv.getContext('2d', { willReadFrequently: true }), tex, mat, mesh, pending: false });
   }
-  // ---- ページの厚み（v039）: 真上から見ても地形が見えるよう、地形の上の面と段差に、うすい紙の厚みをつける ----
-  // 地形はどのページも同じなので、ひとつの形を61枚ぶん並べる（InstancedMesh）。上の面は明るい紙、段差の面は少し暗い紙
-  const THICK = 0.16;
+  // ---- ページの厚み（v042）: 2D世界の絵（地形・住人・巣・卵・形の断面・石…）を、真上から見ても見えるように少し厚くする ----
+  // ページを描くたびに、絵のいちばん上のふち（りんかく）を読み取り、そこに厚さ THICK の紙の面と段の面を作る。色はその場所の絵の色
+  const THICK = 0.16, SEG = 4; // 4px（0.2マス）ごと
   const slabMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, side: THREE.DoubleSide });
-  let slabs = null;
-  const _m4 = new THREE.Matrix4();
-  function buildSlabs() {
-    if (slabs) { scene.remove(slabs); slabs.geometry.dispose(); }
+  function buildSlab(sh) {
+    const W = sh.cv.width, H = sh.cv.height, img = sh.g.getImageData(0, 0, W, H).data;
+    const n = Math.floor(W / SEG), top = new Array(n).fill(null);
+    for (let i = 0; i < n; i++) {
+      const cx = i * SEG + (SEG >> 1);
+      for (let y = 0; y < H; y++) {
+        if (img[(y * W + cx) * 4 + 3] < 200) continue;
+        // 色は、ふちの線より少し内側（塗りの色）
+        let yy = Math.min(H - 1, y + 3); if (img[(yy * W + cx) * 4 + 3] < 200) yy = y;
+        const k = (yy * W + cx) * 4;
+        top[i] = { y: L.H - y / S, r: img[k] / 255, g: img[k + 1] / 255, b: img[k + 2] / 255 };
+        break;
+      }
+    }
     const v = [], col = [];
-    const TOP = new THREE.Color('#f4ead0'), SIDE = new THREE.Color('#c7b289');
-    const quad = (a, b, c, d, cc) => { v.push(...a, ...b, ...c, ...a, ...c, ...d); for (let i = 0; i < 6; i++) col.push(cc.r, cc.g, cc.b); };
-    const z0 = -THICK / 2, z1 = THICK / 2;
-    const topAt = (c) => (c < 0 || c >= L.W || !Number.isFinite(L.tops[c]) ? 0 : L.tops[c]);
-    for (let c = 0; c < L.W; c++) {
-      const top = L.tops[c];
-      if (!Number.isFinite(top)) continue;
-      quad([c, top, z1], [c + 1, top, z1], [c + 1, top, z0], [c, top, z0], TOP);
-      const lt = topAt(c - 1), rt = topAt(c + 1);
-      if (lt < top) quad([c, lt, z0], [c, lt, z1], [c, top, z1], [c, top, z0], SIDE);
-      if (rt < top) quad([c + 1, rt, z1], [c + 1, rt, z0], [c + 1, top, z0], [c + 1, top, z1], SIDE);
+    const quad = (a, b, c, d, r, g, bb) => { v.push(...a, ...b, ...c, ...a, ...c, ...d); for (let k = 0; k < 6; k++) col.push(r, g, bb); };
+    const z0 = -THICK / 2, z1 = THICK / 2, X = (i) => (i * SEG) / S;
+    for (let i = 0; i < n; i++) {
+      const c = top[i]; if (!c) continue;
+      quad([X(i), c.y, z1], [X(i + 1), c.y, z1], [X(i + 1), c.y, z0], [X(i), c.y, z0], c.r, c.g, c.b);
+      // となりより高いところは、段の面（少し暗く）。となりが空なら、少しだけたらす
+      for (const [j, xe] of [[i - 1, X(i)], [i + 1, X(i + 1)]]) {
+        const o = top[j], lo = o ? o.y : c.y - 0.3;
+        if (lo < c.y - 1e-3) quad([xe, lo, z0], [xe, lo, z1], [xe, c.y, z1], [xe, c.y, z0], c.r * 0.72, c.g * 0.72, c.b * 0.72);
+      }
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     geo.computeVertexNormals();
-    slabs = new THREE.InstancedMesh(geo, slabMat, sheets.length);
-    sheets.forEach((sh, i) => slabs.setMatrixAt(i, _m4.makeTranslation(0, 0, sh.mesh.position.z)));
-    scene.add(slabs);
+    if (sh.slab) { sh.slab.geometry.dispose(); sh.slab.geometry = geo; }
+    else { sh.slab = new THREE.Mesh(geo, slabMat); scene.add(sh.slab); }
+    sh.slab.position.z = sh.mesh.position.z;
   }
-  buildSlabs();
 
   // ページのふち（5秒ごとに外わく、ほかは上のふち）
   const edgeGeo = new THREE.BufferGeometry();
@@ -367,6 +375,7 @@ export function createStage(canvas, L) {
     const fr = hist.frames[Math.round(sh.t / DT)];
     drawSheet(sh.g, L, sh.t, fr, sectionsAt(pieces, sh.t), { goalT: hist.end.type === 'goal' ? hist.end.t : null, misprintAfter: misprintOf(hist) });
     if (trails.has(sh.t)) sh.g.drawImage(trails.get(sh.t), 0, 0);
+    buildSlab(sh);
     sh.tex.needsUpdate = true;
     sh.pending = false;
   }
@@ -573,7 +582,7 @@ export function createStage(canvas, L) {
     {
       const e = book * book * (3 - 2 * book), az = Z(bookAt);
       for (const sh of sheets) sh.mesh.position.z = Z(sh.t) + (az - Z(sh.t)) * e + (sh.t - bookAt) * 0.002 * e;
-      if (slabs) { sheets.forEach((sh, i) => slabs.setMatrixAt(i, _m4.makeTranslation(0, 0, sh.mesh.position.z))); slabs.instanceMatrix.needsUpdate = true; }
+      for (const sh of sheets) if (sh.slab) sh.slab.position.z = sh.mesh.position.z;
       const show = book < 0.05;
       edgeLines.visible = show; hero.visible = show; blob.visible = blob.visible && show;
       for (const [, o] of pieceObjs) o.visible = show;
@@ -626,8 +635,8 @@ export function createStage(canvas, L) {
     let d = want - ud.body.rotation.y; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
     ud.body.rotation.y += d * Math.min(1, dt * 12);
     const tm = now;
-    // 走りの見た目は、止まったあと体の動きが落ちつくまで残す（急に姿勢が変わらない）
-    runVis = !!v.running || (runVis && (h.speed || 0) > 0.4);
+    // 走りの姿勢は、はなしたらすぐ解く（v042）
+    runVis = !!v.running;
     if (ud.animate) ud.animate(dt, { speed: h.speed != null ? h.speed : Math.hypot(moveX, moveT), run: runVis, grounded: h.grounded, vy: h.vy, carry: false, landT: h.landT || 0, t: h.t });
     // あなたの断面（透かし）をページに描くか（設定。ふだんは描かない）
     if (v.heroSlice) heroOverlay(h.x, visY, h.t);
@@ -715,7 +724,6 @@ export function createStage(canvas, L) {
     trails.clear(); trailLast = new Map();
     for (const [id, o] of pieceObjs) { scene.remove(o); pieceObjs.delete(id); }
     pieces = [];
-    buildSlabs();
   }
 
   const camYaw = () => orbit.yaw;
