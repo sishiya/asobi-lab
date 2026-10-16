@@ -711,3 +711,9 @@ body.touch .inset { left: 12px; right: auto; top: 120px; }
 
 /* v047: 回答するボタンは、名前・導きの下（いちばん下）。押せるようにする */
 .headgroup .bind-btn { pointer-events: auto; }
+
+/* v048: 回答するボタンを大きく（ユーザー）。いまやること1つとして目立たせる */
+.headgroup .bind-btn { min-height: 54px; min-width: 220px; padding: 0 36px; font-size: 20px; letter-spacing: .2em; border-radius: 12px; justify-content: center; }
+@media (max-width: 760px), (max-height: 520px) {
+  .headgroup .bind-btn { min-height: 44px; min-width: 160px; padding: 0 22px; font-size: 16px; border-radius: 10px; }
+}
