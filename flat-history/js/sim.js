@@ -1,5 +1,5 @@
 // 2D世界の決まったルール。置いた3Dの形は、その秒の断面（長方形）として2D世界に現れる。
-import { KINDS } from './level.js?v=13';
+import { KINDS } from './level.js?v=16';
 
 export const DT = 0.1;          // 1コマ＝0.1秒
 const SPEED = 1.5;              // 2D人の歩く速さ（マス/秒）

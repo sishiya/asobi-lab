@@ -1,22 +1,17 @@
-// 見た目: 図鑑の銅版画と標本室（museum）に、設定で選ぶ「主人公 × 住人」の組み合わせをのせる
-import museum from './museum.js?v=13';
-import { RESIDENTS } from './residents.js?v=13';
-import { HEROES } from './heroes.js?v=13';
+// 見た目: 図鑑の銅版画と標本室（museum）に、設定で選ぶ主人公（3D）と住人（2D）をのせる
+import museum from './museum.js?v=16';
+import { RESIDENTS } from './residents.js?v=16';
+import { HEROES, HERO_LIST } from './heroes.js?v=16';
 
-// 組み合わせ（設定画面の「登場する者」）
-export const CHAR_SETS = [
-  { id: 'poly-kiwi', name: '多面体の旅人 × キーウィ', hero: 'poly', res: 'kiwi' },
-  { id: 'curator-flat', name: '学芸員 × サンカク（図形の住人）', hero: 'curator', res: 'flat' },
-  { id: 'poly-flat', name: '多面体の旅人 × サンカク', hero: 'poly', res: 'flat' },
-  { id: 'curator-kiwi', name: '学芸員 × キーウィ', hero: 'curator', res: 'kiwi' },
-];
-let set = CHAR_SETS[0];
-export function setCharSet(id) { set = CHAR_SETS.find((c) => c.id === id) || CHAR_SETS[0]; }
-export const charSet = () => set;
+export { HERO_LIST };
+export const RES_LIST = [{ id: 'kiwi', name: 'キーウィ' }, { id: 'flat', name: 'サンカク（図形の住人）' }];
+let heroId = 'poly', resId = 'kiwi';
+export function setHero(id) { if (HEROES[id]) heroId = id; }
+export function setRes(id) { if (RESIDENTS[id]) resId = id; }
 
 const composed = {};
 export function look() {
-  const res = RESIDENTS[set.res];
+  const res = RESIDENTS[resId];
   Object.assign(composed, museum, {
     id: 'museum-' + res.id,
     who: res.who,
@@ -25,7 +20,7 @@ export function look() {
     drawBackdrop: (g, L, S) => museum.drawBackdrop(g, L, S, res),
     drawWalker: res.drawWalker,
     drawGoalJoy: res.drawGoalJoy,
-    makeHero: HEROES[set.hero],
+    makeHero: HEROES[heroId],
   });
   return composed;
 }

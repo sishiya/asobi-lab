@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=13';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=13';
-import { drawSheet } from './sheet.js?v=13';
-import { createStage } from './stage3d.js?v=13';
-import { kindName, look, CHAR_SETS, setCharSet, charSet } from './look/index.js?v=13';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=13';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm } from './audio.js?v=13';
+import { LEVELS } from './level.js?v=16';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=16';
+import { drawSheet } from './sheet.js?v=16';
+import { createStage } from './stage3d.js?v=16';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=16';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=16';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm } from './audio.js?v=16';
 
 const $ = (id) => document.getElementById(id);
 
@@ -16,11 +16,11 @@ try { progress = JSON.parse(localStorage.getItem('flat-history.progress') || '{}
 function saveProgress() { try { localStorage.setItem('flat-history.progress', JSON.stringify(progress)); } catch (e) { /* なし */ } }
 
 // ---- 設定（このブラウザだけに覚える） ----
-const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'stroll', showRoute: false, runDefault: true, inset: true, chars: 'poly-kiwi' };
+const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'stroll', showRoute: false, runDefault: true, inset: true, hero: 'poly', res: 'kiwi' };
 let cfg = { ...DEF };
 try { cfg = { ...DEF, ...JSON.parse(localStorage.getItem('flat-history.settings') || '{}') }; } catch (e) { cfg = { ...DEF }; }
 function saveCfg() { try { localStorage.setItem('flat-history.settings', JSON.stringify(cfg)); } catch (e) { /* なし */ } }
-setCharSet(cfg.chars);
+setHero(cfg.hero); setRes(cfg.res);
 setVolumes(cfg.bgmVol, cfg.seVol);
 setBgm(cfg.bgm);
 // 図版の文の「キーウィ」「巣」を、いまの住人に合わせる
@@ -84,7 +84,7 @@ function showScreen(name) {
   keys.clear();
 }
 function closeAll() { for (const id of ['menu', 'help', 'replay', 'preview', 'settings']) $(id).hidden = true; }
-function startGame(i) { loadLevel(i); showScreen('game'); openPreview(); }
+function startGame(i) { stage.openBook(); bindingNow = false; loadLevel(i); showScreen('game'); openPreview(); }
 // 図版のはじめに、はじめの歴史（住人が失敗するようす）を見せる。作戦を立ててから Enter ではじめる
 const pv = { t: 0, playing: true, g: $('pvCanvas').getContext('2d') };
 function openPreview() {
@@ -129,7 +129,7 @@ function renderSelect(from) {
 }
 const openMenu = () => { closeAll(); $('menu').hidden = false; keys.clear(); se.click(); };
 const modalOpen = () => ['menu', 'help', 'replay', 'preview', 'settings'].some((id) => !$(id).hidden);
-const playing = () => screen === 'game' && !modalOpen();
+const playing = () => screen === 'game' && !modalOpen() && !bindingNow;
 
 // ---- つかむ・置く・回す ----
 function facingAxis() {
@@ -213,6 +213,31 @@ function rotate() {
   se.click();
 }
 let flashMsg = '', flashUntil = 0;
+
+// ---- スマホ: 左下のスティックと、右下のボタン ----
+const isTouch = window.matchMedia('(pointer: coarse)').matches;
+if (isTouch) document.body.classList.add('touch');
+const joy = { x: 0, y: 0, id: null };
+{
+  const stick = $('stick'), knob = $('stickKnob');
+  const R = 46;
+  const move = (e) => {
+    const r = stick.getBoundingClientRect();
+    let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+    const d = Math.hypot(dx, dy); if (d > R) { dx *= R / d; dy *= R / d; }
+    joy.x = dx / R; joy.y = dy / R;
+    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+  };
+  stick.addEventListener('pointerdown', (e) => { initAudio(); startBgm(); joy.id = e.pointerId; stick.setPointerCapture(e.pointerId); move(e); });
+  stick.addEventListener('pointermove', (e) => { if (e.pointerId === joy.id) move(e); });
+  const up = () => { joy.id = null; joy.x = joy.y = 0; knob.style.transform = ''; };
+  stick.addEventListener('pointerup', up); stick.addEventListener('pointercancel', up);
+  const tap = (id, fn) => $(id).addEventListener('pointerdown', (e) => { e.preventDefault(); initAudio(); startBgm(); if (playing()) fn(); });
+  tap('tJump', () => { jumpQueued = true; });
+  tap('tGrab', () => useE());
+  tap('tRot', () => rotate());
+  for (const [id, k] of [['tnU', 'ArrowUp'], ['tnD', 'ArrowDown'], ['tnL', 'ArrowLeft'], ['tnR', 'ArrowRight']]) tap(id, () => { if (st.carry) nudge(k); });
+}
 function flashPrompt(m) { flashMsg = m; flashUntil = performance.now() + 1800; }
 
 // ---- 入力 ----
@@ -261,6 +286,7 @@ function closeSelect() { if (selectFrom === 'game') { showScreen('game'); openMe
 function closeHelp() { $('help').hidden = true; if (screen === 'game') $('menu').hidden = false; }
 $('selClose').addEventListener('click', closeSelect);
 $('mResume').addEventListener('click', () => { $('menu').hidden = true; });
+$('btnMenu').addEventListener('click', () => { if (screen === 'game' && !modalOpen()) openMenu(); });
 $('mRetry').addEventListener('click', () => { se.click(); startGame(st.lv); });
 $('mSelect').addEventListener('click', () => { se.click(); renderSelect('game'); });
 $('mHelp').addEventListener('click', () => { $('menu').hidden = true; $('help').hidden = false; });
@@ -278,13 +304,15 @@ function openSettings(from) {
   $('sRoute').checked = cfg.showRoute;
   $('sRun').checked = cfg.runDefault;
   $('sInset').checked = cfg.inset;
-  $('sChars').value = cfg.chars;
+  $('sHero').value = cfg.hero;
+  $('sRes').value = cfg.res;
   $('settings').hidden = false;
   keys.clear();
 }
 function closeSettings() { $('settings').hidden = true; if (settingsFrom === 'game') $('menu').hidden = false; }
 for (const b of BGM_LIST) { const o = document.createElement('option'); o.value = b.id; o.textContent = b.name; $('sBgm').appendChild(o); }
-for (const c of CHAR_SETS) { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; $('sChars').appendChild(o); }
+for (const c of HERO_LIST) { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; $('sHero').appendChild(o); }
+for (const c of RES_LIST) { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; $('sRes').appendChild(o); }
 $('sBgmVol').addEventListener('input', (e) => { cfg.bgmVol = e.target.value / 100; initAudio(); startBgm(); setVolumes(cfg.bgmVol, cfg.seVol); saveCfg(); });
 $('sSeVol').addEventListener('input', (e) => { cfg.seVol = e.target.value / 100; setVolumes(cfg.bgmVol, cfg.seVol); saveCfg(); });
 $('sSeVol').addEventListener('change', () => { initAudio(); se.goal(); });
@@ -292,10 +320,8 @@ $('sBgm').addEventListener('change', (e) => { cfg.bgm = e.target.value; initAudi
 $('sRoute').addEventListener('change', (e) => { cfg.showRoute = e.target.checked; saveCfg(); });
 $('sRun').addEventListener('change', (e) => { cfg.runDefault = e.target.checked; saveCfg(); });
 $('sInset').addEventListener('change', (e) => { cfg.inset = e.target.checked; saveCfg(); applyInset(); });
-$('sChars').addEventListener('change', (e) => {
-  cfg.chars = e.target.value; saveCfg();
-  setCharSet(cfg.chars); stage.applyLook();
-});
+$('sHero').addEventListener('change', (e) => { cfg.hero = e.target.value; saveCfg(); setHero(cfg.hero); stage.applyLook(); });
+$('sRes').addEventListener('change', (e) => { cfg.res = e.target.value; saveCfg(); setRes(cfg.res); stage.applyLook(); });
 $('sClose').addEventListener('click', closeSettings);
 $('tSettings').addEventListener('click', () => { se.click(); openSettings('title'); });
 $('mSettings').addEventListener('click', () => { se.click(); openSettings('game'); });
@@ -319,6 +345,7 @@ function drawInset(focus) {
   insetKey = k;
   const fr = st.hist.frames[Math.round(focus / 0.1)];
   drawSheet(insetG, L, focus, fr, sectionsAt(blockPieces(), focus), { paper: true, label: focus + '秒', goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null });
+  stage.drawTrailOn(insetG, focus);
   stage.drawHeroOn(insetG, focus);
   $('insetCap').textContent = focus + '秒目のページ（V でしまう）';
 }
@@ -408,13 +435,21 @@ function renderPrompt(why) {
 
 // ---- 綴じる（答える）: 再生して見届けてから、正史かどうかを出す ----
 const hasNext = () => st.lv + 1 < LEVELS.length;
-function goNext() { se.click(); startGame(st.lv + 1); }
+function goNext() { se.click(); stage.openBook(); startGame(st.lv + 1); }
 const rp = { t: 0, playing: true, speed: 4, judged: true, endT: 0, gA: $('rpA').getContext('2d'), gB: $('rpB').getContext('2d') };
 function bind() {
+  if (bindingNow) return;
   if (stage.waving()) stage.skipWave();
   st.boundOnce = true;
   se.click();
   closeAll();
+  // ページの束が閉じて一枚になってから、その一枚を動かして見せる
+  bindingNow = true;
+  se.wave();
+  stage.closeBook(st.hero.t, () => { bindingNow = false; showBindReplay(); });
+}
+let bindingNow = false;
+function showBindReplay() {
   $('rpTitle').textContent = 'この歴史を綴じる';
   $('rpResult').hidden = true;
   $('rpNext').hidden = true;
@@ -453,7 +488,7 @@ function judge() {
   $('rpClose').innerHTML = ok ? 'この図版にもどる <kbd>Esc</kbd>' : '考えなおす <kbd>Esc</kbd>';
 }
 // 綴じている最中に Esc → 最後まで早送りして結果を出す
-function closeReplay() { if (!rp.judged) { rp.t = rp.endT; return; } $('replay').hidden = true; }
+function closeReplay() { if (!rp.judged) { rp.t = rp.endT; return; } $('replay').hidden = true; stage.openBook(); }
 function togglePlay() { if (rp.t >= L.T) rp.t = 0; rp.playing = !rp.playing; $('rpPlay').textContent = rp.playing ? '❚❚' : '▶'; }
 $('rpNext').addEventListener('click', goNext);
 $('btnBind').addEventListener('click', () => { if (playing()) { if (st.solved && hasNext()) goNext(); else bind(); } });
@@ -465,6 +500,8 @@ function drawReplay() {
   const t = rp.t, lab = t.toFixed(1) + '秒';
   drawSheet(rp.gA, L, t, frameAt(st.base.frames, t), [], { paper: true, label: lab });
   drawSheet(rp.gB, L, t, frameAt(st.hist.frames, t), sectionsAt(blockPieces(), t), { paper: true, label: lab, goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null });
+  stage.drawTrailOn(rp.gB, t);
+  stage.drawHeroOn(rp.gB, t);
   $('rpSeek').value = t;
   $('rpTime').textContent = t.toFixed(1) + ' 秒';
 }
@@ -484,8 +521,9 @@ function loop(now) {
   let mx = 0, mt = 0;
   const act = playing();
   if (act) {
-    const f = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0);
-    const r = (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0);
+    let f = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0);
+    let r = (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0);
+    if (joy.id !== null) { f = -joy.y; r = joy.x; } // スティック（倒した分だけ）
     const yaw = stage.camYaw();
     // 画面の奥＝(x,t) で (-sin yaw, cos yaw)、画面の右＝(cos yaw, sin yaw)
     mx = r * Math.cos(yaw) - f * Math.sin(yaw);
@@ -494,7 +532,7 @@ function loop(now) {
   const h = st.hero;
   const before = h.t;
   if (mx || mt) st.nudge = { x: 0, t: 0 }; // 動き出したら、置き場所はもとへ
-  const running = act && (cfg.runDefault ? !keys.has('Shift') : keys.has('Shift'));
+  const running = act && (joy.id !== null ? Math.hypot(joy.x, joy.y) > 0.8 : cfg.runDefault ? !keys.has('Shift') : keys.has('Shift'));
   if (stepHero(h, L, st.pieces, mx, mt, act && jumpQueued, act ? dt : 0, running) === 'respawn') flashPrompt('底なしに落ちた。さっきの場所へもどる');
   jumpQueued = false;
   st.walked += Math.abs(h.t - before);
@@ -517,6 +555,12 @@ function loop(now) {
     renderCoach();
     renderPrompt(why);
     drawInset(focus);
+    if (isTouch) {
+      $('tGrab').textContent = st.carry ? '置く' : 'つかむ';
+      $('tGrab').classList.toggle('dim', !st.carry && !grabbable());
+      $('tRot').hidden = !st.carry;
+      $('tNudge').hidden = !st.carry;
+    }
     $('btnBind').innerHTML = st.solved && hasNext() ? '次の図版へ <kbd>Enter</kbd>' : 'この歴史を綴じる <kbd>Enter</kbd>';
     // 正史かどうかは、遊ぶ人が「綴じる」（Enter）まで判定しない
   }
@@ -531,4 +575,4 @@ loadLevel(firstUnsolved());
 showScreen('title');
 requestAnimationFrame(loop);
 // 確認用
-window.__fh = { st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, bind, judge, rp, stage, get L() { return L; } };
+window.__fh = { st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, bind, judge, rp, stage, showBindReplay, get L() { return L; } };

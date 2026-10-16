@@ -301,3 +301,42 @@ details.more p { font-size: 13px; color: var(--sub); }
 .set-grid select { font: 13px var(--serif); padding: 4px 6px; border: 1px solid var(--rule); border-radius: 2px; background: #fbf5e6; color: var(--ink); }
 .set-checks { display: flex; flex-direction: column; gap: 8px; margin: 16px 0 4px; font: 14px var(--serif); }
 .set-checks input { accent-color: var(--brass); margin-right: 6px; }
+
+/* ---- v013: メニューのボタン・スマホ ---- */
+button.esc-hint { border: none; background: none; cursor: pointer; padding: 2px 4px; color: var(--sub); }
+.t-touch { display: none; }
+.touch-ui { display: none; }
+body.touch .t-dev { display: none; }
+body.touch .t-touch { display: inline; }
+body.touch .touch-ui { display: block; }
+body.touch .prompt { display: none; }
+body.touch #view { touch-action: none; }
+.touch-ui { position: fixed; inset: auto 0 64px 0; height: 0; z-index: 6; pointer-events: none; }
+.stick {
+  position: absolute; left: 22px; bottom: 12px; width: 120px; height: 120px; border-radius: 50%; pointer-events: auto; touch-action: none;
+  background: radial-gradient(circle, rgba(244,234,211,.55), rgba(244,234,211,.25)); border: 2px solid var(--rule);
+}
+.knob { position: absolute; left: 35px; top: 35px; width: 50px; height: 50px; border-radius: 50%; background: var(--ink); opacity: .75; }
+.tbtns { position: absolute; right: 16px; bottom: 12px; display: flex; align-items: flex-end; gap: 10px; pointer-events: auto; }
+.tb {
+  width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--rule); background: rgba(251,245,230,.9); color: var(--ink);
+  font: 700 14px var(--serif); touch-action: manipulation;
+}
+.tb.big { width: 84px; height: 84px; font-size: 16px; background: var(--ink); color: var(--paper); }
+.tb.dim { opacity: .45; }
+.tnudge { display: grid; grid-template-columns: repeat(3, 38px); grid-template-rows: repeat(3, 38px); gap: 2px; }
+.tnudge button { border: 1px solid var(--rule); border-radius: 6px; background: rgba(251,245,230,.9); font-size: 14px; touch-action: manipulation; }
+#tnU { grid-column: 2; grid-row: 1; } #tnL { grid-column: 1; grid-row: 2; } #tnR { grid-column: 3; grid-row: 2; } #tnD { grid-column: 2; grid-row: 3; }
+@media (max-width: 760px), (max-height: 520px) {
+  .top { top: 6px; left: 6px; padding: 4px 8px; }
+  .lv-name { font-size: 14px; }
+  .clock { top: 6px; right: 6px; padding: 2px 10px 4px; }
+  .clock span#clockNum { font-size: 24px; }
+  .coach { top: 52px; font-size: 13px; padding: 5px 12px; max-width: calc(100vw - 24px); }
+  .bottom { left: 6px; right: 6px; bottom: 6px; }
+  .bind-btn { padding: 6px 10px; font-size: 12px; }
+  .inset { width: 34vw; top: 52px; bottom: auto; right: 6px; padding: 5px; }
+  body.touch .inset { top: 92px; }
+  .inset figcaption { display: none; }
+}
+.tnudge[hidden], .tb[hidden] { display: none; }

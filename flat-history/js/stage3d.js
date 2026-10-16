@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・標本台・主人公・置いた形・持っている形・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=13';
-import { radialTexture } from './look/util.js?v=13';
-import { S, drawSheet } from './sheet.js?v=13';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=13';
-import { TABLE, tableY } from './hero.js?v=13';
+import { look, kindColor } from './look/index.js?v=16';
+import { radialTexture } from './look/util.js?v=16';
+import { S, drawSheet } from './sheet.js?v=16';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=16';
+import { TABLE, tableY } from './hero.js?v=16';
 
 export const GAP = 1.0;
 const Z = (t) => -t * GAP;
@@ -47,7 +47,8 @@ function sliceObject(root, z) {
   const out = [];
   root.updateWorldMatrix(true, true);
   root.traverse((o) => {
-    if (!o.isMesh || !o.visible || !o.material || o.material.wireframe || o.material.transparent || !o.material.color) return;
+    if (!o.isMesh || !o.visible || !o.material || o.material.wireframe || !o.material.color) return;
+    if (o.material.transparent && !o.userData.slice) return; // すける飾りは断面にしない（ガラスなど、出したいものは userData.slice）
     const pos = o.geometry.attributes.position, idx = o.geometry.index;
     const n = idx ? idx.count : pos.count;
     const pts = [];
@@ -66,20 +67,43 @@ function sliceObject(root, z) {
     for (const q of pts) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
     for (let i = pts.length - 1; i >= 0; i--) { const q = pts[i]; while (hi.length >= 2 && cross(hi[hi.length - 2], hi[hi.length - 1], q) <= 0) hi.pop(); hi.push(q); }
     const hull = lo.slice(0, -1).concat(hi.slice(0, -1));
-    if (hull.length >= 3) out.push({ color: '#' + o.material.color.getHexString(), pts: hull });
+    if (hull.length >= 3) out.push({ color: '#' + o.material.color.getHexString(), pts: hull, glass: !!o.material.transparent });
   });
   return out;
 }
-function drawSlices(g, L, polys) {
+function slicePath(g, L, pl) {
+  g.beginPath();
+  pl.pts.forEach(([x, y], i) => { const px = x * 20, py = (L.H - y) * 20; i ? g.lineTo(px, py) : g.moveTo(px, py); });
+  g.closePath();
+}
+// 断面を塗る。hatch なら銅版画のような斜線をのせて、2D世界になじませる
+function drawSlices(g, L, polys, hatch) {
   g.save();
   g.lineJoin = 'round';
   for (const pl of polys) {
-    g.beginPath();
-    pl.pts.forEach(([x, y], i) => { const px = x * 20, py = (L.H - y) * 20; i ? g.lineTo(px, py) : g.moveTo(px, py); });
-    g.closePath();
+    slicePath(g, L, pl);
+    if (pl.glass) { g.fillStyle = 'rgba(214,236,244,.9)'; g.fill(); g.strokeStyle = '#4a3320'; g.lineWidth = 1; g.stroke(); continue; }
     g.fillStyle = pl.color; g.fill();
+    if (hatch) {
+      g.save(); g.clip();
+      g.strokeStyle = 'rgba(42,28,16,.32)'; g.lineWidth = 0.8;
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const [x, y] of pl.pts) { x0 = Math.min(x0, x * 20); x1 = Math.max(x1, x * 20); y0 = Math.min(y0, (L.H - y) * 20); y1 = Math.max(y1, (L.H - y) * 20); }
+      g.beginPath();
+      for (let k = x0 - (y1 - y0); k < x1; k += 3) { g.moveTo(k, y1); g.lineTo(k + (y1 - y0), y0); }
+      g.stroke();
+      g.restore();
+      slicePath(g, L, pl);
+    }
     g.strokeStyle = '#2a1c10'; g.lineWidth = 1.4; g.stroke();
   }
+  g.restore();
+}
+// 軌跡: 断面のふちを、点線のインクでページに残す
+function stampTrail(g, L, polys) {
+  g.save();
+  g.setLineDash([2, 3]); g.lineWidth = 1.2; g.strokeStyle = '#3d6a72';
+  for (const pl of polys) { if (pl.glass) continue; slicePath(g, L, pl); g.stroke(); }
   g.restore();
 }
 
@@ -238,9 +262,17 @@ export function createStage(canvas, L) {
   scene.add(wave);
   let waveT = null, waveFrom = 0, hist = null, pieces = [];
 
+  // 主人公の軌跡（ページごとの、点線の押し跡）
+  const trails = new Map();
+  let trailLast = new Map();
+  function trailCanvas(t) {
+    if (!trails.has(t)) { const c = document.createElement('canvas'); c.width = L.W * S; c.height = L.H * S; trails.set(t, c); }
+    return trails.get(t);
+  }
   function drawOne(sh) {
     const fr = hist.frames[Math.round(sh.t / DT)];
     drawSheet(sh.g, L, sh.t, fr, sectionsAt(pieces, sh.t), { goalT: hist.end.type === 'goal' ? hist.end.t : null });
+    if (trails.has(sh.t)) sh.g.drawImage(trails.get(sh.t), 0, 0);
     sh.tex.needsUpdate = true;
     sh.pending = false;
   }
@@ -286,8 +318,13 @@ export function createStage(canvas, L) {
   const ORBIT0 = { yaw: 0.35, pitch: 0.52, dist: 17 };
   const orbit = { ...ORBIT0 };
   let drag = null, lastManual = -10;
+  const touches = new Map(); let pinch0 = 0;
   canvas.addEventListener('pointerdown', (e) => {
     if (e.button === 1) e.preventDefault();
+    if (e.pointerType === 'touch') {
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touches.size === 2) { const [a, b] = [...touches.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); drag = null; return; }
+    }
     drag = { x: e.clientX, y: e.clientY };
     canvas.setPointerCapture(e.pointerId);
     canvas.style.cursor = 'grabbing';
@@ -295,13 +332,21 @@ export function createStage(canvas, L) {
   canvas.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   canvas.addEventListener('pointermove', (e) => {
+    if (touches.has(e.pointerId)) {
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touches.size === 2) {
+        const [a, b] = [...touches.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (pinch0 > 0) orbit.dist = Math.max(6, Math.min(60, orbit.dist * pinch0 / d));
+        pinch0 = d; return;
+      }
+    }
     if (!drag) return;
     orbit.yaw -= (e.clientX - drag.x) * 0.006;
     orbit.pitch = Math.max(0.08, Math.min(1.35, orbit.pitch + (e.clientY - drag.y) * 0.005));
     drag.x = e.clientX; drag.y = e.clientY;
     lastManual = performance.now() / 1000;
   });
-  const endDrag = () => { drag = null; canvas.style.cursor = ''; };
+  const endDrag = (e) => { drag = null; canvas.style.cursor = ''; if (e && touches.has(e.pointerId)) { touches.delete(e.pointerId); pinch0 = 0; } };
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); orbit.dist = Math.max(6, Math.min(60, orbit.dist * Math.pow(1.0015, e.deltaY))); }, { passive: false });
@@ -322,14 +367,27 @@ export function createStage(canvas, L) {
     for (const [t, k] of want) {
       if (heroPages.get(t) === k || !hist) continue;
       const sh = sheets[t];
+      const polys = sliceObject(hero, Z(t));
+      // 軌跡: 少し動いたら、そのときの断面のふちを残す
+      const lp = trailLast.get(t);
+      if (polys.length && (!lp || Math.hypot(hx - lp.x, hy - lp.y, (ht - lp.t) * 3) > 0.35)) {
+        stampTrail(trailCanvas(t).getContext('2d'), L, polys);
+        trailLast.set(t, { x: hx, y: hy, t: ht });
+      }
       drawOne(sh);
-      drawSlices(sh.g, L, sliceObject(hero, Z(t)));
+      drawSlices(sh.g, L, polys, hero.userData.sliceHatch);
       sh.tex.needsUpdate = true;
     }
     heroPages = want;
   }
   // 右下の小窓など、ほかの絵にも主人公の断面を描く
-  function drawHeroOn(g, t) { drawSlices(g, L, sliceObject(hero, Z(t))); }
+  function drawHeroOn(g, t) { drawSlices(g, L, sliceObject(hero, Z(t)), hero.userData.sliceHatch); }
+  function drawTrailOn(g, t) { const c = trails.get(Math.round(t)); if (c) g.drawImage(c, 0, 0); }
+
+  // ---- 綴じる: ページの束が閉じて、一枚になる ----
+  let book = 0, bookTo = 0, bookAt = 0, bookDone = null;
+  function closeBook(atT, done) { bookTo = 1; bookAt = atT; bookDone = done; }
+  function openBook() { bookTo = 0; bookDone = null; }
 
   // ---- 毎フレーム ----
   function update(dt, v) {
@@ -367,6 +425,21 @@ export function createStage(canvas, L) {
       }
     }
 
+    // 綴じる演出: ページを主人公のいるページへ寄せて重ね、一枚にする
+    if (book !== bookTo) {
+      book += Math.sign(bookTo - book) * dt * (bookTo ? 1.3 : 2.5);
+      book = Math.max(0, Math.min(1, book));
+      if (book === 1 && bookDone) { const f = bookDone; bookDone = null; f(); }
+    }
+    {
+      const e = book * book * (3 - 2 * book), az = Z(bookAt);
+      for (const sh of sheets) sh.mesh.position.z = Z(sh.t) + (az - Z(sh.t)) * e + (sh.t - bookAt) * 0.002 * e;
+      const show = book < 0.05;
+      edgeLines.visible = show; hero.visible = show; blob.visible = blob.visible && show;
+      for (const [, o] of pieceObjs) o.visible = show;
+      if (ribbon) ribbon.visible = ribbon.visible && show;
+      frame.position.z = book > 0 ? az + 0.02 : frame.position.z;
+    }
     // カメラ（主人公のうしろ上。動いていて、しばらく手で回していなければ、ゆっくり進む向きのうしろへ）
     const hz = Z(h.t);
     if (walking && now - lastManual > 1.2) {
@@ -408,7 +481,7 @@ export function createStage(canvas, L) {
     let d = want - ud.body.rotation.y; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
     ud.body.rotation.y += d * Math.min(1, dt * 12);
     const tm = now;
-    if (ud.animate) ud.animate(dt, { speed: Math.hypot(moveX, moveT), run: !!v.running, grounded: h.grounded, vy: h.vy, carry: !!carry, landT: h.landT || 0 });
+    if (ud.animate) ud.animate(dt, { speed: Math.hypot(moveX, moveT), run: !!v.running, grounded: h.grounded, vy: h.vy, carry: !!carry, landT: h.landT || 0, t: h.t });
     heroOverlay(h.x, visY, h.t);
     // 足もとの影（真下の地面に）
     blob.visible = Number.isFinite(v.groundY);
@@ -426,8 +499,8 @@ export function createStage(canvas, L) {
       ePop = Math.min(1, ePop + dt * 6);
       const pop = ePop < 1 ? 1 + Math.sin(ePop * Math.PI) * 0.35 : 1;
       const top = gp.y0 + dd.h + (dd.along === 'z' ? dd.slope * dd.dz : dd.slope * dd.wx);
-      eIcon.position.set(gp.x0 + dd.wx / 2, top + 1.1 + Math.sin(tm * 4) * 0.12, Z(gp.t0 + dd.dz / 2));
-      eIcon.scale.setScalar(0.9 * pop * ePop);
+      eIcon.position.set(gp.x0 + dd.wx / 2, top + 0.7 + Math.sin(tm * 4) * 0.08, Z(gp.t0 + dd.dz / 2));
+      eIcon.scale.setScalar(0.5 * pop * ePop);
     }
 
     // 持っている形（頭の上に小さく）
@@ -476,6 +549,7 @@ export function createStage(canvas, L) {
   function setLevel(nl) {
     L = nl;
     heroPages = new Map();
+    trails.clear(); trailLast = new Map();
     for (const [id, o] of pieceObjs) { scene.remove(o); pieceObjs.delete(id); }
     pieces = [];
     buildTable();
@@ -495,5 +569,5 @@ export function createStage(canvas, L) {
   // 確認用: 波を終わらせる
   function skipWave() { if (waveT === null) return; for (const sh of sheets) if (sh.pending) drawOne(sh); waveT = null; }
 
-  return { setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, waving: () => waveT !== null };
+  return { setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, closeBook, openBook, waving: () => waveT !== null };
 }
