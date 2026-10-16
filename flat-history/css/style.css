@@ -799,3 +799,14 @@ body.touch .inset { left: 12px; right: auto; top: 120px; }
 /* v056: 帯の色を、はじめの深い青緑にもどす（半透明・広さは v055 のまま） */
 .chapter-band { background: linear-gradient(180deg, rgba(8, 30, 27, .62) 0%, rgba(12, 42, 38, .48) 55%, rgba(12, 42, 38, 0) 100%); }
 .foot-band { background: linear-gradient(0deg, rgba(8, 30, 27, .62) 0%, rgba(12, 42, 38, .48) 55%, rgba(12, 42, 38, 0) 100%); }
+
+/* v057: 帯の濃さを、はじめ（v053）の濃さに。ボタン類のまとまりは、帯のうすくなる下のほうに重ねて上へ寄せる */
+.chapter-band { background: linear-gradient(180deg, rgba(8, 30, 27, .92) 0%, rgba(12, 42, 38, .7) 55%, rgba(12, 42, 38, 0) 100%); }
+.foot-band { background: linear-gradient(0deg, rgba(8, 30, 27, .92) 0%, rgba(12, 42, 38, .7) 55%, rgba(12, 42, 38, 0) 100%); }
+.menu-btn, .headgroup, .inset { top: calc(var(--band) - 22px); }
+@media (max-width: 760px), (max-height: 520px) {
+  .menu-btn, .headgroup { top: calc(var(--band) - 22px); }
+}
+@media (max-height: 520px) {
+  .inset, body.touch .inset { top: calc(var(--band) + 28px); }
+}
