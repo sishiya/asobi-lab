@@ -13,6 +13,7 @@ function setTab(t) {
   if (t === 'ranch') { paintPortraits($('ranch'), ranch); paintPortraits($('nurseryBox'), kids); }
   if (t === 'cups') renderCups();
   if (t === 'book') renderBook();
+  if (t === 'ranch') renderCups(); // 次のお題
   updateSelection();
 }
 for (const k of ['ranch', 'cups', 'book']) $('tab-' + k).addEventListener('click', () => setTab(k));
@@ -25,11 +26,12 @@ readInk();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readInk(); renderRanch(); renderKids(); });
 load();
 $('tip').hidden = !!prog.tipDone;
+giveJoiners(); // 段が開いていて、まだ来ていない仲間（セーブを読み込んだときなど）
 renderRanch(); renderKids(); renderCups(); renderBanner();
 measure([...ranch, ...kids].filter(x => !x.rec), () => { save(); renderRanch(); renderKids(); });
 for (const x of ranch) noteRecord(x);
 let resizeT = 0;
-addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { paintPortraits($('ranch'), ranch); paintPortraits($('nurseryBox'), kids); }, 150); });
+addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { paintPortraits($('ranch'), ranch); paintPortraits($('nurseryBox'), kids); if (tab === 'book') drawBookChart(); }, 150); });
 if (new URLSearchParams(location.search).has('thumb')) {
   // サムネイルを撮るとき（?thumb）: ティラノサウルスを数秒走らせたところで止め、title を ready に
   document.body.classList.add('thumb');

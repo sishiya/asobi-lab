@@ -5,7 +5,7 @@ let job = 0;
 onmessage = e => {
   const m = e.data;
   if (m.type === 'evaluate') {
-    postMessage({type: 'evaluated', id: m.id, res: evaluate(m.genomes)});
+    postMessage({type: 'evaluated', id: m.id, res: measureRobust(m.genomes)});
   } else if (m.type === 'evolve') {
     const my = ++job;
     const P = makePop(m.seeds, m.opts);

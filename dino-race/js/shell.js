@@ -1,7 +1,7 @@
 // 外まわり: 確認・名前の入力（ask）、タイトル画面、メニュー（あそびかた・音・データ・このゲームについて・クレジット）、
 // セーブの書き出し・読み込み、全大会を制覇したときのエンディング、動かせないときやエラーのおしらせ。
 
-const VERSION = 'ver. 1.0';
+const VERSION = 'ver. 1.1';
 const SKIP_TITLE = 'asobi-lab/dino-race/skip-title'; // やり直し・読み込みで読み直したときはタイトルを出さない（sessionStorage）
 
 // ---------- 確認・入力（ブラウザの confirm／prompt の代わり） ----------
@@ -128,10 +128,12 @@ function openMenu() {
   openSheet('メニュー', `<div class="menu about-body">
     <h3>あそびかた</h3>
     <ol>
-      <li>牧場の恐竜を2匹選んで<b>かけ合わせる</b>と、子が3匹生まれます。体は両親のあいだ、走り方はどちらかの親ゆずり。</li>
-      <li>生まれた子は記録を見て<b>残す</b>か決めます。転んだ子も<b>練習</b>すると走れるようになることがあります。</li>
+      <li>牧場の恐竜を2匹選んで<b>かけ合わせる</b>と、子が3匹生まれます。体は両親のあいだ、走り方は選んだ親ゆずり。体の近い2匹ほど、子が転びにくい。</li>
+      <li>生まれた子は記録を見て<b>残す</b>か決めます。転んだ子も<b>練習</b>すると走れるようになることがあります（体は変わらないので、伸びには限りがあります）。</li>
+      <li>本番のかけっこは、毎回ほんの少し調子がちがいます。カードの「6回中◯回ゴール」は、調子が少しずれても走りきれた数（しっかり度）。速いけど危うい子と、少し遅いけど安定した子、どちらを残すかはあなたしだい。</li>
       <li>「…」の<b>おまかせで進化</b>は、群れを何世代も育てて、いちばん速い子を連れて帰ります。</li>
-      <li><b>大会</b>のお題をクリアするとメダル。メダル1つで牧場が1匹分広がります。10個そろえよう。</li>
+      <li><b>大会</b>は初級・中級・上級の3段。お題をクリアするとメダル（牧場が1匹分広がる）。段のお題をぜんぶ取ると次の段が開きます。</li>
+      <li>かけっこは 100m。40秒たってもゴールできないと、そこまでの距離が記録です。</li>
     </ol>
     <h3>設定</h3>
     <label class="switch"><input type="checkbox" id="chkSound"${SFX.on ? ' checked' : ''}> 効果音</label>
@@ -152,7 +154,7 @@ function openMenu() {
 }
 $('btnAbout').addEventListener('click', openMenu);
 
-// ---------- エンディング（お題を10個ぜんぶクリア） ----------
+// ---------- エンディング（お題をぜんぶクリア） ----------
 const allMedals = () => Object.keys(prog.medals).length === CUPS.length;
 function showEnding() {
   prog.endingSeen = true; saveProg();
@@ -160,7 +162,7 @@ function showEnding() {
   const b = prog.best;
   openSheet('全大会制覇！', `<div class="ending">
     <div class="medal-row">${CUPS.map((c, i) => `<span class="medal-s" style="animation-delay:${i * 0.08}s" title="${esc(c.title)}">★</span>`).join('')}</div>
-    <p class="lead">10の大会すべてでメダルを取りました。おめでとう！</p>
+    <p class="lead">${CUPS.length}の大会すべてでメダルを取りました。おめでとう！</p>
     <div class="facts">
       <div><span>最速の 100m</span>${b ? `${fmtT(b.t)}（${esc(b.name)}）` : '—'}</div>
       <div><span>いちばん新しい世代</span>${prog.maxGen}代目</div>
@@ -168,7 +170,7 @@ function showEnding() {
       <div><span>かけっこ</span>${prog.races}回</div>
     </div>
     <p>あなたがしてきたこと（体の形を少しずつ変えながら、速く走れる子を選んで残す）は、本物の研究と同じやり方です。Sellers と Manning（2007）は、化石から作った骨格の模型をコンピューターの中で何世代も走らせて、ティラノサウルスやヴェロキラプトルの最高速度を見積もりました。</p>
-    <p>牧場はこのまま続けられます。記録帳の体重クラスをぜんぶ埋めたり、もっと速い恐竜を育てたりしてみてください。</p>
+    <p>牧場はこのまま続けられます。記録帳の「研究の推定とくらべる」で、それぞれの恐竜の推定の速さに、どこまで近づけるか挑んでみてください。</p>
     <h3>クレジット</h3>${CREDITS}
     <p class="thanks">遊んでくれて、ありがとう。</p>
     <div class="btn-row"><button type="button" class="primary" id="btnEndClose">牧場にもどる</button></div>

@@ -230,3 +230,17 @@ function evaluate(genomes, {robust = false, seed = 1000} = {}) {
   const recs = R.dinos.map(recordOf);
   return robust ? genomes.map((g, i) => ({...recs[2 * i], alt: recs[2 * i + 1]})) : recs;
 }
+
+// 記録としっかり度: いつもの走り＋走り方を少しずらした TRIES 通り（ずらし方は毎回同じ）。
+// rb = {ok: ゴールできた数, n, lo, hi: ゴールしたタイムの幅}。本番のかけっこは毎回ちがうずらし方で走る（当日の調子。v004）
+const TRIES = 6;
+function measureRobust(genomes) {
+  const list = genomes.flatMap(g => [g, ...Array.from({length: TRIES}, (_, k) => jitter(g, 501 + k * 97))]);
+  const R = makeRace(list);
+  while (!raceOver(R)) stepRace(R, {removeDone: true});
+  const recs = R.dinos.map(recordOf), n = TRIES + 1;
+  return genomes.map((g, i) => {
+    const all = recs.slice(i * n, i * n + n), ts = all.map(r => r.finishT).filter(t => t != null);
+    return {...all[0], rb: {ok: all.slice(1).filter(r => r.finishT != null).length, n: TRIES, lo: ts.length ? Math.min(...ts) : null, hi: ts.length ? Math.max(...ts) : null}};
+  });
+}

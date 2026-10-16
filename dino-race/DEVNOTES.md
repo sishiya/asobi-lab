@@ -1,12 +1,12 @@
 # 恐竜かけっこ牧場 開発メモ
 
-最終更新: 2026-10-12
+最終更新: 2026-10-16
 
 恐竜をかけ合わせて育て、物理（Planck.js＝Box2D の JS 版）で走らせて 100m のかけっこ。企画は `PLAN.md`。css/js に分割。外のデータは読まない（Planck.js は CDN から）。
 
 ## 別セッションで続けるとき（まずここ）
-- **いまの状態**: v003（`versions/v003-product`、2026-10-12。画面の表示は「ver. 1.0」＝`shell.js` の `VERSION`）。ユーザー「製品として出せるくらいの完成度に体裁を整えて」で、タイトル画面・効果音・スタートの合図・メダルの演出・エンディング・自前の確認画面・メニュー（セーブの書き出し／読み込み）・エラーのおしらせを足した（中身のバランスは v002 のまま）。あそびラボの保管庫（`../archive.html`）に掲載。入口には載せていない。
-- **次にやること**: ユーザーの感想しだい（入口へ移すか）。恐竜の比率を骨格の計測データで確かめる（いまは仮）。お題の難しさの調整（遊んでみて）。`PLAN.md` の段階B・C（図鑑、四足歩行、坂・どろんこのコース）。
+- **いまの状態**: v004（`versions/v004-complete`、2026-10-16。画面の表示は「ver. 1.1」＝`shell.js` の `VERSION`）。ユーザー「ゲームとして完成にもっていって。複数のサブエージェントと協力して様々な役割の視点から」で、4役（ゲームデザイン・初見プレイヤー/UX・古生物監修・アート演出）とプレイテストで議論して決めたこと（`PLAN.md` の v004）を入れた: 当日の調子としっかり度、お題3段（11個）、かけ合わせのシート（走り方の親を選ぶ・体重の予想）、卵がかえる演出と親ごえ、新種ストルティオミムス、記録帳の体重と速さの図・研究の推定とくらべる表、流れる遠景・足あと・ゴールの判子・転倒の土ぼこり、音色。あそびラボの保管庫（`../archive.html`）に掲載。入口には載せていない。
+- **次にやること**: ユーザーが遊んだ感想しだい（入口へ移すか）。難しさの調整（上級の「巨人の全力」「ダチョウに近づけ」は当日の調子で前より難しくなった。遊んで確かめる）。紹介動画は v003 の見た目なので、入口へ移すなら録りなおす。`PLAN.md` の段階C（四足歩行、坂のコース）。
 - **紹介動画**（2026-10-11）: ショート（縦 4K・45秒）と説明動画（横 4K・155秒・ライオンつき）を録画ずみ。`../_dev/promo/out/dino-race-short.mp4`・`dino-race-guide.mp4`、英語の字幕 `.en.srt`（out は Git に入れない）。台本は `../_dev/promo/dino-race.html`・`dino-race-guide.html`。**YouTube・X にはまだ上げていない**。上げるときはタイトル・説明文・予約日時の下書きを作って、ユーザーに確かめてもらってから。
 - **読む順**: `../CLAUDE.md` → このファイル → 下の「ファイル構成」で関係するファイルだけ。進め方は manabi-lab の `../../アプリ開発/RULES.md` が下敷き。
 - **動かし方**: Claude は `../.claude/launch.json` の `games`（http://localhost:8780/dino-race/）。Worker を使うので file:// では動かない。
@@ -21,18 +21,18 @@
 |---|---|---|
 | `index.html` | 骨組み: 見出し（←・音 `#btnSound`・メニュー `#btnAbout`）、タイトル画面 `#titleScreen`、スタートの合図 `#count`（`#stage` の中）、確認・入力 `<dialog id="ask">`、動かせないとき `#fatal`、読み込むファイル `#importFile`、走るようす `#stage`（かけっこの間は `.live` で上に固定）と `.hud`、タブ（牧場・大会・記録帳）、下の操作バー `#actbar`、シート `<dialog id="sheet">`、説明の `<template id="aboutTpl">`（本物のしくみ・簡単にしたところ・出どころ。メニューの中に入る）。読み込み順: planck(CDN) → genome → sim → ga → draw → cups → sound → store → ranch → view → race → sheets → shell → main（ファイルをまたいでいちばん外側の名前を共有。読み込みのときに走るのは main のさいごだけなので、関数の順は気にしなくてよい） | `#view` `#btnSpeed` `#btnSkip` `#ranch` `#nurseryBox` `#nextCup` `#evolveBanner` `#cupList` `#book` `#toast` |
 | `css/style.css` | スマホを先に（押す所は高さ 44px 以上、`env(safe-area-inset-bottom)`）。紙の色（`--paper` `--ink` `--bone`、ダークモードあり）、カード（選んだ順の番号 `.selno`、「…」`.more`）、生まれた子 `.kid`、下のバー、シート（スマホは下から・広い画面は真ん中）、大会 `.cup`・メダル、記録帳 `.book`、`body.thumb` | |
-| `js/genome.js` | 遺伝子の表 `GENES`（体 9・走り方 20）、はじめの3種 `SPECIES`（`body` と育てた `gait`）、`mutate()` `crossover()`（体は両親のあいだ、走り方は片方から丸ごと） `randomGait()` `baseGait()` | `makeRng` `clamp` `gauss` |
-| `js/sim.js` | 体の寸法・重さ・力 `bodyPlan()`、立った姿勢 `restPose()`、`buildDino()`、走り方 `control()`（SIMBICON 寄り）、`stepRace()` `raceOver()` `evaluate()`（`robust` で少しずらした2回目も） `jitter()` | `GRAV` `DT` `SIGMA` `ARM_RATIO` `SHARE` `FINISH` `LIMIT` |
+| `js/genome.js` | 遺伝子の表 `GENES`（体 9・走り方 20）、恐竜の種 `SPECIES`（`body` と育てた `gait`。はじめの3種と、`joins: 2`＝中級が開くと仲間入りのストルティオミムス）、`mutate()` `crossover(a, b, rng, gaitFrom)`（体は両親のあいだ、走り方は gaitFrom の親から丸ごと。なければくじ） `randomGait()` `baseGait()` | `makeRng` `clamp` `gauss` |
+| `js/sim.js` | 体の寸法・重さ・力 `bodyPlan()`、立った姿勢 `restPose()`、`buildDino()`、走り方 `control()`（SIMBICON 寄り）、`stepRace()` `raceOver()` `evaluate()`（`robust` で少しずらした2回目も） `jitter()`、しっかり度 `measureRobust()`（いつもの走り＋ずらした `TRIES`=6 通り。`rec.rb = {ok, n, lo, hi}`） | `GRAV` `DT` `SIGMA` `ARM_RATIO` `SHARE` `FINISH` `LIMIT` |
 | `js/ga.js` | おまかせの進化 `makePop()` `stepGeneration()`、点数 `scoreOf()` | |
-| `js/worker.js` | 裏の計算: `evaluate`（記録の測定）と `evolve`（おまかせ）。CDN の planck と genome・sim・ga を importScripts | |
+| `js/worker.js` | 裏の計算: `evaluate`（記録としっかり度の測定＝`measureRobust`）と `evolve`（おまかせ）。CDN の planck と genome・sim・ga を importScripts | |
 | `js/draw.js` | 骨格図の絵 `drawDino()`（骨・背骨・肋骨・骨盤・頭骨・しっぽ）、`drawScene()`（上に 0〜100m の帯、レーンごとの縮尺と物差し、ゴーストの線 `ghostAt()`）、カードの絵 `drawPortrait()` | `INK` `readInk()` `niceStep()` |
-| `js/cups.js` | 大会のお題 `CUPS`（`target`・`rivals`・`ghosts`・`need`・`win`）、出られるか `cupBlock()`、ゴースト `REFS`（人の世界記録・ゾウ・ダチョウ）、体重クラス `CLASSES` `classOf()` | |
+| `js/cups.js` | 大会のお題 `CUPS`（`tier`・`target`・`rivals`・`ghosts`・`need`・`win`・`steady`＝調子のずれなし・`hint`＝落ちたときの次の一手）、段 `TIERS` `tierOpen()` `tierDone()`、出られるか `cupBlock()`、ゴースト `REFS`（人の世界記録・アジアゾウ・ダチョウ。`M` は図の体重）、研究の推定 `RESEARCH`（Sellers & Manning 2007 の Table 1）、体重クラス `CLASSES` `classOf()` | |
 | `js/sound.js` | 効果音 `SFX.play(名前)`（`ready` `go` `goal` `fall` `hatch` `done` `medal` `ending`。Web Audio で作る）、`SFX.on`（`asobi-lab/dino-race/settings-v1` に保存）。はじめて押すまで鳴らない | `SETTINGS_KEY` |
-| `js/store.js` | 保存（localStorage `asobi-lab/dino-race/ranch-v1` に牧場と生まれた子 `kids`、`progress-v1` にメダル・記録帳 `prog`）、文字の形 `fmtMass` `fmtT` `recText` `recShort`、`toast()`、記録帳への記入 `noteRecord()` | `$` `esc` `SAVE_KEY` `PROG_KEY` `BASE_SLOTS` `slots()` `MAX_RACE` `ranch` `kids` `prog` `selected` |
-| `js/ranch.js` | 裏の計算 `worker`・`measure()`、走る練習（別の Worker `practiceWorker`、1匹ずつ順番）、カードの絵 `paintPortraits()`、牧場のカードと選択（選んだ順）、`refreshDino()`、生まれた子 `renderKids()`、かけ合わせ（3匹、突然変異 0.3 倍） | `PRACTICE` `rng` |
+| `js/store.js` | 保存（localStorage `asobi-lab/dino-race/ranch-v1` に牧場と生まれた子 `kids`、`progress-v1` にメダル・記録帳 `prog`）、文字の形 `fmtMass` `fmtT` `recText` `recShort`、しっかり度の文 `rbText()` `rbClass()`、`toast()`、記録帳への記入 `noteRecord()`（最速・体重クラス・研究の推定ごとの最速 `prog.research`。更新したら「新記録！」） | `$` `esc` `SAVE_KEY` `PROG_KEY` `BASE_SLOTS` `slots()` `MAX_RACE` `ranch` `kids` `prog` `selected` |
+| `js/ranch.js` | 裏の計算 `worker`・`measure()`、走る練習（別の Worker `practiceWorker`、1匹ずつ順番。よくなったらしっかり度をはかり直し、変わらなければ `plateau`「ほぼ出しきった」。`practiceNote`）、カードの絵 `paintPortraits()`、牧場のカードと選択（選んだ順）、`refreshDino()`、生まれた子 `renderKids()`（記録が出るまで卵 `hatching`、1匹ずつかえる `addKids()`、親ごえの札 `kidTag()`）、かけ合わせのシート `openBreed()`（走り方の親を選ぶ・子の体重の予想 `breedForecast()`・大きさが8倍以上ちがうと注意）→ `breed()`（3匹、突然変異 0.3 倍。子に `parentBest` `gaitName` `pg`＝両親の体の遺伝子） | `PRACTICE` `rng` `HATCH_MIN` |
 | `js/view.js` | 走るようす（`race`・`watch`・`idle-run`＝練習場）、`startView()`、カメラ、`stepView()`、スタートの合図（`COUNT_T` 1.8 秒、本当の時間で数える。かけっこ `race` だけ）、ゴール・転んだ音 `listen()`、`finishView()`、足あとからの推定 `alexander()`、`idleRun()`、`loop()`、速さ・「結果へ」、`watchRun()` | `VIEW` `PROGRESS_H` `SPEEDS` |
-| `js/race.js` | かけっこ `runRace()`、結果のシート `showResult()`（大会の勝ち負け・メダルの演出・10個目は「つづき ▶」でエンディング）、大会 `renderCups()`・`openPick()`、記録帳 `renderBook()` | |
-| `js/sheets.js` | シート `openSheet()` `closeSheet()`（close はあとから届くので、開き直していたら無視。結果を × で閉じたときのエンディングもここ）、詳しく `openDetail()` `renderDetail()`（名前・逃がすは `ask()`）、おまかせ `openEvolve()` `bringBack()` `drawEvoChart()` | `sheetKind` `sheetDino` `evolving` |
+| `js/race.js` | かけっこ `runRace()`（自分の恐竜は走り方を毎回ずらす＝当日の調子。ライバルと `steady` のお題はずらさない）、結果のシート `showResult()`（大会の勝ち負け・メダルの演出・段が開いた知らせ `tierNews()`・今回の調子 `dayBand()`・落ちたときのヒント・足あとからの推定はたたむ・ぜんぶそろうと「つづき ▶」でエンディング）、仲間入り `giveJoiners()`、大会 `renderCups()`（段ごと。はじめのかけ合わせの前は「まずはラプトル×コンピー」）・`openPick()`、記録帳 `renderBook()`・体重と速さの図 `drawBookChart()` | |
+| `js/sheets.js` | シート `openSheet()` `closeSheet()`（close はあとから届くので、開き直していたら無視。結果を × で閉じたときのエンディングもここ）、詳しく `openDetail()` `renderDetail()`（名前・逃がすは `ask()`。体のバーに両親の位置 1・2）、おまかせ `openEvolve()`（「体の形も変える」は上級が開いてから）`bringBack()`（連れて帰った子も卵からかえる） `drawEvoChart()` | `sheetKind` `sheetDino` `evolving` |
 | `js/shell.js` | 外まわり: `ask()`（確認・名前の入力）、エラーのおしらせ `onError()` `fatal()`、音のボタン、タイトル画面 `showTitle()`（セーブがあれば「つづきから／はじめから」）、`resetAll()`、セーブの書き出し `exportSave()`（`dino-race-日付.json`）と読み込み `importSave()`（`cleanDino()` で確かめ、遺伝子は範囲の中へ）、メニュー `openMenu()`、クレジット `CREDITS`、エンディング `showEnding()`（`prog.endingSeen`） | `VERSION` `SKIP_TITLE` `allMedals()` |
 | `js/main.js` | タブ `setTab()`、あそびかたの「わかった」、はじめ（読み込み・描画・記録をはかる）、planck が読めないときは `fatal()`、`?thumb`（ティラノ1匹。タイトルは出さない）、`window.__dino` | `tab` |
 | `test.html` | 物理と GA だけを試す開発用のページ（画面なし） | |
@@ -70,8 +70,19 @@
 - はじめの3匹の「しっかり度」（走り方をずらした6通りのうちゴールできる数）: ティラノ 2・ラプトル 6・コンピー 6。ティラノはまだ綱渡り気味（大きいほど難しい）。
 - 練習の速さ: 画面が前にあれば Worker で 1〜数秒（裏のタブや、ほかの計算と同時だと数十秒）。おまかせ 5世代で 18 秒ほど（PC）。
 
+### 当日の調子・しっかり度（v004）
+- 大会とかけっこ（「はじめての100m」「わが子のデビュー」以外）は、自分の恐竜の走り方を毎回 `jitter()`（範囲の 0.4%、GA の少しずらした2回目と同じ）でずらして走る。ライバルはいつもの走り。カードの記録は、いつもの走り（ずらさない）。
+- しっかり度は、決まった6通りのずらし方（種 501＋97k）で走らせて、ゴールできた数とタイムの幅。v003 までの記録は `rb` がないので、読み込みのときにはかり直す。
+- GA で育てた走り方は、いつもの走りがいちばん速いことが多い（ずらすと遅くなる）。だから大会のタイムはカードより少し遅くなりがち（上級が少し難しくなった）。
+- 試したとき（2026-10-16）: はじめの3匹のしっかり度 ティラノ 2・ラプトル 4・コンピー 6。練習で 9.96秒になったラプトル×コンピーの子が 6回中2回 → 「速いけど危うい子」が自然に出る。
+
+### ストルティオミムスと段（v004）
+- 体は `genome.js`（約157kg・全長 4.6m・腰の高さ 1.3m）。密度が水なので、本物より少し重い形になりやすく、胴を細め（`bodyThick` 0.33）にして体重を合わせた。走り方はラプトル・ティラノ・コンピーの走り方からはじめて、体を固定して 110世代（test.html。裏のタブだとタイマーが遅くなるので、前に出して回す）。10.56秒・6回中5〜6回。
+- 試したとき: **ストルティオ×ティラノで走り方をストルティオから受けつぐと、1〜4t の子が 15〜21秒でしっかり走る**（ティラノから受けつぐとほぼ全部転ぶ）。→ 重量級（500kg・20秒）は中級で1〜2回のかけ合わせで届く。441kg・11.7秒の子も出て、中型級（50〜500kg・12秒）にも届く。ラプトル×ストルティオの子はどちらの走り方でもほぼ転ぶ（練習が要る）。5t を超える子は 28〜36秒で、巨人の全力（22秒）は上級らしく遠い。
+- 中級が開いたら `giveJoiners()` が牧場へ（いっぱいなら生まれた子の欄へ）。`prog.joined` に記録。上級が開くと、おまかせの「体の形も変える」が使える。
+
 ### 大会と記録帳（`cups.js`・`main.js`、v002〜）
-- お題10（`CUPS`）。「はじめての100m」のほかは牧場で生まれた恐竜（`gen` ≥ 1）だけ（育てる理由を作るため）。体重の条件（`need`）は出る前に判定し、出られない恐竜は選ぶシートで理由つきで押せない。
+- お題11（`CUPS`。v004 で初級4・中級4・上級3 の段に。中級に「中型級の韋駄天」を足し、人の世界記録を中級へ）。「はじめての100m」のほかは牧場で生まれた恐竜（`gen` ≥ 1）だけ（育てる理由を作るため）。体重の条件（`need`）は出る前に判定し、出られない恐竜は選ぶシートで理由つきで押せない。
 - メダル1つで牧場が1匹分広がる（`slots()` = 8 ＋ メダルの数）。クリアした記録（恐竜・タイム）を `prog.medals` に。牧場のタブの上に「次のお題」（まだのお題のうち、いちばん上）。
 - ライバル（`rivals`）ははじめの3種をそのまま走らせる。ゴースト（`ghosts`）は 100m を同じ速さで走る目安の線（人の世界記録 9.58秒、アフリカゾウ 秒速 6.8m＝Hutchinson ら 2003、ダチョウ 時速 70km＝よく言われる目安）。結果の順位には数えない。
 - 難しさを試したとき（2026-10-11）: ティラノ×ラプトルの子（1.7t）が練習1回で 28.9 → 20.2 秒（ティラノに勝てる・重量級まであと少し）。コンピーどうしの子は練習で 9.69 秒どまりだが、体も変えるおまかせ1世代で 9.42 秒（1.7kg）→「小さな俊足」に届く。ラプトル系は体ごと進化させても 8.7〜9.0 秒で頭打ち → 「ダチョウ」のお題は 7.2 秒をやめて 8.0 秒に。「ラプトルに勝て」（8.7 秒を切る）は難しい側。
@@ -95,6 +106,13 @@
 - 隠れたタブのカードの絵は幅 0 で描けない → `paintPortraits()` は幅 0 を飛ばし、タブを開いたときに描く。
 
 ## 確認のしかた（変更のたびに）
+（v004 で足した確認）
+- A. カードと生まれた子に「6回中◯回ゴール（幅）」（5以上は緑・3〜4は金・2以下は朱）。読み込み直後に v003 のセーブでもはかり直される。
+- B. 2匹で「かけ合わせる」→ かけ合わせのシート（走り方の親を選ぶ・しっかり度・子の体重の帯・ティラノ×ラプトルなど大きさがちがうと注意）→ 卵が3つゆれてひびが入り、1匹ずつかえる（コツ・音）。親より速い子には「親ごえ ▲」。
+- C. かけっこの結果に「今回は絶好調／いつもどおり／いまひとつ（ふだんの幅）」の帯。同じ組でも「もう一度」で結果が変わる。はじめの2つのお題は調子のずれなし。
+- D. 大会が初級・中級・上級。初級を4つ取ると中級が開き、ストルティオミムスが仲間入り（結果のシートに知らせ）。中級を取ると上級と「体の形も変える」。落ちたときに「次の一手」。
+- E. 記録帳の「体重と速さ」の図（●自分・□研究・△人など。幅を変えても描き直す）と「研究の推定とくらべる」表。
+- F. 練習で伸びなかった子に「この体では、ほぼ出しきった」。
 0. タイトル画面（はじめての時は「はじめる」、セーブがあると「つづきから／はじめから」）。後ろで練習場の恐竜が走って見える。「はじめから」は確認の画面のあと消えて、タイトルなしで始まる。`?thumb` ではタイトルが出ない。
 1. 読み込み直後にエラーなし。牧場に3匹、記録が出る（Worker）。練習場で速い恐竜が走る（スマホは2匹、広い画面は3匹）。「あそびかた」と「次のお題」が出る。
 2. `test.html` で、はじめの3匹がゴールする: `evaluate(SPECIES.map(sp => speciesGenome(sp))).map(r => r.finishT)`（23.7・8.7・9.8 秒前後）。
@@ -111,6 +129,7 @@
 13. 名前を変える・逃がす・「のこりは逃がす」が、ブラウザの確認ではなくゲームの確認画面で出る（名前は Enter でも決まる、Esc でやめる）。
 
 ## 状態
+- 2026-10-16 v004（`versions/v004-complete`、ver. 1.1）: ユーザー「ゲームとして完成にもっていって」。4役のサブエージェントとプレイテストで議論（`PLAN.md` の v004）→ 演出はサブエージェント、遊びの芯は本体で実装。当日の調子としっかり度、お題3段（11）、かけ合わせのシート・卵・親ごえ、ストルティオミムス、記録帳の図と研究の推定、流れる遠景・足あと・判子・土ぼこり・音色、説明の修正（アジアゾウ・相似則の言い方・出どころ）。
 - 2026-10-09 v001（`versions/v001-first`）: はじめの試作。二足の骨格（図鑑の骨格図ふう）を物理で走らせる。牧場（はじめの3種、育てた走り方）・かけっこ 100m（レーンごとの縮尺と物差し、上に進みぐあいの帯、結果の表に足あとからの推定）・かけ合わせ・走る練習・おまかせの進化・逃がす・保存。サムネイル。保管庫に掲載。
 - 2026-10-12 v003（`versions/v003-product`、ver. 1.0）: ユーザー「製品として出せるくらいの完成度に体裁を整えて（売り出すわけではない）」。main.js（38KB）を役割ごとに store・ranch・view・race・sheets・main に分け（中身は変えず）、sound.js・shell.js を足した。タイトル画面、効果音とオン／オフ、スタートの合図、メダル獲得の演出、エンディング、ゲームの確認・入力の画面、メニュー（あそびかた・設定・データ・このゲームについて・クレジット）、セーブの書き出し／読み込み、planck が読めないとき・思わぬエラーのおしらせ。「試作」の札を外した。
 - 2026-10-11 v002（`versions/v002-mobile`）: ユーザー「スマホでも快適に遊べるように、仕様や UI/UX を改善。楽しくなりそうならどんどん変えてよい」を受けて作り直し。牧場・大会・記録帳のタブ、選んだ恐竜の操作は画面の下のバー、詳しくのシート（体のようす・練習・おまかせ・名前を変える・逃がす）、生まれた子の欄、かけっこの間は走るようすを上に固定・「結果へ」・速さの切りかえ、結果はシート。大会のお題10とメダル（牧場が広がる）・次のお題、人・ゾウ・ダチョウのゴースト、記録帳。練習場（何もしていないとき速い恐竜が走る）。

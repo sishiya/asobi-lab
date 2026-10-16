@@ -16,7 +16,7 @@ $('sheet').addEventListener('close', () => {
   if ($('sheet').open) return;
   const was = sheetKind;
   sheetKind = null; sheetDino = null; updateSelection();
-  // 10個そろってエンディングをまだ見ていない: 結果を × で閉じても、走っていなければ出す
+  // メダルがぜんぶそろってエンディングをまだ見ていない: 結果を × で閉じても、走っていなければ出す
   if (was === 'result' && VIEW.mode === 'idle' && allMedals() && !prog.endingSeen) setTimeout(showEnding, 250);
 });
 $('btnSheetClose').addEventListener('click', closeSheet);
@@ -31,7 +31,9 @@ function renderDetail(x) {
   const bars = SHOW_GENES.map(k => {
     const d = GENE_BY_KEY[k], v = x.g[k];
     const shown = k === 'legLen' ? v.toFixed(2) + 'm' : k === 'muscle' ? Math.round(v * 100) + '%' : v.toFixed(2);
-    return `<span>${esc(d.label)} <b>${shown}</b></span><span class="bar"><i style="left:${(geneRatio(d, v) * 100).toFixed(1)}%"></i></span>`;
+    // 両親の位置（v004。かけ合わせで生まれた子だけ）: 1・2 の小さな印
+    const par = (x.pg || []).map((pg, i) => pg && pg[k] != null ? `<b class="par" style="left:${(geneRatio(d, pg[k]) * 100).toFixed(1)}%">${i + 1}</b>` : '').join('');
+    return `<span>${esc(d.label)} <b>${shown}</b></span><span class="bar">${par}<i style="left:${(geneRatio(d, v) * 100).toFixed(1)}%"></i></span>`;
   }).join('');
   const busy = !!x.practice, evo = evolving && evolving.src === x;
   $('sheetTitle').textContent = x.name;
@@ -42,9 +44,9 @@ function renderDetail(x) {
       <div><span>腰の高さ</span>${r.hip[1].toFixed(2)}m</div>
       <div><span>世代</span>${x.gen ? x.gen + '代目' : 'はじめの恐竜'}${x.practiced ? `・練習 ${x.practiced}回` : ''}</div>
     </div>
-    <p>${recText(x.rec)} <span class="status">${statusOf(x)}</span></p>
-    ${x.parents && x.parents.length ? `<p class="hint">親: ${esc(x.parents.join(' × '))}</p>` : ''}
-    <h3>体のようす（遺伝子の範囲のどこにいるか）</h3>
+    <p>${recText(x.rec)} <span class="status">${statusOf(x)}</span><br><span class="rb ${rbClass(x.rec)}">${rbText(x.rec)}</span>${x.practiceNote ? `<br><span class="small">${esc(x.practiceNote)}</span>` : ''}</p>
+    ${x.parents && x.parents.length ? `<p class="hint">親: ${esc(x.parents.map((n, i) => (x.pg ? (i + 1) + ' ' : '') + n).join(' × '))}${x.gaitName ? ` ・ 走り方は${esc(x.gaitName)}ゆずり` : ''}</p>` : ''}
+    <h3>体のようす（遺伝子の範囲のどこにいるか${x.pg ? '。1・2 は両親' : ''}）</h3>
     <div class="bars">${bars}</div>
     <div class="btn-row">
       <button type="button" data-d="watch"${x.rec ? '' : ' disabled'}>走りを見る</button>
@@ -53,7 +55,7 @@ function renderDetail(x) {
       <button type="button" data-d="rename">名前を変える</button>
       <button type="button" data-d="release" class="quiet"${ranch.length <= 1 ? ' disabled' : ''}>逃がす</button>
     </div>
-    <p class="hint">練習: 体はそのままで走り方を数十秒かけて練習（よくなったら覚える）。おまかせ: この恐竜をもとに群れを育て、いちばん速い子を連れて帰る（数分）。</p>`;
+    <p class="hint">練習: 体はそのままで走り方を数秒〜数十秒かけて練習（よくなったら覚える。体が変わらないので、伸びには限りがある）。おまかせ: この恐竜をもとに群れを育て、いちばん速い子を連れて帰る（数分）。</p>`;
   paintPortraits($('sheetBody'), [x]);
   $('sheetBody').querySelector('.btn-row').onclick = async e => {
     const b = e.target.closest('[data-d]'); if (!b || b.disabled) return;
@@ -75,17 +77,19 @@ function renderDetail(x) {
 let evolving = null;
 function openEvolve(x) {
   if (evolving) return showEvolve();
+  const bodyOk = tierOpen(3);
   openSheet(`おまかせで進化: ${x.name}`, `<p>${esc(x.name)} をもとに、24匹の群れを牧場の外で育てます。走り方は毎回変わり、「体の形も変える」と体も変わります。終わると、いちばん速い子を1匹連れて帰ります（生まれた子に入る）。</p>
     <div class="evo-set">
       <label>世代 <select id="selGens"><option>5</option><option selected>10</option><option>30</option></select></label>
-      <label><input type="checkbox" id="chkBody"> 体の形も変える</label>
+      <label${bodyOk ? '' : ' class="off"'}><input type="checkbox" id="chkBody"${bodyOk ? '' : ' disabled'}> 体の形も変える</label>
     </div>
+    ${bodyOk ? '' : '<p class="hint">「体の形も変える」は、上級のお題が開くと使えます（それまでは体の形はかけ合わせで）。</p>'}
     <p class="hint">1世代に数秒〜十数秒かかります。シートを閉じても、裏で進みます。</p>
     <div class="btn-row"><button type="button" class="primary" id="btnEvolveGo">はじめる</button></div>`, 'evolve-set', x);
   $('btnEvolveGo').onclick = () => {
     const gens = +$('selGens').value;
     evolving = {src: x, gens, hist: [], best: null, id: reqId++};
-    worker.postMessage({type: 'evolve', id: evolving.id, gens, seeds: [x.g], opts: {size: 24, seed: (Date.now() % 1e9) | 0, bodyLock: !$('chkBody').checked}});
+    worker.postMessage({type: 'evolve', id: evolving.id, gens, seeds: [x.g], opts: {size: 24, seed: (Date.now() % 1e9) | 0, bodyLock: !(bodyOk && $('chkBody').checked)}});
     renderBanner(); refreshDino(x); showEvolve();
   };
 }
@@ -125,9 +129,8 @@ function bringBack() {
   if (!E.best) return;
   const x = E.src, n = E.hist.length;
   prog.evolved++; prog.born++; saveProg();
-  addKids([{id: 'e-' + Date.now(), line: x.line, name: `${x.line} ${serial++}号`, g: E.best.g, rec: E.best.res, gen: (x.gen || 0) + n,
-    parents: [x.name], origin: `${x.name}から ${n}世代 進化（もと ${recShort(x.rec)}）`}]);
-  noteRecord(kids[kids.length - 1]);
+  addKids([{id: 'e-' + Date.now(), line: x.line, name: `${x.line} ${serial++}号`, g: E.best.g, rec: null, gen: (x.gen || 0) + n,
+    parents: [x.name], parentBest: x.rec?.finishT ?? null, origin: `${x.name}から ${n}世代 進化（もと ${recShort(x.rec)}）`}]);
   SFX.play('done');
   toast(`おまかせの進化が終わりました（${recShort(E.best.res)}）`);
 }

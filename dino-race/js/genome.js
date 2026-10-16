@@ -54,6 +54,10 @@ const SPECIES = [
    gait:{period:0.8660115181, split:0.5575807903, hipE:-0.1438635973, kneeE:-0.753260029, ankleE:0.1281746158, hipL:0.7820562333, kneeL:-0.9293250608, ankleL:0.6912509406, kneeS:0.1847256726, ankleS:-0.1580453278, toeS:-0.09375907542, toeW:-0.4390215262, cd:0.3630147503, cv:0.6435013142, lean:0.2808160921, kPitch:1.676630509, kRate:0.7345836007, kp:12.26937442, neckC:-0.222744808, tailC:0.2928923047}},
   {id:'compy', name:'コンプソグナトゥス', body:{legLen:0.28, tibRatio:1.30, metaRatio:0.75, bodyLen:0.90, bodyThick:0.34, neckLen:0.55, headLen:0.35, tailLen:2.40, muscle:0.12},
    gait:{period:0.6, split:0.3327559061, hipE:0.164757979, kneeE:-1.041675778, ankleE:-0.6, hipL:1.045962316, kneeL:-0.1780119224, ankleL:0.5466434659, kneeS:0.1122870648, ankleS:-0.45871592, toeS:0.06064348761, toeW:-0.7574898676, cd:0.1686839259, cv:0.6797229171, lean:0.4590807438, kPitch:1.626806241, kRate:0.4724434722, kp:25.82704354, neckC:0.2147952934, tailC:0.1333253664}},
+  // v004: 中級が開くと仲間入り（joins: 段）。オルニトミムス類。すね・足の甲が長い俊足型（Holtz 1995 の arctometatarsus）。
+  // 体重はおよそ 150kg（Paul 2010 などの推定。幅がある）、全長 4.5m、腰の高さ 1.3m。走り方は体を固定して GA で育てた（2026-10-16。ラプトル・ティラノ・コンピーの走り方からはじめて 110世代。100m 10.56秒、少しずらした6通りで6回ゴール）
+  {id:'struthio', joins:2, name:'ストルティオミムス', body:{legLen:1.5, tibRatio:1.2, metaRatio:0.9, bodyLen:0.8, bodyThick:0.33, neckLen:0.75, headLen:0.18, tailLen:1.6, muscle:0.12},
+   gait:{period:1.093631018, split:0.2913174027, hipE:-0.08739558807, kneeE:-0.6490767518, ankleE:-0.5299485237, hipL:0.4823619578, kneeL:-1.085356992, ankleL:0.9, kneeS:0.2650714066, ankleS:0.04834224664, toeS:-0.03894737732, toeW:0.2275879733, cd:0.4156765102, cv:0.5440227365, lean:0.5, kPitch:2.222672642, kRate:0.919977582, kp:8.387085178, neckC:-0.4, tailC:0.2652450086}},
 ];
 
 // 手で決めた、ひとまず歩く走り方（GA のはじまり）
@@ -90,7 +94,8 @@ function mutate(g, rng, {rate = 1, bodyLock = false} = {}) {
 // 交叉: 体の遺伝子は両親のあいだ（混ざる）、走り方はどちらか一方の親から丸ごと。
 // （はじめは関節ごとのまとまりで両親から混ぜていたが、別々に育った走り方はかみ合わず、子の多くが転んだ。
 //   丸ごとにすると、ラプトルどうしの子でゴールできる数が 8匹中 2 → 7。2026-10-09）
-function crossover(a, b, rng) {
+// gaitFrom: 走り方を受けつぐ親（a か b。v004 でかけ合わせる前に選べるように）。なければくじ
+function crossover(a, b, rng, gaitFrom = null) {
   const c = {};
   for (const d of GENES) {
     if (d.kind !== 'body') continue;
@@ -98,7 +103,7 @@ function crossover(a, b, rng) {
     c[d.k] = d.log ? Math.exp(Math.log(a[d.k]) * (1 - t) + Math.log(b[d.k]) * t) : a[d.k] * (1 - t) + b[d.k] * t;
     c[d.k] = clamp(c[d.k], d.min, d.max);
   }
-  const src = rng() < 0.5 ? a : b;
+  const src = gaitFrom || (rng() < 0.5 ? a : b);
   for (const d of GENES) if (d.kind === 'gait') c[d.k] = src[d.k];
   c.from = a.from === b.from ? a.from : 'mix';
   return c;

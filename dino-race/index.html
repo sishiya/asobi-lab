@@ -8,7 +8,7 @@
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="theme-color" content="#efe7d4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#16120d" media="(prefers-color-scheme: dark)">
-<link rel="stylesheet" href="css/style.css?v=3">
+<link rel="stylesheet" href="css/style.css?v=4">
 </head>
 <body>
 <header class="top">
@@ -51,9 +51,9 @@
     <div class="tip" id="tip" hidden>
       <b>あそびかた</b>
       <ol>
-        <li>2匹を選んで<b>かけ合わせる</b>と、子が3匹生まれます。</li>
-        <li>転んだ子も<b>練習</b>すると走れるようになることがあります。速い子を<b>残す</b>。</li>
-        <li>牧場で生まれた子で<b>大会</b>に出て、メダルを集めよう（メダル1つで牧場が1匹分広がる）。</li>
+        <li>2匹を選んで<b>かけ合わせる</b>と、子が3匹生まれます（体の近い2匹ほど、子が転びにくい）。</li>
+        <li>転んだ子も<b>練習</b>すると走れるようになることがあります。速くて転びにくい子を<b>残す</b>。</li>
+        <li>牧場で生まれた子で<b>大会</b>に出て、メダルを集めよう（初級・中級・上級。メダル1つで牧場が1匹分広がる）。</li>
       </ol>
       <button type="button" id="btnTipOk" class="quiet">わかった</button>
     </div>
@@ -65,8 +65,8 @@
   </section>
 
   <section class="panel" id="panel-cups" role="tabpanel" aria-labelledby="tab-cups" hidden>
-    <p class="hint">お題をクリアするとメダル。メダル1つで牧場が1匹分広がります。「はじめての100m」のほかは、牧場で生まれた恐竜で出ます。</p>
-    <div class="cup-list" id="cupList"></div>
+    <p class="hint">お題をクリアするとメダル。メダル1つで牧場が1匹分広がります。段のお題をぜんぶ取ると次の段が開きます。「はじめての100m」のほかは、牧場で生まれた恐竜で出ます。</p>
+    <div id="cupList"></div>
   </section>
 
   <section class="panel" id="panel-book" role="tabpanel" aria-labelledby="tab-book" hidden>
@@ -115,24 +115,31 @@
     <p>恐竜の体（骨の長さの比率・大きさ・筋肉の量）と走り方は、遺伝子で決まっています。走るようすは物理の計算（<a href="https://github.com/piqnt/planck.js">Planck.js</a>）で、骨を関節でつなぎ、筋肉の力で関節を動かしています。</p>
     <h3>本物のしくみ</h3>
     <ul>
-      <li><b>大きいほど力が足りなくなる</b>: 体を2倍にすると、重さは8倍、筋肉の力（太さ）は4倍にしかなりません。筋肉の力は 1m² あたり 30 万N（Hutchinson &amp; Garcia 2002 が使った値）として、筋肉の体積から関節の力の上限を決めています。</li>
-      <li><b>大きさに合ったリズム</b>: 1歩の長さの時間は「脚の長さ ÷ 重力」の平方根に比例させています（同じ形なら大きさがちがっても同じ動き方になる「動的相似」）。だから小さい恐竜と大きい恐竜をかけ合わせても、走り方を受けつげます。</li>
-      <li><b>足あとから速さを推定</b>: かけっこの結果に、歩幅と腰の高さから速さを出す Alexander（1976）の式の値も並べています。化石の足あとから恐竜の速さを見積もるのに使われる式です。</li>
+      <li><b>大きいほど力が足りなくなる</b>: 体を2倍にすると、重さは8倍。筋肉の太さ（断面積）は4倍、筋肉が関節を回す力は8倍になりますが、重い体を長い脚で支えるのに要る力は16倍。だから大きいほど力に余裕がなくなります。筋肉の力は 1m² あたり 30 万N（Hutchinson &amp; Garcia 2002 が使った値）として、筋肉の体積から関節の力の上限を決めています。</li>
+      <li><b>大きさに合ったリズム</b>: 1歩の長さの時間は「脚の長さ ÷ 重力」の平方根に比例させています（同じ形で、力が足りれば、大きさがちがっても同じ動き方になる「動的相似」。実際は大きいほど力が足りません）。だから小さい恐竜と大きい恐竜をかけ合わせても、走り方を受けつげます。</li>
+      <li><b>足あとから速さを推定</b>: かけっこの結果に、歩幅と腰の高さから速さを出す Alexander（1976）の式の値も出しています。化石の足あとから恐竜の速さを見積もるのに使われる式です（実際の化石では、腰の高さを足あとの長さのおよそ4倍として見積もります）。</li>
+      <li><b>研究の推定</b>: 記録帳では、Sellers &amp; Manning（2007）が骨格の模型を進化させて見積もった最高速度（ティラノサウルス 秒速 8.0m、ヴェロキラプトル 10.8m、コンプソグナトゥス 17.8m など）とくらべます。研究によって推定には幅があります。</li>
       <li><b>転ばない足の置き方</b>: 走り方のしくみは、二足のキャラクターの研究 SIMBICON（Yin ら 2007）に寄せています。重心が足より前にあるほど、また速いほど、次の足を前に出します。</li>
       <li><b>遺伝</b>: 子の体は両親のあいだ（ときどき少しはみ出す）、走り方は片方の親から丸ごと受けつぎ、少しだけ変わります（突然変異）。練習では体はそのままで、走り方だけを少しずつ変えながら試し、よかったものを覚えます。</li>
     </ul>
     <h3>簡単にしたところ</h3>
     <ul>
-      <li>体の比率（ティラノサウルスなど3種）は仮の値で、骨格の計測データで確かめる前のものです。</li>
+      <li>体重はティラノサウルス 8.3t・ヴェロキラプトル 16kg・コンプソグナトゥス 1.7kg・ストルティオミムス 150kg ほどで、研究の推定の幅の中です（Hutchinson ら 2011、Turner ら 2007 など）。骨の長さの比率は傾向を合わせた仮の値です。</li>
+      <li>体の密度を水と同じにしています（本物は気嚢＝空気の袋があって、もう少し軽い）。</li>
       <li>横から見た2次元です。2本の脚は同じ平面にあり、恐竜どうしはぶつかりません。</li>
       <li>筋肉は関節ごとのモーター（力の上限つき）です。疲れや、腱のばねはまだありません。</li>
       <li>大会のゴースト（人・ゾウ・ダチョウ）は、100m を同じ速さで走る目安の線です。</li>
+      <li>「本番の調子」は、走り方の遺伝子をほんの少し（範囲の 0.4% ほど）ずらして表しています。</li>
     </ul>
     <h3>おもな出どころ</h3>
     <ul class="refs">
       <li>Sellers, W.I. &amp; Manning, P.L. (2007) Estimating dinosaur maximum running speeds using evolutionary robotics. <i>Proc. R. Soc. B</i> 274: 2711–2716.（骨格を物理の中で進化させて走らせる研究。このゲームの元のアイデア）</li>
       <li>Hutchinson, J.R. &amp; Garcia, M. (2002) Tyrannosaurus was not a fast runner. <i>Nature</i> 415: 1018–1021.</li>
-      <li>Hutchinson, J.R. ら (2003) Are fast-moving elephants really running? <i>Nature</i> 422: 493–494.（ゾウの速さ）</li>
+      <li>Hutchinson, J.R. ら (2003) Are fast-moving elephants really running? <i>Nature</i> 422: 493–494.（タイのアジアゾウの速さ）</li>
+      <li>Hutchinson, J.R. ら (2011) A computational analysis of limb and body dimensions in <i>Tyrannosaurus rex</i> with implications for locomotion, ontogeny, and growth. <i>PLoS ONE</i> 6: e26037.</li>
+      <li>Turner, A.H., Makovicky, P.J. &amp; Norell, M.A. (2007) Feather quill knobs in the dinosaur <i>Velociraptor</i>. <i>Science</i> 317: 1721.（ヴェロキラプトルの体重）</li>
+      <li>Persons, W.S. &amp; Currie, P.J. (2016) An approach to scoring cursorial limb proportions in carnivorous dinosaurs and an attempt to account for allometry. <i>Scientific Reports</i> 6: 19828.（獣脚類の脚の比率）</li>
+      <li>Holtz, T.R. (1995) The arctometatarsalian pes, an unusual structure of the metatarsus of Cretaceous Theropoda. <i>J. Vertebrate Paleontology</i> 14: 480–519.（オルニトミムス類の長い足の甲）</li>
       <li>Alexander, R.McN. (1976) Estimates of speeds of dinosaurs. <i>Nature</i> 261: 129–130.</li>
       <li>Yin, K., Loken, K. &amp; van de Panne, M. (2007) SIMBICON: Simple Biped Locomotion Control. <i>ACM Transactions on Graphics</i> 26(3).</li>
     </ul>
@@ -140,18 +147,18 @@
 </template>
 
 <script src="https://cdn.jsdelivr.net/npm/planck@1.5.0/dist/planck.min.js"></script>
-<script src="js/genome.js?v=3"></script>
-<script src="js/sim.js?v=3"></script>
-<script src="js/ga.js?v=3"></script>
-<script src="js/draw.js?v=3"></script>
-<script src="js/cups.js?v=3"></script>
-<script src="js/sound.js?v=3"></script>
-<script src="js/store.js?v=3"></script>
-<script src="js/ranch.js?v=3"></script>
-<script src="js/view.js?v=3"></script>
-<script src="js/race.js?v=3"></script>
-<script src="js/sheets.js?v=3"></script>
-<script src="js/shell.js?v=3"></script>
-<script src="js/main.js?v=3"></script>
+<script src="js/genome.js?v=4"></script>
+<script src="js/sim.js?v=4"></script>
+<script src="js/ga.js?v=4"></script>
+<script src="js/draw.js?v=4"></script>
+<script src="js/cups.js?v=4"></script>
+<script src="js/sound.js?v=4"></script>
+<script src="js/store.js?v=4"></script>
+<script src="js/ranch.js?v=4"></script>
+<script src="js/view.js?v=4"></script>
+<script src="js/race.js?v=4"></script>
+<script src="js/sheets.js?v=4"></script>
+<script src="js/shell.js?v=4"></script>
+<script src="js/main.js?v=4"></script>
 </body>
 </html>
