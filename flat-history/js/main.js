@@ -127,6 +127,7 @@ function choose(kind) {
   if (left(kind) <= 0) { flashPrompt(TX('この形は、もう全部置いた（置いた形をクリックすると持ち上げられる）', 'All of these are placed (click a placed shape to pick it up)')); se.no(); return; }
   st.carry = { kind, rot: 0 };
   st.lock = null; walk.to = null;
+  st.aim = viewAim(); // いま見えている所に出す。あとはマウスで
   se.pick();
 }
 // 持っている形をパレットへもどす
@@ -239,12 +240,8 @@ const openMenu = () => { closeAll(); $('menu').hidden = false; keys.clear(); se.
 const modalOpen = () => ['menu', 'help', 'replay', 'preview', 'settings', 'ending'].some((id) => !$(id).hidden);
 const playing = () => screen === 'game' && !modalOpen() && !bindingNow;
 
-// ---- つかむ・置く・回す ----
-function facingAxis() {
-  const h = st.hero;
-  return Math.abs(h.ft) >= Math.abs(h.fx) ? { ax: 't', s: Math.sign(h.ft) || 1 } : { ax: 'x', s: Math.sign(h.fx) || 1 };
-}
-// ---- 置き場所: 目の前のあたりで、いちばん「はまる」所（受け口）にゴーストが吸いつく ----
+// ---- 置く・回す（v035: E でつかむ・置くはやめた。置くのはクリック、持ち上げるのは置いた形のクリック） ----
+// ---- 置き場所: マウスで指した所のそばで、いちばん「はまる」所（受け口）にゴーストが吸いつく ----
 // くぼみ（両がわが壁）・谷にかかる橋（両はしが支え）・となりの地面と面がそろう所ほど強く吸いつく
 const colTop = (i) => (i < 0 || i >= L.W ? Infinity : L.tops[i]); // 世界のはしは壁
 function fitScore(c) {
@@ -289,29 +286,42 @@ function socketsAround(cx, ct, R = 4) {
 }
 // 持っている形を、どこに置くか。マウスが指す所（st.aim）のそばの受け口。矢印・タップで決めた所（錠）は、マウスを動かすまで動かない
 let lastPick = '';
-function aimCenter(d) {
-  const h = st.hero, f = facingAxis();
-  return [f.ax === 'x' ? h.x + f.s * (0.8 + d.wx / 2) : h.x, f.ax === 't' ? h.t + f.s * (0.8 + d.dz / 2) : h.t];
-}
 function candidate() {
   if (!st.carry) return null;
-  const h = st.hero;
-  const d = pieceDims({ kind: st.carry.kind, rot: st.carry.rot });
   if (st.lock && (st.lock.kind !== st.carry.kind || st.lock.rot !== st.carry.rot)) st.lock = null;
   if (st.lock) {
     const c = { kind: st.carry.kind, rot: st.carry.rot, x0: st.lock.x0, t0: st.lock.t0 };
     c.y0 = restHeight(L, c);
     return c;
   }
-  // マウスで指していなければ、主人公の目の前
-  const [cx, ct] = st.aim ? [st.aim.x, st.aim.t] : aimCenter(d);
-  const list = socketsAround(cx, ct, st.aim ? 2 : 4);
+  if (!st.aim) st.aim = viewAim();
+  // 形がページの外にはみ出さないよう、指す所を内側へ寄せる
+  const d = pieceDims(st.carry);
+  const ax = Math.max(d.wx / 2, Math.min(L.W - d.wx / 2, st.aim.x)), at = Math.max(d.dz / 2, Math.min(L.T - d.dz / 2, st.aim.t));
+  const list = socketsAround(ax, at, 2);
   if (!list.length) return { ...sockCache.base };
   // ちらつかないよう、前に選んだ所がまだ候補でほぼ同じよさなら、それのまま
   const prev = list.find((c) => c.x0 + ',' + c.t0 === lastPick);
   const pick = prev && prev.score <= list[0].score + 0.6 ? prev : list[0];
   lastPick = pick.x0 + ',' + pick.t0;
   return pick;
+}
+// パレットから出した形を置く、はじめの所: いまのカメラで見えている所のうち、ページの束の上で、画面のまん中にいちばん近い所。
+// 主人公の足もと・小窓・パレットなど UI の下はさける。主人公には追従しない（あとはマウスで動かす）
+function viewAim() {
+  const r = $('view').getBoundingClientRect();
+  const ui = ['insetBox', 'palette', 'btnBind'].map((id) => $(id)).filter((e) => e && !e.hidden && e.offsetParent).map((e) => e.getBoundingClientRect());
+  let best = null, bd = Infinity;
+  for (let i = 0; i <= 8; i++) for (let j = 0; j <= 8; j++) {
+    const sx = r.left + r.width * (0.25 + i * 0.0625), sy = r.top + r.height * (0.3 + j * 0.05);
+    if (ui.some((u) => sx > u.left - 20 && sx < u.right + 20 && sy > u.top - 20 && sy < u.bottom + 20)) continue;
+    const p = stage.pickGround(sx, sy);
+    if (!p || p.x < 1 || p.x > L.W - 1 || p.t < 1 || p.t > L.T - 1) continue;
+    if (Math.hypot(p.x - st.hero.x, p.t - st.hero.t) < 8) continue; // 主人公と重ならない
+    const dd = Math.hypot((sx - r.left) / r.width - 0.5, (sy - r.top) / r.height - 0.45);
+    if (dd < bd) { bd = dd; best = p; }
+  }
+  return best || { x: L.W / 2, t: Math.max(1, Math.min(L.T - 1, st.hero.t + 6)) };
 }
 function lockTo(c) {
   st.lock = { kind: c.kind, rot: c.rot, x0: c.x0, t0: c.t0 };
@@ -359,28 +369,7 @@ function tapAt(x, t) {
   st.aim = { x, t }; st.lock = null;
   const c = candidate();
   if (isTouch && !(before && before.x0 === c.x0 && before.t0 === c.t0)) { lockTo(c); se.click(); return; }
-  useE();
-}
-// 目の前（または足もと）でつかめる形
-function grabbable() {
-  if (st.carry) return null;
-  const h = st.hero;
-  // 目の前の点と、足もとの点（乗っている形もつかめる）
-  const pts = [[h.x + h.fx * 1.0, h.t + h.ft * 1.0], [h.x, h.t]];
-  let best = null, bd = 9;
-  for (const p of st.pieces) {
-    const d = pieceDims(p);
-    let dist = 9;
-    for (const [px, pt] of pts) {
-      const dx = Math.max(p.x0 - px, 0, px - (p.x0 + d.wx));
-      const dt = Math.max(p.t0 - pt, 0, pt - (p.t0 + d.dz));
-      dist = Math.min(dist, Math.hypot(dx, dt));
-    }
-    // 高さは、形の下から、いちばん高い上の面まで（ななめの板や柱の上でも）
-    const top = p.y0 + d.h + Math.max(0, d.along === 'z' ? d.slope * d.dz : d.slope * d.wx);
-    if (dist < 0.9 && dist < bd && h.y > p.y0 - 2.5 && h.y < top + 0.6) { best = p; bd = dist; }
-  }
-  return best;
+  place();
 }
 function recompute(fromT) {
   st.solved = false;
@@ -392,21 +381,18 @@ function recompute(fromT) {
   st.revealT = Math.min(st.revealT, Math.max(st.hero.t + 3, fromT));
   st.lastEnd = st.hist.end.type;
 }
-function useE() {
-  if (st.carry) {
-    const c = candidate();
-    const why = canPlace(L, c, st.pieces);
-    if (why) { flashPrompt(why); se.no(); return; }
-    const p = { id: st.nextId++, kind: c.kind, rot: c.rot, x0: c.x0, t0: c.t0, y0: c.y0 };
-    st.lock = null;
-    st.pieces.push(p);
-    st.carry = null;
-    se.place();
-    recompute(p.t0);
-    return;
-  }
-  const p = grabbable();
-  if (p) pickUp(p);
+// 持っている形を、ゴーストの所に置く
+function place() {
+  if (!st.carry) return;
+  const c = candidate();
+  const why = canPlace(L, c, st.pieces);
+  if (why) { flashPrompt(why); se.no(); return; }
+  const p = { id: st.nextId++, kind: c.kind, rot: c.rot, x0: c.x0, t0: c.t0, y0: c.y0 };
+  st.lock = null;
+  st.pieces.push(p);
+  st.carry = null;
+  se.place();
+  recompute(p.t0);
 }
 // 置いた形を持ち上げる（ゴーストは、いまの場所から）
 function pickUp(p) {
@@ -450,7 +436,7 @@ const joy = { x: 0, y: 0, id: null };
   stick.addEventListener('pointerup', up); stick.addEventListener('pointercancel', up);
   const tap = (id, fn) => $(id).addEventListener('pointerdown', (e) => { e.preventDefault(); initAudio(); startBgm(); if (playing()) fn(); });
   tap('tJump', () => { jumpQueued = true; });
-  tap('tGrab', () => useE());
+  tap('tPlace', () => place());
   tap('tRot', () => rotate());
   tap('tCancel', () => cancelCarry());
 }
@@ -458,7 +444,7 @@ const joy = { x: 0, y: 0, id: null };
 $('prompt').addEventListener('click', (e) => {
   const b = e.target.closest('.pbtn'); if (!b || !playing()) return;
   const a = b.dataset.act;
-  if (a === 'place' || a === 'grab') useE(); else if (a === 'rot') rotate(); else if (a === 'cancel') cancelCarry();
+  if (a === 'place') place(); else if (a === 'rot') rotate(); else if (a === 'cancel') cancelCarry();
 });
 function flashPrompt(m) { flashMsg = m; flashUntil = performance.now() + 1800; }
 
@@ -914,8 +900,7 @@ function loop(now) {
     updatePalette();
     stage.setCursor(st.carry ? 'crosshair' : act && hovered() ? 'pointer' : '');
     if (isTouch) {
-      $('tGrab').textContent = st.carry ? TX('置く', 'Place') : TX('つかむ', 'Grab');
-      $('tGrab').classList.toggle('dim', !st.carry && !grabbable());
+      $('tPlace').hidden = !st.carry;
       $('tRot').hidden = !st.carry;
       $('tCancel').hidden = !st.carry;
     }
@@ -939,11 +924,11 @@ if (new URLSearchParams(location.search).has('thumb')) {
   document.body.classList.add('thumb');
   cfg.inset = false; applyInset();
   loadLevel(0); showScreen('game');
-  st.carry = { kind: 'plank', rot: 0 }; lockTo({ kind: 'plank', rot: 0, x0: 9, t0: 3 }); useE();
+  st.carry = { kind: 'plank', rot: 0 }; lockTo({ kind: 'plank', rot: 0, x0: 9, t0: 3 }); place();
   stage.setHistory(st.hist, st.pieces, null, false); stage.skipWave();
   Object.assign(st.hero, { x: 7.2, t: 0.6, y: 4, fx: 0.5, ft: 1 });
   st.revealT = L.T;
 }
 requestAnimationFrame(loop);
 // 確認用
-window.__fh = { se, walkTo, get walk() { return walk; }, st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, choose, cancelCarry, pickUp, tapAt, lockTo, socketsAround, bind, judge, rp, stage, showBindReplay, ed, openEnding, get L() { return L; } };
+window.__fh = { se, walkTo, get walk() { return walk; }, st, LEVELS, simulate, keys, startGame, place, rotate, candidate, choose, cancelCarry, pickUp, tapAt, lockTo, socketsAround, bind, judge, rp, stage, showBindReplay, ed, openEnding, get L() { return L; } };

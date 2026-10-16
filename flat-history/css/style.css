@@ -426,7 +426,7 @@ body.touch .prompt:empty { display: none; }
 
 /* スマホのボタン: 右下に2段（左のスティックと重ならない幅に）。持っているあいだは「回す」「となり」が上の段に */
 .tbtns { display: grid; grid-template-columns: 64px 84px; grid-template-areas: "rot next" "grab jump"; gap: 10px; align-items: end; justify-items: center; }
-#tRot { grid-area: rot; } #tNext { grid-area: next; } #tGrab { grid-area: grab; } #tJump { grid-area: jump; }
+#tRot { grid-area: rot; } #tNext { grid-area: next; } #tPlace { grid-area: grab; } #tJump { grid-area: jump; }
 #tNext { font-size: 13px; }
 @media (max-width: 420px) { .stick { left: 12px; width: 108px; height: 108px; } .knob { left: 29px; top: 29px; } .tbtns { right: 10px; grid-template-columns: 58px 76px; } .tb { width: 58px; height: 58px; } .tb.big { width: 76px; height: 76px; } }
 
