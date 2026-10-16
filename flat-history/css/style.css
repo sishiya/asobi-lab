@@ -929,3 +929,29 @@ kbd { background: rgba(26, 163, 155, .12); color: var(--d-gold2); border-color: 
 /* 図版のはじめに出る名前 */
 .intro .pn { color: var(--d-gold2); }
 .intro .nm { color: var(--d-cream); text-shadow: 0 2px 16px rgba(0, 0, 0, .55); }
+
+/* v059: 面取りのかどで線が欠けて見えた（clip-path で枠ごと切れていた）→ 外がわを線の色で塗り、1px 内側に地の色を同じ面取りで重ねる。
+   これで、かどの斜めにも同じ太さの線が通る。地の色は不透明にする（すけると外がわの線の色が見えてしまう） */
+:root { --facet-in: polygon(6.6px 0, calc(100% - 6.6px) 0, 100% 6.6px, 100% calc(100% - 6.6px), calc(100% - 6.6px) 100%, 6.6px 100%, 0 calc(100% - 6.6px), 0 6.6px); }
+.act, .plate, .menu-btn, .headgroup .bind-btn, .palette .kind, .prompt .pbtn {
+  --edge: var(--d-line); --fill: #10342f;
+  position: relative; isolation: isolate; border: 0 !important; clip-path: var(--facet);
+  background: var(--edge) !important; box-shadow: none !important;
+}
+.menu-btn { position: fixed; }
+.prompt .pbtn { display: inline-block; }
+.act::before, .plate::before, .menu-btn::before, .headgroup .bind-btn::before, .palette .kind::before, .prompt .pbtn::before {
+  content: ""; position: absolute; inset: 1px; z-index: -1; clip-path: var(--facet-in); background: var(--fill); transition: background .15s;
+}
+/* ふつう・マウスを乗せたとき */
+.act:hover, .plate:hover, .menu-btn:hover, .palette .kind:hover, .prompt .pbtn:hover { --edge: var(--d-gold2); --fill: #164a42; }
+.menu-btn { --fill: #0d2b27; }
+.palette .kind { --fill: #123a34; }
+.plate { --edge: var(--d-line2); --fill: #11352f; }
+.plate.done { --edge: var(--d-line); }
+.palette .kind.sel { --edge: var(--d-gold2); --fill: #3a4d3a; }
+/* いちばんの行動（金） */
+.act.primary, .menu-list .act.primary, .t-acts .act.big.primary, .headgroup .bind-btn, #tPlace {
+  --edge: #f6dc8e; --fill: linear-gradient(180deg, #f3d488, #c9952e);
+}
+.act.primary:hover, .headgroup .bind-btn:hover { --edge: #fff0bf; --fill: linear-gradient(180deg, #f8de98, #d5a43c); }
