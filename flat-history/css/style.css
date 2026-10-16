@@ -786,3 +786,12 @@ body.touch .inset { left: 12px; right: auto; top: 120px; }
   :root { --band: 60px; }
   .chapter-band { padding-bottom: 10px; }
 }
+
+/* v055: 帯をもっと半透明に、もう少し広く（ユーザー「くらすぎる」） */
+:root { --band: 100px; }
+.chapter-band { padding-bottom: 22px; background: linear-gradient(180deg, rgba(0, 0, 0, .55) 0%, rgba(0, 0, 0, .42) 55%, rgba(0, 0, 0, 0) 100%); }
+.foot-band { background: linear-gradient(0deg, rgba(0, 0, 0, .55) 0%, rgba(0, 0, 0, .42) 55%, rgba(0, 0, 0, 0) 100%); }
+@media (max-width: 760px), (max-height: 520px) {
+  :root { --band: 72px; }
+  .chapter-band { padding-bottom: 16px; }
+}
