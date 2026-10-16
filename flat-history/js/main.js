@@ -122,7 +122,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'x' || e.key === 'X' || e.key === 'Backspace') pickUp();
   if (e.key === 'p' || e.key === 'P') openReplay();
 });
-window.addEventListener('keyup', (e) => keys.delete(e.key));
+window.addEventListener('keyup', (e) => { keys.delete(e.key); keys.delete(e.key.toLowerCase()); keys.delete(e.key.toUpperCase()); });
 window.addEventListener('blur', () => keys.clear());
 $('btnPlace').addEventListener('click', place);
 $('btnPick').addEventListener('click', pickUp);
@@ -263,8 +263,9 @@ function loop(now) {
     drawReplay();
   }
   // 主人公
-  const ax = (keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0);
-  const az = (keys.has('ArrowDown') ? 1 : 0) - (keys.has('ArrowUp') ? 1 : 0);
+  const held = (...ks) => ks.some((k) => keys.has(k));
+  const ax = (held('ArrowRight', 'd', 'D') ? 1 : 0) - (held('ArrowLeft', 'a', 'A') ? 1 : 0);
+  const az = (held('ArrowDown', 's', 'S') ? 1 : 0) - (held('ArrowUp', 'w', 'W') ? 1 : 0);
   const slow = keys.has('Shift');
   st.heroX = Math.max(0, Math.min(L.W, st.heroX + ax * 7 * dt));
   if (az) st.heroT = Math.max(0, Math.min(L.T, st.heroT + az * (slow ? 2.5 : 9) * dt));
@@ -339,4 +340,4 @@ renderTray();
 $('help').hidden = false;
 requestAnimationFrame(loop);
 // 確認用
-window.__fh = { st, L, simulate, section };
+window.__fh = { st, L, simulate, section, keys };
