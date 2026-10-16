@@ -200,7 +200,7 @@ export function createStage(canvas, L) {
   }
   // ---- ページの厚み（v042）: 2D世界の絵（地形・住人・巣・卵・形の断面・石…）を、真上から見ても見えるように少し厚くする ----
   // ページを描くたびに、絵のいちばん上のふち（りんかく）を読み取り、そこに厚さ THICK の紙の面と段の面を作る。色はその場所の絵の色
-  const THICK = 0.16, SEG = 4; // 4px（0.2マス）ごと
+  const THICK = 0.16, SEG = 2, CLIFF = 0.45; // 2px（0.1マス）ごとに読む。これより大きい高さのちがいだけを段（たての面）にする
   const slabMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, side: THREE.DoubleSide });
   function buildSlab(sh) {
     const W = sh.cv.width, H = sh.cv.height, img = sh.g.getImageData(0, 0, W, H).data;
@@ -212,20 +212,41 @@ export function createStage(canvas, L) {
         // 色は、ふちの線より少し内側（塗りの色）
         let yy = Math.min(H - 1, y + 3); if (img[(yy * W + cx) * 4 + 3] < 200) yy = y;
         const k = (yy * W + cx) * 4;
-        top[i] = { y: L.H - y / S, r: img[k] / 255, g: img[k + 1] / 255, b: img[k + 2] / 255 };
+        top[i] = { x: cx / S, y: L.H - y / S, c: [img[k] / 255, img[k + 1] / 255, img[k + 2] / 255] };
         break;
       }
     }
-    const v = [], col = [];
-    const quad = (a, b, c, d, r, g, bb) => { v.push(...a, ...b, ...c, ...a, ...c, ...d); for (let k = 0; k < 6; k++) col.push(r, g, bb); };
-    const z0 = -THICK / 2, z1 = THICK / 2, X = (i) => (i * SEG) / S;
+    // 草の先など、細いとげは消す（まわり5点の高さのまんなか）
+    const ys = top.map((q) => (q ? q.y : null));
     for (let i = 0; i < n; i++) {
-      const c = top[i]; if (!c) continue;
-      quad([X(i), c.y, z1], [X(i + 1), c.y, z1], [X(i + 1), c.y, z0], [X(i), c.y, z0], c.r, c.g, c.b);
-      // となりより高いところは、段の面（少し暗く）。となりが空なら、少しだけたらす
-      for (const [j, xe] of [[i - 1, X(i)], [i + 1, X(i + 1)]]) {
-        const o = top[j], lo = o ? o.y : c.y - 0.3;
-        if (lo < c.y - 1e-3) quad([xe, lo, z0], [xe, lo, z1], [xe, c.y, z1], [xe, c.y, z0], c.r * 0.72, c.g * 0.72, c.b * 0.72);
+      if (!top[i]) continue;
+      const w = [];
+      for (let j = i - 2; j <= i + 2; j++) if (ys[j] != null) w.push(ys[j]);
+      if (w.length >= 3) { w.sort((p, q) => p - q); top[i].y = w[w.length >> 1]; }
+    }
+    // v043: 上の面は、となりの点とななめにつないだ、なめらかな帯（階段にしない）。大きな高さのちがい（段・もののはし）だけ、たての面
+    const v = [], col = [];
+    const z0 = -THICK / 2, z1 = THICK / 2;
+    const dark = (c) => c.map((q) => q * 0.72);
+    const strip = (xa, ya, ca, xb, yb, cb) => { // 上の面（xa→xb のななめの帯）
+      v.push(xa, ya, z1, xb, yb, z1, xb, yb, z0, xa, ya, z1, xb, yb, z0, xa, ya, z0);
+      col.push(...ca, ...cb, ...cb, ...ca, ...cb, ...ca);
+    };
+    const wall = (x, lo, hi, c) => { // たての面
+      v.push(x, lo, z0, x, lo, z1, x, hi, z1, x, lo, z0, x, hi, z1, x, hi, z0);
+      for (let k = 0; k < 6; k++) col.push(...c);
+    };
+    const half = SEG / S / 2;
+    for (let i = 0; i < n; i++) {
+      const a = top[i]; if (!a) continue;
+      const b = top[i + 1], p = top[i - 1];
+      if (!p) { strip(a.x - half, a.y, a.c, a.x, a.y, a.c); wall(a.x - half, a.y - 0.3, a.y, dark(a.c)); }
+      if (!b) { strip(a.x, a.y, a.c, a.x + half, a.y, a.c); wall(a.x + half, a.y - 0.3, a.y, dark(a.c)); continue; }
+      if (Math.abs(b.y - a.y) < CLIFF) strip(a.x, a.y, a.c, b.x, b.y, b.c);
+      else {
+        const m = (a.x + b.x) / 2, hi = a.y > b.y ? a : b;
+        strip(a.x, a.y, a.c, m, a.y, a.c); strip(m, b.y, b.c, b.x, b.y, b.c);
+        wall(m, Math.min(a.y, b.y), Math.max(a.y, b.y), dark(hi.c));
       }
     }
     const geo = new THREE.BufferGeometry();
