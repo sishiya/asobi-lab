@@ -589,11 +589,11 @@ function drawTimeline() {
   tg.clearRect(0, 0, w, h);
   const pad = TX(30, 46), X = (t) => pad + (t / L.T) * (w - pad * 2);
   // 見に行ったところまで、紙を明るく
-  tg.fillStyle = 'rgba(255,248,226,.85)';
+  tg.fillStyle = 'rgba(26,163,155,.38)'; // v058: 3Dの色（見に行ったところは青緑）
   tg.fillRect(X(0), 10, X(Math.min(L.T, st.revealT)) - X(0), 14);
-  tg.strokeStyle = 'rgba(74,51,32,.55)'; tg.lineWidth = 1;
+  tg.strokeStyle = 'rgba(216,182,104,.7)'; tg.lineWidth = 1;
   tg.beginPath(); tg.moveTo(X(0), 24.5); tg.lineTo(X(L.T), 24.5); tg.stroke();
-  tg.fillStyle = '#6b4f33'; tg.font = 'italic 10px Georgia, serif'; tg.textAlign = 'center';
+  tg.fillStyle = '#d9c99f'; tg.font = 'italic 10px Georgia, serif'; tg.textAlign = 'center';
   for (let t = 0; t <= L.T; t++) {
     const big = t % 5 === 0;
     tg.beginPath(); tg.moveTo(X(t), 24.5); tg.lineTo(X(t), big ? 16 : 20); tg.stroke();
@@ -605,10 +605,10 @@ function drawTimeline() {
   const e = st.hist.end;
   if (e.type !== 'time' && e.t <= st.revealT && !stage.waving()) {
     const x = X(e.t);
-    if (e.type === 'goal') { tg.fillStyle = '#c99a4a'; tg.beginPath(); tg.arc(x, 13, 5, 0, 7); tg.fill(); }
-    else { tg.fillStyle = '#8f3b2b'; tg.beginPath(); tg.moveTo(x, 7); tg.lineTo(x + 5, 13); tg.lineTo(x, 19); tg.lineTo(x - 5, 13); tg.fill(); }
+    if (e.type === 'goal') { tg.fillStyle = '#f0cf7a'; tg.beginPath(); tg.arc(x, 13, 5, 0, 7); tg.fill(); }
+    else { tg.fillStyle = '#e07a5f'; tg.beginPath(); tg.moveTo(x, 7); tg.lineTo(x + 5, 13); tg.lineTo(x, 19); tg.lineTo(x - 5, 13); tg.fill(); }
   }
-  tg.fillStyle = '#a8742a';
+  tg.fillStyle = '#f0cf7a';
   const hx = X(Math.max(0, Math.min(L.T, st.hero.t)));
   tg.fillRect(hx - 1.5, 4, 3, 22);
 }

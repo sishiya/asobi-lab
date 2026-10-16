@@ -810,3 +810,122 @@ body.touch .inset { left: 12px; right: auto; top: 120px; }
 @media (max-height: 520px) {
   .inset, body.touch .inset { top: calc(var(--band) + 28px); }
 }
+
+/* ======================================================================
+   v058: メニュー類を「3Dの調子」に刷新（ユーザー）
+   きまり: 2D（ページの絵・小窓・再生の絵）は紙とセピアのまま。メニュー類と3Dは、3D世界の色にそろえる。
+   3Dの色 ＝ 2Dの色（クリームの紙・金の真鍮・赤）に、主人公たちの青緑を足しただけ（次元がひとつ上がると、色数が少しふえる）。
+   形は、幾何学の主人公に合わせて、ボタンのかどを面取り（多面体のかど）にする。
+   ====================================================================== */
+:root {
+  --d-deep: #081f1c;      /* いちばん深い青緑（奈落） */
+  --d-panel: #0f302b;     /* パネルの地 */
+  --d-panel2: #164039;
+  --d-glass: rgba(10, 36, 32, .88);
+  --d-line: rgba(216, 182, 104, .6);   /* 金の線（2Dの真鍮と同じ色みを明るく） */
+  --d-line2: rgba(216, 182, 104, .26);
+  --d-gold: #d9b45f;
+  --d-gold2: #f0cf7a;
+  --d-cream: #f3e9cf;     /* 字（2Dの紙の色） */
+  --d-sub: #a9c4b6;       /* うすい字（青緑がかった灰） */
+  --d-teal: #1aa39b;      /* 多面体の旅人の青緑 */
+  --d-red: #e07a5f;
+  --facet: polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% calc(100% - 7px), calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 7px), 0 7px);
+}
+/* パネル（タイトル・図版えらび・メニュー・設定・あそびかた・開始・判定・エンディング） */
+.title-card, .select-card, .modal-card {
+  background: radial-gradient(120% 70% at 50% 0%, rgba(26, 163, 155, .16), rgba(26, 163, 155, 0) 60%), var(--d-panel);
+  color: var(--d-cream); border: 1px solid var(--d-line);
+  box-shadow: inset 0 0 0 4px var(--d-panel), inset 0 0 0 5px var(--d-line2), 0 18px 60px rgba(0, 0, 0, .5);
+}
+.modal { background: rgba(4, 16, 14, .55); backdrop-filter: blur(3px); }
+.screen { background: radial-gradient(80% 70% at 50% 45%, rgba(8, 31, 28, .25), rgba(4, 16, 14, .6)); }
+.title-card h1, .t-name, .sel-head h2, .menu-card h2, .settings-card h2, .help-card h2 { color: var(--d-cream); }
+.menu-card h2, .settings-card h2, .help-card h2, .sel-head, .rp-head { border-bottom-color: var(--d-line2); }
+.t-kicker, .sel-group, .sel-note, .t-foot, .rp-sub, .menu-note { color: var(--d-sub); }
+.t-foot a, .sel-note a { color: var(--d-gold2); }
+.t-name { text-shadow: 0 2px 18px rgba(26, 163, 155, .35); }
+/* ボタン: 面取りのかど。ふつうは青緑のガラスに金の線、いちばんの行動は金 */
+.act {
+  background: rgba(26, 163, 155, .08); color: var(--d-cream); border: 1px solid var(--d-line); border-radius: 0;
+  clip-path: var(--facet); transition: background .15s, border-color .15s, color .15s;
+}
+.act:hover { background: rgba(26, 163, 155, .24); border-color: var(--d-gold2); }
+.act.primary, .menu-list .act.primary, .t-acts .act.big.primary {
+  background: linear-gradient(180deg, #f3d488, #c9952e); color: #10302b; border-color: #f6dc8e; font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5);
+}
+.act.primary:hover { background: linear-gradient(180deg, #f8de98, #d5a43c); }
+.act.primary kbd { background: rgba(16, 48, 43, .12); color: #10302b; border-color: rgba(16, 48, 43, .35); }
+.t-acts .act.big:not(.primary), .menu-sub .act, .act.ghost { background: rgba(26, 163, 155, .08); }
+.t-acts .act.big:not(.primary):hover, .menu-sub .act:hover, .act.ghost:hover { background: rgba(26, 163, 155, .24); }
+.icon-btn { background: rgba(26, 163, 155, .1); color: var(--d-cream); border-color: var(--d-line); }
+.icon-btn:hover { background: rgba(26, 163, 155, .26); }
+kbd { background: rgba(26, 163, 155, .12); color: var(--d-gold2); border-color: var(--d-line); }
+/* 区切り線（❦）の地は、パネルの地と同じ色 */
+.menu-sub { border-top-color: var(--d-line2); }
+.t-sep { background: var(--d-line2); }
+.t-sep::before, .menu-sub::before { background: var(--d-panel); color: var(--d-gold); }
+/* 言語の切りかえ */
+.langsw { background: rgba(26, 163, 155, .1); border-color: var(--d-line); }
+.langsw button { color: var(--d-sub); }
+.langsw button[aria-pressed=true] { background: var(--d-gold); color: #10302b; }
+/* 図版えらび */
+.plate { background: rgba(26, 163, 155, .07); border: 1px solid var(--d-line2); box-shadow: none; color: var(--d-cream); clip-path: var(--facet); }
+.plate:hover { background: rgba(26, 163, 155, .2); border-color: var(--d-line); }
+.plate .pn { color: var(--d-gold); }
+.plate .st { color: var(--d-sub); }
+.plate.done { border-color: var(--d-line); }
+.plate.done .st, .plate.done::after { color: var(--d-gold2); }
+/* 設定 */
+.set-grid, .set-checks { color: var(--d-cream); }
+.set-grid select, .rp-ctrl select, .t-bgm select { background: var(--d-deep); color: var(--d-cream); border: 1px solid var(--d-line); }
+.set-grid input[type=range], .set-checks input, .rp-ctrl input { accent-color: var(--d-gold); }
+/* あそびかた */
+.help-card p, .help-lead { color: var(--d-cream); }
+.help-card b { color: var(--d-gold2); }
+.keys td { border-bottom-color: var(--d-line2); color: var(--d-cream); }
+.help-touch { background: rgba(26, 163, 155, .1); border-left-color: var(--d-gold); color: var(--d-cream); }
+/* 開始の画面・判定の画面: パネルは3D、中の絵（2Dのページ）は紙のまま。絵は金の線でかこむ */
+#pvCanvas, .rp-row canvas, .rp-why canvas, #edCanvas { border: 1px solid var(--d-line); box-shadow: 0 0 0 4px rgba(26, 163, 155, .08); }
+.pv-head b, .rp-head b { color: var(--d-cream); }
+.pv-plate { color: var(--d-gold); }
+.pv-sub { color: var(--d-gold2); }
+.rp-label { color: var(--d-red); }
+.rp-label.now { color: var(--d-gold2); }
+.rp-why figcaption, .rp-time { color: var(--d-sub); }
+.rp-result p { color: var(--d-cream); }
+.rp-result.ok { color: var(--d-gold2); }
+.rp-result.ok .stamp { background: rgba(240, 207, 122, .12); }
+.rp-result.ng { color: var(--d-red); }
+.replay-card .win-acts, .preview-card .win-acts { background: none; }
+/* メイン画面の部品 */
+.menu-btn { background: var(--d-glass); border: 1px solid var(--d-line); border-radius: 0; clip-path: var(--facet); box-shadow: none; }
+.menu-btn:hover { background: rgba(22, 64, 57, .95); box-shadow: none; border-color: var(--d-gold2); }
+.menu-btn .burger { background: linear-gradient(var(--d-gold2) 0 2px, transparent 2px 6px, var(--d-gold2) 6px 8px, transparent 8px 12px, var(--d-gold2) 12px 14px); }
+.headgroup .coach, .coach { background: var(--d-glass); color: var(--d-cream); border: 1px solid var(--d-line); box-shadow: inset 0 0 0 3px rgba(10, 36, 32, .9), inset 0 0 0 4px var(--d-line2), 0 4px 16px rgba(0, 0, 0, .3); }
+.coach::before { color: var(--d-gold2); }
+.headgroup .bind-btn {
+  background: linear-gradient(180deg, #f3d488, #c9952e); color: #10302b; border: 1px solid #f6dc8e; border-radius: 0; clip-path: var(--facet);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5); text-shadow: none;
+}
+.headgroup .bind-btn.ready { animation: bindGlow 1.6s ease-in-out infinite; }
+@keyframes bindGlow { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.16); } }
+.prompt, body.touch .prompt:not(:empty) { background: var(--d-glass); color: var(--d-cream); border: 1px solid var(--d-line); }
+.prompt .pbtn { border-color: var(--d-line); background: rgba(26, 163, 155, .12); color: var(--d-cream); clip-path: var(--facet); border-radius: 0; }
+.prompt .pbtn:hover { background: rgba(26, 163, 155, .3); }
+.palette, .bottom, .inset {
+  background: var(--d-glass); border: 1px solid var(--d-line);
+  box-shadow: inset 0 0 0 3px rgba(10, 36, 32, .9), inset 0 0 0 4px var(--d-line2), 0 4px 18px rgba(0, 0, 0, .35);
+}
+.palette .kind { background: rgba(26, 163, 155, .1); border: 1px solid var(--d-line2); border-radius: 0; clip-path: var(--facet); }
+.palette .kind:hover { background: rgba(26, 163, 155, .26); box-shadow: none; }
+.palette .kind.sel { background: rgba(240, 207, 122, .2); border-color: var(--d-gold2); box-shadow: none; }
+.palette .kind .ct { color: var(--d-cream); text-shadow: 0 0 3px #000, 0 0 3px #000; }
+.inset canvas { border: 1px solid var(--d-line); }
+.inset figcaption { color: var(--d-sub); }
+.tb { background: var(--d-glass); color: var(--d-cream); border: 1px solid var(--d-line); }
+#tPlace { background: linear-gradient(180deg, #f3d488, #c9952e); color: #10302b; border-color: #f6dc8e; }
+/* 図版のはじめに出る名前 */
+.intro .pn { color: var(--d-gold2); }
+.intro .nm { color: var(--d-cream); text-shadow: 0 2px 16px rgba(0, 0, 0, .55); }
