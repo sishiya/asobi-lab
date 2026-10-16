@@ -364,3 +364,16 @@ body.touch #view { touch-action: none; }
   .bind-btn { top: 64px; right: 16px; }
   .inset, body.touch .inset { top: 140px; }
 }
+/* 結果画面・はじめの歴史: 絵を画面の高さに合わせて縮め、ボタンがいつも見えて押せるように */
+.rp-row canvas, #pvCanvas { width: auto; max-width: 100%; max-height: 28vh; margin: 0 auto; }
+#pvCanvas { max-height: 46vh; }
+.replay-card .win-acts, .preview-card .win-acts {
+  position: sticky; bottom: -22px; margin: 10px -26px -22px; padding: 10px 26px 14px;
+  background: linear-gradient(rgba(246,236,212,0), #f6ecd4 30%);
+}
+.replay-card .win-acts .act, .preview-card .win-acts .act { cursor: pointer; }
+
+/* 結果の判とボタンは、まとめて下にとめる */
+.replay-card .win-acts { position: static; margin: 10px 0 0; padding: 0; background: none; }
+.rp-foot { position: sticky; bottom: -22px; margin: 6px -26px -22px; padding: 8px 26px 14px; background: linear-gradient(rgba(246,236,212,0), #f6ecd4 22%); }
+.rp-foot .rp-result { margin-top: 4px; }
