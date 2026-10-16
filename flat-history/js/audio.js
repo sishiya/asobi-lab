@@ -259,6 +259,7 @@ function scheduler() {
     nextT += playing.beat * playing.beats;
   }
 }
+export const audioRunning = () => !!ctx && ctx.state === 'running' && bgmOn;
 export function startBgm() {
   if (!ctx || bgmOn) return;
   bgmOn = true;

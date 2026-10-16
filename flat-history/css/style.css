@@ -550,3 +550,23 @@ body.touch .prompt:not(:empty) { display: flex; top: 136px; bottom: auto; left: 
 .settings-card { width: min(520px, 100%); box-sizing: border-box; }
 .set-grid { grid-template-columns: auto minmax(0, 1fr) !important; }
 .set-grid select, .set-grid input[type=range] { width: 100%; min-width: 0; box-sizing: border-box; }
+/* サムネイルを撮るとき（?thumb）: 画面の飾りをしまう */
+body.thumb .hud, body.thumb .intro, body.thumb .inset, body.thumb .edge-shade, body.thumb .screen, body.thumb .modal { display: none !important; }
+
+/* タイトル: 音がまだ鳴っていないときのひとこと */
+.t-sound { margin: 10px 0 0; font: 12px var(--serif); color: var(--brass); animation: soundBlink 2.4s ease-in-out infinite; }
+.t-sound[hidden] { display: none; }
+@keyframes soundBlink { 50% { opacity: .45; } }
+body.thumb .t-sound { display: none; }
+/* 正史の光の筋: 判のまわりの箱の中だけで回し、ふちへ向かってだんだん消す（箱の大きさは変えない＝ボタンやスクロールに響かない。切れ目も見えない） */
+@property --rayAng { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+.rp-result.ok .stamp::before { display: none; }
+.rp-result.ok::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: repeating-conic-gradient(from var(--rayAng) at 50% 34px, rgba(217, 166, 58, .38) 0 6deg, transparent 6deg 18deg);
+  -webkit-mask: radial-gradient(ellipse 170px 54px at 50% 34px, #000 20%, transparent 100%);
+  mask: radial-gradient(ellipse 170px 54px at 50% 34px, #000 20%, transparent 100%);
+  animation: raysTurn 6s linear infinite, raysIn .8s ease-out both;
+}
+.rp-result.ok > * { position: relative; z-index: 1; }
+@keyframes raysTurn { to { --rayAng: 360deg; } }

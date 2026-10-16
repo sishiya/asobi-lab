@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=44';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=44';
-import { drawSheet } from './sheet.js?v=44';
-import { createStage, misprintOf } from './stage3d.js?v=44';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=44';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=44';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=44';
+import { LEVELS } from './level.js?v=45';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=45';
+import { drawSheet } from './sheet.js?v=45';
+import { createStage, misprintOf } from './stage3d.js?v=45';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=45';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=45';
+import { audioRunning, initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=45';
 
 const $ = (id) => document.getElementById(id);
 
@@ -465,7 +465,10 @@ window.addEventListener('keyup', (e) => { const k = e.key; keys.delete(k); keys.
 window.addEventListener('blur', () => keys.clear());
 document.addEventListener('visibilitychange', () => keys.clear());
 window.addEventListener('contextmenu', (e) => { keys.clear(); if (e.target.closest('canvas')) e.preventDefault(); });
-window.addEventListener('pointerdown', () => { initAudio(); startBgm(); });
+// 音はページに触れてからでないと鳴らせない（ブラウザの決まり）。iPhone などは「離した」「クリック」で許されるので、そちらでも始める
+for (const ev of ['pointerdown', 'pointerup', 'click', 'touchend']) window.addEventListener(ev, () => { initAudio(); startBgm(); updateSoundHint(); }, { passive: true });
+function updateSoundHint() { const el = $('tSound'); if (el) el.hidden = audioRunning(); }
+setInterval(updateSoundHint, 1000);
 
 // タイトル・図版えらび・メニュー
 document.querySelectorAll('.langsw [data-lang]').forEach((b) => {
@@ -889,6 +892,17 @@ onResize();
 stage.applyLook();
 loadLevel(firstUnsolved());
 showScreen('title');
+// サムネイル（tools/make-thumbs.ps1 が ?thumb で撮る）: 図版 I に板をかけ、キーウィがページをまたいで崖をわたる場面。画面の飾りはしまう（ネタバレなし）
+if (new URLSearchParams(location.search).has('thumb')) {
+  document.body.classList.add('thumb');
+  cfg.inset = false; applyInset();
+  loadLevel(0); showScreen('game');
+  st.carry = { kind: 'plank', rot: 0 }; lockTo({ kind: 'plank', rot: 0, x0: 9, t0: 3 }); useE();
+  st.pieces = st.pieces.filter((p) => p.x0 >= 0);
+  stage.setHistory(st.hist, st.pieces, null, false); stage.skipWave();
+  Object.assign(st.hero, { x: 7.2, t: 0.6, y: 4, fx: 0.5, ft: 1 });
+  st.revealT = L.T;
+}
 requestAnimationFrame(loop);
 // 確認用
 window.__fh = { walkTo, get walk() { return walk; }, st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, nextSocket, tapAt, lockTo, socketsAround, bind, judge, rp, stage, showBindReplay, ed, openEnding, get L() { return L; } };
