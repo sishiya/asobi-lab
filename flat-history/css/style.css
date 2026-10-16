@@ -717,3 +717,7 @@ body.touch .inset { left: 12px; right: auto; top: 120px; }
 @media (max-width: 760px), (max-height: 520px) {
   .headgroup .bind-btn { min-height: 44px; min-width: 160px; padding: 0 22px; font-size: 16px; border-radius: 10px; }
 }
+
+/* v049: 回答するボタンは、名前・説明のまとまりから少しはなす（ユーザー「もうすこしマージン」） */
+.headgroup .bind-btn { margin-top: 14px; }
+@media (max-width: 760px), (max-height: 520px) { .headgroup .bind-btn { margin-top: 10px; } }

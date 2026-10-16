@@ -1,5 +1,5 @@
 // 2D世界の決まったルール。置いた3Dの形は、その秒の断面（長方形）として2D世界に現れる。
-import { KINDS } from './level.js?v=57';
+import { KINDS } from './level.js?v=61';
 
 // 言語（index.html の TX(日本語, 英語)。ノードでの試験のときは日本語）
 const TX = globalThis.TX || ((ja) => ja);
@@ -141,6 +141,7 @@ export function simulate(L, pieces) {
   const events = [];
   const w = { x: L.start.x, y: L.tops[Math.floor(L.start.x)], dir: L.start.dir || 1, vy: 0, st: 'walk', from: 0 };
   let end = null, overlap = null, nestPass = null;
+  const touched = new Set(); // 住人がふれた形（断面）。形ごとに、はじめてふれたときだけ 'touch' を記録する（判定画面の音）
   const stones = (L.stones || []).map((s) => ({ x: s.x, y: L.tops[Math.floor(s.x)], dir: s.dir, t0: s.t, st: 'wait', vy: 0 }));
   for (let k = 0; k <= N; k++) {
     const t = k * DT;
@@ -163,6 +164,16 @@ export function simulate(L, pieces) {
             w.x = toL < toR ? s.x0 - HALF - 0.01 : s.x1 + HALF + 0.01;
           }
         }
+      }
+    }
+    // 住人が形の断面にふれた（上に立つ・横にぶつかる）か。形ごとにはじめての1回だけ 'touch'
+    if (w.st === 'walk' || w.st === 'fall') {
+      for (const s of pieceSecs) {
+        if (touched.has(s.p)) continue;
+        const overX = w.x + HALF + 0.25 > s.x0 && w.x - HALF - 0.25 < s.x1; // 横は、ぶつかって引き返す手前も入れる
+        const onTop = Math.abs(s.y1 - w.y) < 0.06 && w.x + HALF > s.x0 && w.x - HALF < s.x1;
+        const side = overX && s.y0 < w.y + BODY && s.y1 > w.y + 0.06;
+        if (onTop || side) { touched.add(s.p); events.push({ type: 'touch', t, x: w.x, y: w.y }); }
       }
     }
     frames[k] = { x: w.x, y: w.y, dir: w.dir, st: w.st, stones: stones.length ? stones.map((s) => ({ x: s.x, y: s.y, st: s.st })) : null };

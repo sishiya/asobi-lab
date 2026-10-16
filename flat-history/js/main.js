@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
-import { LEVELS } from './level.js?v=57';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=57';
-import { drawSheet } from './sheet.js?v=57';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=60';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=57';
-import { makeHero, stepHero, groundAt } from './hero.js?v=57';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=57';
+import { LEVELS } from './level.js?v=61';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=61';
+import { drawSheet } from './sheet.js?v=61';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=61';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=61';
+import { makeHero, stepHero, groundAt } from './hero.js?v=61';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=61';
 
 const $ = (id) => document.getElementById(id);
 
@@ -665,6 +665,7 @@ function replaySounds(h, o, t) {
     if (e.type === 'turn') se.kiwiTurn(res);
     else if (e.type === 'goal') se.kiwiHome();
     else if (e.type === 'abyss' || e.type === 'fall') se.kiwiFall();
+    else if (e.type === 'touch') se.kiwiTouch();
     else if (e.type === 'plug' || e.type === 'stoneStop') se.land();
   }
   // 足音: 歩いた横の距離 0.6 マスごと（速く流しても 1秒に8つまで）
