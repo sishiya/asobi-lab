@@ -1,0 +1,60 @@
+// 1秒のページ（2D世界）の絵。空は透明にして、ページを重ねると地面が奥行きにのびて見えるようにする。
+import { look, kindColor } from './look/index.js?v=32';
+
+export const S = 20; // 1マスのピクセル
+
+const cache = new Map();
+
+// 動かない地形（どのページでも同じ）を見た目ごとに一度だけ描く
+export function terrainCanvas(L) {
+  const key = look().id + ':' + L.id;
+  if (cache.has(key)) return cache.get(key);
+  const cv = document.createElement('canvas');
+  cv.width = L.W * S; cv.height = L.H * S;
+  look().drawTerrain(cv.getContext('2d'), L, S);
+  cache.set(key, cv);
+  return cv;
+}
+
+export function drawWalker(g, L, f, scale = 1) {
+  if (!f || f.st === 'dead') return;
+  look().drawWalker(g, L, f, S, scale);
+}
+
+// ページを描く。opt.paper: 紙の地を敷く、opt.label: 秒の札
+export function drawSheet(g, L, t, frame, secs, opt = {}) {
+  const W = L.W * S, H = L.H * S;
+  g.clearRect(0, 0, W, H);
+  if (opt.paper) {
+    const gr = g.createLinearGradient(0, 0, 0, H);
+    gr.addColorStop(0, look().paper[0]); gr.addColorStop(1, look().paper[1]);
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    if (look().drawBackdrop) look().drawBackdrop(g, L, S);
+  }
+  g.drawImage(terrainCanvas(L), 0, 0);
+  // 巣に着いてからの時間（よろこぶ・卵がかえる）
+  const since = frame && frame.st === 'goal' && opt.goalT != null ? t - opt.goalT : null;
+  // 時刻の窓のあいだは、ゴールが光る（まだ着いていなければ）
+  if (since === null && L.window && t >= L.window[0] && t <= L.window[1] && look().drawGoalReady) look().drawGoalReady(g, L, S, t);
+  if (since !== null && look().drawGoalJoy) look().drawGoalJoy(g, L, S, since);
+  for (const s of secs) look().drawSection(g, L, s, S, kindColor(s.p.kind));
+  if (frame && frame.stones) for (const st of frame.stones) if (st.st !== 'gone') look().drawStone(g, L, st, S);
+  drawWalker(g, L, since !== null ? { ...frame, since } : frame);
+  // 刷りそこない（だめな歴史の、つまずいたあとのページ）: 紙の色をかぶせてかすれさせる
+  if (opt.misprintAfter != null && t > opt.misprintAfter) {
+    const u = Math.min(1, (t - opt.misprintAfter) / 1.5);
+    g.save();
+    g.globalCompositeOperation = 'source-atop';
+    g.fillStyle = `rgba(244,234,210,${0.62 * u})`;
+    g.fillRect(0, 0, W, H);
+    g.globalCompositeOperation = 'source-over';
+    g.fillStyle = `rgba(120,90,55,${0.18 * u})`;
+    for (let i = 0; i < 60; i++) { const x = (i * 97) % W, y = (i * 53) % H; g.fillRect(x, y, 14 + (i % 5) * 6, 1); }
+    g.restore();
+  }
+  if (opt.label) {
+    g.font = 'bold 15px system-ui, sans-serif';
+    g.fillStyle = look().labelColor || 'rgba(40,50,70,.75)';
+    g.fillText(opt.label, 8, 20);
+  }
+}

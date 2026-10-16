@@ -8,7 +8,7 @@
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="description" content="1秒ずつの2D世界が奥と手前に並んでいる。3Dの形を置くと、2D世界にはその断面が現れて、歴史が書きかわる。">
 <meta name="theme-color" content="#e2d2b0">
-<link rel="stylesheet" href="css/style.css?v=31">
+<link rel="stylesheet" href="css/style.css?v=32">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body class="menu">
@@ -28,7 +28,7 @@
       <button type="button" id="tHelp" class="act ghost">あそびかた</button>
       <button type="button" id="tSettings" class="act ghost">設定</button>
     </div>
-    <p class="t-foot"><span class="t-dev">キーボードとマウスで遊びます</span><span class="t-touch">指で遊べます（横向きがおすすめ）</span> ・ 試作 <span class="ver">v022</span> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
+    <p class="t-foot"><span class="t-dev">キーボードとマウスで遊びます</span><span class="t-touch">指で遊べます（横向きがおすすめ）</span> ・ 試作 <span class="ver">v023</span> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
   </div>
 </section>
 
@@ -40,6 +40,8 @@
     <div id="selTut" class="plates"></div>
     <p class="sel-group">本番の図版</p>
     <div id="selMain" class="plates"></div>
+    <p class="sel-note">図版の住人は、ひとつ前の図版でかえったひな。正史を綴じるほど、家系がつながっていく。</p>
+    <button type="button" id="selEnding" class="act ghost" hidden>おわりの図版をもう一度</button>
   </div>
 </section>
 
@@ -150,6 +152,14 @@
   </div>
 </div>
 
+<!-- エンディング -->
+<div id="ending" class="modal" hidden>
+  <div class="modal-card ending-card">
+    <canvas id="edCanvas" width="720" height="280"></canvas>
+    <div class="win-acts"><button type="button" id="edClose" class="act primary" hidden>図鑑をとじる</button></div>
+  </div>
+</div>
+
 <div id="help" class="modal" hidden>
   <div class="modal-card help-card">
     <h2>あそびかた</h2>
@@ -169,6 +179,6 @@
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=31"></script>
+<script type="module" src="js/main.js?v=33"></script>
 </body>
 </html>

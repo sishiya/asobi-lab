@@ -1,13 +1,15 @@
 // 3Dの舞台: ページの束（時空の大地）・標本台・主人公・置いた形・持っている形・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=31';
-import { radialTexture } from './look/util.js?v=31';
-import { S, drawSheet } from './sheet.js?v=31';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=31';
-import { TABLE, tableY } from './hero.js?v=31';
+import { look, kindColor } from './look/index.js?v=32';
+import { radialTexture } from './look/util.js?v=32';
+import { S, drawSheet } from './sheet.js?v=32';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=32';
+import { TABLE, tableY } from './hero.js?v=32';
 
 export const GAP = 1.0;
+// だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
+export const misprintOf = (h) => (h.end.type === 'goal' || h.end.type === 'time' ? (h.nestPass ? h.nestPass.t + 2 : null) : h.end.t + 0.3);
 const Z = (t) => -t * GAP;
 
 function textSprite(text, size = 0.9, color = '#5a4430') {
@@ -283,7 +285,7 @@ export function createStage(canvas, L) {
   }
   function drawOne(sh) {
     const fr = hist.frames[Math.round(sh.t / DT)];
-    drawSheet(sh.g, L, sh.t, fr, sectionsAt(pieces, sh.t), { goalT: hist.end.type === 'goal' ? hist.end.t : null });
+    drawSheet(sh.g, L, sh.t, fr, sectionsAt(pieces, sh.t), { goalT: hist.end.type === 'goal' ? hist.end.t : null, misprintAfter: misprintOf(hist) });
     if (trails.has(sh.t)) sh.g.drawImage(trails.get(sh.t), 0, 0);
     sh.tex.needsUpdate = true;
     sh.pending = false;
@@ -387,6 +389,11 @@ export function createStage(canvas, L) {
     heroPages = want;
   }
   // 右下の小窓など、ほかの絵にも主人公の断面を描く
+  function heroPortrait(g, px, py) {
+    const polys = sliceObject(hero, hero.position.z);
+    for (const pl of polys) pl.pts = pl.pts.map(([x, y]) => [x - hero.position.x + px, y - hero.position.y + py]);
+    drawSlices(g, L, polys, hero.userData.sliceHatch);
+  }
   function drawHeroOn(g, t) { drawSlices(g, L, sliceObject(hero, Z(t)), hero.userData.sliceHatch); }
   function drawTrailOn(g, t) { const c = trails.get(Math.round(t)); if (c) g.drawImage(c, 0, 0); }
 
@@ -577,5 +584,5 @@ export function createStage(canvas, L) {
   // 確認用: 波を終わらせる
   function skipWave() { if (waveT === null) return; for (const sh of sheets) if (sh.pending) drawOne(sh); waveT = null; }
 
-  return { setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, closeBook, openBook, waving: () => waveT !== null };
+  return { setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, heroPortrait, closeBook, openBook, waving: () => waveT !== null };
 }

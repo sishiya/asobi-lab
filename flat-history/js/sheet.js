@@ -1,5 +1,5 @@
 // 1秒のページ（2D世界）の絵。空は透明にして、ページを重ねると地面が奥行きにのびて見えるようにする。
-import { look, kindColor } from './look/index.js?v=31';
+import { look, kindColor } from './look/index.js?v=32';
 
 export const S = 20; // 1マスのピクセル
 
@@ -40,6 +40,18 @@ export function drawSheet(g, L, t, frame, secs, opt = {}) {
   for (const s of secs) look().drawSection(g, L, s, S, kindColor(s.p.kind));
   if (frame && frame.stones) for (const st of frame.stones) if (st.st !== 'gone') look().drawStone(g, L, st, S);
   drawWalker(g, L, since !== null ? { ...frame, since } : frame);
+  // 刷りそこない（だめな歴史の、つまずいたあとのページ）: 紙の色をかぶせてかすれさせる
+  if (opt.misprintAfter != null && t > opt.misprintAfter) {
+    const u = Math.min(1, (t - opt.misprintAfter) / 1.5);
+    g.save();
+    g.globalCompositeOperation = 'source-atop';
+    g.fillStyle = `rgba(244,234,210,${0.62 * u})`;
+    g.fillRect(0, 0, W, H);
+    g.globalCompositeOperation = 'source-over';
+    g.fillStyle = `rgba(120,90,55,${0.18 * u})`;
+    for (let i = 0; i < 60; i++) { const x = (i * 97) % W, y = (i * 53) % H; g.fillRect(x, y, 14 + (i % 5) * 6, 1); }
+    g.restore();
+  }
   if (opt.label) {
     g.font = 'bold 15px system-ui, sans-serif';
     g.fillStyle = look().labelColor || 'rgba(40,50,70,.75)';

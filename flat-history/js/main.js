@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=31';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=31';
-import { drawSheet } from './sheet.js?v=31';
-import { createStage } from './stage3d.js?v=31';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=31';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=31';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=31';
+import { LEVELS } from './level.js?v=32';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=32';
+import { drawSheet } from './sheet.js?v=32';
+import { createStage, misprintOf } from './stage3d.js?v=32';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=32';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=32';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=32';
 
 const $ = (id) => document.getElementById(id);
 
@@ -66,7 +66,7 @@ function loadLevel(i) {
 }
 function showIntro() {
   const el = $('intro');
-  el.innerHTML = `<span class="pn">Pl. ${L.plate}</span><span class="nm">${L.name}</span>`;
+  el.innerHTML = `<span class="pn">Pl. ${L.plate} ・ ${look().who}の ${st.lv + 1}代目</span><span class="nm">${L.name}</span>`;
   el.hidden = false;
   el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
   clearTimeout(showIntro.t);
@@ -83,7 +83,7 @@ function showScreen(name) {
   closeAll();
   keys.clear();
 }
-function closeAll() { for (const id of ['menu', 'help', 'replay', 'preview', 'settings']) $(id).hidden = true; }
+function closeAll() { for (const id of ['menu', 'help', 'replay', 'preview', 'settings', 'ending']) $(id).hidden = true; }
 function startGame(i) { stage.openBook(); bindingNow = false; loadLevel(i); showScreen('game'); openPreview(); }
 // 図版のはじめに、はじめの歴史（住人が失敗するようす）を見せる。作戦を立ててから Enter ではじめる
 const pv = { t: 0, playing: true, g: $('pvCanvas').getContext('2d') };
@@ -105,7 +105,7 @@ function drawPreview(dt) {
   const t = Math.min(pv.t, endT);
   if (t < (pv.lastT || 0)) { pv.lastT = t; pv.walk = 0; }
   replaySounds(st.base, pv, t);
-  drawSheet(pv.g, L, t, frameAt(st.base.frames, t), [], { paper: true, label: t.toFixed(1) + '秒' });
+  drawSheet(pv.g, L, t, frameAt(st.base.frames, t), [], { paper: true, label: t.toFixed(1) + '秒', misprintAfter: misprintOf(st.base) });
   $('pvSeek').value = t;
 }
 $('pvPlay').addEventListener('click', () => { pv.playing = !pv.playing; $('pvPlay').textContent = pv.playing ? '❚❚' : '▶'; });
@@ -124,15 +124,48 @@ function renderSelect(from) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'plate' + (p ? ' done' : '');
-      b.innerHTML = `<span class="pn">Pl. ${l.plate}</span><span class="nm">${l.name}</span><span class="st">${p ? `正史ずみ（形 ${p.best} つ）` : 'まだ'}</span>`;
+      b.innerHTML = `<span class="pn">Pl. ${l.plate} ・ ${i + 1}代目</span><span class="nm">${l.name}</span><span class="st">${p ? `正史ずみ・ひながかえった（形 ${p.best} つ）` : 'まだ'}</span>`;
       b.addEventListener('click', () => { se.click(); startGame(i); });
       box.appendChild(b);
     });
   }
+  $('selEnding').hidden = !allSolved();
   showScreen('select');
 }
+const allSolved = () => LEVELS.every((l) => progress[l.id]);
+// ---- エンディング: 全部の図版が正史になったら、代々の住人が一枚のページをいっしょに歩く ----
+const ENDL = { id: 'ending', W: 36, H: 14, T: 60, plate: '∞', tops: new Array(36).fill(4), start: { x: 1.6, dir: 1 }, goal: { x: 31 } };
+const ed = { t: 0, on: false, g: null };
+function openEnding() {
+  progress._ending = true; saveProgress();
+  closeAll(); $('ending').hidden = false; ed.t = 0; ed.on = true; ed.g = $('edCanvas').getContext('2d');
+  duckBgm(false); se.goal();
+  lockEnter(1500);
+}
+function closeEnding() { $('ending').hidden = true; ed.on = false; renderSelect('title'); }
+function drawEnding(dt) {
+  ed.t += dt;
+  const g = ed.g, n = LEVELS.length, t = ed.t;
+  drawSheet(g, ENDL, 0, null, [], { paper: true });
+  // 代々の住人（先頭が1代目）。巣に着いた者から、よろこぶ
+  for (let i = 0; i < n; i++) {
+    const x = Math.min(ENDL.goal.x - i * 1.6, 1.6 + (t - i * 0.7) * 1.5);
+    if (x < 1.2) continue;
+    const arrived = x >= ENDL.goal.x - i * 1.6 - 0.01;
+    look().drawWalker(g, ENDL, { x, y: 4, dir: 1, st: arrived ? 'goal' : 'walk', since: arrived ? t : null }, 20);
+  }
+  // 係（あなた）も、ただ一度だけ、この本に刷られる
+  if (t > 6) { g.save(); g.globalAlpha = Math.min(1, (t - 6) / 2); stage.heroPortrait(g, 33.6, 4); g.restore(); }
+  const lines = ['図鑑が、一冊になった。', `${look().who}の ${n}代の正史が、ここに綴じられている。`, 'そのすみに、見なれない形の影がひとつ。'];
+  lines.forEach((s2, i) => { const a = Math.max(0, Math.min(1, (t - 1.5 - i * 2.2) / 1.2)); g.fillStyle = `rgba(74,51,32,${a})`; g.font = '18px "Yu Mincho", serif'; g.textAlign = 'center'; g.fillText(s2, 360, 46 + i * 28); });
+  g.textAlign = 'left';
+  $('edClose').hidden = t < 9;
+}
+$('edClose').addEventListener('click', closeEnding);
+$('selEnding').addEventListener('click', () => { se.click(); openEnding(); });
+
 const openMenu = () => { closeAll(); $('menu').hidden = false; keys.clear(); se.click(); };
-const modalOpen = () => ['menu', 'help', 'replay', 'preview', 'settings'].some((id) => !$(id).hidden);
+const modalOpen = () => ['menu', 'help', 'replay', 'preview', 'settings', 'ending'].some((id) => !$(id).hidden);
 const playing = () => screen === 'game' && !modalOpen() && !bindingNow;
 
 // ---- つかむ・置く・回す ----
@@ -257,11 +290,12 @@ window.addEventListener('keydown', (e) => {
   const k = e.key;
   if (!$('replay').hidden) {
     if (k === 'Escape') closeReplay();
-    else if (k === 'Enter' && rp.judged && enterOk() && st.solved && hasNext()) goNext();
+    else if (k === 'Enter' && rp.judged && enterOk() && st.solved && (hasNext() || allSolved())) goNext();
     else if (k === 'Enter' && rp.judged && enterOk() && !st.solved) closeReplay();
     else if (k === ' ' || k === 'p' || k === 'P') { e.preventDefault(); togglePlay(); }
     return;
   }
+  if (!$('ending').hidden) { if ((k === 'Enter' || k === 'Escape') && !$('edClose').hidden && enterOk()) closeEnding(); return; }
   if (!$('preview').hidden) {
     if ((k === 'Enter' || k === ' ') && enterOk()) { e.preventDefault(); closePreview(); }
     else if (k === 'Escape') renderSelect('title');
@@ -357,7 +391,7 @@ function drawInset(focus) {
   if (k === insetKey) return;
   insetKey = k;
   const fr = st.hist.frames[Math.round(focus / 0.1)];
-  drawSheet(insetG, L, focus, fr, sectionsAt(blockPieces(), focus), { paper: true, label: focus + '秒', goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null });
+  drawSheet(insetG, L, focus, fr, sectionsAt(blockPieces(), focus), { paper: true, label: focus + '秒', goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null, misprintAfter: misprintOf(st.hist) });
   $('insetCap').textContent = focus + '秒目のページ（V でしまう）';
 }
 applyInset();
@@ -470,7 +504,11 @@ const cfgRes = () => cfg.res;
 
 // ---- 回答する: 再生して見届けてから、正史かどうかを出す ----
 const hasNext = () => st.lv + 1 < LEVELS.length;
-function goNext() { se.click(); stage.openBook(); startGame(st.lv + 1); }
+function goNext() {
+  se.click();
+  if (allSolved() && !progress._ending) { openEnding(); return; }
+  if (hasNext()) startGame(st.lv + 1); else renderSelect('game');
+}
 const rp = { t: 0, playing: true, speed: 4, judged: true, endT: 0, gA: $('rpA').getContext('2d'), gB: $('rpB').getContext('2d') };
 function bind() {
   if (bindingNow) return;
@@ -527,7 +565,8 @@ function judge() {
   if (ok) { $('rpWhy').hidden = true; document.querySelector('.replay-card').classList.remove('with-why'); }
   el.hidden = false;
   el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  $('rpNext').hidden = !(ok && hasNext());
+  $('rpNext').hidden = !(ok && (hasNext() || allSolved()));
+  $('rpNext').innerHTML = ok && allSolved() && !progress._ending ? 'おわりの図版へ <kbd>Enter</kbd>' : '次の図版へ <kbd>Enter</kbd>';
   $('rpClose').hidden = false;
   $('rpClose').innerHTML = ok ? 'この図版にもどる <kbd>Esc</kbd>' : '考えなおす <kbd>Esc</kbd>';
 }
@@ -568,8 +607,8 @@ $('rpSeek').addEventListener('input', (e) => { rp.t = +e.target.value; });
 $('rpSpeed').addEventListener('change', (e) => { rp.speed = +e.target.value; });
 function drawReplay() {
   const t = rp.t, lab = t.toFixed(1) + '秒';
-  drawSheet(rp.gA, L, t, frameAt(st.base.frames, t), [], { paper: true, label: lab });
-  drawSheet(rp.gB, L, t, frameAt(st.hist.frames, t), sectionsAt(blockPieces(), t), { paper: true, label: lab, goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null });
+  drawSheet(rp.gA, L, t, frameAt(st.base.frames, t), [], { paper: true, label: lab, misprintAfter: misprintOf(st.base) });
+  drawSheet(rp.gB, L, t, frameAt(st.hist.frames, t), sectionsAt(blockPieces(), t), { paper: true, label: lab, goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null, misprintAfter: misprintOf(st.hist) });
   $('rpSeek').value = t;
   $('rpTime').textContent = t.toFixed(1) + ' 秒';
 }
@@ -583,6 +622,7 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   if (!$('preview').hidden) drawPreview(dt);
+  if (ed.on) drawEnding(dt);
   if (!$('replay').hidden) {
     if (rp.playing) { rp.t = Math.min(L.T, rp.t + dt * rp.speed); if (rp.t >= L.T) { rp.playing = false; $('rpPlay').textContent = '▶'; } }
     // 住人の音（再生の時刻が進んだ分だけ）
@@ -665,4 +705,4 @@ loadLevel(firstUnsolved());
 showScreen('title');
 requestAnimationFrame(loop);
 // 確認用
-window.__fh = { st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, bind, judge, rp, stage, showBindReplay, get L() { return L; } };
+window.__fh = { st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, bind, judge, rp, stage, showBindReplay, ed, openEnding, get L() { return L; } };

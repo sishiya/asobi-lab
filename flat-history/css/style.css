@@ -417,3 +417,9 @@ body.touch .prompt:empty { display: none; }
 .rp-foot .win-acts { padding-bottom: 2px; }
 .rp-foot { overflow: visible; }
 .rp-foot { padding-bottom: 14px; }
+
+/* 家系図・エンディング */
+.sel-note { margin: 14px 0 6px; font: 13px var(--serif); color: var(--sub); }
+#selEnding[hidden] { display: none; }
+.ending-card { width: min(820px, 100%); text-align: center; }
+#edCanvas { display: block; width: 100%; height: auto; border: 1px solid var(--rule); }
