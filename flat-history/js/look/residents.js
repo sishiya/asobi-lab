@@ -1,8 +1,7 @@
 // 2D世界の住人（設定で選ぶ）。どちらも図鑑の銅版画の線で描く
 //   kiwi: 実在の生き物（飛べない鳥キーウィ。巣穴から卵の巣へ）
-//   penguin: アデリーペンギン（小石の巣）／pillbug: ダンゴムシ（しめった石の下）／snail: カタツムリ（雨つぶの葉）
-//   flat: 低い次元の住人（『フラットランド』のような図形の生き物「サンカク」。五角形の家から家族の家へ）
-import { INK, hatch } from './ink.js?v=48';
+//   penguin: アデリーペンギン（小石の巣）／snail: カタツムリ（雨つぶの葉）
+import { INK, hatch } from './ink.js?v=49';
 
 // 4つの光の星（彫った線の星）
 export function sparkle(g, x, y, r, a) {
@@ -119,84 +118,6 @@ const kiwi = {
   },
 };
 
-// ---------------- サンカク（図形の住人） ----------------
-// 五角形の家（『フラットランド』の家は五角形）
-function pentagonHouse(g, cx, by, r, door = true) {
-  const path = () => {
-    g.beginPath();
-    for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * Math.PI * 2 / 5; g.lineTo(cx + Math.cos(a) * r, by - r * 0.81 + Math.sin(a) * r); }
-    g.closePath();
-  };
-  path(); g.fillStyle = '#efe2c2'; g.fill();
-  g.save(); g.clip(); hatch(g, cx - r, by - r * 2, r * 2, r * 2, 2.6, -0.9, 'rgba(74,51,32,.4)'); g.restore();
-  path(); g.strokeStyle = INK; g.lineWidth = 1.4; g.stroke();
-  if (door) { g.fillStyle = '#2b1d12'; g.fillRect(cx - 4, by - 12, 8, 12); }
-}
-function triangleBody(g, s, tilt = 0) {
-  // 前（＋x）へとがった三角。s は大きさ
-  g.save(); g.rotate(tilt);
-  const tri = () => { g.beginPath(); g.moveTo(8 * s, -6 * s); g.lineTo(-6 * s, -1 * s); g.lineTo(-6 * s, -12 * s); g.closePath(); };
-  tri(); g.fillStyle = '#e8c27a'; g.fill();
-  g.save(); g.clip(); hatch(g, -8 * s, -14 * s, 18 * s, 14 * s, 1.8, 0.5, 'rgba(74,51,32,.45)'); g.restore();
-  tri(); g.strokeStyle = INK; g.lineWidth = 1.3; g.stroke();
-  // 目（とがった先のほう）
-  g.fillStyle = '#fff'; g.beginPath(); g.arc(2.6 * s, -6.6 * s, 2 * s, 0, 7); g.fill();
-  g.strokeStyle = INK; g.lineWidth = 0.8; g.stroke();
-  g.fillStyle = INK; g.beginPath(); g.arc(3.2 * s, -6.6 * s, 0.9 * s, 0, 7); g.fill();
-  g.restore();
-}
-const flat = {
-  id: 'flat', who: 'サンカク', goalName: '家族の家', goalThing: '窓の明かり',
-  windowHint: '家族が窓に明かりをともして待っているのは、少しのあいだだけ',
-  earlyMsg: '家に着いたけれど、まだ明かりはついていなかった（早すぎた）',
-  lateMsg: '家に着いたけれど、明かりはもう消えていた（遅すぎた）', plate: 'Trigonum',
-  en: { who: 'Triangle', goalName: 'family home', windowHint: 'The family keeps a light in the window for only a short while', earlyMsg: 'reached home, but the light was not on yet (too early)', lateMsg: 'reached home, but the light had already gone out (too late)' },
-  drawHome(g, L, S) {
-    const hy = py(L, S, L.tops[Math.floor(L.start.x)]);
-    pentagonHouse(g, L.start.x * S - 4, hy, 16);
-  },
-  drawGoal(g, L, S) {
-    const gy = py(L, S, L.tops[Math.floor(L.goal.x)]);
-    pentagonHouse(g, L.goal.x * S + 4, gy, 20);
-    // 窓に家族の小さな三角
-    g.save(); g.translate(L.goal.x * S + 4, gy - 22); g.scale(-0.55, 0.55); triangleBody(g, 1); g.restore();
-  },
-  drawGoalReady(g, L, S, t) {
-    // 家族の家の窓に明かりがともる
-    const gx = L.goal.x * S + 4, gy = py(L, S, L.tops[Math.floor(L.goal.x)]);
-    const gr = g.createRadialGradient(gx, gy - 18, 2, gx, gy - 18, 30);
-    gr.addColorStop(0, 'rgba(255,214,120,.9)'); gr.addColorStop(1, 'rgba(255,214,120,0)');
-    g.fillStyle = gr; g.beginPath(); g.arc(gx, gy - 18, 30, 0, 7); g.fill();
-    sparkle(g, gx + 16, gy - 34, 3, t * 3);
-  },
-  drawGoalJoy(g, L, S, since) {
-    const gx = L.goal.x * S + 4, gy = py(L, S, L.tops[Math.floor(L.goal.x)]);
-    if (since > 1) {
-      // 家族が出てきて、くるくる回る
-      const hop = Math.abs(Math.sin(since * 6)) * 6;
-      g.save(); g.translate(gx + 22, gy - hop); g.scale(-0.7, 0.7); triangleBody(g, 1, Math.sin(since * 5) * 0.3); g.restore();
-    }
-    sparkles(g, gx, gy - 22, since, 6, 26);
-  },
-  drawWalker(g, L, f, S, scale = 1) {
-    const joy = f.since != null;
-    const hop = joy ? Math.abs(Math.sin(f.since * 7)) * 5 : 0;
-    g.save();
-    g.translate(f.x * S, py(L, S, f.y) - hop);
-    g.scale(f.dir * scale, scale);
-    // 細い2本の足（すり足で進む）
-    const ph = f.st === 'walk' ? Math.sin(f.x * 8) : 0;
-    g.strokeStyle = INK; g.lineWidth = 1.3; g.lineCap = 'round';
-    g.beginPath(); g.moveTo(-3, -2); g.lineTo(-3 - ph * 2, 0); g.moveTo(1.5, -3); g.lineTo(1.5 + ph * 2, 0); g.stroke();
-    triangleBody(g, 1, f.st === 'fall' ? -0.4 : joy ? Math.sin(f.since * 6) * 0.25 : 0);
-    if (joy) {
-      g.fillStyle = INK; g.font = '9px Georgia, serif';
-      g.save(); g.scale(f.dir, 1); g.fillText('♪', -2 * f.dir, -18 - (f.since * 6) % 6); g.restore();
-    }
-    g.restore();
-  },
-};
-
 // ---------------- ペンギン（アデリーペンギン。小石を積んだ巣） ----------------
 // 卵の光と、ひなが顔を出すのはキーウィと同じ「嘴打ち」（鳥のひなは本当に殻をつつく）
 const penguin = {
@@ -259,84 +180,6 @@ const penguin = {
       g.fillStyle = INK; g.font = '9px Georgia, serif';
       g.save(); g.scale(f.dir, 1); g.fillText('♪', -4 * f.dir + Math.sin(f.since * 3) * 2, -24 - (f.since * 6) % 6); g.restore();
     }
-    g.restore();
-  },
-};
-
-// ---------------- ダンゴムシ（石の下へ。しめり気のあるうちに） ----------------
-// ダンゴムシは乾きに弱く、しめった石の下にもぐる（本当）
-function pillbug(g, s, curl = 0, legPh = 0) {
-  if (curl > 0.5) {
-    // まるくなった玉
-    g.fillStyle = '#8d8274'; g.beginPath(); g.arc(0, -6 * s, 6 * s, 0, 7); g.fill();
-    g.strokeStyle = 'rgba(40,30,20,.7)'; g.lineWidth = 0.8;
-    for (let i = -2; i <= 2; i++) { g.beginPath(); g.arc(0, -6 * s, 6 * s, -Math.PI / 2 + i * 0.5 - 0.2, -Math.PI / 2 + i * 0.5 + 0.2 + Math.PI); g.stroke(); }
-    g.strokeStyle = INK; g.lineWidth = 1.2; g.beginPath(); g.arc(0, -6 * s, 6 * s, 0, 7); g.stroke();
-    return;
-  }
-  g.strokeStyle = INK; g.lineWidth = 0.8;
-  for (let i = 0; i < 6; i++) { const x = (-6 + i * 2.4) * s, w = Math.sin(legPh + i * 1.2) * 1.2; g.beginPath(); g.moveTo(x, -1 * s); g.lineTo(x + w, 0.6); g.stroke(); }
-  const shell = () => { g.beginPath(); g.ellipse(0, -3.6 * s, 8.5 * s, 4.2 * s, 0, Math.PI, 0); g.closePath(); };
-  shell(); g.fillStyle = '#8d8274'; g.fill();
-  g.strokeStyle = 'rgba(40,30,20,.65)'; g.lineWidth = 0.8;
-  for (let i = -3; i <= 3; i++) { g.beginPath(); g.moveTo(i * 2.2 * s, -3.6 * s); g.lineTo(i * 2.5 * s, -7.6 * s + Math.abs(i) * 0.7 * s); g.stroke(); }
-  shell(); g.strokeStyle = INK; g.lineWidth = 1.2; g.stroke();
-  // しょっかく
-  g.lineWidth = 0.8; g.beginPath(); g.moveTo(8 * s, -3 * s); g.quadraticCurveTo(11 * s, -6 * s, 12.5 * s, -4 * s); g.stroke();
-  g.fillStyle = INK; g.beginPath(); g.arc(6.5 * s, -4.5 * s, 0.7, 0, 7); g.fill();
-}
-const pillbugRes = {
-  id: 'pillbug', who: 'ダンゴムシ', goalName: '石の下', goalThing: 'しめり気',
-  windowHint: '石の下がしめっているのは、朝つゆがおりた少しのあいだだけ',
-  earlyMsg: '石の下に着いたけれど、まだつゆはおりていなかった（早すぎた）',
-  lateMsg: '石の下に着いたけれど、つゆはもう乾いていた（遅すぎた）', plate: 'Armadillidium',
-  en: { who: 'pill bug', goalName: 'stone', windowHint: 'Under the stone it stays damp only for a short while after the morning dew', earlyMsg: 'reached the stone, but the dew had not settled yet (too early)', lateMsg: 'reached the stone, but the dew had already dried (too late)' },
-  drawHome(g, L, S) {
-    // 落ち葉の山
-    const hy = py(L, S, L.tops[Math.floor(L.start.x)]), x = Math.max(4, L.start.x * S - 20);
-    for (let i = 0; i < 5; i++) {
-      g.save(); g.translate(x + i * 8, hy - 4 - (i % 2) * 5); g.rotate(-0.5 + i * 0.3);
-      g.fillStyle = i % 2 ? '#c99b5a' : '#b98444'; g.strokeStyle = INK; g.lineWidth = 1;
-      g.beginPath(); g.ellipse(0, 0, 10, 4.5, 0, 0, 7); g.fill(); g.stroke();
-      g.beginPath(); g.moveTo(-9, 0); g.lineTo(9, 0); g.stroke();
-      g.restore();
-    }
-  },
-  drawGoal(g, L, S) {
-    // 平たい石（すきまの暗がりが入り口）
-    const gx = L.goal.x * S, gy = py(L, S, L.tops[Math.floor(L.goal.x)]);
-    g.fillStyle = '#2b1d12'; g.beginPath(); g.ellipse(gx, gy - 1, 15, 3, 0, Math.PI, 0); g.fill();
-    const stone = () => { g.beginPath(); g.moveTo(gx - 22, gy - 3); g.quadraticCurveTo(gx - 18, gy - 20, gx + 2, gy - 21); g.quadraticCurveTo(gx + 22, gy - 19, gx + 24, gy - 3); g.closePath(); };
-    stone(); g.fillStyle = '#cfc4b0'; g.fill();
-    g.save(); stone(); g.clip(); hatch(g, gx - 24, gy - 22, 50, 20, 2.4, -0.9, 'rgba(74,51,32,.45)'); g.restore();
-    stone(); g.strokeStyle = INK; g.lineWidth = 1.4; g.stroke();
-  },
-  drawGoalReady(g, L, S, t) {
-    // 石のまわりに、朝つゆのしずくが光る
-    const gx = L.goal.x * S, gy = py(L, S, L.tops[Math.floor(L.goal.x)]);
-    const gr = g.createRadialGradient(gx, gy - 6, 2, gx, gy - 6, 30);
-    gr.addColorStop(0, 'rgba(170,215,235,.75)'); gr.addColorStop(1, 'rgba(170,215,235,0)');
-    g.fillStyle = gr; g.beginPath(); g.arc(gx, gy - 6, 30, 0, 7); g.fill();
-    for (let i = 0; i < 5; i++) {
-      const x = gx - 20 + i * 10, y = gy - 22 + Math.abs(i - 2) * 4 + ((t * 8 + i * 3) % 6);
-      g.fillStyle = '#eaf6fb'; g.strokeStyle = INK; g.lineWidth = 0.8;
-      g.beginPath(); g.moveTo(x, y - 3); g.quadraticCurveTo(x + 2.4, y + 1, x, y + 2); g.quadraticCurveTo(x - 2.4, y + 1, x, y - 3); g.fill(); g.stroke();
-    }
-    sparkle(g, gx + 18, gy - 24, 2.6, t * 3);
-  },
-  drawGoalJoy(g, L, S, since) {
-    // まるくなって、石の下へころころ
-    const gx = L.goal.x * S, gy = py(L, S, L.tops[Math.floor(L.goal.x)]);
-    if (since < 2.2) { g.save(); g.translate(gx - 8 + since * 4, gy); g.rotate(since * 4); g.translate(0, 6); pillbug(g, 0.9, 1); g.restore(); }
-    sparkles(g, gx, gy - 12, since, 5, 22);
-  },
-  drawWalker(g, L, f, S, scale = 1) {
-    const joy = f.since != null;
-    g.save();
-    g.translate(f.x * S, py(L, S, f.y));
-    g.scale(f.dir * scale, scale);
-    if (joy && f.since > 0.3) { g.restore(); return; } // 石の下へ入った
-    pillbug(g, 1, f.st === 'fall' ? 1 : 0, f.x * 9);
     g.restore();
   },
 };
@@ -408,4 +251,5 @@ const snail = {
   },
 };
 
-export const RESIDENTS = { kiwi, flat, penguin, pillbug: pillbugRes, snail };
+// v034: ダンゴムシ・サンカクはやめた（ユーザー）
+export const RESIDENTS = { kiwi, penguin, snail };

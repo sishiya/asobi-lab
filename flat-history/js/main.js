@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
 import { LEVELS } from './level.js?v=49';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=48';
-import { drawSheet } from './sheet.js?v=48';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=48';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=48';
-import { makeHero, stepHero, groundAt } from './hero.js?v=48';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=48';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=49';
+import { drawSheet } from './sheet.js?v=49';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=49';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=49';
+import { makeHero, stepHero, groundAt, pieceUnder } from './hero.js?v=49';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=49';
 
 const $ = (id) => document.getElementById(id);
 
@@ -16,10 +16,16 @@ try { progress = JSON.parse(localStorage.getItem('flat-history.progress') || '{}
 function saveProgress() { try { localStorage.setItem('flat-history.progress', JSON.stringify(progress)); } catch (e) { /* なし */ } }
 
 // ---- 設定（このブラウザだけに覚える） ----
-const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'minuet', showRoute: false, runDefault: true, inset: true, invX: false, invY: false, move: 'tap', heroSlice: false, hero: 'poly', res: 'kiwi' };
+const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'minuet', runDefault: true, inset: true, invX: false, invY: false, move: 'tap', hero: 'hourglass', res: 'kiwi' };
 let cfg = { ...DEF };
 try { cfg = { ...DEF, ...JSON.parse(localStorage.getItem('flat-history.settings2') || '{}') }; } catch (e) { cfg = { ...DEF }; }
 function saveCfg() { try { localStorage.setItem('flat-history.settings2', JSON.stringify(cfg)); } catch (e) { /* なし */ } }
+// v034: 主人公・住人をしぼった。やめた者を選んでいた人・前の既定（多面体）のままの人は、砂時計とキーウィへ。通り道・透かしの設定はやめた
+if (!cfg.v34) { cfg.hero = 'hourglass'; cfg.v34 = true; }
+if (!HERO_LIST.some((c) => c.id === cfg.hero)) cfg.hero = 'hourglass';
+if (!RES_LIST.some((c) => c.id === cfg.res)) cfg.res = 'kiwi';
+delete cfg.showRoute; delete cfg.heroSlice;
+saveCfg();
 setHero(cfg.hero); setRes(cfg.res);
 setVolumes(cfg.bgmVol, cfg.seVol);
 setBgm(cfg.bgm);
@@ -464,7 +470,7 @@ window.addEventListener('keydown', (e) => {
   const k = e.key;
   if (!$('replay').hidden) {
     if (k === 'Escape') closeReplay();
-    else if (k === 'Enter' && rp.judged && enterOk() && st.solved && (hasNext() || allSolved())) goNext();
+    else if (k === 'Enter' && rp.judged && enterOk() && st.solved) goNext();
     else if (k === 'Enter' && rp.judged && enterOk() && !st.solved) closeReplay();
     else if (k === ' ' || k === 'p' || k === 'P') { e.preventDefault(); togglePlay(); }
     return;
@@ -528,12 +534,10 @@ function openSettings(from) {
   $('sBgmVol').value = Math.round(cfg.bgmVol * 100);
   $('sSeVol').value = Math.round(cfg.seVol * 100);
   $('sBgm').value = cfg.bgm;
-  $('sRoute').checked = cfg.showRoute;
   $('sRun').checked = cfg.runDefault;
   $('sInset').checked = cfg.inset;
   $('sInvX').checked = !!cfg.invX; $('sInvY').checked = !!cfg.invY;
   $('sMove').value = cfg.move || 'tap';
-  $('sSlice').checked = !!cfg.heroSlice;
   $('sHero').value = cfg.hero;
   $('sRes').value = cfg.res;
   $('settings').hidden = false;
@@ -547,11 +551,9 @@ $('sBgmVol').addEventListener('input', (e) => { cfg.bgmVol = e.target.value / 10
 $('sSeVol').addEventListener('input', (e) => { cfg.seVol = e.target.value / 100; setVolumes(cfg.bgmVol, cfg.seVol); saveCfg(); });
 $('sSeVol').addEventListener('change', () => { initAudio(); se.goal(); });
 $('sBgm').addEventListener('change', (e) => { cfg.bgm = e.target.value; initAudio(); setBgm(cfg.bgm); startBgm(); saveCfg(); });
-$('sRoute').addEventListener('change', (e) => { cfg.showRoute = e.target.checked; saveCfg(); });
 $('sRun').addEventListener('change', (e) => { cfg.runDefault = e.target.checked; saveCfg(); });
 $('sMove').options[0].textContent = TX('タップで歩く（かんたん）', 'Tap to walk (easy)');
 $('sMove').options[1].textContent = TX('スティック', 'Stick');
-$('sSlice').addEventListener('change', (e) => { cfg.heroSlice = e.target.checked; saveCfg(); });
 $('sMove').addEventListener('change', (e) => { cfg.move = e.target.value; saveCfg(); applyMove(); });
 $('sInvX').addEventListener('change', (e) => { cfg.invX = e.target.checked; saveCfg(); stage.setInvert(cfg.invX, cfg.invY); });
 $('sInvY').addEventListener('change', (e) => { cfg.invY = e.target.checked; saveCfg(); stage.setInvert(cfg.invX, cfg.invY); });
@@ -591,7 +593,7 @@ function drawInset(focus, cand, ok) {
     for (const r of sectionRects(cand, focus + 0.001)) { insetG.fillRect(r.x0 * S, (L.H - r.y1) * S, (r.x1 - r.x0) * S, (r.y1 - r.y0) * S); insetG.strokeRect(r.x0 * S, (L.H - r.y1) * S, (r.x1 - r.x0) * S, (r.y1 - r.y0) * S); }
     insetG.restore();
   }
-  $('insetCap').textContent = TX(focus + '秒目のページ（V でしまう）', `Page at ${focus}s (V to hide)`);
+  $('insetCap').textContent = TX(focus + '秒目のページ', `Page at ${focus}s`);
 }
 applyInset();
 applyMove();
@@ -648,7 +650,7 @@ function drawTimeline() {
 // ---- ひとことの導き ----
 function coachText() {
   if (st.solved) return TX('正史ができた。もう一度見るなら「結果を見る」', 'A true history! Press “See result” to watch it again');
-  if (st.lv === 0 && !st.boundOnce && !st.carry && blockPieces().length && st.hintIdx >= (L.hints || []).length) return tx(TX('これで巣に着くと思ったら、「回答する」（Enter）で答えよう', 'If you think the kiwi will reach the nest now, press “Answer” (Enter)'));
+  if (st.lv === 0 && !st.boundOnce && !st.carry && blockPieces().length && st.hintIdx >= (L.hints || []).length) return tx(TX('これで巣に着くと思ったら、「回答する」で答えよう', 'If you think the kiwi will reach the nest now, press “Answer”'));
   const hs = L.hints || [];
   const c = { walked: st.walked, seenEnd: st.revealT >= st.base.end.t, placed: blockPieces().length > 0, rotated: !!st.rotatedOnce };
   while (st.hintIdx < hs.length && hs[st.hintIdx].when(c)) st.hintIdx++;
@@ -680,9 +682,8 @@ const hovered = () => (st.hoverPiece !== null && !st.carry ? st.pieces.find((p) 
 function renderPrompt(why) {
   let html = '';
   if (performance.now() < flashUntil) html = flashMsg;
-  else if (st.carry) html = `<span>${TX('クリックした所に置く', 'Click to place')}</span><button type="button" class="pbtn" data-act="rot"><kbd>Q</kbd> ${TX('回す（右クリック）', 'Rotate (right-click)')}</button><button type="button" class="pbtn" data-act="cancel"><kbd>Esc</kbd> ${TX('やめる', 'Cancel')}</button>` + (why ? `<span class="bad">${why}</span>` : '');
+  else if (st.carry) html = `<span>${TX('クリックした所に置く', 'Click to place')}</span><button type="button" class="pbtn" data-act="rot">${TX('回す', 'Rotate')}</button><button type="button" class="pbtn" data-act="cancel">${TX('やめる', 'Cancel')}</button>` + (why ? `<span class="bad">${why}</span>` : '');
   else if (hovered()) html = TX(`クリックで${kindName(hovered().kind)}を持ち上げる`, `Click to pick up the ${kindName(hovered().kind)}`);
-  else if (st.walked < 2 && st.lv === 0) html = `<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ${cfg.runDefault ? TX('走る', 'Run') : TX('歩く', 'Walk')}　<kbd>Shift</kbd> ${cfg.runDefault ? TX('歩く', 'Walk') : TX('走る', 'Run')}　<kbd>Space</kbd> ${TX('跳ぶ', 'Jump')}　${TX('ドラッグ 見回す', 'Drag: look around')}`;
   if (isTouch) html = performance.now() < flashUntil ? flashMsg : (st.carry && why ? `<span class="bad">${why}</span>` : '');
   const el = $('prompt');
   if (el.innerHTML !== html) el.innerHTML = html;
@@ -746,7 +747,7 @@ function showBindReplay() {
   $('replay').hidden = false;
   rp.judged = false;
   rp.endT = Math.min(L.T, st.hist.end.t + 1.2);
-  rp.t = 0; rp.playing = true; rp.speed = 4; $('rpSpeed').value = '4'; $('rpPlay').textContent = '❚❚';
+  rp.t = 0; rp.playing = true; $('rpPlay').textContent = '❚❚';
   rp.pend = 0; rp.lastT = 0; rp.walk = 0;
   duckBgm(true);
   keys.clear();
@@ -782,10 +783,11 @@ function judge() {
   if (ok) { $('rpWhy').hidden = true; document.querySelector('.replay-card').classList.remove('with-why'); }
   el.hidden = false;
   el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  $('rpNext').hidden = !(ok && (hasNext() || allSolved()));
-  $('rpNext').innerHTML = ok && allSolved() && !progress._ending ? TX('おわりの図版へ', 'To the last plate') + ' <kbd>Enter</kbd>' : TX('次の図版へ', 'Next plate') + ' <kbd>Enter</kbd>';
-  $('rpClose').hidden = false;
-  $('rpClose').innerHTML = (ok ? TX('この図版にもどる', 'Back to this plate') : TX('考えなおす', 'Think again')) + ' <kbd>Esc</kbd>';
+  $('rpNext').hidden = !ok;
+  $('rpNext').textContent = ok && allSolved() && !progress._ending ? TX('おわりの図版へ', 'To the last plate') : hasNext() ? TX('次の図版へ', 'Next plate') : TX('図版をえらぶ', 'Choose a plate');
+  // 正史のあとは「次へ」だけ（もどりたいときは、パネルの外をタッチ）。まだのときは「考えなおす」
+  $('rpClose').hidden = ok;
+  $('rpClose').textContent = TX('考えなおす', 'Think again');
 }
 // 「まだ」のわけを2枚の絵で: 住人がつまずいたページと、いちばん近い形の、出ていた（いなかった）ページ
 function showWhy(e, np) {
@@ -821,20 +823,23 @@ $('btnBind').addEventListener('click', () => { if (playing()) { if (st.solved) r
 $('rpClose').addEventListener('click', closeReplay);
 $('rpPlay').addEventListener('click', togglePlay);
 $('rpSeek').addEventListener('input', (e) => { rp.t = +e.target.value; });
-$('rpSpeed').addEventListener('change', (e) => { rp.speed = +e.target.value; });
+// パネルの外をタッチしても閉じる（判が出たあと）
+$('replay').addEventListener('click', (e) => { if (e.target === $('replay') && rp.judged) closeReplay(); });
 function drawReplay() {
-  const t = rp.t, lab = t.toFixed(1) + TX('秒', 's');
+  // 判定画面には秒数を出さない（ユーザー）
+  const t = rp.t, lab = '';
   drawSheet(rp.gA, L, t, frameAt(st.base.frames, t), [], { paper: true, label: lab, misprintAfter: misprintOf(st.base) });
   drawSheet(rp.gB, L, t, frameAt(st.hist.frames, t), sectionsAt(blockPieces(), t), { paper: true, label: lab, goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null, misprintAfter: misprintOf(st.hist) });
   $('rpSeek').value = t;
-  $('rpTime').textContent = t.toFixed(1) + TX(' 秒', ' s');
 }
 
 // ---- 毎フレーム ----
-let last = performance.now(), lastFocus = 0, stepAcc = 0, landed = false, idleT = 0;
-const flip = { t: null, lastT: 0, walk: 0, pass: 0 };
+let onPieceId = 0, last = performance.now(), lastFocus = 0, stepAcc = 0, landed = false, idleT = 0;
+const flip = { t: null };
 // 主人公の姿ごとの足音
-const STEP_KIND = { poly: 'chime', star: 'chime', cloud: 'puff', wind: 'puff', agate: 'stone', hourglass: 'wood', crane: 'paper', curator: 'wood', jelly: 'puff', top: 'wood', balloon: 'paper' };
+const STEP_KIND = { poly: 'chime', star: 'chime', hourglass: 'wood', crane: 'paper', balloon: 'paper' };
+// 置いた形の上を歩く音（形の材質ごと）
+const PIECE_STEP = { beam: 'board', plank: 'board', short: 'board', lift: 'brass', wall: 'stone', slide: 'glass', diamond: 'glass' };
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
@@ -873,7 +878,11 @@ function loop(now) {
   // 主人公の足音（地面を本当に歩いた距離ごと。壁に押しつけているだけなら鳴らない）と着地
   if (act && h.grounded) {
     stepAcc += Math.hypot(h.x - bx, h.t - before);
-    if (stepAcc > (running ? 1.3 : 1.0)) { stepAcc = 0; se.step(STEP_KIND[cfg.hero] || 'wood'); }
+    // 置いた形の上なら、その形の音。形に乗った・形から下りたときも、すぐ1歩鳴らす
+    const on = pieceUnder(st.pieces, h.x, h.t, h.y);
+    const kindNow = on ? PIECE_STEP[on.kind] || 'board' : STEP_KIND[cfg.hero] || 'wood';
+    if ((on ? on.id : 0) !== onPieceId) { onPieceId = on ? on.id : 0; if (on) { stepAcc = 0; se.step(kindNow); } }
+    if (stepAcc > (running ? 1.3 : 1.0)) { stepAcc = 0; se.step(kindNow); }
   }
   if (h.landT > 0.2 && !landed) { landed = true; se.land(); }
   if (!h.landT) landed = false;
@@ -881,25 +890,23 @@ function loop(now) {
   const focus = Math.max(0, Math.min(L.T, Math.round(h.t)));
   if (focus !== lastFocus && act) { se.page(); lastFocus = focus; }
 
-  // 立ち止まって1秒たつと、まわりのページ（−3〜＋3秒）を順にめくって見せる。住人の音は、はじめのひとめぐりだけ鳴らす（v032: ずっと足音が続いていた）
+  // 立ち止まって1秒たつと、まわりのページ（−3〜＋3秒）を順にめくって見せる。音は鳴らさない（v034: 裏で住人の足音・落ちる音が鳴って、バグに聞こえた）
   if (act && Math.hypot(mx, mt) < 0.05 && !st.carry) idleT += dt; else { idleT = 0; flip.t = null; }
   if (idleT > 1) {
-    if (flip.t === null) { flip.t = Math.max(0, focus - 3); flip.lastT = flip.t; flip.walk = 0; flip.pass = 0; }
+    if (flip.t === null) { flip.t = Math.max(0, focus - 3); }
     flip.t += dt * 4;
-    if (flip.t > Math.min(L.T, focus + 3)) { flip.t = Math.max(0, focus - 3); flip.lastT = flip.t; flip.pass++; }
-    if (flip.t <= st.revealT && flip.pass === 0) replaySounds(st.hist, flip, flip.t);
+    if (flip.t > Math.min(L.T, focus + 3)) flip.t = Math.max(0, focus - 3);
   }
   const cand = act ? candidate() : null;
   const why = cand ? canPlace(L, cand, st.pieces) : '';
   stage.update(dt, {
     hero: h, walking: Math.hypot(mx, mt) > 0.05, moveX: mx, moveT: mt,
     cand, candOk: !why, revealT: st.revealT, focus, sockets: [],
-    running: running && Math.hypot(mx, mt) > 0.05, showRoute: cfg.showRoute, grab: act ? hovered() : null,
-    groundY: groundAt(L, st.pieces, h.x, h.t, h.y), walkTo: walk.to, heroSlice: !!cfg.heroSlice, flip: flip.t === null ? null : Math.round(flip.t),
+    running: running && Math.hypot(mx, mt) > 0.05, showRoute: false, grab: act ? hovered() : null,
+    groundY: groundAt(L, st.pieces, h.x, h.t, h.y), walkTo: walk.to, heroSlice: false, flip: flip.t === null ? null : Math.round(flip.t),
   });
 
   if (screen === 'game') {
-    $('clockNum').textContent = focus;
     drawTimeline();
     renderCoach();
     renderPrompt(why);
@@ -912,7 +919,7 @@ function loop(now) {
       $('tRot').hidden = !st.carry;
       $('tCancel').hidden = !st.carry;
     }
-    const bindHtml = st.solved ? TX('結果を<br>見る', 'See<br>result') + ' <kbd>Enter</kbd>' : TX('回答<br>する', 'Answer') + ' <kbd>Enter</kbd>';
+    const bindHtml = st.solved ? TX('結果を<br>見る', 'See<br>result') : TX('回答<br>する', 'Answer');
     if ($('btnBind').innerHTML !== bindHtml) $('btnBind').innerHTML = bindHtml;
     // 形を置いて歴史が変わったのに、まだ回答していないあいだは、ボタンが脈打つ
     $('btnBind').classList.toggle('ready', !st.solved && st.dirty && blockPieces().length > 0);

@@ -1,7 +1,7 @@
 // 主人公（3Dの学芸員）の歩き方。1マスまでの段は自動でのぼる（キーウィと同じ）。時空の大地（ページの上のふちが奥行きに並んだ地形）の上を歩く。
 // 座標: x＝2D世界の横（マス）、t＝時間（秒。3Dの奥行き）、y＝高さ（マス）。
 // 主人公の体はページの間隔（1秒）より薄いので、ページのあいだを歩くかぎり2D世界とは交わらない（REDESIGN 3-1）
-import { pieceDims, sectionRects } from './sim.js?v=48';
+import { pieceDims, sectionRects } from './sim.js?v=49';
 
 export const HERO = { speed: 5.2, run: 1.9, jumpV: 10.5, g: 25, step: 1.05, mantle: 1.9, coyote: 0.12, buffer: 0.14 };
 
@@ -22,6 +22,13 @@ export function groundAt(L, pieces, x, t, yRef = Infinity) {
     g = Math.max(g, bottom + d.h);
   }
   return g;
+}
+// 足もとの面が置いた形なら、その形（地面なら null）。足音を形の材質で鳴らす
+export function pieceUnder(pieces, x, t, y) {
+  for (const p of pieces) {
+    if (Math.abs(groundAt({ tops: [], W: 0, T: -9 }, [p], x, t, y) - y) < 0.08) return p;
+  }
+  return null;
 }
 // 足の大きさぶん、何点かで見る
 function footGround(L, pieces, x, t, yRef) {

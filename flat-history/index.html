@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>一秒図鑑 ― ぺらぺら世界の歴史係</title>
+<title>ぺらぺら世界の歴史係</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='10' fill='%23f2e6cb'/><rect x='4' y='4' width='56' height='56' rx='6' fill='none' stroke='%234a3320' stroke-width='2'/><g fill='%23f8efd8' stroke='%234a3320' stroke-width='2.4'><path d='M12 46V24l10-8v22z'/><path d='M22 48V26l10-8v22z'/><path d='M32 50V28l10-8v22z'/></g><path d='M10 52L54 16' stroke='%23a8742a' stroke-width='4' stroke-linecap='round'/></svg>">
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
-<script>/* 言語 ja／en（まなびラボの I18N.md・edge-falls と同じ決め方。localStorage の manabi-lang はまなびラボ・あそびラボで共通）: ?lang= → 前に選んだもの → ブラウザの言語。js の中の文は TX(日本語, 英語) */var LANG=(function(){var q=new URLSearchParams(location.search).get('lang'),s=null;try{s=localStorage.getItem('manabi-lang');}catch(e){}var l=q==='en'||q==='ja'?q:s==='en'||s==='ja'?s:/^ja\b/i.test(navigator.language||'ja')?'ja':'en';document.documentElement.lang=l;if(l==='en')document.title='One-Second Field Guide — Keeper of the Flat World';return l;})();function TX(ja,en){return LANG==='en'?en:ja;}function setLang(l){try{localStorage.setItem('manabi-lang',l);}catch(e){}var u=new URL(location.href);u.searchParams.set('lang',l);location.href=u.href;}</script>
-<meta name="description" content="1秒ずつの2D世界が奥と手前に並んでいる。3Dの形を置くと、2D世界にはその断面が現れて、歴史が書きかわる。">
+<script>/* 言語 ja／en（まなびラボの I18N.md・edge-falls と同じ決め方。localStorage の manabi-lang はまなびラボ・あそびラボで共通）: ?lang= → 前に選んだもの → ブラウザの言語。js の中の文は TX(日本語, 英語) */var LANG=(function(){var q=new URLSearchParams(location.search).get('lang'),s=null;try{s=localStorage.getItem('manabi-lang');}catch(e){}var l=q==='en'||q==='ja'?q:s==='en'||s==='ja'?s:/^ja\b/i.test(navigator.language||'ja')?'ja':'en';document.documentElement.lang=l;if(l==='en')document.title='Keeper of the Flat World';return l;})();function TX(ja,en){return LANG==='en'?en:ja;}function setLang(l){try{localStorage.setItem('manabi-lang',l);}catch(e){}var u=new URL(location.href);u.searchParams.set('lang',l);location.href=u.href;}</script>
+<meta name="description" content="1秒ずつのぺらぺらな世界が、ページのように並んでいる。形を置くと、その世界には断面だけが現れて、歴史が書きかわる。">
 <meta name="theme-color" content="#e2d2b0">
-<link rel="stylesheet" href="css/style.css?v=54">
+<link rel="stylesheet" href="css/style.css?v=59">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body class="menu">
@@ -20,18 +20,15 @@
   <div class="title-card">
     <div class="langsw" role="group" aria-label="言語 Language"><button type="button" data-lang="ja" aria-label="日本語">JP</button><button type="button" data-lang="en" aria-label="English">EN</button></div>
     <p class="t-kicker"><span lang="ja">Pl. — 2次元＋時間の博物誌</span><span lang="en">Pl. — A natural history of 2D + time</span></p>
-    <h1 class="t-name"><span lang="ja">一秒図鑑</span><span lang="en">One-Second Field Guide</span><small class="t-name-sub"><span lang="ja">ぺらぺら世界の歴史係</span><span lang="en">Keeper of the Flat World</span></small></h1>
-    <p class="t-sub"><span lang="ja">あなたは、この図鑑の<b>歴史係</b>。<br>1秒ずつの2D世界のページのあいだを歩いて、住人の歴史を書きかえよう。</span><span lang="en">You are the <b>history keeper</b> of this field guide.<br>Walk between the pages of a 2D world, one second each, and rewrite its residents’ history.</span></p>
+    <h1 class="t-name"><span lang="ja">ぺらぺら世界の歴史係</span><span lang="en">Keeper of the Flat World</span></h1>
     <div class="t-acts">
       <button type="button" id="tStart" class="act primary big"><span lang="ja">はじめから</span><span lang="en">New game</span></button>
       <button type="button" id="tCont" class="act big" hidden>つづきから</button>
       <button type="button" id="tSelect" class="act big"><span lang="ja">図版をえらぶ</span><span lang="en">Choose a plate</span></button>
+      <button type="button" id="tHelp" class="act big"><span lang="ja">あそびかた</span><span lang="en">How to play</span></button>
+      <button type="button" id="tSettings" class="act big"><span lang="ja">設定</span><span lang="en">Settings</span></button>
     </div>
-    <div class="t-row">
-      <button type="button" id="tHelp" class="act ghost"><span lang="ja">あそびかた</span><span lang="en">How to play</span></button>
-      <button type="button" id="tSettings" class="act ghost"><span lang="ja">設定</span><span lang="en">Settings</span></button>
-    </div>
-    <p class="t-foot"><span class="t-dev"><span lang="ja">キーボードとマウスで遊びます</span><span lang="en">Play with keyboard and mouse</span></span><span class="t-touch"><span lang="ja">指で遊べます（横向きがおすすめ）</span><span lang="en">Touch controls (landscape recommended)</span></span> ・ <span lang="ja">試作</span><span lang="en">Prototype</span> <span class="ver">v033</span> ・ <a href="../"><span lang="ja">あそびラボへ</span><span lang="en">To Asobi Lab</span></a></p>
+    <p class="t-foot"><span class="t-dev"><span lang="ja">キーボードとマウスで遊びます</span><span lang="en">Play with keyboard and mouse</span></span><span class="t-touch"><span lang="ja">指で遊べます（横向きがおすすめ）</span><span lang="en">Touch controls (landscape recommended)</span></span> ・ <span class="ver">v034</span> ・ <a href="../"><span lang="ja">あそびラボへ</span><span lang="en">To Asobi Lab</span></a></p>
   </div>
 </section>
 
@@ -48,13 +45,12 @@
   </div>
 </section>
 
-<header class="top hud">
-  <div class="lv"><span id="lvPlate" class="lv-plate">Pl. I</span><span id="lvName" class="lv-name"></span></div>
-  <button type="button" id="btnMenu" class="esc-hint"><kbd>Esc</kbd> <span lang="ja">メニュー</span><span lang="en">Menu</span></button>
+<header class="topbar hud">
+  <div class="lv-card"><span id="lvPlate" class="lv-plate">Pl. I</span><span id="lvName" class="lv-name"></span></div>
+  <button type="button" id="btnMenu" class="menu-btn" aria-label="メニュー Menu"><span class="burger" aria-hidden="true"></span><span lang="ja">メニュー</span><span lang="en">Menu</span></button>
 </header>
 
 <div class="edge-shade"></div>
-<div class="clock hud" aria-live="polite"><span id="clockNum">0</span><small><span lang="ja">秒目のページ</span><span lang="en">sec</span></small></div>
 <div id="coach" class="coach hud" aria-live="polite"></div>
 <div id="intro" class="intro" hidden></div>
 <div id="prompt" class="prompt hud" aria-live="polite"></div>
@@ -66,7 +62,7 @@
 <div class="bottom hud">
   <canvas id="timeline" height="40" aria-label="時間のしおり Timeline"></canvas>
 </div>
-<button type="button" id="btnBind" class="bind-btn hud" aria-label="回答する Answer (Enter)">回答する <kbd>Enter</kbd></button>
+<button type="button" id="btnBind" class="bind-btn hud" aria-label="回答する Answer">回答する</button>
 
 <!-- スマホ: スティックとボタン -->
 <div id="touch" class="touch-ui hud">
@@ -94,7 +90,7 @@
       <button type="button" id="pvPlay" class="act" aria-label="再生・一時停止 Play/Pause">❚❚</button>
       <input id="pvSeek" type="range" min="0" max="60" step="0.05" value="0" aria-label="シーク Seek">
     </div>
-    <div class="win-acts"><button type="button" id="pvStart" class="act primary big"><span lang="ja">この図版をはじめる</span><span lang="en">Start this plate</span> <kbd>Enter</kbd></button></div>
+    <div class="win-acts"><button type="button" id="pvStart" class="act primary big"><span lang="ja">はじめる</span><span lang="en">Start</span></button></div>
   </div>
 </div>
 
@@ -111,9 +107,7 @@
       <label for="sMove" class="touch-only"><span lang="ja">指での動かし方</span><span lang="en">Touch controls</span></label><select id="sMove" class="touch-only"><option value="tap">タップで歩く（かんたん） / Tap to walk (easy)</option><option value="stick">スティック / Stick</option></select>
     </div>
     <div class="set-checks">
-      <label><input id="sRoute" type="checkbox"> <span lang="ja">住人の通り道を見せる</span><span lang="en">Show the resident’s path</span></label>
       <label><input id="sRun" type="checkbox"> <span lang="ja">ふだんは走る（Shift を押すと歩く）</span><span lang="en">Run by default (hold Shift to walk)</span></label>
-      <label><input id="sSlice" type="checkbox"> <span lang="ja">あなたの透かし（断面）をページに出す</span><span lang="en">Show your watermark (cross-section) on the pages</span></label>
       <label><input id="sInvX" type="checkbox"> <span lang="ja">カメラを回す向きを左右さかさに</span><span lang="en">Invert camera left/right</span></label>
       <label><input id="sInvY" type="checkbox"> <span lang="ja">カメラを回す向きを上下さかさに</span><span lang="en">Invert camera up/down</span></label>
       <label><input id="sInset" type="checkbox"> <span lang="ja">いま立っているページの小窓を出す（V）</span><span lang="en">Show the current page window (V)</span></label>
@@ -131,7 +125,6 @@
       <button type="button" id="mRetry" class="act"><span lang="ja">この図版をはじめから</span><span lang="en">Restart this plate</span></button>
       <button type="button" id="mSelect" class="act"><span lang="ja">図版をえらぶ</span><span lang="en">Choose a plate</span></button>
     </div>
-    <p class="menu-note"><span lang="ja">この図版をはじめからにする・図版をえらぶ・タイトルへもどると、この図版で置いた形は、パレットへもどります。</span><span lang="en">If you restart, choose a plate, or go back to the title, the shapes you placed on this plate go back to the palette.</span></p>
     <div class="menu-sub">
       <button type="button" id="mHelp" class="act ghost"><span lang="ja">あそびかた</span><span lang="en">How to play</span></button>
       <button type="button" id="mSettings" class="act ghost"><span lang="ja">設定</span><span lang="en">Settings</span></button>
@@ -148,8 +141,6 @@
     <div class="rp-ctrl">
       <button type="button" id="rpPlay" class="act" aria-label="再生・一時停止 Play/Pause">❚❚</button>
       <input id="rpSeek" type="range" min="0" max="60" step="0.05" value="0" aria-label="シーク Seek">
-      <span id="rpTime" class="rp-time">0.0</span>
-      <select id="rpSpeed" aria-label="速さ Speed"><option value="1">×1</option><option value="2" selected>×2</option><option value="4">×4</option></select>
     </div>
     <div class="rp-foot">
       <div id="rpResult" class="rp-result" hidden></div>
@@ -158,8 +149,8 @@
         <figure><canvas id="rpWhyB" width="720" height="280"></canvas><figcaption id="rpWhyCapB"></figcaption></figure>
       </div>
       <div class="win-acts">
-        <button type="button" id="rpNext" class="act primary">次の図版へ <kbd>Enter</kbd></button>
-        <button type="button" id="rpClose" class="act">この図版にもどる <kbd>Esc</kbd></button>
+        <button type="button" id="rpNext" class="act primary">次の図版へ</button>
+        <button type="button" id="rpClose" class="act">考えなおす</button>
       </div>
     </div>
   </div>
@@ -176,27 +167,25 @@
 <div id="help" class="modal" hidden>
   <div class="modal-card help-card">
     <h2><span lang="ja">あそびかた</span><span lang="en">How to play</span></h2>
-    <p lang="ja">あなたは、この図鑑の<b>歴史係</b>。図版の一枚一枚は、<b>1秒ずつの2D世界</b>。前へ進むと未来、うしろへ進むと昔。<br>あなたは2D世界のページのあいだを歩けるけれど、住人にはさわれない。かわりに<b>3Dの形</b>を置ける。<br>住人がゴールにたどり着く歴史を作ろう。</p>
-    <p lang="en">You are the <b>history keeper</b> of this field guide. Each plate is a <b>2D world, one second per page</b>. Walk forward into the future, back into the past.<br>You can walk between the pages, but you cannot touch the residents. Instead, you can place <b>3D shapes</b>.<br>Make a history where the resident reaches its goal.</p>
-    <p class="help-touch" lang="ja"><b>指で遊ぶとき</b>: 行きたい所をタップすると歩く（崖のふちでは止まる。段は自分で跳ぶ）。左のパレットで形をえらび、置きたい所をタップ（点線の形をもう一度タップするか「置く」で置く）。置いた形をタップすると持ち上げる。1本指のドラッグで見回し、2本指で寄る・引く。スティックで動かしたいときは設定から。</p>
-    <p class="help-touch" lang="en"><b>With touch</b>: tap where you want to go and you walk there (you stop at cliff edges and hop up steps). Pick a shape from the palette on the left and tap where you want it (tap the outline again, or press “Place”). Tap a placed shape to pick it up. Drag with one finger to look around, pinch to zoom. You can switch to a stick in Settings.</p>
+    <p class="help-lead" lang="ja">ページの一枚一枚が、1秒の世界。<br>前へ歩けば未来、うしろへ歩けば昔。<br>住人にはさわれない。置けるのは、形だけ。<br>住人を、巣へ。</p>
+    <p class="help-lead" lang="en">Each page is one second of a world.<br>Walk forward into the future, back into the past.<br>You can’t touch the residents. You can only place shapes.<br>Get the resident home.</p>
+    <p class="help-touch" lang="ja"><b>指で</b>: タップした所へ歩く。パレットの形をえらんで置きたい所をタップ、もう一度タップで置く。置いた形はタップで持ち上げる。ドラッグで見回す。</p>
+    <p class="help-touch" lang="en"><b>Touch</b>: tap to walk. Pick a shape, tap where it goes, tap again to place. Tap a placed shape to pick it up. Drag to look around.</p>
     <table class="keys">
-      <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td><span lang="ja">進む（見ている向きが前。<kbd>Shift</kbd> で歩く・走るを切りかえ）。1段の段差は自動でのぼる</span><span lang="en">Move (forward is where the camera looks; <kbd>Shift</kbd> switches walk/run). You climb one-step ledges by yourself</span></td></tr>
-      <tr><td><kbd>Space</kbd></td><td><span lang="ja">跳ぶ（壁のふちに手がとどけば、よじ登る）</span><span lang="en">Jump (grab the top of a wall to climb up)</span></td></tr>
-      <tr><td><span lang="ja">パレット</span><span lang="en">Palette</span> ／ <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></td><td><span lang="ja">置く形をえらぶ（左のパレット。もう一度えらぶか <kbd>Esc</kbd> でやめる）</span><span lang="en">Choose a shape to place (palette on the left; choose it again or press <kbd>Esc</kbd> to cancel)</span></td></tr>
-      <tr><td><span lang="ja">クリック</span><span lang="en">Click</span></td><td><span lang="ja">えらんだ形を、マウスで指した所に置く（点線のゴーストは、くぼみや崖など、はまりのよい所に吸いつく。<kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> で1マスずつ）。置いた形をクリックすると、持ち上げて置きなおせる</span><span lang="en">Place the chosen shape where you point (the ghost outline snaps to good spots such as hollows and chasms; <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> move it one cell). Click a placed shape to pick it up again</span></td></tr>
-      <tr><td><kbd>Q</kbd> ／ <span lang="ja">右クリック</span><span lang="en">right-click</span></td><td><span lang="ja">えらんだ形を回す</span><span lang="en">Rotate the chosen shape</span></td></tr>
+      <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td><span lang="ja">歩く（<kbd>Shift</kbd> で走る・歩くを切りかえ）</span><span lang="en">Walk (<kbd>Shift</kbd> switches run/walk)</span></td></tr>
+      <tr><td><kbd>Space</kbd></td><td><span lang="ja">跳ぶ</span><span lang="en">Jump</span></td></tr>
+      <tr><td><span lang="ja">パレット</span><span lang="en">Palette</span> ／ <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></td><td><span lang="ja">形をえらぶ</span><span lang="en">Choose a shape</span></td></tr>
+      <tr><td><span lang="ja">クリック</span><span lang="en">Click</span></td><td><span lang="ja">置く ／ 置いた形を持ち上げる</span><span lang="en">Place / pick up a placed shape</span></td></tr>
+      <tr><td><kbd>Q</kbd> ／ <span lang="ja">右クリック</span><span lang="en">Right-click</span></td><td><span lang="ja">回す</span><span lang="en">Rotate</span></td></tr>
+      <tr><td><span lang="ja">ドラッグ ／ ホイール</span><span lang="en">Drag / wheel</span></td><td><span lang="ja">見回す ／ 寄る・引く</span><span lang="en">Look around / zoom</span></td></tr>
+      <tr><td><kbd>Enter</kbd></td><td><span lang="ja">回答する</span><span lang="en">Answer</span></td></tr>
+      <tr><td><kbd>Esc</kbd></td><td><span lang="ja">やめる ／ メニュー</span><span lang="en">Cancel / menu</span></td></tr>
       <tr><td><kbd>V</kbd></td><td><span lang="ja">いまのページの小窓</span><span lang="en">Current page window</span></td></tr>
-      <tr><td><span lang="ja">マウスのドラッグ</span><span lang="en">Mouse drag</span></td><td><span lang="ja">見回す（ホイールで寄る・引く）</span><span lang="en">Look around (wheel to zoom)</span></td></tr>
-      <tr><td><kbd>Enter</kbd></td><td><span lang="ja">回答する（これでいい、と思ったら。いつでも）</span><span lang="en">Answer (whenever you think it works)</span></td></tr>
-      <tr><td><kbd>Esc</kbd></td><td><span lang="ja">メニュー</span><span lang="en">Menu</span></td></tr>
     </table>
-    <p class="help-lore" lang="ja"><b>歴史係（あなた）は、なぜ図版に刷られない？</b> あなたの体は紙の外のもの。ページを通りぬけるとき、紙には<b>透かし</b>が入るだけで、インクはのらない。だから住人からは見えても、さわれないし、歴史にも残らない。残せるのは、あなたが置いた形の断面だけ。</p>
-    <p class="help-lore" lang="en"><b>Why isn’t the history keeper (you) printed on the plates?</b> Your body is outside the paper. When you pass through a page, it only leaves a <b>watermark</b> — no ink. So the residents can see you, but cannot touch you, and you leave no trace in history. All you can leave are the cross-sections of the shapes you place.</p>
     <div class="win-acts"><button type="button" id="helpClose" class="act primary"><span lang="ja">とじる</span><span lang="en">Close</span></button></div>
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=50"></script>
+<script type="module" src="js/main.js?v=52"></script>
 </body>
 </html>

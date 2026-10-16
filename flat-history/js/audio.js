@@ -162,7 +162,7 @@ function flute(t, m, dur, vel) {
 // ---- BGM ----
 const CH = {
   Am: [57, 60, 64], Dm: [50, 53, 57], G: [55, 59, 62], C: [48, 52, 55], F: [53, 57, 60], E: [52, 56, 59], Em: [52, 55, 59],
-  Bb: [46, 50, 53], Gm: [55, 58, 62], A: [57, 61, 64],
+  Bb: [46, 50, 53], Gm: [55, 58, 62], A: [57, 61, 64], D: [50, 54, 57],
 };
 // 旋律を鳴らす（null はひとつ前の音をのばす）
 function melody(t, mel, step, play) {
@@ -244,6 +244,37 @@ const TRACKS = [
         const u = r - Math.floor(r);
         bell(t + (i * 2 + u * 1.5) * B, penta[Math.floor(u * penta.length)], 0.07, 3, bgmBus);
       }
+    },
+  },
+  // v034: おさんぽの曲を2つ（明るめで、少しおとなしめ。ユーザー）
+  {
+    id: 'meadow', name: TX('野原のおさんぽ道', 'A Walk Through the Meadow'), beat: 60 / 92, beats: 2, key: [67, 'major'],
+    bars: [
+      ['G', [71, 74, 79, 74]], ['D', [78, 76, 74, null]], ['Em', [76, 79, 83, 79]], ['C', [76, 74, 72, null]],
+      ['G', [71, 72, 74, 79]], ['C', [76, 74, 72, 76]], ['D', [74, null, 72, 69]], ['G', [67, null, null, null]],
+      ['C', [72, 76, 79, 76]], ['G', [74, 71, 67, 71]], ['Am', [72, 74, 76, 72]], ['D', [74, null, 78, 81]],
+      ['G', [79, 76, 74, 71]], ['Em', [71, 74, 76, null]], ['D', [74, 72, 69, 66]], ['G', [67, null, null, null]],
+    ],
+    play(t, [name, mel], B) {
+      const c = CH[name];
+      pluck(t, c[0] - 12, 0.32); pluck(t + B, c[2] - 12, 0.24);
+      pad(t, [c[0], c[1], c[2]], B * 2, 0.14);
+      melody(t, mel, B / 2, (tt, m) => bell(tt, m, 0.07, 1.4, bgmBus));
+    },
+  },
+  {
+    id: 'path', name: TX('午後の小径', 'An Afternoon Path'), beat: 60 / 84, beats: 3, key: [65, 'major'],
+    bars: [
+      ['F', [72, 74, 76]], ['C', [77, null, 72]], ['Dm', [74, 77, 81]], ['Bb', [79, null, 77]],
+      ['F', [76, 77, 79]], ['Gm', [81, 79, 77]], ['C', [76, 74, 72]], ['F', [77, null, null]],
+      ['Bb', [74, 77, 79]], ['F', [81, null, 77]], ['Gm', [79, 77, 74]], ['C', [72, null, 76]],
+      ['Dm', [77, 76, 74]], ['Bb', [74, 77, 74]], ['C', [72, 74, 76]], ['F', [77, null, null]],
+    ],
+    play(t, [name, mel], B) {
+      const c = CH[name];
+      pluck(t, c[0] - 12, 0.3, 0.5);
+      for (const k of [1, 2]) [c[0], c[1], c[2]].forEach((m) => harpsichord(t + k * B, m + 12, B * 0.6, 0.07));
+      melody(t, mel, B, (tt, m, d) => flute(tt, m, d * 0.9, 0.15));
     },
   },
 ];
@@ -347,15 +378,13 @@ export const se = {
   kiwiStep(res) {
     if (!ctx) return;
     const t = ctx.currentTime;
-    if (res === 'flat') tone(t, 'triangle', 1500 + Math.random() * 200, 1300, 0.04, 0.035); // 図形のすり足
-    else { noise(t, 0.035, 'bandpass', 900 + Math.random() * 300, 3, 0.07); } // 草をふむ小さな足音
+    noise(t, 0.035, 'bandpass', 900 + Math.random() * 300, 3, 0.07); // 草をふむ小さな足音
   },
   kiwiTurn(res) {
     if (!ctx) return;
     const t = ctx.currentTime;
-    if (res === 'flat') { tone(t, 'square', 700, 900, 0.06, 0.03); tone(t + 0.07, 'square', 900, 700, 0.06, 0.03); }
-    else if (res === 'penguin') { tone(t, 'sawtooth', 520, 680, 0.09, 0.04); tone(t + 0.1, 'sawtooth', 600, 480, 0.1, 0.035); } // ペンギンのガーガー声
-    else if (res === 'pillbug' || res === 'snail') { tone(t, 'sine', 1200, 1000, 0.04, 0.03); } // 虫や貝は鳴かない（小さな向きかえの音だけ）
+    if (res === 'penguin') { tone(t, 'sawtooth', 520, 680, 0.09, 0.04); tone(t + 0.1, 'sawtooth', 600, 480, 0.1, 0.035); } // ペンギンのガーガー声
+    else if (res === 'snail') { tone(t, 'sine', 1200, 1000, 0.04, 0.03); } // 貝は鳴かない（小さな向きかえの音だけ）
     else { tone(t, 'sine', 1900, 2600, 0.07, 0.08); tone(t + 0.09, 'sine', 2300, 1800, 0.08, 0.06); } // キーウィの短い鳴き声
   },
   kiwiFall() {
@@ -376,6 +405,9 @@ export const se = {
     if (kind === 'chime') bell(t, 88 + Math.floor(Math.random() * 3) * 2, v * 0.6, 0.5);
     else if (kind === 'puff') noise(t, 0.12, 'lowpass', 600, 0.7, v * 1.4);
     else if (kind === 'paper') noise(t, 0.05, 'highpass', 2600, 0.8, v);
+    else if (kind === 'board') { tone(t, 'triangle', 310, 220, 0.07, v * 1.4); noise(t, 0.04, 'bandpass', 1400, 1.5, v); } // 置いた板（中が空いた、こつんという音）
+    else if (kind === 'brass') { tone(t, 'sine', 620 + Math.random() * 40, 560, 0.18, v * 0.9); tone(t, 'sine', 1490, 1450, 0.12, v * 0.35); } // 真鍮（金属のひびき）
+    else if (kind === 'glass') bell(t, 96 + Math.floor(Math.random() * 3), v * 0.5, 0.35); // ガラスのような板（ちりんと高い）
     else if (kind === 'stone') { tone(t, 'sine', 180, 120, 0.08, v * 2); noise(t, 0.03, 'bandpass', 1200, 2, v); }
     else { tone(t, 'sine', 240, 160, 0.06, v * 1.6); noise(t, 0.03, 'bandpass', 1800, 2, v * 0.8); } // 木の床
   },
