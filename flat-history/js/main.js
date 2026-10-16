@@ -3,9 +3,9 @@
 import { LEVELS } from './level.js?v=55';
 import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=55';
 import { drawSheet } from './sheet.js?v=55';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=55';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=56';
 import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=55';
-import { makeHero, stepHero, groundAt } from './hero.js?v=55';
+import { makeHero, stepHero, groundAt } from './hero.js?v=56';
 import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=56';
 
 const $ = (id) => document.getElementById(id);

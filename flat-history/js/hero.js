@@ -5,7 +5,7 @@ import { pieceDims, sectionRects } from './sim.js?v=55';
 
 // v038: 主人公は浮かんでいる。跳ぶ・よじ登る・落ちるはやめた。足もとの高さへ、ばねのようにふわりと寄る（少しゆれて、ぴたりとは張りつかない）
 // 奈落の上では、さっきの高さのまま浮かんでいる（落ちない）
-export const HERO = { speed: 5.2, run: 1.9, k: 34, c: 9.5, sink: 0.9, look: 0.4, accel: 7, decel: 3.2 };
+export const HERO = { speed: 5.2, run: 1.9, k: 34, c: 9.5, sink: 0.9, look: 0.4, accel: 7, settle: 3 };
 
 // (x, t) の足もとの高さ。yRef より 1 以上うえにある形の底は、床にしない（頭の上の形）
 export function groundAt(L, pieces, x, t, yRef = Infinity) {
@@ -44,14 +44,16 @@ export function stepHero(h, L, pieces, mx, mt, dt, running = false) {
   if (len > 1) { mx /= len; mt /= len; }
   if (len > 0.05) { h.fx = mx; h.ft = mt; }
   // 横と奥行き: 段や壁でとまらない（浮かんでこえる）。左右の見えない壁と、時間のはしでとまる
-  // 速さは、なめらかに上がって、止まるときはゆっくり流れて止まる（v039: 一瞬で止まらない）
+  // 速さは、なめらかに上がる。はなしたら、その場で止まる（v041: 体の動きだけを、ゆっくり待機へもどす）
   const sp = HERO.speed * (running ? HERO.run : 1);
-  const rate = Math.min(1, dt * (len > 0.05 ? HERO.accel : HERO.decel));
-  h.vx += (mx * sp - h.vx) * rate; h.vt += (mt * sp - h.vt) * rate;
+  if (len > 0.05) { const rate = Math.min(1, dt * HERO.accel); h.vx += (mx * sp - h.vx) * rate; h.vt += (mt * sp - h.vt) * rate; }
+  else { h.vx = 0; h.vt = 0; }
   const nx = h.x + h.vx * dt, nt = h.t + h.vt * dt;
   h.x = Math.max(0.3, Math.min(L.W - 0.3, nx)); if (h.x !== nx) h.vx = 0;
   h.t = Math.max(-0.5, Math.min(L.T + 0.5, nt)); if (h.t !== nt) h.vt = 0;
-  h.speed = Math.hypot(h.vx, h.vt) / HERO.speed; // 見た目の動き（ゆれ・前のめり）に使う
+  // 見た目の動き（ゆれ・前のめり・回り）に使う速さ。止まったあとも、少しずつ落ちていく
+  const real = Math.hypot(h.vx, h.vt) / HERO.speed;
+  h.speed = real >= (h.speed || 0) ? real : h.speed + (real - h.speed) * Math.min(1, dt * HERO.settle);
   // 高さ: 足もと（足の大きさぶん）の面へ、ばねで寄る。奈落なら、さっきの高さのまま
   const g = footGround(L, pieces, h.x, h.t, Infinity);
   if (Number.isFinite(g)) h.floor = g;

@@ -5,7 +5,7 @@ import { look, kindColor } from './look/index.js?v=55';
 import { radialTexture } from './look/util.js?v=55';
 import { S, drawSheet } from './sheet.js?v=55';
 import { sectionsAt, DT, pieceDims } from './sim.js?v=55';
-import { groundAt } from './hero.js?v=55';
+import { groundAt } from './hero.js?v=56';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -523,6 +523,7 @@ export function createStage(canvas, L) {
 
   // ---- 綴じる: ページの束が閉じて、一枚になる ----
   let book = 0, bookTo = 0, bookAt = 0, bookDone = null;
+  let runVis = false;
   function closeBook(atT, done) { bookTo = 1; bookAt = atT; bookDone = done; }
   function openBook() { bookTo = 0; bookDone = null; }
 
@@ -625,7 +626,9 @@ export function createStage(canvas, L) {
     let d = want - ud.body.rotation.y; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
     ud.body.rotation.y += d * Math.min(1, dt * 12);
     const tm = now;
-    if (ud.animate) ud.animate(dt, { speed: h.speed != null ? h.speed : Math.hypot(moveX, moveT), run: !!v.running, grounded: h.grounded, vy: h.vy, carry: false, landT: h.landT || 0, t: h.t });
+    // 走りの見た目は、止まったあと体の動きが落ちつくまで残す（急に姿勢が変わらない）
+    runVis = !!v.running || (runVis && (h.speed || 0) > 0.4);
+    if (ud.animate) ud.animate(dt, { speed: h.speed != null ? h.speed : Math.hypot(moveX, moveT), run: runVis, grounded: h.grounded, vy: h.vy, carry: false, landT: h.landT || 0, t: h.t });
     // あなたの断面（透かし）をページに描くか（設定。ふだんは描かない）
     if (v.heroSlice) heroOverlay(h.x, visY, h.t);
     else if (heroPages.size) { for (const [t] of heroPages) if (hist) drawOne(sheets[t]); heroPages = new Map(); }
