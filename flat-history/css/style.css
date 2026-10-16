@@ -708,3 +708,6 @@ body.touch .inset { left: 12px; right: auto; top: 120px; }
 .help-card { text-align: center; }
 .help-card .keys { margin: 8px auto 12px; text-align: left; }
 .help-card .help-touch { text-align: left; max-width: 34em; margin-left: auto; margin-right: auto; }
+
+/* v047: 回答するボタンは、名前・導きの下（いちばん下）。押せるようにする */
+.headgroup .bind-btn { pointer-events: auto; }
