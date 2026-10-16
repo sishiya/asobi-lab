@@ -89,13 +89,15 @@ const left = (kind) => (L.stock[kind] || 0) - st.pieces.filter((p) => p.kind ===
 function renderPalette() {
   const box = $('palList');
   box.innerHTML = '';
-  Object.keys(L.stock).forEach((kind, i) => {
+  Object.keys(L.stock).forEach((kind) => {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'kind'; b.dataset.kind = kind;
     const cv = document.createElement('canvas'); cv.width = 132; cv.height = 96;
     drawPieceIcon(cv, kind);
     b.append(cv);
-    b.insertAdjacentHTML('beforeend', `<span class="nm">${kindName(kind)}</span><span class="ct"></span><kbd class="pk">${i + 1}</kbd>`);
+    b.title = kindName(kind);
+    b.setAttribute('aria-label', kindName(kind));
+    b.insertAdjacentHTML('beforeend', '<span class="ct"></span>');
     b.addEventListener('click', () => { initAudio(); startBgm(); if (playing()) choose(kind); });
     box.appendChild(b);
   });
@@ -108,7 +110,7 @@ function updatePalette() {
   palKey = k;
   for (const b of $('palList').children) {
     const n = left(b.dataset.kind), sel = !!st.carry && st.carry.kind === b.dataset.kind;
-    b.querySelector('.ct').textContent = '×' + n;
+    b.querySelector('.ct').textContent = n;
     b.classList.toggle('sel', sel);
     b.classList.toggle('empty', n <= 0 && !sel);
   }
@@ -485,7 +487,6 @@ window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
   if (k === 'v' || k === 'V') { cfg.inset = !cfg.inset; saveCfg(); applyInset(); }
   if (k === ' ') jumpQueued = true;
-  if (k === 'e' || k === 'E') useE();
   if (k === 'q' || k === 'Q') rotate();
   if (/^[1-9]$/.test(k)) { const kind = Object.keys(L.stock)[+k - 1]; if (kind) choose(kind); }
   if (k === 'Enter' && enterOk()) { if (st.solved) reopenResult(); else bind(); }
@@ -678,11 +679,9 @@ const hovered = () => (st.hoverPiece !== null && !st.carry ? st.pieces.find((p) 
 // そのとき使えるキー
 function renderPrompt(why) {
   let html = '';
-  const g = grabbable();
   if (performance.now() < flashUntil) html = flashMsg;
   else if (st.carry) html = `<span>${TX('クリックした所に置く', 'Click to place')}</span><button type="button" class="pbtn" data-act="rot"><kbd>Q</kbd> ${TX('回す（右クリック）', 'Rotate (right-click)')}</button><button type="button" class="pbtn" data-act="cancel"><kbd>Esc</kbd> ${TX('やめる', 'Cancel')}</button>` + (why ? `<span class="bad">${why}</span>` : '');
   else if (hovered()) html = TX(`クリックで${kindName(hovered().kind)}を持ち上げる`, `Click to pick up the ${kindName(hovered().kind)}`);
-  else if (g) html = `<button type="button" class="pbtn" data-act="grab"><kbd>E</kbd> ${TX(`${kindName(g.kind)}をつかむ`, `Grab the ${kindName(g.kind)}`)}</button>`;
   else if (st.walked < 2 && st.lv === 0) html = `<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ${cfg.runDefault ? TX('走る', 'Run') : TX('歩く', 'Walk')}　<kbd>Shift</kbd> ${cfg.runDefault ? TX('歩く', 'Walk') : TX('走る', 'Run')}　<kbd>Space</kbd> ${TX('跳ぶ', 'Jump')}　${TX('ドラッグ 見回す', 'Drag: look around')}`;
   if (isTouch) html = performance.now() < flashUntil ? flashMsg : (st.carry && why ? `<span class="bad">${why}</span>` : '');
   const el = $('prompt');
@@ -833,7 +832,7 @@ function drawReplay() {
 
 // ---- 毎フレーム ----
 let last = performance.now(), lastFocus = 0, stepAcc = 0, landed = false, idleT = 0;
-const flip = { t: null, lastT: 0, walk: 0 };
+const flip = { t: null, lastT: 0, walk: 0, pass: 0 };
 // 主人公の姿ごとの足音
 const STEP_KIND = { poly: 'chime', star: 'chime', cloud: 'puff', wind: 'puff', agate: 'stone', hourglass: 'wood', crane: 'paper', curator: 'wood', jelly: 'puff', top: 'wood', balloon: 'paper' };
 function loop(now) {
@@ -866,14 +865,14 @@ function loop(now) {
   if (act && walk.to) { const s = walkStep(dt); if (s) { [mx, mt, walkRun] = s; } }
   if (!act && walk.to && screen !== 'game') walk.to = null;
   const h = st.hero;
-  const before = h.t;
+  const before = h.t, bx = h.x;
   const running = act && (walk.to ? walkRun : joy.id !== null ? Math.hypot(joy.x, joy.y) > 0.8 : cfg.runDefault ? !keys.has('Shift') : keys.has('Shift'));
   if (stepHero(h, L, st.pieces, mx, mt, act && jumpQueued, act ? dt : 0, running) === 'respawn') flashPrompt(TX('底なしに落ちた。さっきの場所へもどる', 'You fell into the abyss. Back to where you were'));
   jumpQueued = false;
   st.walked += Math.abs(h.t - before);
-  // 主人公の足音（地面を歩いた距離ごと）と着地
+  // 主人公の足音（地面を本当に歩いた距離ごと。壁に押しつけているだけなら鳴らない）と着地
   if (act && h.grounded) {
-    stepAcc += Math.hypot(mx, mt) * dt * (running ? 1.9 : 1) * 5.2;
+    stepAcc += Math.hypot(h.x - bx, h.t - before);
     if (stepAcc > (running ? 1.3 : 1.0)) { stepAcc = 0; se.step(STEP_KIND[cfg.hero] || 'wood'); }
   }
   if (h.landT > 0.2 && !landed) { landed = true; se.land(); }
@@ -882,20 +881,20 @@ function loop(now) {
   const focus = Math.max(0, Math.min(L.T, Math.round(h.t)));
   if (focus !== lastFocus && act) { se.page(); lastFocus = focus; }
 
-  // 立ち止まって1秒たつと、まわりのページ（−3〜＋3秒）を順にめくって見せる。住人の音も、その秒のぶん鳴る
+  // 立ち止まって1秒たつと、まわりのページ（−3〜＋3秒）を順にめくって見せる。住人の音は、はじめのひとめぐりだけ鳴らす（v032: ずっと足音が続いていた）
   if (act && Math.hypot(mx, mt) < 0.05 && !st.carry) idleT += dt; else { idleT = 0; flip.t = null; }
   if (idleT > 1) {
-    if (flip.t === null) { flip.t = Math.max(0, focus - 3); flip.lastT = flip.t; flip.walk = 0; }
+    if (flip.t === null) { flip.t = Math.max(0, focus - 3); flip.lastT = flip.t; flip.walk = 0; flip.pass = 0; }
     flip.t += dt * 4;
-    if (flip.t > Math.min(L.T, focus + 3)) { flip.t = Math.max(0, focus - 3); flip.lastT = flip.t; }
-    if (flip.t <= st.revealT) replaySounds(st.hist, flip, flip.t);
+    if (flip.t > Math.min(L.T, focus + 3)) { flip.t = Math.max(0, focus - 3); flip.lastT = flip.t; flip.pass++; }
+    if (flip.t <= st.revealT && flip.pass === 0) replaySounds(st.hist, flip, flip.t);
   }
   const cand = act ? candidate() : null;
   const why = cand ? canPlace(L, cand, st.pieces) : '';
   stage.update(dt, {
     hero: h, walking: Math.hypot(mx, mt) > 0.05, moveX: mx, moveT: mt,
     cand, candOk: !why, revealT: st.revealT, focus, sockets: [],
-    running: running && Math.hypot(mx, mt) > 0.05, showRoute: cfg.showRoute, grab: act ? hovered() || grabbable() : null,
+    running: running && Math.hypot(mx, mt) > 0.05, showRoute: cfg.showRoute, grab: act ? hovered() : null,
     groundY: groundAt(L, st.pieces, h.x, h.t, h.y), walkTo: walk.to, heroSlice: !!cfg.heroSlice, flip: flip.t === null ? null : Math.round(flip.t),
   });
 
@@ -940,4 +939,4 @@ if (new URLSearchParams(location.search).has('thumb')) {
 }
 requestAnimationFrame(loop);
 // 確認用
-window.__fh = { walkTo, get walk() { return walk; }, st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, choose, cancelCarry, pickUp, tapAt, lockTo, socketsAround, bind, judge, rp, stage, showBindReplay, ed, openEnding, get L() { return L; } };
+window.__fh = { se, walkTo, get walk() { return walk; }, st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, choose, cancelCarry, pickUp, tapAt, lockTo, socketsAround, bind, judge, rp, stage, showBindReplay, ed, openEnding, get L() { return L; } };
