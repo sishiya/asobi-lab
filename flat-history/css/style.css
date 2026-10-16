@@ -726,3 +726,8 @@ body.touch .inset { left: 12px; right: auto; top: 120px; }
 .t-sep { position: relative; width: min(260px, 100%); height: 1px; margin: 8px 0; background: var(--rule); }
 .t-sep::before { content: "❦"; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); padding: 0 8px; background: #f7edd5; color: var(--brass); font-size: 13px; line-height: 20px; }
 @media (max-height: 520px) { .t-sep { flex-basis: 100%; width: auto; margin: 6px 0; } }
+
+/* v051: 題の下の飾り（❦）は意味がないので外す。題とボタンのあいだは、あきで分ける */
+.t-name::after { display: none; }
+.title-card .t-acts { margin-top: 26px; }
+@media (max-height: 520px) { .title-card .t-acts { margin-top: 12px; } }
