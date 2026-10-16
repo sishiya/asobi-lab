@@ -1,10 +1,10 @@
 // 見た目: 図鑑の銅版画と標本室（museum）に、設定で選ぶ主人公（3D）と住人（2D）をのせる
-import museum from './museum.js?v=36';
-import { RESIDENTS } from './residents.js?v=36';
-import { HEROES, HERO_LIST } from './heroes.js?v=36';
+import museum from './museum.js?v=39';
+import { RESIDENTS } from './residents.js?v=39';
+import { HEROES, HERO_LIST } from './heroes.js?v=39';
 
 export { HERO_LIST };
-export const RES_LIST = [{ id: 'kiwi', name: 'キーウィ' }, { id: 'flat', name: 'サンカク（図形の住人）' }];
+export const RES_LIST = [{ id: 'kiwi', name: 'キーウィ' }, { id: 'penguin', name: 'ペンギン' }, { id: 'pillbug', name: 'ダンゴムシ' }, { id: 'snail', name: 'カタツムリ' }, { id: 'flat', name: 'サンカク（図形の住人）' }];
 let heroId = 'poly', resId = 'kiwi';
 export function setHero(id) { if (HEROES[id]) heroId = id; }
 export function setRes(id) { if (RESIDENTS[id]) resId = id; }

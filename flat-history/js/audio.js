@@ -351,6 +351,8 @@ export const se = {
     if (!ctx) return;
     const t = ctx.currentTime;
     if (res === 'flat') { tone(t, 'square', 700, 900, 0.06, 0.03); tone(t + 0.07, 'square', 900, 700, 0.06, 0.03); }
+    else if (res === 'penguin') { tone(t, 'sawtooth', 520, 680, 0.09, 0.04); tone(t + 0.1, 'sawtooth', 600, 480, 0.1, 0.035); } // ペンギンのガーガー声
+    else if (res === 'pillbug' || res === 'snail') { tone(t, 'sine', 1200, 1000, 0.04, 0.03); } // 虫や貝は鳴かない（小さな向きかえの音だけ）
     else { tone(t, 'sine', 1900, 2600, 0.07, 0.08); tone(t + 0.09, 'sine', 2300, 1800, 0.08, 0.06); } // キーウィの短い鳴き声
   },
   kiwiFall() {

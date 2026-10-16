@@ -6,12 +6,15 @@
 //   star:      星の精。とげ（円すい）を何本も組んだ体。断面は、とげの三角が集まった星の形
 //   cloud:     雲の精。いくつもの球を集めた体。断面は、丸がつらなった雲の形
 //   wind:      風の精。うずをまく細い筋の体。断面は、銅版画の風の筋のような短い線が弧にならぶ
+//   jelly:     クラゲの精。かさと細い足。断面は弧と点々
+//   top:       こまの精。円すいと円盤。歩くほど速く回る
+//   balloon:   紙ふうせんの精。色紙を貼った角ばった玉
 //   curator:   学芸員（実在の人に近い見た目）
 // 断面はメッシュごとの凸包なので、星・雲・風は「小さな凸の部品の集まり」で作る
 // userData.sliceHatch: 断面にハッチングの線をのせる（銅版画になじませる）
 // userData.animate(dt, s) で動く。s = { speed(0〜), run, grounded, vy, carry, landT }
 import * as THREE from 'three';
-import { radialTexture } from './util.js?v=36';
+import { radialTexture } from './util.js?v=39';
 
 const lerp = (a, b, u) => a + (b - a) * u;
 
@@ -460,7 +463,128 @@ function makeWind() {
   return hero;
 }
 
-export const HEROES = { poly: makePoly, star: makeStar, cloud: makeCloud, wind: makeWind, agate: makeAgate, hourglass: makeHourglass, crane: makeCrane, curator: makeCurator };
+// ---------------- クラゲの精 ----------------
+// かさ（半球）と、細い足（凸な棒の集まり）。断面は、丸いかさの弧と、点々の足
+function makeJelly() {
+  const hero = new THREE.Group();
+  const body = new THREE.Group();
+  hero.add(body);
+  const bellM = new THREE.MeshStandardMaterial({ color: '#9fd0d6', roughness: 0.2, metalness: 0.05, transparent: true, opacity: 0.82, emissive: '#2b6f78', emissiveIntensity: 0.35 });
+  const innerM = new THREE.MeshStandardMaterial({ color: '#f2c9d8', emissive: '#c27894', emissiveIntensity: 0.6 });
+  const legM = new THREE.MeshStandardMaterial({ color: '#c9e8ea', roughness: 0.4, emissive: '#3c7f86', emissiveIntensity: 0.3 });
+  const bell = new THREE.Group(); bell.position.y = 1.35; body.add(bell);
+  bell.add(new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), bellM));
+  const inner = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), innerM); inner.position.y = 0.12; bell.add(inner);
+  const eyes = eyesOn(bell, 0.45, 0.18, 0.13, 0.045);
+  const legs = [];
+  for (let i = 0; i < 8; i++) {
+    const a = i * Math.PI / 4, seg = [];
+    for (let j = 0; j < 4; j++) {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.22, 6), legM);
+      body.add(m); seg.push(m);
+    }
+    legs.push({ a, seg });
+  }
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: radialTexture('rgba(170,230,235,.5)', 'rgba(170,230,235,0)'), transparent: true, depthWrite: false }));
+  glow.scale.set(1.8, 1.8, 1); bell.add(glow);
+  hero.scale.setScalar(1.2);
+  let tm = 0;
+  hero.userData = {
+    body, sliceHatch: true,
+    animate(dt, s) {
+      tm += dt;
+      const pulse = Math.sin(tm * (3 + s.speed * 3));
+      const air = !s.grounded, sq = s.landT > 0 ? 1 - s.landT * 0.6 : 1;
+      bell.position.y = 1.35 + pulse * 0.06 + (air ? 0.12 : 0);
+      bell.scale.set(1 + pulse * 0.08 + (1 - sq) * 0.4, (1 - pulse * 0.08) * sq, 1 + pulse * 0.08 + (1 - sq) * 0.4);
+      bell.rotation.z = -Math.min(0.35, s.speed * 0.18);
+      for (const l of legs) l.seg.forEach((m, j) => {
+        const r = 0.36 - j * 0.03, sway = Math.sin(tm * 3 + l.a * 2 + j * 0.8) * 0.06 * (j + 1) - s.speed * 0.05 * j;
+        m.position.set(Math.cos(l.a) * r + sway, bell.position.y - 0.12 - j * 0.22, Math.sin(l.a) * r);
+      });
+      for (const e of eyes) e.scale.y = (tm % 3.4) < 0.12 ? 0.2 : 1;
+    },
+  };
+  return hero;
+}
+
+// ---------------- こまの精 ----------------
+// 円すいの胴と円盤のつば。歩くほど速く回る。断面は三角・台形・細い軸
+function makeTop() {
+  const hero = new THREE.Group();
+  const body = new THREE.Group();
+  hero.add(body);
+  const wood = new THREE.MeshStandardMaterial({ color: '#c98a4b', roughness: 0.55, flatShading: true });
+  const red = new THREE.MeshStandardMaterial({ color: '#b5442f', roughness: 0.5, flatShading: true });
+  const ring = new THREE.MeshStandardMaterial({ color: '#2f6f8f', roughness: 0.5, flatShading: true });
+  const spinG = new THREE.Group(); spinG.position.y = 0.05; body.add(spinG);
+  const lower = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.9, 12), wood); lower.rotation.x = Math.PI; lower.position.y = 0.5; spinG.add(lower);
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.6, 0.16, 16), red); disc.position.y = 1.0; spinG.add(disc);
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.56, 0.12, 16), ring); band.position.y = 1.13; spinG.add(band);
+  const cap = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.35, 12), wood); cap.position.y = 1.36; spinG.add(cap);
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.4, 8), red); stem.position.y = 1.68; spinG.add(stem);
+  // 顔は回らない（向きがわかる）
+  const face = new THREE.Group(); face.position.y = 1.05; body.add(face);
+  const eyes = eyesOn(face, 0.6, 0.0, 0.14, 0.05);
+  hero.scale.setScalar(1.15);
+  let tm = 0, spin = 0;
+  hero.userData = {
+    body, sliceHatch: true,
+    animate(dt, s) {
+      tm += dt; spin += dt * (4 + s.speed * (s.run ? 22 : 12));
+      spinG.rotation.y = spin;
+      const air = !s.grounded, sq = s.landT > 0 ? 1 - s.landT * 0.5 : 1;
+      // 回りながら少し首をふる（みそすり運動）
+      spinG.rotation.x = Math.sin(tm * 2.1) * 0.06 + (air ? 0.12 : 0);
+      spinG.rotation.z = Math.cos(tm * 2.1) * 0.06 - Math.min(0.3, s.speed * 0.12);
+      spinG.scale.set(1 + (1 - sq) * 0.3, sq, 1 + (1 - sq) * 0.3);
+      face.position.y = 1.05 * sq;
+      for (const e of eyes) e.scale.y = (tm % 3) < 0.12 ? 0.2 : 1;
+    },
+  };
+  return hero;
+}
+
+// ---------------- 紙ふうせんの精 ----------------
+// 紙を貼りあわせた角ばった玉。ふわふわと浮かぶ。断面は紙の色の多角形
+function makeBalloon() {
+  const hero = new THREE.Group();
+  const body = new THREE.Group();
+  hero.add(body);
+  const cols = ['#e9c46a', '#e07a5f', '#81b29a', '#f4f1de', '#3d85a8'];
+  const ball = new THREE.Group(); ball.position.y = 1.1; body.add(ball);
+  const geo = new THREE.IcosahedronGeometry(0.55, 1).toNonIndexed();
+  // 面ごとに紙の色を変える（色紙を貼りあわせたように）
+  const colors = [];
+  for (let i = 0; i < geo.attributes.position.count; i += 3) {
+    const c = new THREE.Color(cols[(i / 3) % cols.length]);
+    for (let k = 0; k < 3; k++) colors.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  const paper = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true }));
+  ball.add(paper);
+  ball.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: '#5a4330', transparent: true, opacity: 0.5 })));
+  // 吹き口（小さな穴のふち）
+  const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.02, 6, 12), new THREE.MeshStandardMaterial({ color: '#5a4330' }));
+  mouth.position.y = 0.55; mouth.rotation.x = Math.PI / 2; ball.add(mouth);
+  const eyes = eyesOn(ball, 0.5, 0.05, 0.14, 0.05);
+  hero.scale.setScalar(1.2);
+  let tm = 0;
+  hero.userData = {
+    body, sliceHatch: true,
+    animate(dt, s) {
+      tm += dt;
+      const air = !s.grounded, sq = s.landT > 0 ? 1 - s.landT * 0.9 : 1;
+      ball.position.y = 1.1 + Math.sin(tm * 1.6) * 0.12 + (air ? 0.15 : 0);
+      ball.scale.set(1 + (1 - sq) * 0.5, sq, 1 + (1 - sq) * 0.5);
+      ball.rotation.set(Math.sin(tm * 0.9) * 0.2, tm * 0.4 + s.speed * 0.3, -Math.min(0.4, s.speed * 0.2));
+      for (const e of eyes) e.scale.y = (tm % 3.8) < 0.12 ? 0.2 : 1;
+    },
+  };
+  return hero;
+}
+
+export const HEROES = { jelly: makeJelly, top: makeTop, balloon: makeBalloon, poly: makePoly, star: makeStar, cloud: makeCloud, wind: makeWind, agate: makeAgate, hourglass: makeHourglass, crane: makeCrane, curator: makeCurator };
 export const HERO_LIST = [
   { id: 'poly', name: '多面体の旅人' },
   { id: 'star', name: '星の精' },
@@ -469,5 +593,8 @@ export const HERO_LIST = [
   { id: 'agate', name: '瑪瑙の精' },
   { id: 'hourglass', name: '砂時計の精' },
   { id: 'crane', name: '折り鶴の精' },
+  { id: 'jelly', name: 'クラゲの精' },
+  { id: 'top', name: 'こまの精' },
+  { id: 'balloon', name: '紙ふうせんの精' },
   { id: 'curator', name: '学芸員' },
 ];

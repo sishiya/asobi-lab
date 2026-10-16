@@ -443,7 +443,7 @@ body.touch .prompt:empty { display: none; }
   50% { box-shadow: inset 0 0 0 4px rgba(255,235,210,.25), 0 4px 12px rgba(60,20,10,.35), 0 0 0 14px rgba(163,80,58,0); }
 }
 @media (max-width: 760px), (max-height: 520px) { .bind-btn { width: 78px; height: 78px; font-size: 15px; } }
-/* 取り消しの札（置いた・つかんだ直後だけ） */
+/* （取り消しの札は v026 で廃止） */
 .undo-tip { position: fixed; left: 50%; transform: translateX(-50%); bottom: 112px; z-index: 7; border: 1px solid var(--rule); border-radius: 20px;
   background: rgba(251,245,230,.95); color: var(--ink); font: 14px var(--serif); padding: 6px 14px; cursor: pointer; box-shadow: 0 2px 8px rgba(60,40,20,.2); }
 .undo-tip[hidden] { display: none; }
@@ -484,3 +484,43 @@ body.touch .help-card kbd { display: inline-block; }
 @media (max-height: 520px) {
   body.touch .inset, body.touch .inset[style] { top: 46px; left: 6px; right: auto; width: 30vw; }
 }
+
+/* v026: 案内の帯のボタン（PCで、回す・となりをクリックでも） */
+.prompt { pointer-events: none; display: flex; align-items: center; gap: 6px; }
+.prompt .pbtn { pointer-events: auto; cursor: pointer; border: 1px solid rgba(255,245,220,.35); background: rgba(255,245,220,.08); color: var(--paper);
+  font: 14px var(--serif); padding: 3px 10px; border-radius: 3px; }
+.prompt .pbtn:hover { background: rgba(255,245,220,.22); }
+/* メニューの注意書き */
+.menu-note { margin: 10px 0 0; font: 12px/1.6 var(--serif); color: var(--sub); text-align: center; }
+/* 回答するボタン: もう少し内側へ */
+.bind-btn { top: 112px; right: 44px; }
+@media (max-width: 760px), (max-height: 520px) { .bind-btn { top: 70px; right: 22px; } }
+/* スマホ: 時計の数字が枠にかぶらないように */
+@media (max-width: 760px), (max-height: 520px) {
+  .clock { padding: 5px 12px 6px; }
+  .clock span#clockNum { font-size: 22px; line-height: 1.1; display: inline-block; vertical-align: middle; }
+  .clock small { font-size: 11px; vertical-align: middle; }
+}
+/* スマホ: 案内（ひとことの導き）を回答ボタンの左に収める */
+@media (max-width: 760px) {
+  .coach { top: 70px; left: 10px; right: 110px; transform: none; max-width: none; font-size: 13px; padding: 6px 10px; text-align: left; }
+  .coach:empty, .coach.off { transform: translateY(-6px); }
+}
+@media (max-height: 520px) and (min-width: 761px) {
+  .coach { top: 8px; max-width: calc(100vw - 520px); font-size: 13px; padding: 5px 12px; }
+}
+/* 画面の上と下のふちを、ほんのり暗く（UIが浮き出るように） */
+.edge-shade { position: fixed; inset: 0; pointer-events: none; z-index: 3;
+  background: linear-gradient(180deg, rgba(40,25,10,.45) 0%, rgba(40,25,10,0) 24%, rgba(40,25,10,0) 74%, rgba(40,25,10,.45) 100%); }
+body.menu .edge-shade { display: none; }
+/* タイトルのボタン: たてに同じ幅で（はじめから・つづきから・図版をえらぶ） */
+.t-acts { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.t-acts .act.big { width: min(280px, 100%); }
+.t-acts .act[hidden] { display: none; }
+@media (max-height: 520px) { .t-acts { flex-direction: row; justify-content: center; flex-wrap: wrap; } .t-acts .act.big { width: auto; } }
+/* タッチの画面では、小窓を右下のボタンから離す（広い画面は左上、たて長は回答ボタンの下、横向きのスマホは左上の小さめ） */
+body.touch .inset { top: 120px; left: 12px; right: auto; bottom: auto; width: min(34vw, 340px); }
+@media (max-width: 760px) { body.touch .inset { top: 160px; left: auto; right: 6px; width: 40vw; } }
+@media (max-height: 520px) { body.touch .inset { top: 46px; left: 6px; right: auto; width: 30vw; } }
+/* PC: 案内の帯は左下へ（右下の小窓と重ならない） */
+.prompt { left: 16px; transform: none; bottom: 70px; }

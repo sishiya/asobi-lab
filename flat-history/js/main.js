@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=36';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=36';
-import { drawSheet } from './sheet.js?v=36';
-import { createStage, misprintOf } from './stage3d.js?v=36';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=36';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=36';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=36';
+import { LEVELS } from './level.js?v=39';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=39';
+import { drawSheet } from './sheet.js?v=39';
+import { createStage, misprintOf } from './stage3d.js?v=39';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=39';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=39';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=39';
 
 const $ = (id) => document.getElementById(id);
 
@@ -78,6 +78,7 @@ function showIntro() {
 let screen = 'title';
 function showScreen(name) {
   screen = name;
+  if (name === 'title') updateTitle();
   $('title').hidden = name !== 'title';
   $('select').hidden = name !== 'select';
   document.body.classList.toggle('menu', name !== 'game');
@@ -112,6 +113,13 @@ function drawPreview(dt) {
 $('pvPlay').addEventListener('click', () => { pv.playing = !pv.playing; $('pvPlay').textContent = pv.playing ? '❚❚' : '▶'; });
 $('pvSeek').addEventListener('input', (e) => { pv.t = +e.target.value; pv.playing = false; $('pvPlay').textContent = '▶'; });
 $('pvStart').addEventListener('click', () => { se.click(); closePreview(); });
+// 遊んだ記録があるか（タイトルの「つづきから」）
+const hasProgress = () => LEVELS.some((l) => progress[l.id]) && LEVELS.some((l) => !progress[l.id]);
+function updateTitle() {
+  const c = $('tCont');
+  c.hidden = !hasProgress();
+  if (!c.hidden) c.textContent = `つづきから（Pl. ${LEVELS[firstUnsolved()].plate}）`;
+}
 function firstUnsolved() { const i = LEVELS.findIndex((l) => !progress[l.id]); return i < 0 ? 0 : i; }
 let selectFrom = 'title';
 function renderSelect(from) {
@@ -279,28 +287,6 @@ function tapAt(x, t) {
   lockTo(list.length ? list[0] : sockCache.base);
   se.click();
 }
-// 取り消し: さっきの「置く」「つかむ」を、なかったことにする（置いた・つかんだ直後に、取り消しの札が数秒出る）
-let undoUntil = 0;
-function pushUndo(what, kind) {
-  st.undo.push({ pieces: st.pieces.map((p) => ({ ...p })), carry: st.carry && { ...st.carry }, what, kind });
-  if (st.undo.length > 40) st.undo.shift();
-  undoUntil = performance.now() + 5000;
-  $('undoTip').innerHTML = `↶ いま${what === 'place' ? '置いた' : 'つかんだ'}のを取り消す` + (isTouch ? '' : ' <kbd>Z</kbd>');
-}
-function undo() {
-  const u = st.undo.pop();
-  if (!u) { se.no(); return; }
-  const sig = (p) => p.id + ':' + p.x0 + ':' + p.t0;
-  const A = new Set(st.pieces.map(sig)), B = new Set(u.pieces.map(sig));
-  const changed = [...st.pieces.filter((p) => !B.has(sig(p))), ...u.pieces.filter((p) => !A.has(sig(p)))];
-  st.pieces = u.pieces; st.carry = u.carry; st.lock = null;
-  se.pick();
-  const inb = changed.filter(inBlock);
-  if (inb.length) recompute(Math.min(...inb.map((p) => p.t0)));
-  else stage.setHistory(st.hist, st.pieces, null, false);
-  flashPrompt(u.what === 'place' ? `${kindName(u.kind)}を、置く前にもどした（手に持っている）` : `${kindName(u.kind)}を、もとの場所にもどした`);
-  undoUntil = 0;
-}
 // 目の前（または足もと）でつかめる形
 function grabbable() {
   if (st.carry) return null;
@@ -337,7 +323,6 @@ function useE() {
     const c = candidate();
     const why = canPlace(L, c, st.pieces);
     if (why) { flashPrompt(why); se.no(); return; }
-    pushUndo('place', c.kind);
     const p = { id: st.nextId++, kind: c.kind, rot: c.rot, x0: c.x0, t0: c.t0, y0: c.y0 };
     st.lock = null;
     st.pieces.push(p);
@@ -348,7 +333,6 @@ function useE() {
   }
   const p = grabbable();
   if (!p) return;
-  pushUndo('grab', p.kind);
   st.pieces = st.pieces.filter((q) => q !== p);
   st.carry = { kind: p.kind, rot: p.rot || 0 };
   st.lock = null;
@@ -392,6 +376,12 @@ const joy = { x: 0, y: 0, id: null };
   tap('tRot', () => rotate());
   tap('tNext', () => nextSocket());
 }
+// 案内の帯のボタン（PC）
+$('prompt').addEventListener('click', (e) => {
+  const b = e.target.closest('.pbtn'); if (!b || !playing()) return;
+  const a = b.dataset.act;
+  if (a === 'place' || a === 'grab') useE(); else if (a === 'rot') rotate(); else if (a === 'next') nextSocket();
+});
 function flashPrompt(m) { flashMsg = m; flashUntil = performance.now() + 1800; }
 
 // ---- 入力 ----
@@ -417,7 +407,7 @@ window.addEventListener('keydown', (e) => {
   if (!$('help').hidden) { if (k === 'Escape' || k === 'Enter') closeHelp(); return; }
   if (!$('menu').hidden) { if (k === 'Escape') $('menu').hidden = true; return; }
   if (screen === 'select') { if (k === 'Escape') closeSelect(); return; }
-  if (screen === 'title') { if (k === 'Enter') startGame(firstUnsolved()); return; }
+  if (screen === 'title') { if (k === 'Enter') startGame(hasProgress() ? firstUnsolved() : 0); return; }
   if (k === 'Escape') { openMenu(); return; }
   keys.add(k.length === 1 ? k.toLowerCase() : k);
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Tab'].includes(k)) e.preventDefault();
@@ -428,7 +418,6 @@ window.addEventListener('keydown', (e) => {
   if (k === 'e' || k === 'E') useE();
   if (k === 'q' || k === 'Q') rotate();
   if (k === 'Tab' && st.carry) nextSocket();
-  if (k === 'z' || k === 'Z' || k === 'Backspace') undo();
   if (k === 'Enter' && enterOk()) { if (st.solved) reopenResult(); else bind(); }
   if (k === 'm' || k === 'M') nextBgm();
 });
@@ -440,8 +429,8 @@ window.addEventListener('contextmenu', (e) => { keys.clear(); if (e.target.close
 window.addEventListener('pointerdown', () => { initAudio(); startBgm(); });
 
 // タイトル・図版えらび・メニュー
-$('undoTip').addEventListener('click', () => { if (playing()) undo(); });
-$('tStart').addEventListener('click', () => { se.click(); startGame(firstUnsolved()); });
+$('tStart').addEventListener('click', () => { se.click(); startGame(0); });
+$('tCont').addEventListener('click', () => { se.click(); startGame(firstUnsolved()); });
 $('tSelect').addEventListener('click', () => { se.click(); renderSelect('title'); });
 $('tHelp').addEventListener('click', () => { $('help').hidden = false; });
 function closeSelect() { if (selectFrom === 'game') { showScreen('game'); openMenu(); } else showScreen('title'); }
@@ -602,8 +591,8 @@ function renderPrompt(why) {
   let html = '';
   const g = grabbable();
   if (performance.now() < flashUntil) html = flashMsg;
-  else if (st.carry) html = `<kbd>E</kbd> 置く　<kbd>Q</kbd> 回す　<kbd>Tab</kbd> となりの置き場所` + (why ? `<span class="bad">${why}</span>` : '');
-  else if (g) html = `<kbd>E</kbd> ${kindName(g.kind)}をつかむ`;
+  else if (st.carry) html = `<button type="button" class="pbtn" data-act="place"><kbd>E</kbd> 置く</button><button type="button" class="pbtn" data-act="rot"><kbd>Q</kbd> 回す</button><button type="button" class="pbtn" data-act="next"><kbd>Tab</kbd> となり</button>` + (why ? `<span class="bad">${why}</span>` : '');
+  else if (g) html = `<button type="button" class="pbtn" data-act="grab"><kbd>E</kbd> ${kindName(g.kind)}をつかむ</button>`;
   else if (st.walked < 2 && st.lv === 0) html = `<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ${cfg.runDefault ? '走る' : '歩く'}　<kbd>Shift</kbd> ${cfg.runDefault ? '歩く' : '走る'}　<kbd>Space</kbd> 跳ぶ　ドラッグ 見回す`;
   if (isTouch) html = performance.now() < flashUntil ? flashMsg : (st.carry && why ? `<span class="bad">${why}</span>` : '');
   const el = $('prompt');
@@ -756,7 +745,7 @@ function drawReplay() {
 let last = performance.now(), lastFocus = 0, stepAcc = 0, landed = false, idleT = 0;
 const flip = { t: null, lastT: 0, walk: 0 };
 // 主人公の姿ごとの足音
-const STEP_KIND = { poly: 'chime', star: 'chime', cloud: 'puff', wind: 'puff', agate: 'stone', hourglass: 'wood', crane: 'paper', curator: 'wood' };
+const STEP_KIND = { poly: 'chime', star: 'chime', cloud: 'puff', wind: 'puff', agate: 'stone', hourglass: 'wood', crane: 'paper', curator: 'wood', jelly: 'puff', top: 'wood', balloon: 'paper' };
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
@@ -821,7 +810,6 @@ function loop(now) {
     drawTimeline();
     renderCoach();
     renderPrompt(why);
-    $('undoTip').hidden = !(performance.now() < undoUntil && st.undo.length);
     drawInset(focus, cand, !why);
     if (isTouch) {
       $('tGrab').textContent = st.carry ? '置く' : 'つかむ';
@@ -846,4 +834,4 @@ loadLevel(firstUnsolved());
 showScreen('title');
 requestAnimationFrame(loop);
 // 確認用
-window.__fh = { st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, nextSocket, tapAt, undo, lockTo, socketsAround, bind, judge, rp, stage, showBindReplay, ed, openEnding, get L() { return L; } };
+window.__fh = { st, LEVELS, simulate, keys, startGame, useE, rotate, candidate, nextSocket, tapAt, lockTo, socketsAround, bind, judge, rp, stage, showBindReplay, ed, openEnding, get L() { return L; } };
