@@ -63,11 +63,18 @@ export function simulate(L, pieces) {
     const t = k * DT;
     const secs = sectionsAt(pieces, t);
     if (w.st === 'walk' || w.st === 'fall') {
-      // 断面が足もとに現れた・下から上がってきた → 押し上げられる
+      // 断面が体に重なって現れた・下から上がってきた
       for (const s of secs) {
-        if (w.x + HALF > s.x0 && w.x - HALF < s.x1 && s.y0 < w.y + 0.6 && s.y1 > w.y + 1e-6) {
-          w.y = s.y1;
-          if (w.st === 'fall') { w.st = 'walk'; w.vy = 0; }
+        if (w.x + HALF > s.x0 && w.x - HALF < s.x1 && s.y0 < w.y + BODY && s.y1 > w.y + 1e-6) {
+          if (s.y1 - w.y <= STEP && s.y0 < w.y + 0.6) {
+            // 低い・下から → 押し上げられる
+            w.y = s.y1;
+            if (w.st === 'fall') { w.st = 'walk'; w.vy = 0; }
+          } else {
+            // 背より高い → 近いほうの横へ押しのけられる（のりこえない）
+            const toL = w.x - s.x0, toR = s.x1 - w.x;
+            w.x = toL < toR ? s.x0 - HALF - 0.01 : s.x1 + HALF + 0.01;
+          }
         }
       }
     }

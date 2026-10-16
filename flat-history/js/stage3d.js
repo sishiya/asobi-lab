@@ -273,6 +273,22 @@ export function createStage(canvas, L) {
   // ---- 毎フレーム ----
   const target = new THREE.Vector3(), camPos = new THREE.Vector3();
   let camInit = false;
+  // マウスでぐりぐり回す（左ドラッグ: 回す、ホイール: 寄る・引く、ダブルクリック: もとへ）
+  const ORBIT0 = { yaw: 0.33, pitch: 0.51, dist: 38.7 };
+  const orbit = { ...ORBIT0 };
+  let drag = null;
+  canvas.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId); canvas.style.cursor = 'grabbing'; });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    orbit.yaw -= (e.clientX - drag.x) * 0.006;
+    orbit.pitch = Math.max(0.04, Math.min(1.45, orbit.pitch + (e.clientY - drag.y) * 0.005));
+    drag = { x: e.clientX, y: e.clientY };
+  });
+  const endDrag = () => { drag = null; canvas.style.cursor = ''; };
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); orbit.dist = Math.max(10, Math.min(95, orbit.dist * Math.pow(1.0015, e.deltaY))); }, { passive: false });
+  canvas.addEventListener('dblclick', () => Object.assign(orbit, ORBIT0));
   let ghostMsgOk = true;
 
   function update(dt, view) {
@@ -364,9 +380,10 @@ export function createStage(canvas, L) {
 
     // カメラ: 手前ななめ上から
     target.set(L.W / 2 + (heroX - L.W / 2) * 0.35, L.H * 0.5, heroT * GAP - 1);
-    camPos.set(target.x + 11, target.y + 19, target.z + 32);
+    const cp = Math.cos(orbit.pitch);
+    camPos.set(target.x + Math.sin(orbit.yaw) * cp * orbit.dist, target.y + Math.sin(orbit.pitch) * orbit.dist, target.z + Math.cos(orbit.yaw) * cp * orbit.dist);
     if (!camInit) { camera.position.copy(camPos); camInit = true; }
-    camera.position.lerp(camPos, Math.min(1, dt * 4));
+    camera.position.lerp(camPos, Math.min(1, dt * (drag ? 14 : 5)));
     camera.lookAt(target.x, target.y, target.z);
     renderer.render(scene, camera);
   }

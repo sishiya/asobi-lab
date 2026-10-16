@@ -8,7 +8,7 @@
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="description" content="1秒ずつの2D世界が奥と手前に並んでいる。3Dの形を置くと、2D世界にはその断面が現れて、歴史が書きかわる。">
 <meta name="theme-color" content="#dde7ee">
-<link rel="stylesheet" href="css/style.css?v=1">
+<link rel="stylesheet" href="css/style.css?v=2">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body>
@@ -82,12 +82,13 @@
       <tr><td><kbd>Z</kbd></td><td>えらんだ形を、いまのページから奥行きの方向へ置く</td></tr>
       <tr><td><kbd>X</kbd></td><td>足もとの形を持ち上げる</td></tr>
       <tr><td><kbd>P</kbd></td><td>はじめの歴史といまの歴史をくらべて再生</td></tr>
+      <tr><td>マウス</td><td>ドラッグで見る向きを回す・ホイールで寄る／引く・ダブルクリックでもとの向き</td></tr>
     </table>
     <p class="small">下の時間の帯をクリックすると、その秒へとべます。</p>
     <div class="win-acts"><button type="button" id="helpClose" class="act primary">はじめる</button></div>
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=1"></script>
+<script type="module" src="js/main.js?v=2"></script>
 </body>
 </html>

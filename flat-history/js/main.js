@@ -144,10 +144,22 @@ tl.addEventListener('pointerup', () => { dragging = false; });
 // ---- 右下の「いまのページ」 ----
 const insetG = $('inset').getContext('2d');
 let insetDirty = true, insetFocus = -1;
+// ふだんは、いまの歴史をはじめから結末まで くりかえし再生。時間を動かしているあいだだけ、そのページを見せる
+const ins = { t: 0, hold: 0, browseUntil: 0 };
+function insetPlay(dt) {
+  const endT = Math.min(L.T, st.hist.end.t + 0.3);
+  if (ins.t >= endT) { ins.hold += dt; if (ins.hold > 1.6) { ins.t = 0; ins.hold = 0; } }
+  else ins.t = Math.min(endT, ins.t + dt * 2);
+  const t = ins.t;
+  drawSheet(insetG, L, t, frameAt(st.hist.frames, t), sectionsAt(st.pieces, t), { paper: true, label: t.toFixed(1) + '秒' });
+  const e = st.hist.end;
+  const tail = e.type === 'goal' ? '小屋に着く' : e.type === 'time' ? '着かない' : '落ちてしまう';
+  $('insetCap').textContent = `いまの歴史を再生中（${e.type === 'goal' ? Math.round(e.t) : Math.floor(e.t)}秒目に${tail}）・P で大きく`;
+}
 function drawInset(focus) {
   const fr = st.hist.frames[Math.round(focus / 0.1)];
   drawSheet(insetG, L, focus, fr, sectionsAt(st.pieces, focus), { paper: true, label: focus + '秒' });
-  let cap = '2D人から見た、いまのページ';
+  let cap = `${focus}秒目のページ（2D人から見た世界）`;
   if (fr.st === 'dead') cap = 'このページには、もう2D人はいない';
   else if (fr.st === 'goal') cap = 'このページでは、2D人は小屋に着いている';
   $('insetCap').textContent = cap;
@@ -188,6 +200,11 @@ function drawTimeline(focus) {
   };
   if (st.hist !== st.base) mark(st.base.end, true);
   mark(st.hist.end, false);
+  // 小窓の再生位置
+  if (performance.now() >= ins.browseUntil) {
+    tg.fillStyle = '#3f7fd6';
+    tg.beginPath(); tg.moveTo(X(ins.t), 44); tg.lineTo(X(ins.t) + 5, 50); tg.lineTo(X(ins.t) - 5, 50); tg.fill();
+  }
   // 主人公のいる秒
   tg.fillStyle = '#f2a93b';
   tg.fillRect(X(focus) - 1.5, 2, 3, 42);
@@ -269,7 +286,12 @@ function loop(now) {
     cand, candOk, walking: !!(ax || az), reach: st.reach,
   });
 
-  if (focus !== insetFocus || insetDirty) { drawInset(focus); insetFocus = focus; insetDirty = false; }
+  if (az || dragging) ins.browseUntil = now + 1200;
+  if (insetDirty) { ins.t = 0; ins.hold = 0; }
+  if (now < ins.browseUntil) {
+    if (focus !== insetFocus || insetDirty) { drawInset(focus); insetFocus = focus; }
+  } else { insetPlay(dt); insetFocus = -1; }
+  insetDirty = false;
   $('clockNum').textContent = focus;
   $('status').textContent = statusText();
   drawTimeline(st.heroT);
