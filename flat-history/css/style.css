@@ -986,3 +986,9 @@ kbd { background: rgba(26, 163, 155, .12); color: var(--d-gold2); border-color: 
 .palette .kind:hover { --edge: #fff0bf; --fill: linear-gradient(180deg, #2cc6b9, #13807a); }
 .palette .kind.sel { --edge: #fff0bf; --fill: linear-gradient(180deg, #6ddccd, #1fa093); }
 .palette .kind .ct { color: #fbf3dc; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); }
+
+/* v068: パレットの形のボタンどうしのあきを広く（ユーザー） */
+.pal-list { gap: 16px; }
+.palette { padding: 10px 12px; }
+@media (max-width: 760px), (max-height: 520px) { .pal-list { gap: 10px; } .palette { padding: 6px 8px; } }
+@media (max-width: 420px) { .pal-list { gap: 8px; } }
