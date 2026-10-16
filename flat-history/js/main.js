@@ -6,7 +6,7 @@ import { drawSheet } from './sheet.js?v=55';
 import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=55';
 import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=55';
 import { makeHero, stepHero, groundAt } from './hero.js?v=55';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=55';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=56';
 
 const $ = (id) => document.getElementById(id);
 
@@ -16,7 +16,7 @@ try { progress = JSON.parse(localStorage.getItem('flat-history.progress') || '{}
 function saveProgress() { try { localStorage.setItem('flat-history.progress', JSON.stringify(progress)); } catch (e) { /* なし */ } }
 
 // ---- 設定（このブラウザだけに覚える） ----
-const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'fog', runDefault: true, inset: true, invX: false, invY: false, move: 'tap', hero: 'poly', res: 'kiwi' };
+const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'fog', runDefault: true, inset: true, invX: false, invY: false, move: 'tap', moveSe: 'chimeSoft', hero: 'poly', res: 'kiwi' };
 let cfg = { ...DEF };
 try { cfg = { ...DEF, ...JSON.parse(localStorage.getItem('flat-history.settings2') || '{}') }; } catch (e) { cfg = { ...DEF }; }
 function saveCfg() { try { localStorage.setItem('flat-history.settings2', JSON.stringify(cfg)); } catch (e) { /* なし */ } }
@@ -519,6 +519,7 @@ function openSettings(from) {
   $('sInset').checked = cfg.inset;
   $('sInvX').checked = !!cfg.invX; $('sInvY').checked = !!cfg.invY;
   $('sMove').value = cfg.move || 'tap';
+  $('sMoveSe').value = cfg.moveSe;
   $('sHero').value = cfg.hero;
   $('sRes').value = cfg.res;
   $('settings').hidden = false;
@@ -535,6 +536,9 @@ $('sBgm').addEventListener('change', (e) => { cfg.bgm = e.target.value; initAudi
 $('sRun').addEventListener('change', (e) => { cfg.runDefault = e.target.checked; saveCfg(); });
 $('sMove').options[0].textContent = TX('タップで歩く（かんたん）', 'Tap to walk (easy)');
 $('sMove').options[1].textContent = TX('スティック', 'Stick');
+// 幾何学の主人公の動く音（ききくらべ用。v040）
+[TX('鈴（やわらかく）', 'Soft bell'), TX('鈴（もとの音）', 'Bell (original)'), TX('きらきら', 'Sparkle')].forEach((t, i) => { $('sMoveSe').options[i].textContent = t; });
+$('sMoveSe').addEventListener('change', (e) => { cfg.moveSe = e.target.value; saveCfg(); initAudio(); se.step(cfg.moveSe); setTimeout(() => se.step(cfg.moveSe), 260); });
 $('sMove').addEventListener('change', (e) => { cfg.move = e.target.value; saveCfg(); applyMove(); });
 $('sInvX').addEventListener('change', (e) => { cfg.invX = e.target.checked; saveCfg(); stage.setInvert(cfg.invX, cfg.invY); });
 $('sInvY').addEventListener('change', (e) => { cfg.invY = e.target.checked; saveCfg(); stage.setInvert(cfg.invX, cfg.invY); });
@@ -819,7 +823,7 @@ function drawReplay() {
 let last = performance.now(), lastFocus = 0, stepAcc = 0, idleT = 0;
 const flip = { t: null };
 // 主人公の姿ごとの足音
-const STEP_KIND = { poly: 'sparkle', cube: 'sparkle', prism: 'sparkle', dodeca: 'sparkle', star: 'sparkle', hourglass: 'wood', crane: 'paper', balloon: 'paper' };
+const STEP_KIND = { poly: 'geo', cube: 'geo', prism: 'geo', dodeca: 'geo', star: 'geo', hourglass: 'wood', crane: 'paper', balloon: 'paper' };
 // 置いた形の上を歩く音（形の材質ごと）
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
@@ -858,7 +862,7 @@ function loop(now) {
   // 主人公の動く音（本当に進んだ距離ごと）。浮かんでいるので、置いた形の上でも音は変えない（v039）
   if (act) {
     stepAcc += Math.hypot(h.x - bx, h.t - before);
-    if (stepAcc > (running ? 1.3 : 1.0)) { stepAcc = 0; se.step(STEP_KIND[cfg.hero] || 'wood'); }
+    if (stepAcc > (running ? 1.3 : 1.0)) { stepAcc = 0; { const k = STEP_KIND[cfg.hero] || 'wood'; se.step(k === 'geo' ? cfg.moveSe : k); } }
   }
   st.revealT = Math.max(st.revealT, Math.min(L.T, h.t + 3));
   const focus = Math.max(0, Math.min(L.T, Math.round(h.t)));

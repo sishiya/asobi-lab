@@ -421,6 +421,16 @@ export const se = {
       noise(t, 0.35, 'highpass', 6500, 0.5, v * 0.18, seBus, 9000);
     }
     else if (kind === 'chime') bell(t, 88 + Math.floor(Math.random() * 3) * 2, v * 0.6, 0.5);
+    else if (kind === 'chimeSoft') { // もとの鈴（chime）をやわらかく: 立ち上がりを少しゆるめ、かたい倍音をけずり、小さく短く（v040）
+      const f = mtof(88 + Math.floor(Math.random() * 3) * 2);
+      for (const [mul, lv, len] of [[1, 1, 0.42], [2.76, 0.16, 0.18]]) {
+        const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f * mul;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v * 0.38 * lv, t + 0.014);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+        o.connect(g).connect(seBus); o.start(t); o.stop(t + len + 0.05);
+      }
+    }
     else if (kind === 'puff') noise(t, 0.12, 'lowpass', 600, 0.7, v * 1.4);
     else if (kind === 'paper') noise(t, 0.05, 'highpass', 2600, 0.8, v);
     else if (kind === 'stone') { tone(t, 'sine', 180, 120, 0.08, v * 2); noise(t, 0.03, 'bandpass', 1200, 2, v); }
