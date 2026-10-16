@@ -721,3 +721,8 @@ body.touch .inset { left: 12px; right: auto; top: 120px; }
 /* v049: 回答するボタンは、名前・説明のまとまりから少しはなす（ユーザー「もうすこしマージン」） */
 .headgroup .bind-btn { margin-top: 14px; }
 @media (max-width: 760px), (max-height: 520px) { .headgroup .bind-btn { margin-top: 10px; } }
+
+/* v050: タイトルの「図版をえらぶ」と「あそびかた」のあいだに、メニューと同じ飾りの区切り線 */
+.t-sep { position: relative; width: min(260px, 100%); height: 1px; margin: 8px 0; background: var(--rule); }
+.t-sep::before { content: "❦"; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); padding: 0 8px; background: #f7edd5; color: var(--brass); font-size: 13px; line-height: 20px; }
+@media (max-height: 520px) { .t-sep { flex-basis: 100%; width: auto; margin: 6px 0; } }
