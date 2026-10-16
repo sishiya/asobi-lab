@@ -1,7 +1,7 @@
 // 見た目「図鑑の銅版画と標本室」: 線で彫った博物画の大地と、標本室。住人と主人公は residents.js・heroes.js（設定で選ぶ）
 import * as THREE from 'three';
-import { rng, canvasTexture, floorPlane } from './util.js?v=49';
-import { INK, hatch } from './ink.js?v=49';
+import { rng, canvasTexture } from './util.js?v=50';
+import { INK, hatch } from './ink.js?v=50';
 
 function drawTerrain(g, L, S, res) {
   const R = rng(23);
@@ -126,36 +126,122 @@ function drawSection(g, L, s, S, color) {
 }
 
 // 標本室: 寄せ木の床と、真鍮のレール
+// v037: 舞台。床（図書館・標本室の寄せ木）と真鍮の手すりはやめて、ページの束の下は奈落（ユーザー「図書館的な見た目にしない」）。
+// 上は古い紙の光のもや、下へいくほど暗いセピアの深み。奈落には、もやの層と、ゆっくり昇るほこり。
+// 左右の見えない壁（主人公が出られない x=0・x=W）は、紙の透かしのような、ほとんど見えない光の幕。近づくと浮かび、ふれると波紋が広がる
+const SKY = [[1, '#f6ecd4'], [0.18, '#eadbb8'], [0.02, '#d2bc94'], [-0.06, '#6e5234'], [-0.2, '#2a1c10'], [-1, '#0c0704']];
+function skyColor(u) {
+  for (let i = 0; i < SKY.length - 1; i++) {
+    const [a, ca] = SKY[i], [b, cb] = SKY[i + 1];
+    if (u <= a && u >= b) return new THREE.Color(ca).lerp(new THREE.Color(cb), (a - u) / (a - b));
+  }
+  return new THREE.Color(SKY[SKY.length - 1][1]);
+}
+// 見えない壁の幕: たての細い光の筋（紙の繊維）。上と下はぼかす
+function curtainTexture(local = false) {
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 256;
+  const g = cv.getContext('2d'), R = rng(41);
+  for (let i = 0; i < 70; i++) {
+    const x = R() * 256, w = 0.6 + R() * 1.6, a = 0.25 + R() * 0.6;
+    const gr = g.createLinearGradient(0, 0, 0, 256);
+    gr.addColorStop(0, 'rgba(255,246,222,0)'); gr.addColorStop(0.25 + R() * 0.2, `rgba(255,246,222,${a})`);
+    gr.addColorStop(0.6 + R() * 0.2, `rgba(255,246,222,${a * 0.6})`); gr.addColorStop(1, 'rgba(255,246,222,0)');
+    g.fillStyle = gr; g.fillRect(x, 0, w, 256);
+  }
+  if (local) { // まわりへ向かって消える、丸い光のまど
+    g.globalCompositeOperation = 'destination-in';
+    const m = g.createRadialGradient(128, 128, 10, 128, 128, 126);
+    m.addColorStop(0, 'rgba(0,0,0,1)'); m.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = m; g.fillRect(0, 0, 256, 256);
+  }
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  if (!local) { tex.wrapS = THREE.RepeatWrapping; tex.repeat.set(6, 1); }
+  return tex;
+}
+function ringTexture() {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+  const g = cv.getContext('2d');
+  const gr = g.createRadialGradient(64, 64, 30, 64, 64, 62);
+  gr.addColorStop(0, 'rgba(255,240,200,0)'); gr.addColorStop(0.75, 'rgba(255,240,200,.9)'); gr.addColorStop(1, 'rgba(255,240,200,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
 function makeEnv(L) {
   const grp = new THREE.Group();
-  const tex = canvasTexture(512, 512, (g, w, h) => {
-    const R = rng(9);
-    const n = 8, cw = w / n;
-    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
-      const v = 0.85 + R() * 0.25;
-      g.fillStyle = `rgb(${Math.round(112 * v)},${Math.round(72 * v)},${Math.round(44 * v)})`;
-      g.fillRect(i * cw, j * cw, cw, cw);
-      g.strokeStyle = 'rgba(40,22,10,.25)'; g.lineWidth = 1;
-      const vert = (i + j) % 2 === 0;
-      for (let k = 1; k < 4; k++) {
-        g.beginPath();
-        if (vert) { g.moveTo(i * cw + k * cw / 4, j * cw); g.lineTo(i * cw + k * cw / 4, (j + 1) * cw); }
-        else { g.moveTo(i * cw, j * cw + k * cw / 4); g.lineTo((i + 1) * cw, j * cw + k * cw / 4); }
-        g.stroke();
-      }
-      g.strokeStyle = 'rgba(30,15,5,.5)'; g.strokeRect(i * cw, j * cw, cw, cw);
+  const cx = L.W / 2, cz = -L.T / 2;
+  // 空と奈落の球（霧はかけない）
+  const dome = new THREE.SphereGeometry(320, 32, 24);
+  const col = [], pos = dome.attributes.position;
+  for (let i = 0; i < pos.count; i++) { const c = skyColor(pos.getY(i) / 320); col.push(c.r, c.g, c.b); }
+  dome.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const sky = new THREE.Mesh(dome, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
+  sky.position.set(cx, 0, cz); sky.renderOrder = -10;
+  grp.add(sky);
+  // 奈落のもやの層（下ほどうすく、暗く）
+  const mistTex = canvasTexture(256, 256, (g, w, h) => {
+    const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  });
+  [[-6, '#a88a5e', 0.16, 150], [-16, '#5e432a', 0.18, 220], [-30, '#2e1f12', 0.2, 300]].forEach(([y, c, op, size]) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ map: mistTex, color: c, transparent: true, opacity: op, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; m.position.set(cx, y, cz); grp.add(m);
+  });
+  // ゆっくり昇るほこり
+  const N = 500, dp = new Float32Array(N * 3), R = rng(7);
+  for (let i = 0; i < N; i++) { dp[i * 3] = cx + (R() - 0.5) * 120; dp[i * 3 + 1] = -2 - R() * 40; dp[i * 3 + 2] = cz + (R() - 0.5) * (L.T + 60); }
+  const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(dp, 3));
+  const dust = new THREE.Points(dg, new THREE.PointsMaterial({ color: '#f3dfb0', size: 0.18, transparent: true, opacity: 0.55, depthWrite: false }));
+  grp.add(dust);
+  // 左右の見えない壁: ふだんは、ふちに細い光の線がうっすら。主人公が近づくと、そのまわりだけ光の幕が浮かぶ
+  const edgeMat = new THREE.LineBasicMaterial({ color: '#fff1c8', transparent: true, opacity: 0.18, depthWrite: false });
+  for (const x of [0, L.W]) for (const y of [-0.6, L.H + 0.6]) {
+    grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, y, 1), new THREE.Vector3(x, y, -L.T - 1)]), edgeMat));
+  }
+  const ltex = curtainTexture(true);
+  const walls = [0, L.W].map((x) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(7, 7), new THREE.MeshBasicMaterial({
+      map: ltex, color: '#fff3d0', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+    m.rotation.y = Math.PI / 2; m.position.x = x;
+    grp.add(m);
+    return m;
+  });
+  // ふれたときの波紋
+  const rtex = ringTexture();
+  const ripples = [];
+  for (let i = 0; i < 6; i++) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: rtex, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+    m.rotation.y = Math.PI / 2; m.visible = false; grp.add(m); ripples.push({ m, age: 9 });
+  }
+  let lastRipple = 0, time = 0;
+  grp.userData.update = (dt, h) => {
+    time += dt;
+    // ほこりは昇って、上まで来たら下へもどる
+    for (let i = 0; i < N; i++) { dp[i * 3 + 1] += dt * (0.25 + (i % 7) * 0.05); if (dp[i * 3 + 1] > -1.5) dp[i * 3 + 1] -= 40; }
+    dg.attributes.position.needsUpdate = true;
+    // 壁は、主人公が近いほど浮かぶ（4マスより遠ければ、ほとんど見えない）
+    walls.forEach((w, k) => {
+      const d = k ? L.W - h.x : h.x;
+      w.position.y = h.y + 1.2; w.position.z = -h.t;
+      w.material.opacity = 0.5 * Math.max(0, 1 - d / 2.5) * (0.85 + 0.15 * Math.sin(time * 2.4));
+    });
+    // ふれたら波紋（ふちから 0.45 以内で、ときどき）
+    const near = h.x < 0.45 ? 0 : h.x > L.W - 0.45 ? L.W : null;
+    if (near !== null && time - lastRipple > 0.45) {
+      lastRipple = time;
+      const r = ripples.find((q) => q.age > 1.2) || ripples[0];
+      r.age = 0; r.m.visible = true; r.m.position.set(near, h.y + 1.1, -h.t);
     }
-  }, [6, 8]);
-  grp.add(floorPlane(L, tex, -4.5));
-  const brass = new THREE.MeshStandardMaterial({ color: '#b98d3f', roughness: 0.35, metalness: 0.85 });
-  for (const x of [L.W + 0.4]) for (const y of [-0.2, L.H + 0.15]) {
-    const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, L.T + 2, 12), brass);
-    rail.rotation.x = Math.PI / 2; rail.position.set(x, y, -L.T / 2); grp.add(rail);
-  }
-  for (let t = 0; t <= L.T; t += 10) for (const x of [L.W + 0.4]) {
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, L.H + 4.4, 10), brass);
-    post.position.set(x, (L.H - 4.4) / 2, -t); grp.add(post);
-  }
+    for (const r of ripples) {
+      if (!r.m.visible) continue;
+      r.age += dt;
+      const u = r.age / 1.2;
+      if (u >= 1) { r.m.visible = false; continue; }
+      r.m.scale.setScalar(0.6 + u * 3.2);
+      r.m.material.opacity = 0.8 * (1 - u);
+    }
+  };
   return grp;
 }
 
@@ -164,7 +250,7 @@ export default {
   kindNamesEn: { beam: 'long specimen board', plank: 'specimen board', short: 'thin specimen board', lift: 'brass slanted board', wall: 'plaster pillar', slide: 'parallelogram board', diamond: 'diamond board' },
   kindNames: { beam: '長い標本の板', plank: '標本の板', short: 'うすい標本の板', lift: '真鍮のななめ板', wall: '石膏の柱', slide: '平行四辺形の板', diamond: 'ひし形の板' },
   kindColors: { beam: '#c9732f', plank: '#c9732f', short: '#d9893f', lift: '#e8a91c', wall: '#e9eef2', slide: '#4f9a86', diamond: '#a0628f' },
-  bg: 'radial-gradient(120% 90% at 30% 0%, #f5ead2 0%, #e2d2b0 50%, #b9a27c 100%)',
+  bg: 'linear-gradient(180deg, #f1e4c6 0%, #d8c39c 45%, #3b2817 100%)',
   fog: '#ddcca8', fogNear: 38, fogFar: 100, paper: ['#f4ead2', '#eadcbc'], paperTint: '#f8efd8',
   edge: '#b29a6c', focus: '#a8742a',
   labelColor: 'rgba(74,51,32,.85)',
