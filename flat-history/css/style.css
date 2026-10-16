@@ -992,3 +992,6 @@ kbd { background: rgba(26, 163, 155, .12); color: var(--d-gold2); border-color: 
 .palette { padding: 10px 12px; }
 @media (max-width: 760px), (max-height: 520px) { .pal-list { gap: 10px; } .palette { padding: 6px 8px; } }
 @media (max-width: 420px) { .pal-list { gap: 8px; } }
+
+/* v069: パレットの外わくはなし（ユーザー）。形のボタンだけを並べ、うしろに影をおとして3Dの上で読めるようにする */
+.palette { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .45)); }
