@@ -1,8 +1,8 @@
 // 音: 標本室に合う古い楽器のBGM（5曲から選ぶ）と、紙・木・オルゴールの効果音。すべて WebAudio で作る（音の素材ファイルは使わない）
 let ctx = null, master = null, bgmBus = null, seBus = null, verb = null;
-let muted = false;
-try { muted = localStorage.getItem('flat-history.mute') === '1'; } catch (e) { /* なし */ }
-const BGM_VOL = 0.13;
+// 音量（設定画面のスライダー 0〜1）。BGM は 0.26 倍、効果音は 0.8 倍をいちばん大きい音にする
+let bgmVol = 0.6, seVol = 0.7;
+const BGM_MAX = 0.26, SE_MAX = 0.8;
 
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -22,22 +22,22 @@ export function initAudio() {
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return;
   ctx = new AC();
-  master = ctx.createGain(); master.gain.value = muted ? 0 : 1;
+  master = ctx.createGain(); master.gain.value = 1;
   master.connect(ctx.destination);
   verb = ctx.createConvolver(); verb.buffer = impulse(2.2, 2.6);
   const verbGain = ctx.createGain(); verbGain.gain.value = 0.28;
   verb.connect(verbGain).connect(master);
-  bgmBus = ctx.createGain(); bgmBus.gain.value = BGM_VOL;
+  bgmBus = ctx.createGain(); bgmBus.gain.value = BGM_MAX * bgmVol;
   bgmBus.connect(master); bgmBus.connect(verb);
-  seBus = ctx.createGain(); seBus.gain.value = 0.5;
+  seBus = ctx.createGain(); seBus.gain.value = SE_MAX * seVol;
   seBus.connect(master); seBus.connect(verb);
 }
 
-export const isMuted = () => muted;
-export function setMuted(m) {
-  muted = m;
-  try { localStorage.setItem('flat-history.mute', m ? '1' : '0'); } catch (e) { /* なし */ }
-  if (master) master.gain.setTargetAtTime(m ? 0 : 1, ctx.currentTime, 0.05);
+export function setVolumes(b, e) {
+  bgmVol = b; seVol = e;
+  if (!ctx) return;
+  bgmBus.gain.setTargetAtTime(BGM_MAX * bgmVol, ctx.currentTime, 0.05);
+  seBus.gain.setTargetAtTime(SE_MAX * seVol, ctx.currentTime, 0.05);
 }
 
 // ---- 楽器 ----
@@ -242,8 +242,7 @@ const TRACKS = [
   },
 ];
 export const BGM_LIST = TRACKS.map((tr) => ({ id: tr.id, name: tr.name }));
-let trackId = 'minuet';
-try { const v = localStorage.getItem('flat-history.bgm'); if (TRACKS.some((tr) => tr.id === v)) trackId = v; } catch (e) { /* なし */ }
+let trackId = 'stroll'; // はじめは「標本室のおさんぽ」（2026-10-16 ユーザー）。選んだ曲は設定（main.js）が覚える
 export const bgmId = () => trackId;
 
 let bgmOn = false, nextT = 0, bar = 0, timer = null, playing = null;
@@ -267,7 +266,6 @@ export function stopBgm() { bgmOn = false; clearInterval(timer); }
 export function setBgm(id) {
   if (!TRACKS.some((tr) => tr.id === id)) return;
   trackId = id;
-  try { localStorage.setItem('flat-history.bgm', id); } catch (e) { /* なし */ }
   if (!ctx) return;
   const was = bgmOn;
   stopBgm();
@@ -275,7 +273,7 @@ export function setBgm(id) {
   old.gain.cancelScheduledValues(ctx.currentTime);
   old.gain.setTargetAtTime(0, ctx.currentTime, 0.15);
   setTimeout(() => old.disconnect(), 2000);
-  bgmBus = ctx.createGain(); bgmBus.gain.value = BGM_VOL;
+  bgmBus = ctx.createGain(); bgmBus.gain.value = BGM_MAX * bgmVol;
   bgmBus.connect(master); bgmBus.connect(verb);
   if (was) startBgm();
 }

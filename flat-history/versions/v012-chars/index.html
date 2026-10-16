@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ぺらぺら世界の歴史係（仮）</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='10' fill='%23f2e6cb'/><rect x='4' y='4' width='56' height='56' rx='6' fill='none' stroke='%234a3320' stroke-width='2'/><g fill='%23f8efd8' stroke='%234a3320' stroke-width='2.4'><path d='M12 46V24l10-8v22z'/><path d='M22 48V26l10-8v22z'/><path d='M32 50V28l10-8v22z'/></g><path d='M10 52L54 16' stroke='%23a8742a' stroke-width='4' stroke-linecap='round'/></svg>">
+<meta name="description" content="1秒ずつの2D世界が奥と手前に並んでいる。3Dの形を置くと、2D世界にはその断面が現れて、歴史が書きかわる。">
+<meta name="theme-color" content="#e2d2b0">
+<link rel="stylesheet" href="css/style.css?v=12">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+</head>
+<body class="menu">
+<canvas id="view" aria-label="ページの束と主人公"></canvas>
+
+<!-- タイトル -->
+<section id="title" class="screen title-screen">
+  <div class="title-card">
+    <p class="t-kicker">Pl. — 2次元＋時間の博物誌</p>
+    <h1 class="t-name">ぺらぺら世界の歴史係</h1>
+    <p class="t-sub">1秒ずつの2D世界が、図版のように並んでいる。<br>ページのあいだを歩いて、歴史を書きかえよう。</p>
+    <div class="t-acts">
+      <button type="button" id="tStart" class="act primary big">はじめる</button>
+      <button type="button" id="tSelect" class="act big">図版をえらぶ</button>
+    </div>
+    <div class="t-row">
+      <button type="button" id="tHelp" class="act ghost">あそびかた</button>
+      <button type="button" id="tSettings" class="act ghost">設定</button>
+    </div>
+    <p class="t-foot">キーボードとマウスで遊びます ・ 試作 <span class="ver">v012</span> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
+  </div>
+</section>
+
+<!-- 図版えらび -->
+<section id="select" class="screen" hidden>
+  <div class="select-card">
+    <div class="sel-head"><h2>図版の一覧</h2><button type="button" id="selClose" class="icon-btn" aria-label="もどる">×</button></div>
+    <p class="sel-group">はじめの図版（ひとつずつ覚える）</p>
+    <div id="selTut" class="plates"></div>
+    <p class="sel-group">本番の図版</p>
+    <div id="selMain" class="plates"></div>
+  </div>
+</section>
+
+<header class="top hud">
+  <div class="lv"><span id="lvPlate" class="lv-plate">Pl. I</span><span id="lvName" class="lv-name"></span></div>
+  <span class="esc-hint"><kbd>Esc</kbd> メニュー</span>
+</header>
+
+<div class="clock hud" aria-live="polite"><span class="pl">Pl.</span><span id="clockNum">0</span><small>秒目のページ</small></div>
+<div id="coach" class="coach hud" aria-live="polite"></div>
+<div id="intro" class="intro" hidden></div>
+<div id="prompt" class="prompt hud" aria-live="polite"></div>
+
+<div class="bottom hud">
+  <canvas id="timeline" height="40" aria-label="時間のしおり（クリックでその秒へ）"></canvas>
+  <button type="button" id="btnBind" class="act primary bind-btn">この歴史を綴じる <kbd>Enter</kbd></button>
+</div>
+
+<figure id="insetBox" class="inset hud">
+  <canvas id="inset" width="720" height="280"></canvas>
+  <figcaption id="insetCap"></figcaption>
+</figure>
+
+<!-- 図版のはじめ: はじめの歴史を見せる -->
+<div id="preview" class="modal" hidden>
+  <div class="modal-card preview-card">
+    <div class="pv-head"><span id="pvPlate" class="pv-plate">Pl. I</span><b id="pvName"></b></div>
+    <p class="pv-sub">このままだと、こうなる。</p>
+    <canvas id="pvCanvas" width="720" height="280"></canvas>
+    <div class="rp-ctrl">
+      <button type="button" id="pvPlay" class="act" aria-label="再生・一時停止">❚❚</button>
+      <input id="pvSeek" type="range" min="0" max="60" step="0.05" value="0" aria-label="シーク">
+    </div>
+    <div class="win-acts"><button type="button" id="pvStart" class="act primary big">作戦を立てて、はじめる <kbd>Enter</kbd></button></div>
+  </div>
+</div>
+
+<!-- 設定 -->
+<div id="settings" class="modal" hidden>
+  <div class="modal-card settings-card">
+    <h2>設定</h2>
+    <div class="set-grid">
+      <label for="sBgmVol">音楽の大きさ</label><input id="sBgmVol" type="range" min="0" max="100" step="1">
+      <label for="sSeVol">効果音の大きさ</label><input id="sSeVol" type="range" min="0" max="100" step="1">
+      <label for="sBgm">音楽</label><select id="sBgm"></select>
+      <label for="sChars">登場する者</label><select id="sChars"></select>
+    </div>
+    <div class="set-checks">
+      <label><input id="sRoute" type="checkbox"> 住人の通り道（世界線）を見せる</label>
+      <label><input id="sRun" type="checkbox"> ふだんは走る（Shift を押すと歩く）</label>
+      <label><input id="sInset" type="checkbox"> 右下に、いま立っているページを出す（V）</label>
+    </div>
+    <div class="win-acts"><button type="button" id="sClose" class="act primary">とじる</button></div>
+  </div>
+</div>
+
+<!-- Esc のメニュー -->
+<div id="menu" class="modal" hidden>
+  <div class="modal-card menu-card">
+    <h2 id="menuTitle">メニュー</h2>
+    <div class="menu-list">
+      <button type="button" id="mResume" class="act primary">つづける</button>
+      <button type="button" id="mRetry" class="act">この図版をはじめから</button>
+      <button type="button" id="mSelect" class="act">図版の一覧</button>
+      <button type="button" id="mHelp" class="act">あそびかた</button>
+      <button type="button" id="mSettings" class="act">設定</button>
+      <button type="button" id="mTitle" class="act">タイトルへ</button>
+    </div>
+  </div>
+</div>
+
+<div id="replay" class="modal" hidden>
+  <div class="modal-card replay-card">
+    <div class="rp-head"><b id="rpTitle">この歴史を綴じる</b><span class="rp-sub">住人から見た、はじめの歴史と いまの歴史</span></div>
+    <div class="rp-row"><div class="rp-label">はじめの歴史</div><canvas id="rpA" width="720" height="280"></canvas></div>
+    <div class="rp-row"><div class="rp-label now">いまの歴史</div><canvas id="rpB" width="720" height="280"></canvas></div>
+    <div class="rp-ctrl">
+      <button type="button" id="rpPlay" class="act" aria-label="再生・一時停止">❚❚</button>
+      <input id="rpSeek" type="range" min="0" max="60" step="0.05" value="0" aria-label="シーク">
+      <span id="rpTime" class="rp-time">0.0 秒</span>
+      <select id="rpSpeed" aria-label="速さ"><option value="1">×1</option><option value="2" selected>×2</option><option value="4">×4</option></select>
+    </div>
+    <div id="rpResult" class="rp-result" hidden></div>
+    <div class="win-acts">
+      <button type="button" id="rpNext" class="act primary">次の図版へ <kbd>Enter</kbd></button>
+      <button type="button" id="rpClose" class="act">この図版にもどる <kbd>Esc</kbd></button>
+    </div>
+  </div>
+</div>
+
+<div id="help" class="modal" hidden>
+  <div class="modal-card help-card">
+    <h2>あそびかた</h2>
+    <p>図版の一枚一枚は、<b>1秒ずつの2D世界</b>。前へ進むと未来、うしろへ進むと昔。<br>あなたは2D世界のページのあいだを歩けるけれど、住人にはさわれない。かわりに<b>3Dの形</b>を置ける。<br>住人がゴールにたどり着く歴史を作ろう。</p>
+    <table class="keys">
+      <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td>進む（見ている向きが前。<kbd>Shift</kbd> で歩く・走るを切りかえ）。1段の段差は自動でのぼる</td></tr>
+      <tr><td><kbd>Space</kbd></td><td>跳ぶ（壁のふちに手がとどけば、よじ登る）</td></tr>
+      <tr><td><kbd>E</kbd></td><td>つかむ ／ 置く</td></tr>
+      <tr><td><kbd>Q</kbd></td><td>持っている形を回す</td></tr>
+      <tr><td><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></td><td>形を持って止まっているとき、置き場所を1マスずつずらす</td></tr>
+      <tr><td><kbd>V</kbd></td><td>右下の、いまのページの小窓</td></tr>
+      <tr><td>マウスのドラッグ</td><td>見回す（ホイールで寄る・引く）</td></tr>
+      <tr><td><kbd>Enter</kbd></td><td>この歴史を綴じる（これでいい、と思ったら答える。いつでも）</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>メニュー</td></tr>
+    </table>
+    <div class="win-acts"><button type="button" id="helpClose" class="act primary">とじる</button></div>
+  </div>
+</div>
+
+<script type="module" src="js/main.js?v=13"></script>
+</body>
+</html>

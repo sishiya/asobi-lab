@@ -283,3 +283,21 @@ details.more p { font-size: 13px; color: var(--sub); }
 @keyframes rays { to { transform: rotate(360deg); } }
 @keyframes raysIn { from { opacity: 0; } to { opacity: 1; } }
 .rp-result.ng .stamp { animation: stampIn .45s ease-out both; }
+
+/* ---- v012 ---- */
+.bind-btn { flex: none; padding: 8px 16px; }
+.inset { bottom: 70px; }
+.inset[hidden] { display: none; }
+.preview-card { width: min(780px, 100%); text-align: center; }
+.pv-head { display: flex; align-items: baseline; justify-content: center; gap: 12px; }
+.pv-plate { font: italic 16px Georgia, serif; color: var(--sub); }
+.pv-head b { font: 700 26px var(--serif); letter-spacing: .2em; }
+.pv-sub { margin: 6px 0 10px; font: 14px var(--serif); color: var(--red); }
+#pvCanvas { display: block; width: 100%; height: auto; border: 1px solid var(--line); margin-bottom: 8px; }
+.settings-card { width: min(480px, 100%); }
+.settings-card h2 { margin: 0 0 14px; font: 700 20px var(--serif); letter-spacing: .2em; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.set-grid { display: grid; grid-template-columns: 8em 1fr; gap: 10px 12px; align-items: center; font: 14px var(--serif); }
+.set-grid input[type=range] { accent-color: var(--brass); width: 100%; }
+.set-grid select { font: 13px var(--serif); padding: 4px 6px; border: 1px solid var(--rule); border-radius: 2px; background: #fbf5e6; color: var(--ink); }
+.set-checks { display: flex; flex-direction: column; gap: 8px; margin: 16px 0 4px; font: 14px var(--serif); }
+.set-checks input { accent-color: var(--brass); margin-right: 6px; }

@@ -1,26 +1,9 @@
-// 見た目 案2「図鑑の銅版画と標本室」: 線で彫った博物画の大地を、飛べない鳥キーウィが歩く。標本室の石膏像
+// 見た目「図鑑の銅版画と標本室」: 線で彫った博物画の大地と、標本室。住人と主人公は residents.js・heroes.js（設定で選ぶ）
 import * as THREE from 'three';
-import { rng, canvasTexture, floorPlane, radialTexture } from './util.js?v=11';
+import { rng, canvasTexture, floorPlane } from './util.js?v=13';
+import { INK, hatch } from './ink.js?v=13';
 
-const INK = '#4a3320';
-
-// 斜線のハッチング（rect の中を、間隔 gap・角度で）
-function hatch(g, x, y, w, h, gap, ang, color, lw = 0.8) {
-  g.save();
-  g.beginPath(); g.rect(x, y, w, h); g.clip();
-  g.strokeStyle = color; g.lineWidth = lw;
-  const d = Math.hypot(w, h);
-  const cx = x + w / 2, cy = y + h / 2, ca = Math.cos(ang), sa = Math.sin(ang);
-  g.beginPath();
-  for (let o = -d; o <= d; o += gap) {
-    g.moveTo(cx + ca * -d - sa * o, cy + sa * -d + ca * o);
-    g.lineTo(cx + ca * d - sa * o, cy + sa * d + ca * o);
-  }
-  g.stroke();
-  g.restore();
-}
-
-function drawTerrain(g, L, S) {
+function drawTerrain(g, L, S, res) {
   const R = rng(23);
   const py = (y) => (L.H - y) * S;
   for (let c = 0; c < L.W; c++) {
@@ -84,35 +67,12 @@ function drawTerrain(g, L, S) {
     }
     g.lineWidth = 1.8;
   }
-  // 家: 土の巣穴
-  const hy = py(L.tops[Math.floor(L.start.x)]);
-  g.save(); g.translate(Math.max(0, L.start.x * S - 27), 0);
-  g.fillStyle = '#e6d6b2';
-  g.beginPath(); g.moveTo(0, hy); g.quadraticCurveTo(6, hy - 30, 30, hy - 28); g.quadraticCurveTo(50, hy - 24, 54, hy); g.fill();
-  g.save(); g.clip();
-  hatch(g, 0, hy - 30, 54, 30, 2.4, -0.9, 'rgba(74,51,32,.45)');
-  g.restore();
-  g.strokeStyle = INK; g.lineWidth = 1.4;
-  g.beginPath(); g.moveTo(0, hy - 2); g.quadraticCurveTo(6, hy - 30, 30, hy - 28); g.quadraticCurveTo(50, hy - 24, 54, hy); g.stroke();
-  g.fillStyle = '#2b1d12';
-  g.beginPath(); g.ellipse(26, hy, 11, 10, 0, Math.PI, 0); g.fill();
-  g.restore();
-  // ゴール: 小枝の巣と大きな卵
-  const gx = L.goal.x * S - 16, gy = py(L.tops[Math.floor(L.goal.x)]);
-  g.strokeStyle = INK; g.lineWidth = 1.2;
-  for (let i = 0; i < 16; i++) {
-    const a = R() * 0.6 - 0.3;
-    g.beginPath(); g.moveTo(gx - 6 + R() * 8, gy - R() * 5); g.lineTo(gx + 30 + R() * 10, gy - R() * 7 + a * 6); g.stroke();
-  }
-  g.fillStyle = '#fbf6e8';
-  g.beginPath(); g.ellipse(gx + 16, gy - 15, 10, 13, 0.15, 0, 7); g.fill();
-  g.save(); g.clip();
-  hatch(g, gx + 16, gy - 28, 12, 26, 2.2, -0.9, 'rgba(74,51,32,.4)');
-  g.restore();
-  g.beginPath(); g.ellipse(gx + 16, gy - 15, 10, 13, 0.15, 0, 7); g.stroke();
+  // 家とゴール（住人ごとにちがう）
+  res.drawHome(g, L, S);
+  res.drawGoal(g, L, S, R);
 }
 
-function drawBackdrop(g, L, S) {
+function drawBackdrop(g, L, S, res) {
   // 古い紙のしみと、図版のわく
   const W = L.W * S, H = L.H * S;
   const gr = g.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.7);
@@ -121,7 +81,7 @@ function drawBackdrop(g, L, S) {
   g.strokeStyle = 'rgba(74,51,32,.7)'; g.lineWidth = 1; g.strokeRect(5, 5, W - 10, H - 10);
   g.strokeRect(8, 8, W - 16, H - 16);
   g.fillStyle = 'rgba(74,51,32,.75)'; g.font = 'italic 12px Georgia, serif'; g.textAlign = 'right';
-  g.fillText('Pl. ' + (L.plate || 'I') + ' — Apteryx', W - 16, 22); g.textAlign = 'left';
+  g.fillText('Pl. ' + (L.plate || 'I') + ' — ' + res.plate, W - 16, 22); g.textAlign = 'left';
 }
 
 function drawSection(g, L, s, S, color) {
@@ -143,152 +103,6 @@ function drawSection(g, L, s, S, color) {
     hatch(g, x + w * 0.55, y, w * 0.45, h, 2, -0.9, 'rgba(74,51,32,.5)');
   }
   g.strokeStyle = INK; g.lineWidth = 1.5; g.strokeRect(x + 0.75, y + 0.75, w - 1.5, h - 1.5);
-}
-
-// 4つの光の星（彫った線の星）
-function sparkle(g, x, y, r, a) {
-  g.save(); g.translate(x, y); g.rotate(a);
-  g.fillStyle = '#d9a63a'; g.strokeStyle = INK; g.lineWidth = 0.7;
-  g.beginPath();
-  for (let i = 0; i < 8; i++) { const rr = i % 2 ? r * 0.3 : r, an = i * Math.PI / 4; g.lineTo(Math.cos(an) * rr, Math.sin(an) * rr); }
-  g.closePath(); g.fill(); g.stroke();
-  g.restore();
-}
-
-// 巣に着いてから: 卵にひびが入り、ひなが顔を出す
-function drawGoalJoy(g, L, S, since) {
-  const gx = L.goal.x * S, gy = (L.H - L.tops[Math.floor(L.goal.x)]) * S;
-  const ex = gx, ey = gy - 15;
-  if (since > 0.8) {
-    g.strokeStyle = INK; g.lineWidth = 1.1;
-    g.beginPath(); g.moveTo(ex - 9, ey - 2); g.lineTo(ex - 4, ey + 2); g.lineTo(ex, ey - 3); g.lineTo(ex + 4, ey + 1); g.lineTo(ex + 9, ey - 3); g.stroke();
-  }
-  if (since > 1.8) {
-    // 割れた上のから（横に落ちている）
-    g.fillStyle = '#fbf6e8'; g.strokeStyle = INK; g.lineWidth = 1;
-    g.beginPath(); g.ellipse(ex + 17, gy - 4, 7, 4, 0.5, Math.PI, 0); g.fill(); g.stroke();
-    // ひな（ふわふわの丸い頭と、短いくちばし）
-    const bob = Math.sin(since * 6) * 1;
-    g.fillStyle = '#d8bb8f';
-    g.beginPath(); g.arc(ex, ey - 6 + bob, 6, 0, 7); g.fill();
-    g.strokeStyle = 'rgba(74,51,32,.7)'; g.lineWidth = 0.6;
-    for (let a = -2.6; a < -0.4; a += 0.35) { g.beginPath(); g.moveTo(ex + Math.cos(a) * 4, ey - 6 + bob + Math.sin(a) * 4); g.lineTo(ex + Math.cos(a) * 7, ey - 6 + bob + Math.sin(a) * 7); g.stroke(); }
-    g.strokeStyle = INK; g.lineWidth = 1;
-    g.beginPath(); g.arc(ex, ey - 6 + bob, 6, 0, 7); g.stroke();
-    g.beginPath(); g.moveTo(ex + 5, ey - 6 + bob); g.lineTo(ex + 10, ey - 3 + bob); g.stroke();
-    g.fillStyle = INK; g.beginPath(); g.arc(ex + 2, ey - 8 + bob, 0.8, 0, 7); g.fill();
-  }
-  // 巣のまわりの光
-  const n = 5;
-  for (let i = 0; i < n; i++) {
-    const a = since * 1.5 + i * (Math.PI * 2 / n), r = 20 + Math.sin(since * 3 + i) * 4;
-    sparkle(g, ex + Math.cos(a) * r, ey - 4 + Math.sin(a) * r * 0.6, 2.5 + (i % 2) * 1.2, since * 2 + i);
-  }
-}
-
-function drawWalker(g, L, f, S, scale = 1) {
-  const x = f.x * S, y = (L.H - f.y) * S;
-  g.save();
-  // 巣に着いたら、ぴょんぴょん跳ねてよろこぶ
-  const joy = f.since != null;
-  const hop = joy ? Math.abs(Math.sin(f.since * 7)) * 5 : 0;
-  g.translate(x, y - hop);
-  g.scale(f.dir * scale, scale);
-  const ph = f.st === 'walk' ? Math.sin(f.x * 7) : 0;
-  // 足（太くてじょうぶ）
-  g.strokeStyle = INK; g.lineWidth = 1.6; g.lineCap = 'round';
-  g.beginPath(); g.moveTo(-1, -6); g.lineTo(-1.5 - ph * 2.5, 0); g.lineTo(0.5 - ph * 2.5, 0); g.stroke();
-  g.beginPath(); g.moveTo(1.5, -6); g.lineTo(2 + ph * 2.5, 0); g.lineTo(4 + ph * 2.5, 0); g.stroke();
-  // 体（洋なし形。毛を線で）
-  g.fillStyle = '#c9a77a';
-  g.beginPath(); g.ellipse(-0.5, -10, 7, 5.5, -0.15, 0, 7); g.fill();
-  g.save(); g.beginPath(); g.ellipse(-0.5, -10, 7, 5.5, -0.15, 0, 7); g.clip();
-  g.strokeStyle = 'rgba(74,51,32,.75)'; g.lineWidth = 0.7;
-  for (let i = -8; i < 8; i += 1.6) { g.beginPath(); g.moveTo(i, -16); g.quadraticCurveTo(i - 1.5, -10, i - 0.5, -4); g.stroke(); }
-  g.restore();
-  g.strokeStyle = INK; g.lineWidth = 1.2;
-  g.beginPath(); g.ellipse(-0.5, -10, 7, 5.5, -0.15, 0, 7); g.stroke();
-  // 頭と長いくちばし
-  g.fillStyle = '#d8bb8f';
-  g.beginPath(); g.arc(5, -13.5, 3, 0, 7); g.fill(); g.stroke();
-  g.beginPath(); g.moveTo(7.5, -13.5); g.quadraticCurveTo(12, -11, 14.5, -5.5); g.stroke();
-  g.fillStyle = INK; g.beginPath(); g.arc(5.8, -14.3, 0.7, 0, 7); g.fill();
-  if (joy) {
-    // うれしい目（へ の字）と、頭の上の音符
-    g.strokeStyle = INK; g.lineWidth = 0.9;
-    g.beginPath(); g.moveTo(4.8, -14); g.lineTo(5.8, -15); g.lineTo(6.8, -14); g.stroke();
-    g.fillStyle = INK; g.font = '9px Georgia, serif';
-    g.save(); g.scale(f.dir, 1); g.fillText('♪', -4 * f.dir + Math.sin(f.since * 3) * 2, -22 - (f.since * 6) % 6); g.restore();
-  }
-  g.restore();
-}
-
-// 3D世界の住人: 学芸員（2D世界のセピアとちがう、はっきりした色）
-function makeHero() {
-  const hero = new THREE.Group();
-  const body = new THREE.Group();
-  hero.add(body);
-  const coat = new THREE.MeshStandardMaterial({ color: '#16708a', roughness: 0.55 });
-  const coatDark = new THREE.MeshStandardMaterial({ color: '#0d4c5f', roughness: 0.6 });
-  const scarf = new THREE.MeshStandardMaterial({ color: '#c8322b', roughness: 0.6 });
-  const skin = new THREE.MeshStandardMaterial({ color: '#f2c9a0', roughness: 0.55 });
-  const hair = new THREE.MeshStandardMaterial({ color: '#2b1a12', roughness: 0.6 });
-  const brass = new THREE.MeshStandardMaterial({ color: '#e0a83a', roughness: 0.3, metalness: 0.85 });
-  const boot = new THREE.MeshStandardMaterial({ color: '#3a2418', roughness: 0.5 });
-  for (const z of [-0.1, 0.1]) {
-    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.2, 4, 8), coatDark);
-    leg.position.set(0, 0.17, z); body.add(leg);
-    const shoe = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 8), boot);
-    shoe.scale.set(1.5, 0.6, 1); shoe.position.set(0.05, 0.045, z); body.add(shoe);
-  }
-  // 長い上着（すそが広がる）
-  const pts = [[0.34, 0.26], [0.3, 0.42], [0.23, 0.8], [0.21, 0.95], [0.13, 1.02], [0, 1.03]].map(([r, y]) => new THREE.Vector2(r, y));
-  body.add(new THREE.Mesh(new THREE.LatheGeometry(pts, 28), coat));
-  const belt = new THREE.Mesh(new THREE.TorusGeometry(0.245, 0.025, 8, 28), coatDark);
-  belt.rotation.x = Math.PI / 2; belt.position.y = 0.66; body.add(belt);
-  for (let i = 0; i < 3; i++) {
-    const btn = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), brass);
-    btn.position.set(0.225 - i * 0.004, 0.86 - i * 0.12, 0); body.add(btn);
-  }
-  const sc = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.05, 8, 20), scarf);
-  sc.rotation.x = Math.PI / 2; sc.position.y = 1.02; body.add(sc);
-  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.28, 0.09), scarf);
-  tail.position.set(-0.14, 0.88, 0.08); tail.rotation.z = 0.25; body.add(tail);
-  // 頭（大きめ）・髪・丸めがね
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 28, 20), skin);
-  head.position.y = 1.29; body.add(head);
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.275, 28, 20, 0, Math.PI * 2, 0, Math.PI * 0.52), hair);
-  cap.position.y = 1.31; cap.rotation.z = 0.4; body.add(cap);
-  for (const z of [-0.095, 0.095]) {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 8, 20), brass);
-    ring.rotation.y = Math.PI / 2; ring.position.set(0.25, 1.28, z); body.add(ring);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 8), hair);
-    eye.position.set(0.245, 1.28, z); body.add(eye);
-  }
-  const cheekM = new THREE.MeshStandardMaterial({ color: '#e8907a', roughness: 0.7 });
-  for (const z of [-0.15, 0.15]) {
-    const ch = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), cheekM);
-    ch.scale.set(0.5, 0.6, 1); ch.position.set(0.225, 1.2, z); body.add(ch);
-  }
-  const armGeo = new THREE.CapsuleGeometry(0.06, 0.32, 4, 8);
-  armGeo.translate(0, -0.2, 0);
-  const armL = new THREE.Mesh(armGeo, coat), armR = new THREE.Mesh(armGeo, coat);
-  armL.position.set(0, 0.95, -0.25); armR.position.set(0, 0.95, 0.25);
-  body.add(armL, armR);
-  // 手さげランプ（右手。真鍮のわくとあたたかい火）
-  const lamp = new THREE.Group();
-  const frame = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.16, 6, 1, true), new THREE.MeshStandardMaterial({ color: '#e0a83a', roughness: 0.3, metalness: 0.85, wireframe: true }));
-  const capTop = new THREE.Mesh(new THREE.ConeGeometry(0.085, 0.07, 6), brass);
-  capTop.position.y = 0.115;
-  const flame = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8), new THREE.MeshStandardMaterial({ color: '#fff0b8', emissive: '#ffb030', emissiveIntensity: 2.2 }));
-  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: radialTexture('rgba(255,190,80,.85)', 'rgba(255,190,80,0)'), transparent: true, depthWrite: false }));
-  glow.scale.set(0.6, 0.6, 1);
-  lamp.add(frame, capTop, flame, glow);
-  lamp.position.set(0.02, -0.5, 0.02);
-  armR.add(lamp);
-  hero.scale.setScalar(1.45);
-  hero.userData = { body, armL, armR, orbMode: 'hold' };
-  return hero;
 }
 
 // 標本室: 寄せ木の床と、真鍮のレール
@@ -326,14 +140,14 @@ function makeEnv(L) {
 }
 
 export default {
-  id: 'museum', name: '案2 図鑑の銅版画', who: 'キーウィ',
+  id: 'museum',
   kindNames: { beam: '長い標本の板', plank: '標本の板', short: 'うすい標本の板', lift: '真鍮のななめ板', wall: '石膏の柱' },
   kindColors: { beam: '#c9732f', plank: '#c9732f', short: '#d9893f', lift: '#e8a91c', wall: '#e9eef2' },
   bg: 'radial-gradient(120% 90% at 30% 0%, #f5ead2 0%, #e2d2b0 50%, #b9a27c 100%)',
   fog: '#ddcca8', fogNear: 38, fogFar: 100, paper: ['#f4ead2', '#eadcbc'], paperTint: '#f8efd8',
-  edge: '#b29a6c', focus: '#a8742a', shelf: '#f0e2c0', shelfLine: '#a88e5e',
+  edge: '#b29a6c', focus: '#a8742a',
   labelColor: 'rgba(74,51,32,.85)',
   ribbon: { line: '#5a3d22', gold: '#c9942e', dead: '#8f3b2b', old: '#a0634f' },
   light: { sky: '#fff2d8', ground: '#7a5a3a', sun: '#ffe2b5' },
-  drawTerrain, drawBackdrop, drawWalker, drawSection, drawGoalJoy, makeHero, makeEnv,
+  drawTerrain, drawBackdrop, drawSection, makeEnv,
 };

@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・標本台・主人公・置いた形・持っている形・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=11';
-import { radialTexture } from './look/util.js?v=11';
-import { S, drawSheet } from './sheet.js?v=11';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=11';
-import { TABLE, tableY } from './hero.js?v=11';
+import { look, kindColor } from './look/index.js?v=13';
+import { radialTexture } from './look/util.js?v=13';
+import { S, drawSheet } from './sheet.js?v=13';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=13';
+import { TABLE, tableY } from './hero.js?v=13';
 
 export const GAP = 1.0;
 const Z = (t) => -t * GAP;
@@ -39,6 +39,48 @@ export function pieceGeometry(p) {
   g.computeVertexNormals();
   geoCache.set(key, g);
   return g;
+}
+
+// 3Dの物体を、Z＝z の面で切った断面（メッシュごとに凸包の多角形）。色はそのメッシュの色
+const _v = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+function sliceObject(root, z) {
+  const out = [];
+  root.updateWorldMatrix(true, true);
+  root.traverse((o) => {
+    if (!o.isMesh || !o.visible || !o.material || o.material.wireframe || o.material.transparent || !o.material.color) return;
+    const pos = o.geometry.attributes.position, idx = o.geometry.index;
+    const n = idx ? idx.count : pos.count;
+    const pts = [];
+    for (let i = 0; i < n; i += 3) {
+      for (let k = 0; k < 3; k++) _v[k].fromBufferAttribute(pos, idx ? idx.getX(i + k) : i + k).applyMatrix4(o.matrixWorld);
+      for (let k = 0; k < 3; k++) {
+        const a = _v[k], b = _v[(k + 1) % 3];
+        if ((a.z - z) * (b.z - z) < 0) { const u = (z - a.z) / (b.z - a.z); pts.push([a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u]); }
+      }
+    }
+    if (pts.length < 3) return;
+    // 凸包（Andrew の方法）
+    pts.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+    const cross = (o2, a, b) => (a[0] - o2[0]) * (b[1] - o2[1]) - (a[1] - o2[1]) * (b[0] - o2[0]);
+    const lo = [], hi = [];
+    for (const q of pts) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+    for (let i = pts.length - 1; i >= 0; i--) { const q = pts[i]; while (hi.length >= 2 && cross(hi[hi.length - 2], hi[hi.length - 1], q) <= 0) hi.pop(); hi.push(q); }
+    const hull = lo.slice(0, -1).concat(hi.slice(0, -1));
+    if (hull.length >= 3) out.push({ color: '#' + o.material.color.getHexString(), pts: hull });
+  });
+  return out;
+}
+function drawSlices(g, L, polys) {
+  g.save();
+  g.lineJoin = 'round';
+  for (const pl of polys) {
+    g.beginPath();
+    pl.pts.forEach(([x, y], i) => { const px = x * 20, py = (L.H - y) * 20; i ? g.lineTo(px, py) : g.moveTo(px, py); });
+    g.closePath();
+    g.fillStyle = pl.color; g.fill();
+    g.strokeStyle = '#2a1c10'; g.lineWidth = 1.4; g.stroke();
+  }
+  g.restore();
 }
 
 export function createStage(canvas, L) {
@@ -142,6 +184,20 @@ export function createStage(canvas, L) {
   }
   let ghost = null, ghostKey = '';
   let carried = null, carriedKey = '';
+  // つかめる形の上に、ポコっと出る E のキー
+  const eIcon = (() => {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#3d2a18'; g.beginPath(); g.roundRect(14, 18, 100, 100, 18); g.fill();
+    g.fillStyle = '#fbf5e6'; g.beginPath(); g.roundRect(14, 10, 100, 96, 18); g.fill();
+    g.strokeStyle = '#3d2a18'; g.lineWidth = 6; g.stroke();
+    g.fillStyle = '#3d2a18'; g.font = 'bold 64px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('E', 64, 60);
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+    sp.renderOrder = 10; sp.visible = false; scene.add(sp);
+    return sp;
+  })();
+  let eKey = '', ePop = 0;
 
   // ---- 世界線のリボン（見に行ったところまで） ----
   let ribbon = null, oldRibbons = [], endMark = null;
@@ -251,7 +307,29 @@ export function createStage(canvas, L) {
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); orbit.dist = Math.max(6, Math.min(60, orbit.dist * Math.pow(1.0015, e.deltaY))); }, { passive: false });
   canvas.addEventListener('dblclick', () => { Object.assign(orbit, ORBIT0); });
   const target = new THREE.Vector3(), camPos = new THREE.Vector3();
+  let visY = NaN;
   let camInit = false;
+
+  // 主人公と重なっているページ（中心から 0.9 以内）にだけ、断面を描く
+  let heroPages = new Map();
+  function heroOverlay(hx, hy, ht) {
+    const want = new Map();
+    for (let t = Math.ceil(ht - 0.9); t <= Math.floor(ht + 0.9); t++) {
+      if (t < 0 || t > L.T) continue;
+      want.set(t, `${hx.toFixed(2)}:${hy.toFixed(2)}:${ht.toFixed(2)}:${(hero.userData.body.rotation.y).toFixed(2)}`);
+    }
+    for (const [t] of heroPages) if (!want.has(t) && hist) drawOne(sheets[t]);
+    for (const [t, k] of want) {
+      if (heroPages.get(t) === k || !hist) continue;
+      const sh = sheets[t];
+      drawOne(sh);
+      drawSlices(sh.g, L, sliceObject(hero, Z(t)));
+      sh.tex.needsUpdate = true;
+    }
+    heroPages = want;
+  }
+  // 右下の小窓など、ほかの絵にも主人公の断面を描く
+  function drawHeroOn(g, t) { drawSlices(g, L, sliceObject(hero, Z(t))); }
 
   // ---- 毎フレーム ----
   function update(dt, v) {
@@ -272,13 +350,15 @@ export function createStage(canvas, L) {
       if (r.userData.fade <= 0) { scene.remove(r); r.geometry.dispose(); oldRibbons.splice(i, 1); }
     }
     // 世界線は、見に行ったところまで
+    if (ribbon) ribbon.visible = !!v.showRoute;
     if (ribbon) {
       const u = ribbon.userData;
       const lim = waveT !== null ? Math.min(revealT, Math.max(waveFrom, waveT)) : revealT;
       const frac = Math.max(0, Math.min(1, lim / Math.max(0.01, u.tEnd)));
       ribbon.geometry.setDrawRange(0, Math.floor(frac * u.seg) * 36);
     }
-    if (endMark) endMark.visible = waveT === null && endMark.userData.t <= revealT;
+    if (endMark) endMark.visible = !!v.showRoute && waveT === null && endMark.userData.t <= revealT;
+    for (const r of oldRibbons) r.visible = !!v.showRoute;
     // 形が下りてくる
     for (const [, o] of pieceObjs) {
       if (o.userData.drop > 0) {
@@ -298,7 +378,8 @@ export function createStage(canvas, L) {
         orbit.yaw += d * Math.min(1, dt * 1.2);
       }
     }
-    target.set(h.x, h.y + 1.6, hz);
+    visY = Number.isFinite(visY) && Math.abs(h.y - visY) < 3 ? visY + (h.y - visY) * Math.min(1, dt * 16) : h.y;
+    target.set(h.x, visY + 1.6, hz);
     const cp = Math.cos(orbit.pitch);
     camPos.set(target.x + Math.sin(orbit.yaw) * cp * orbit.dist, target.y + Math.sin(orbit.pitch) * orbit.dist, target.z + Math.cos(orbit.yaw) * cp * orbit.dist);
     if (!camInit) { camera.position.copy(camPos); camInit = true; }
@@ -321,21 +402,32 @@ export function createStage(canvas, L) {
     frame.position.z = Z(focus) + 0.01;
 
     // 主人公
-    hero.position.set(h.x, h.y, hz);
+    hero.position.set(h.x, visY, hz);
     const ud = hero.userData;
     const want = Math.atan2(h.ft, h.fx);
     let d = want - ud.body.rotation.y; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
     ud.body.rotation.y += d * Math.min(1, dt * 12);
     const tm = now;
-    ud.body.position.y = walking && h.grounded ? Math.abs(Math.sin(tm * 10)) * 0.07 : 0;
-    if (ud.armL) ud.armL.rotation.z = carry ? -2.6 : (walking ? Math.sin(tm * 10) * 0.6 : 0);
-    if (ud.armR) ud.armR.rotation.z = carry ? -2.6 : (walking ? -Math.sin(tm * 10) * 0.6 : 0);
-    if (ud.tick) ud.tick(tm, walking);
+    if (ud.animate) ud.animate(dt, { speed: Math.hypot(moveX, moveT), run: !!v.running, grounded: h.grounded, vy: h.vy, carry: !!carry, landT: h.landT || 0 });
+    heroOverlay(h.x, visY, h.t);
     // 足もとの影（真下の地面に）
     blob.visible = Number.isFinite(v.groundY);
     if (blob.visible) {
       blob.position.set(h.x, v.groundY + 0.03, hz);
       blob.scale.setScalar(1 / (1 + Math.max(0, h.y - v.groundY) * 0.3));
+    }
+    // E のアイコン
+    const gp = v.grab;
+    const gk = gp ? gp.id + ':' + gp.x0 + ':' + gp.t0 : '';
+    if (gk !== eKey) { eKey = gk; ePop = 0; }
+    eIcon.visible = !!gp;
+    if (gp) {
+      const dd = pieceDims(gp);
+      ePop = Math.min(1, ePop + dt * 6);
+      const pop = ePop < 1 ? 1 + Math.sin(ePop * Math.PI) * 0.35 : 1;
+      const top = gp.y0 + dd.h + (dd.along === 'z' ? dd.slope * dd.dz : dd.slope * dd.wx);
+      eIcon.position.set(gp.x0 + dd.wx / 2, top + 1.1 + Math.sin(tm * 4) * 0.12, Z(gp.t0 + dd.dz / 2));
+      eIcon.scale.setScalar(0.9 * pop * ePop);
     }
 
     // 持っている形（頭の上に小さく）
@@ -351,12 +443,12 @@ export function createStage(canvas, L) {
       carried.position.set(h.x - dd.wx * 0.11, h.y + 3.1 + Math.sin(tm * 3) * 0.06, hz + dd.dz * 0.11);
     }
     // 置き場所のゴースト（実物大）
-    const gk = cand ? cand.kind + ':' + (cand.rot ? 1 : 0) : '';
-    if (gk !== ghostKey) {
+    const gkk = cand ? cand.kind + ':' + (cand.rot ? 1 : 0) : '';
+    if (gkk !== ghostKey) {
       if (ghost) scene.remove(ghost);
       ghost = cand ? makePieceObj(cand, true) : null;
       if (ghost) scene.add(ghost);
-      ghostKey = gk;
+      ghostKey = gkk;
     }
     if (ghost) {
       ghost.position.set(cand.x0, Number.isFinite(cand.y0) ? cand.y0 : h.y, Z(cand.t0));
@@ -375,12 +467,15 @@ export function createStage(canvas, L) {
     paper.material.color.set(lk.paperTint);
     frame.material.color.set(lk.focus);
     scene.remove(hero); hero = lk.makeHero(); scene.add(hero);
+    heroPages = new Map();
+    if (hist) for (const sh of sheets) drawOne(sh);
     scene.remove(env); env = lk.makeEnv(L); scene.add(env);
     document.body.style.background = lk.bg;
   }
 
   function setLevel(nl) {
     L = nl;
+    heroPages = new Map();
     for (const [id, o] of pieceObjs) { scene.remove(o); pieceObjs.delete(id); }
     pieces = [];
     buildTable();
@@ -400,5 +495,5 @@ export function createStage(canvas, L) {
   // 確認用: 波を終わらせる
   function skipWave() { if (waveT === null) return; for (const sh of sheets) if (sh.pending) drawOne(sh); waveT = null; }
 
-  return { setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, waving: () => waveT !== null };
+  return { setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, waving: () => waveT !== null };
 }
