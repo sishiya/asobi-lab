@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
-import { LEVELS } from './level.js?v=53';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=53';
-import { drawSheet } from './sheet.js?v=53';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=53';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=53';
-import { makeHero, stepHero, groundAt, pieceUnder } from './hero.js?v=54';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=53';
+import { LEVELS } from './level.js?v=55';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=55';
+import { drawSheet } from './sheet.js?v=55';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=55';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=55';
+import { makeHero, stepHero, groundAt } from './hero.js?v=55';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=55';
 
 const $ = (id) => document.getElementById(id);
 
@@ -16,11 +16,12 @@ try { progress = JSON.parse(localStorage.getItem('flat-history.progress') || '{}
 function saveProgress() { try { localStorage.setItem('flat-history.progress', JSON.stringify(progress)); } catch (e) { /* なし */ } }
 
 // ---- 設定（このブラウザだけに覚える） ----
-const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'minuet', runDefault: true, inset: true, invX: false, invY: false, move: 'tap', hero: 'poly', res: 'kiwi' };
+const DEF = { bgmVol: 0.6, seVol: 0.7, bgm: 'fog', runDefault: true, inset: true, invX: false, invY: false, move: 'tap', hero: 'poly', res: 'kiwi' };
 let cfg = { ...DEF };
 try { cfg = { ...DEF, ...JSON.parse(localStorage.getItem('flat-history.settings2') || '{}') }; } catch (e) { cfg = { ...DEF }; }
 function saveCfg() { try { localStorage.setItem('flat-history.settings2', JSON.stringify(cfg)); } catch (e) { /* なし */ } }
 // v034: 主人公・住人をしぼった。やめた者を選んでいた人・前の既定（多面体）のままの人は、砂時計とキーウィへ。通り道・透かしの設定はやめた
+if (!cfg.v39) { cfg.bgm = 'fog'; cfg.v39 = true; } // v039: 音楽は「霧のなかの図版」に（ユーザー。一度だけ）
 if (!cfg.v38) { cfg.hero = 'poly'; cfg.v38 = true; delete cfg.v34; } // v038: 既定は多面体の旅人に（一度だけ）
 if (!HERO_LIST.some((c) => c.id === cfg.hero)) cfg.hero = 'poly';
 if (!RES_LIST.some((c) => c.id === cfg.res)) cfg.res = 'kiwi';
@@ -588,7 +589,7 @@ function tlJump(e) {
   const nt = Math.max(0, Math.min(L.T, Math.round(u * L.T)));
   const h = st.hero;
   const g = groundAt(L, st.pieces, h.x, nt, Infinity);
-  h.t = nt; h.vy = 0;
+  h.t = nt; h.vy = 0; h.vx = 0; h.vt = 0;
   if (Number.isFinite(g)) { h.y = g; h.floor = g; }
 }
 tl.addEventListener('pointerdown', (e) => { tlDrag = true; tl.setPointerCapture(e.pointerId); tlJump(e); });
@@ -815,12 +816,11 @@ function drawReplay() {
 }
 
 // ---- 毎フレーム ----
-let onPieceId = 0, last = performance.now(), lastFocus = 0, stepAcc = 0, idleT = 0;
+let last = performance.now(), lastFocus = 0, stepAcc = 0, idleT = 0;
 const flip = { t: null };
 // 主人公の姿ごとの足音
-const STEP_KIND = { poly: 'chime', cube: 'chime', prism: 'chime', dodeca: 'chime', star: 'chime', hourglass: 'wood', crane: 'paper', balloon: 'paper' };
+const STEP_KIND = { poly: 'sparkle', cube: 'sparkle', prism: 'sparkle', dodeca: 'sparkle', star: 'sparkle', hourglass: 'wood', crane: 'paper', balloon: 'paper' };
 // 置いた形の上を歩く音（形の材質ごと）
-const PIECE_STEP = { beam: 'board', plank: 'board', short: 'board', lift: 'brass', wall: 'stone', slide: 'glass', diamond: 'glass' };
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
@@ -855,14 +855,10 @@ function loop(now) {
   const running = act && (walk.to ? walkRun : joy.id !== null ? Math.hypot(joy.x, joy.y) > 0.8 : cfg.runDefault ? !keys.has('Shift') : keys.has('Shift'));
   stepHero(h, L, st.pieces, mx, mt, act ? dt : 0, running);
   st.walked += Math.abs(h.t - before);
-  // 主人公の足音（地面を本当に歩いた距離ごと。壁に押しつけているだけなら鳴らない）と着地
-  if (act && h.grounded) {
+  // 主人公の動く音（本当に進んだ距離ごと）。浮かんでいるので、置いた形の上でも音は変えない（v039）
+  if (act) {
     stepAcc += Math.hypot(h.x - bx, h.t - before);
-    // 置いた形の上なら、その形の音。形に乗った・形から下りたときも、すぐ1歩鳴らす
-    const on = pieceUnder(st.pieces, h.x, h.t, h.y);
-    const kindNow = on ? PIECE_STEP[on.kind] || 'board' : STEP_KIND[cfg.hero] || 'wood';
-    if ((on ? on.id : 0) !== onPieceId) { onPieceId = on ? on.id : 0; if (on) { stepAcc = 0; se.step(kindNow); } }
-    if (stepAcc > (running ? 1.3 : 1.0)) { stepAcc = 0; se.step(kindNow); }
+    if (stepAcc > (running ? 1.3 : 1.0)) { stepAcc = 0; se.step(STEP_KIND[cfg.hero] || 'wood'); }
   }
   st.revealT = Math.max(st.revealT, Math.min(L.T, h.t + 3));
   const focus = Math.max(0, Math.min(L.T, Math.round(h.t)));

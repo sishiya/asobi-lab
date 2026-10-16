@@ -1,11 +1,11 @@
 // 主人公の動き方。時空の大地（ページの上のふちが奥行きに並んだ地形）の上を、浮かんで進む（v038）。
 // 座標: x＝2D世界の横（マス）、t＝時間（秒。3Dの奥行き）、y＝高さ（マス）。
 // 主人公の体はページの間隔（1秒）より薄いので、ページのあいだを歩くかぎり2D世界とは交わらない（REDESIGN 3-1）
-import { pieceDims, sectionRects } from './sim.js?v=53';
+import { pieceDims, sectionRects } from './sim.js?v=55';
 
 // v038: 主人公は浮かんでいる。跳ぶ・よじ登る・落ちるはやめた。足もとの高さへ、ばねのようにふわりと寄る（少しゆれて、ぴたりとは張りつかない）
 // 奈落の上では、さっきの高さのまま浮かんでいる（落ちない）
-export const HERO = { speed: 5.2, run: 1.9, k: 34, c: 9.5, sink: 0.9, look: 0.4 };
+export const HERO = { speed: 5.2, run: 1.9, k: 34, c: 9.5, sink: 0.9, look: 0.4, accel: 7, decel: 3.2 };
 
 // (x, t) の足もとの高さ。yRef より 1 以上うえにある形の底は、床にしない（頭の上の形）
 export function groundAt(L, pieces, x, t, yRef = Infinity) {
@@ -25,13 +25,6 @@ export function groundAt(L, pieces, x, t, yRef = Infinity) {
   }
   return g;
 }
-// 足もとの面が置いた形なら、その形（地面なら null）。足音を形の材質で鳴らす
-export function pieceUnder(pieces, x, t, y) {
-  for (const p of pieces) {
-    if (Math.abs(groundAt({ tops: [], W: 0, T: -9 }, [p], x, t, y) - y) < 0.4) return p;
-  }
-  return null;
-}
 // 足の大きさぶん、何点かで見る
 function footGround(L, pieces, x, t, yRef) {
   let g = -Infinity;
@@ -42,7 +35,7 @@ function footGround(L, pieces, x, t, yRef) {
 // はじめは、住人の立つ所の、1秒目と2秒目のページのあいだ（v031: 標本台はやめた）
 export function makeHero(L) {
   const x = L.start.x, t = 1.5, y = L.tops[Math.floor(x)];
-  return { x, t, y, vy: 0, floor: y, grounded: true, fx: 0, ft: 1 };
+  return { x, t, y, vy: 0, vx: 0, vt: 0, floor: y, grounded: true, fx: 0, ft: 1 };
 }
 
 // 1フレーム動かす。mx・mt はカメラ基準から直した、世界の向きの入力（-1〜1）
@@ -51,17 +44,23 @@ export function stepHero(h, L, pieces, mx, mt, dt, running = false) {
   if (len > 1) { mx /= len; mt /= len; }
   if (len > 0.05) { h.fx = mx; h.ft = mt; }
   // 横と奥行き: 段や壁でとまらない（浮かんでこえる）。左右の見えない壁と、時間のはしでとまる
+  // 速さは、なめらかに上がって、止まるときはゆっくり流れて止まる（v039: 一瞬で止まらない）
   const sp = HERO.speed * (running ? HERO.run : 1);
-  h.x = Math.max(0.3, Math.min(L.W - 0.3, h.x + mx * sp * dt));
-  h.t = Math.max(-0.5, Math.min(L.T + 0.5, h.t + mt * sp * dt));
+  const rate = Math.min(1, dt * (len > 0.05 ? HERO.accel : HERO.decel));
+  h.vx += (mx * sp - h.vx) * rate; h.vt += (mt * sp - h.vt) * rate;
+  const nx = h.x + h.vx * dt, nt = h.t + h.vt * dt;
+  h.x = Math.max(0.3, Math.min(L.W - 0.3, nx)); if (h.x !== nx) h.vx = 0;
+  h.t = Math.max(-0.5, Math.min(L.T + 0.5, nt)); if (h.t !== nt) h.vt = 0;
+  h.speed = Math.hypot(h.vx, h.vt) / HERO.speed; // 見た目の動き（ゆれ・前のめり）に使う
   // 高さ: 足もと（足の大きさぶん）の面へ、ばねで寄る。奈落なら、さっきの高さのまま
   const g = footGround(L, pieces, h.x, h.t, Infinity);
   if (Number.isFinite(g)) h.floor = g;
   // 進む先の高い面を先読みして、段の手前から浮かび上がる（のぼりで、ぱっと持ち上がらないように）。下りは足もとまで来てから
   let target = h.floor;
-  const ahead = len > 0.05 ? Math.max(0.8, sp * Math.min(1, len) * HERO.look) : 0;
+  const vl = Math.hypot(h.vx, h.vt);
+  const ahead = vl > 0.3 ? Math.max(0.8, vl * HERO.look) : 0;
   for (let u = 0.4; u <= ahead; u += 0.4) {
-    const ga = footGround(L, pieces, h.x + mx / Math.max(len, 1e-6) * u, h.t + mt / Math.max(len, 1e-6) * u, Infinity);
+    const ga = footGround(L, pieces, h.x + (h.vx / vl) * u, h.t + (h.vt / vl) * u, Infinity);
     if (Number.isFinite(ga) && ga > target) target = ga;
   }
   h.vy += (HERO.k * (target - h.y) - HERO.c * h.vy) * dt;

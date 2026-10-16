@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・主人公・置いた形・置き場所のゴースト・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=53';
-import { radialTexture } from './look/util.js?v=53';
-import { S, drawSheet } from './sheet.js?v=53';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=53';
-import { groundAt } from './hero.js?v=54';
+import { look, kindColor } from './look/index.js?v=55';
+import { radialTexture } from './look/util.js?v=55';
+import { S, drawSheet } from './sheet.js?v=55';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=55';
+import { groundAt } from './hero.js?v=55';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -198,6 +198,37 @@ export function createStage(canvas, L) {
     scene.add(mesh);
     sheets.push({ t, cv, g: cv.getContext('2d'), tex, mat, mesh, pending: false });
   }
+  // ---- ページの厚み（v039）: 真上から見ても地形が見えるよう、地形の上の面と段差に、うすい紙の厚みをつける ----
+  // 地形はどのページも同じなので、ひとつの形を61枚ぶん並べる（InstancedMesh）。上の面は明るい紙、段差の面は少し暗い紙
+  const THICK = 0.16;
+  const slabMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, side: THREE.DoubleSide });
+  let slabs = null;
+  const _m4 = new THREE.Matrix4();
+  function buildSlabs() {
+    if (slabs) { scene.remove(slabs); slabs.geometry.dispose(); }
+    const v = [], col = [];
+    const TOP = new THREE.Color('#f4ead0'), SIDE = new THREE.Color('#c7b289');
+    const quad = (a, b, c, d, cc) => { v.push(...a, ...b, ...c, ...a, ...c, ...d); for (let i = 0; i < 6; i++) col.push(cc.r, cc.g, cc.b); };
+    const z0 = -THICK / 2, z1 = THICK / 2;
+    const topAt = (c) => (c < 0 || c >= L.W || !Number.isFinite(L.tops[c]) ? 0 : L.tops[c]);
+    for (let c = 0; c < L.W; c++) {
+      const top = L.tops[c];
+      if (!Number.isFinite(top)) continue;
+      quad([c, top, z1], [c + 1, top, z1], [c + 1, top, z0], [c, top, z0], TOP);
+      const lt = topAt(c - 1), rt = topAt(c + 1);
+      if (lt < top) quad([c, lt, z0], [c, lt, z1], [c, top, z1], [c, top, z0], SIDE);
+      if (rt < top) quad([c + 1, rt, z1], [c + 1, rt, z0], [c + 1, top, z0], [c + 1, top, z1], SIDE);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    geo.computeVertexNormals();
+    slabs = new THREE.InstancedMesh(geo, slabMat, sheets.length);
+    sheets.forEach((sh, i) => slabs.setMatrixAt(i, _m4.makeTranslation(0, 0, sh.mesh.position.z)));
+    scene.add(slabs);
+  }
+  buildSlabs();
+
   // ページのふち（5秒ごとに外わく、ほかは上のふち）
   const edgeGeo = new THREE.BufferGeometry();
   {
@@ -541,6 +572,7 @@ export function createStage(canvas, L) {
     {
       const e = book * book * (3 - 2 * book), az = Z(bookAt);
       for (const sh of sheets) sh.mesh.position.z = Z(sh.t) + (az - Z(sh.t)) * e + (sh.t - bookAt) * 0.002 * e;
+      if (slabs) { sheets.forEach((sh, i) => slabs.setMatrixAt(i, _m4.makeTranslation(0, 0, sh.mesh.position.z))); slabs.instanceMatrix.needsUpdate = true; }
       const show = book < 0.05;
       edgeLines.visible = show; hero.visible = show; blob.visible = blob.visible && show;
       for (const [, o] of pieceObjs) o.visible = show;
@@ -593,7 +625,7 @@ export function createStage(canvas, L) {
     let d = want - ud.body.rotation.y; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
     ud.body.rotation.y += d * Math.min(1, dt * 12);
     const tm = now;
-    if (ud.animate) ud.animate(dt, { speed: Math.hypot(moveX, moveT), run: !!v.running, grounded: h.grounded, vy: h.vy, carry: false, landT: h.landT || 0, t: h.t });
+    if (ud.animate) ud.animate(dt, { speed: h.speed != null ? h.speed : Math.hypot(moveX, moveT), run: !!v.running, grounded: h.grounded, vy: h.vy, carry: false, landT: h.landT || 0, t: h.t });
     // あなたの断面（透かし）をページに描くか（設定。ふだんは描かない）
     if (v.heroSlice) heroOverlay(h.x, visY, h.t);
     else if (heroPages.size) { for (const [t] of heroPages) if (hist) drawOne(sheets[t]); heroPages = new Map(); }
@@ -680,6 +712,7 @@ export function createStage(canvas, L) {
     trails.clear(); trailLast = new Map();
     for (const [id, o] of pieceObjs) { scene.remove(o); pieceObjs.delete(id); }
     pieces = [];
+    buildSlabs();
   }
 
   const camYaw = () => orbit.yaw;

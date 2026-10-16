@@ -80,6 +80,19 @@ function bell(t, m, vel, len = 1.4, bus = seBus) {
   }
 }
 
+// やわらかい鈴: 立ち上がりをゆっくりにして（アタックを弱く）、余韻だけをきらきらと
+function softBell(t, m, vel, len = 1, bus = seBus) {
+  const f = mtof(m);
+  for (const [mul, lv] of [[1, 1], [2.01, 0.3], [3.98, 0.12]]) {
+    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f * mul;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vel * lv, t + 0.045);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + len * (mul > 1 ? 0.6 : 1));
+    o.connect(g).connect(bus);
+    o.start(t); o.stop(t + len + 0.05);
+  }
+}
 function noiseBuf() {
   if (noiseBuf.b) return noiseBuf.b;
   const n = ctx.sampleRate;
@@ -279,7 +292,7 @@ const TRACKS = [
   },
 ];
 export const BGM_LIST = TRACKS.map((tr) => ({ id: tr.id, name: tr.name }));
-let trackId = 'minuet'; // はじめは「チェンバロのメヌエット」（2026-10-16 ユーザー）。選んだ曲は設定（main.js）が覚える
+let trackId = 'fog'; // はじめは「霧のなかの図版」（2026-10-17 ユーザー。前は「チェンバロのメヌエット」）。選んだ曲は設定（main.js）が覚える
 export const bgmId = () => trackId;
 
 let bgmOn = false, nextT = 0, bar = 0, timer = null, playing = null;
@@ -402,12 +415,14 @@ export const se = {
   step(kind) {
     if (!ctx) return;
     const t = ctx.currentTime, v = 0.05 + Math.random() * 0.02;
-    if (kind === 'chime') bell(t, 88 + Math.floor(Math.random() * 3) * 2, v * 0.6, 0.5);
+    if (kind === 'sparkle') { // 幾何学の主人公: やわらかく立ち上がる、高いきらめきと、さらさらした息（v039: アタックを弱く）
+      const base = [93, 95, 98, 100, 102][Math.floor(Math.random() * 5)];
+      [[0, 1], [0.05, 0.55], [0.11, 0.35]].forEach(([dl, k], i) => softBell(t + dl, base + i * 5 + (Math.random() < 0.5 ? 0 : 2), v * 0.32 * k, 0.9));
+      noise(t, 0.35, 'highpass', 6500, 0.5, v * 0.18, seBus, 9000);
+    }
+    else if (kind === 'chime') bell(t, 88 + Math.floor(Math.random() * 3) * 2, v * 0.6, 0.5);
     else if (kind === 'puff') noise(t, 0.12, 'lowpass', 600, 0.7, v * 1.4);
     else if (kind === 'paper') noise(t, 0.05, 'highpass', 2600, 0.8, v);
-    else if (kind === 'board') { tone(t, 'triangle', 310, 220, 0.07, v * 1.4); noise(t, 0.04, 'bandpass', 1400, 1.5, v); } // 置いた板（中が空いた、こつんという音）
-    else if (kind === 'brass') { tone(t, 'sine', 620 + Math.random() * 40, 560, 0.18, v * 0.9); tone(t, 'sine', 1490, 1450, 0.12, v * 0.35); } // 真鍮（金属のひびき）
-    else if (kind === 'glass') bell(t, 96 + Math.floor(Math.random() * 3), v * 0.5, 0.35); // ガラスのような板（ちりんと高い）
     else if (kind === 'stone') { tone(t, 'sine', 180, 120, 0.08, v * 2); noise(t, 0.03, 'bandpass', 1200, 2, v); }
     else { tone(t, 'sine', 240, 160, 0.06, v * 1.6); noise(t, 0.03, 'bandpass', 1800, 2, v * 0.8); } // 木の床
   },
