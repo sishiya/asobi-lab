@@ -995,3 +995,14 @@ kbd { background: rgba(26, 163, 155, .12); color: var(--d-gold2); border-color: 
 
 /* v069: パレットの外わくはなし（ユーザー）。形のボタンだけを並べ、うしろに影をおとして3Dの上で読めるようにする */
 .palette { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .45)); }
+
+/* v070: 形のボタンをひとまわり大きく（ユーザー） */
+.palette .kind canvas { width: 96px; height: 70px; }
+.palette .kind .ct { font-size: 17px; }
+@media (min-width: 761px) and (min-height: 521px) { .prompt { bottom: 200px; } }
+@media (max-width: 760px), (max-height: 520px) {
+  .palette .kind canvas { width: 66px; height: 48px; }
+  .palette .kind .ct { font-size: 14px; }
+  .prompt { bottom: 140px; }
+}
+@media (max-width: 420px) { .palette .kind canvas { width: 56px; height: 41px; } }
