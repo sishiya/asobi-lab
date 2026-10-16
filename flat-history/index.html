@@ -8,7 +8,7 @@
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="description" content="1秒ずつの2D世界が奥と手前に並んでいる。3Dの形を置くと、2D世界にはその断面が現れて、歴史が書きかわる。">
 <meta name="theme-color" content="#e2d2b0">
-<link rel="stylesheet" href="css/style.css?v=7">
+<link rel="stylesheet" href="css/style.css?v=8">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body class="menu">
@@ -28,6 +28,7 @@
       <button type="button" id="tHelp" class="act ghost">あそびかた</button>
       <button type="button" class="act ghost sound-btn">音: あり</button>
     </div>
+    <label class="t-bgm">音楽 <select id="bgmSel" aria-label="音楽をえらぶ"></select></label>
     <p class="t-foot">キーボードとマウスで遊びます ・ 試作 <span class="ver">v006</span> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
   </div>
 </section>
@@ -76,6 +77,7 @@
   <div class="bottom-acts">
     <button type="button" id="btnReplay" class="act">くらべて再生 <kbd>P</kbd></button>
     <button type="button" id="btnReset" class="act ghost">全部とりのぞく</button>
+    <button type="button" id="btnNext" class="act primary" hidden>次の図版へ ▶</button>
   </div>
 </div>
 
@@ -101,6 +103,7 @@
       <input id="rpSeek" type="range" min="0" max="60" step="0.05" value="0" aria-label="シーク">
       <span id="rpTime" class="rp-time">0.0 秒</span>
       <select id="rpSpeed" aria-label="速さ"><option value="1">×1</option><option value="2" selected>×2</option><option value="4">×4</option></select>
+      <button type="button" id="rpNext" class="act primary" hidden>次の図版へ ▶</button>
     </div>
   </div>
 </div>
@@ -116,15 +119,16 @@
       <tr><td><kbd>Z</kbd> ／ <kbd>X</kbd></td><td>置く ／ 持ち上げる</td></tr>
       <tr><td><kbd>P</kbd></td><td>くらべて再生</td></tr>
       <tr><td><kbd>Space</kbd></td><td>ジャンプ</td></tr>
+      <tr><td><kbd>M</kbd></td><td>音楽をかえる（タイトルでもえらべる）</td></tr>
     </table>
     <details class="more">
       <summary>見る向きを変える</summary>
-      <p>左ドラッグで回す、中（右）ドラッグで平行移動、ホイールで寄る・引く、ダブルクリックでもとにもどる。下の時間の帯をクリックすると、その秒へとべる。</p>
+      <p>左ドラッグで回す、中（右）ドラッグで左右・奥手前へずらす、ホイールで寄る・引く、ダブルクリックでもとにもどる。下の時間の帯をクリックすると、その秒へとべる。</p>
     </details>
     <div class="win-acts"><button type="button" id="helpClose" class="act primary">とじる</button></div>
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=6"></script>
+<script type="module" src="js/main.js?v=8"></script>
 </body>
 </html>

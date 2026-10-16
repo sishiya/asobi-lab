@@ -231,3 +231,12 @@ details.more p { font-size: 13px; color: var(--sub); }
   .coach { top: 170px; max-width: calc(100vw - 24px); }
   .lv-name { font-size: 14px; }
 }
+
+.t-bgm { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; font: 13px var(--serif); color: var(--sub); }
+.t-bgm select { font: 13px var(--serif); color: var(--ink); padding: 4px 8px; border-radius: 2px; border: 1px solid var(--rule); background: #fbf5e6; }
+.toast {
+  position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%); z-index: 12; pointer-events: none;
+  padding: 6px 16px; font: 14px var(--serif); color: var(--paper); background: rgba(61, 42, 24, .9); border-radius: 2px;
+  transition: opacity .4s; opacity: 0;
+}
+.toast.on { opacity: 1; }

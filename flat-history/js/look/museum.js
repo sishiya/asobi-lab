@@ -1,6 +1,6 @@
 // 見た目 案2「図鑑の銅版画と標本室」: 線で彫った博物画の大地を、飛べない鳥キーウィが歩く。標本室の石膏像
 import * as THREE from 'three';
-import { rng, canvasTexture, floorPlane, radialTexture } from './util.js?v=6';
+import { rng, canvasTexture, floorPlane, radialTexture } from './util.js?v=8';
 
 const INK = '#4a3320';
 

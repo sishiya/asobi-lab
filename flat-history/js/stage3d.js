@@ -1,10 +1,10 @@
 // 3Dの舞台: ページの束・ガラスの棚・主人公・置いた形・世界線・描きかえの波
 import * as THREE from 'three';
-import { KINDS } from './level.js?v=6';
-import { look, kindColor } from './look/index.js?v=6';
-import { radialTexture } from './look/util.js?v=6';
-import { S, drawSheet } from './sheet.js?v=6';
-import { sectionsAt, DT } from './sim.js?v=6';
+import { KINDS } from './level.js?v=8';
+import { look, kindColor } from './look/index.js?v=8';
+import { radialTexture } from './look/util.js?v=8';
+import { S, drawSheet } from './sheet.js?v=8';
+import { sectionsAt, DT } from './sim.js?v=8';
 
 export const GAP = 1.0; // 1秒あたりの奥行き
 
@@ -234,7 +234,7 @@ export function createStage(canvas, L) {
   // ---- 毎フレーム ----
   const target = new THREE.Vector3(), camPos = new THREE.Vector3();
   let camInit = false;
-  // マウス: 左ドラッグで回す、中・右ドラッグで平行移動、ホイールで寄る・引く、ダブルクリックでもとへ
+  // マウス: 左ドラッグで回す、中・右ドラッグで床と平行に動かす、ホイールで寄る・引く、ダブルクリックでもとへ
   const ORBIT0 = { yaw: 0.33, pitch: 0.51, dist: 38.7 };
   const orbit = { ...ORBIT0 };
   const pan = new THREE.Vector3();
@@ -254,10 +254,12 @@ export function createStage(canvas, L) {
       orbit.yaw -= dx * 0.006;
       orbit.pitch = Math.max(0.04, Math.min(1.45, orbit.pitch + dy * 0.005));
     } else {
-      const k = orbit.dist * 0.0016;
-      pan.x += -Math.cos(orbit.yaw) * dx * k;
-      pan.z += Math.sin(orbit.yaw) * dx * k;
-      pan.y += dy * k;
+      // 床と平行に動かす: 横のドラッグ＝左右、縦のドラッグ＝奥・手前（つかんで引っぱる向き）
+      const k = orbit.dist * 0.0018;
+      const rx = Math.cos(orbit.yaw), rz = -Math.sin(orbit.yaw);   // 画面の右
+      const fx = -Math.sin(orbit.yaw), fz = -Math.cos(orbit.yaw);  // 画面の奥（床の上）
+      pan.x += -rx * dx * k + fx * dy * k;
+      pan.z += -rz * dx * k + fz * dy * k;
     }
     drag.x = e.clientX; drag.y = e.clientY;
   });

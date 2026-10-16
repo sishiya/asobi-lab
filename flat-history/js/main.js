@@ -1,10 +1,10 @@
 // 操作・画面（タイトル・図版えらび・面）・ひとことの導き・くらべて再生
-import { LEVELS, KINDS } from './level.js?v=6';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, section } from './sim.js?v=6';
-import { drawSheet } from './sheet.js?v=6';
-import { createStage } from './stage3d.js?v=6';
-import { look, kindName, kindColor } from './look/index.js?v=6';
-import { initAudio, startBgm, se, isMuted, setMuted } from './audio.js?v=6';
+import { LEVELS, KINDS } from './level.js?v=8';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, section } from './sim.js?v=8';
+import { drawSheet } from './sheet.js?v=8';
+import { createStage } from './stage3d.js?v=8';
+import { look, kindName, kindColor } from './look/index.js?v=8';
+import { initAudio, startBgm, se, isMuted, setMuted, BGM_LIST, bgmId, setBgm } from './audio.js?v=8';
 
 const $ = (id) => document.getElementById(id);
 
@@ -212,6 +212,26 @@ function renderSound() {
 for (const b of document.querySelectorAll('.sound-btn')) b.addEventListener('click', () => { initAudio(); setMuted(!isMuted()); renderSound(); });
 renderSound();
 
+// 音楽をえらぶ（タイトルのメニュー、遊んでいるあいだは M キー）
+const bgmSel = $('bgmSel');
+for (const b of BGM_LIST) { const o = document.createElement('option'); o.value = b.id; o.textContent = b.name; bgmSel.appendChild(o); }
+bgmSel.value = bgmId();
+bgmSel.addEventListener('change', () => { initAudio(); setBgm(bgmSel.value); startBgm(); bgmSel.blur(); });
+function toast(msg) {
+  let el = document.querySelector('.toast');
+  if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); }
+  el.textContent = msg; el.classList.add('on');
+  clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 1800);
+}
+window.addEventListener('keydown', (e) => {
+  if ((e.key === 'm' || e.key === 'M') && !e.repeat && inGame() && !modalOpen()) {
+    const i = BGM_LIST.findIndex((b) => b.id === bgmId());
+    const nx = BGM_LIST[(i + 1) % BGM_LIST.length];
+    setBgm(nx.id); startBgm(); bgmSel.value = nx.id;
+    toast('♪ ' + nx.name);
+  }
+});
+
 // 時間の帯: クリック・ドラッグでその秒へ
 const tl = $('timeline');
 let dragging = false;
@@ -337,7 +357,9 @@ function winShow() {
   $('win').hidden = false;
   se.goal();
 }
-$('winNext').addEventListener('click', () => { se.click(); startGame(st.lv + 1); });
+$('winNext').addEventListener('click', goNext);
+$('rpNext').addEventListener('click', goNext);
+$('btnNext').addEventListener('click', goNext);
 
 // ---- くらべて再生 ----
 const rp = { t: 0, playing: true, speed: 2, gA: $('rpA').getContext('2d'), gB: $('rpB').getContext('2d') };
@@ -345,9 +367,17 @@ function openReplay() {
   $('win').hidden = true;
   $('replay').hidden = false;
   rp.t = 0; rp.playing = true; $('rpPlay').textContent = '❚❚';
+  $('rpNext').hidden = !(st.hist.end.type === 'goal' && hasNext());
   keys.clear();
 }
-function closeReplay() { $('replay').hidden = true; }
+function closeReplay() {
+  if ($('replay').hidden) return;
+  $('replay').hidden = true;
+  // 正史ができたあとなら、札をもう一度（次へ進めるように）
+  if (st.hist.end.type === 'goal') $('win').hidden = false;
+}
+const hasNext = () => st.lv + 1 < LEVELS.length;
+function goNext() { se.click(); $('replay').hidden = true; startGame(st.lv + 1); }
 function togglePlay() {
   if (rp.t >= L.T) rp.t = 0;
   rp.playing = !rp.playing; $('rpPlay').textContent = rp.playing ? '❚❚' : '▶';
@@ -417,6 +447,7 @@ function loop(now) {
     renderCoach();
     if (st.hist.end.type === 'goal' && !st.solvedShown && !stage.waving()) { st.solvedShown = true; winShow(); }
     if (st.hist.end.type !== 'goal') { st.solvedShown = false; $('win').hidden = true; }
+    $('btnNext').hidden = !(st.solvedShown && hasNext());
   }
   requestAnimationFrame(loop);
 }
