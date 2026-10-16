@@ -358,3 +358,9 @@ body.touch #view { touch-action: none; }
   .inset { top: 124px; }
   body.touch .inset { top: 124px; }
 }
+/* 綴じるボタンのまわりに余白（時計・画面のふちから離す） */
+.bind-btn { top: 100px; right: 30px; }
+@media (max-width: 760px), (max-height: 520px) {
+  .bind-btn { top: 64px; right: 16px; }
+  .inset, body.touch .inset { top: 140px; }
+}
