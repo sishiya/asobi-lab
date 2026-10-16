@@ -775,3 +775,14 @@ body.touch .inset { left: 12px; right: auto; top: 120px; }
 }
 /* 上のふちの暗い影は、帯とかさならないよう弱める */
 .edge-shade { background: linear-gradient(180deg, rgba(40,25,10,0) 0%, rgba(40,25,10,0) 74%, rgba(40,25,10,.45) 100%); }
+
+/* v054: 名前の帯を広く・黒に。字の下まで濃いところでおおう。下にも同じ幅の黒い帯（時間のしおりのうしろ。上下のつりあい） */
+:root { --band: 84px; }
+.chapter-band { padding-bottom: 14px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, .9) 0%, rgba(0, 0, 0, .78) 60%, rgba(0, 0, 0, 0) 100%); }
+.foot-band { position: fixed; left: 0; right: 0; bottom: 0; height: var(--band); z-index: 3; pointer-events: none;
+  background: linear-gradient(0deg, rgba(0, 0, 0, .9) 0%, rgba(0, 0, 0, .78) 60%, rgba(0, 0, 0, 0) 100%); }
+@media (max-width: 760px), (max-height: 520px) {
+  :root { --band: 60px; }
+  .chapter-band { padding-bottom: 10px; }
+}
