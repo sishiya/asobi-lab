@@ -795,3 +795,7 @@ body.touch .inset { left: 12px; right: auto; top: 120px; }
   :root { --band: 72px; }
   .chapter-band { padding-bottom: 16px; }
 }
+
+/* v056: 帯の色を、はじめの深い青緑にもどす（半透明・広さは v055 のまま） */
+.chapter-band { background: linear-gradient(180deg, rgba(8, 30, 27, .62) 0%, rgba(12, 42, 38, .48) 55%, rgba(12, 42, 38, 0) 100%); }
+.foot-band { background: linear-gradient(0deg, rgba(8, 30, 27, .62) 0%, rgba(12, 42, 38, .48) 55%, rgba(12, 42, 38, 0) 100%); }
