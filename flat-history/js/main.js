@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=16';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=16';
-import { drawSheet } from './sheet.js?v=16';
-import { createStage } from './stage3d.js?v=16';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=16';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=16';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm } from './audio.js?v=16';
+import { LEVELS } from './level.js?v=17';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=17';
+import { drawSheet } from './sheet.js?v=17';
+import { createStage } from './stage3d.js?v=17';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=17';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=17';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm } from './audio.js?v=17';
 
 const $ = (id) => document.getElementById(id);
 
@@ -443,10 +443,7 @@ function bind() {
   st.boundOnce = true;
   se.click();
   closeAll();
-  // ページの束が閉じて一枚になってから、その一枚を動かして見せる
-  bindingNow = true;
-  se.wave();
-  stage.closeBook(st.hero.t, () => { bindingNow = false; showBindReplay(); });
+  showBindReplay();
 }
 let bindingNow = false;
 function showBindReplay() {

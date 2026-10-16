@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・標本台・主人公・置いた形・持っている形・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=16';
-import { radialTexture } from './look/util.js?v=16';
-import { S, drawSheet } from './sheet.js?v=16';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=16';
-import { TABLE, tableY } from './hero.js?v=16';
+import { look, kindColor } from './look/index.js?v=17';
+import { radialTexture } from './look/util.js?v=17';
+import { S, drawSheet } from './sheet.js?v=17';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=17';
+import { TABLE, tableY } from './hero.js?v=17';
 
 export const GAP = 1.0;
 const Z = (t) => -t * GAP;
@@ -71,6 +71,16 @@ function sliceObject(root, z) {
   });
   return out;
 }
+// 3Dの色を、2D世界の色合いへ: 明るさを紙（明）〜インク（暗）の間に置きかえ、もとの色味を少しだけ残す
+const PAPER = [243, 230, 200], INKC = [74, 51, 32];
+function toPaper(hex) {
+  const c = new THREE.Color(hex);
+  const r = c.r * 255, g = c.g * 255, b = c.b * 255;
+  const lum = Math.min(1, (0.3 * r + 0.59 * g + 0.11 * b) / 255 * 1.15);
+  const base = PAPER.map((p, i) => INKC[i] + (p - INKC[i]) * lum);
+  const mix = [r, g, b].map((v, i) => Math.round(base[i] * 0.82 + v * 0.18));
+  return `rgb(${mix[0]},${mix[1]},${mix[2]})`;
+}
 function slicePath(g, L, pl) {
   g.beginPath();
   pl.pts.forEach(([x, y], i) => { const px = x * 20, py = (L.H - y) * 20; i ? g.lineTo(px, py) : g.moveTo(px, py); });
@@ -82,8 +92,8 @@ function drawSlices(g, L, polys, hatch) {
   g.lineJoin = 'round';
   for (const pl of polys) {
     slicePath(g, L, pl);
-    if (pl.glass) { g.fillStyle = 'rgba(214,236,244,.9)'; g.fill(); g.strokeStyle = '#4a3320'; g.lineWidth = 1; g.stroke(); continue; }
-    g.fillStyle = pl.color; g.fill();
+    if (pl.glass) { g.fillStyle = 'rgb(236,228,206)'; g.fill(); g.strokeStyle = '#4a3320'; g.lineWidth = 1; g.stroke(); continue; }
+    g.fillStyle = toPaper(pl.color); g.fill();
     if (hatch) {
       g.save(); g.clip();
       g.strokeStyle = 'rgba(42,28,16,.32)'; g.lineWidth = 0.8;
@@ -95,14 +105,14 @@ function drawSlices(g, L, polys, hatch) {
       g.restore();
       slicePath(g, L, pl);
     }
-    g.strokeStyle = '#2a1c10'; g.lineWidth = 1.4; g.stroke();
+    g.strokeStyle = '#4a3320'; g.lineWidth = 1.2; g.stroke();
   }
   g.restore();
 }
 // 軌跡: 断面のふちを、点線のインクでページに残す
 function stampTrail(g, L, polys) {
   g.save();
-  g.setLineDash([2, 3]); g.lineWidth = 1.2; g.strokeStyle = '#3d6a72';
+  g.setLineDash([1.5, 3.5]); g.lineWidth = 0.9; g.strokeStyle = 'rgba(110,80,45,.22)';
   for (const pl of polys) { if (pl.glass) continue; slicePath(g, L, pl); g.stroke(); }
   g.restore();
 }
@@ -467,7 +477,7 @@ export function createStage(canvas, L) {
       if (between) {
         m.alphaTest = 0.01; m.depthWrite = false;
         m.opacity = Math.max(0.06, 1 - face * (0.75 + Math.min(0.2, Math.abs(z - hz) * 0.03)));
-      } else { m.alphaTest = 0.5; m.depthWrite = true; m.opacity = 1; }
+      } else { m.alphaTest = 0.12; m.depthWrite = true; m.opacity = 1; }
       const c = sh.t === focus ? 1 : 0.94;
       m.color.setRGB(c, c, c);
     }
