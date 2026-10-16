@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
 <title>ぺらぺら世界の歴史係（仮） 過去の版</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%238a5a32'/><path d='M8 22h48M8 34h48M8 46h48' stroke='%23f3dfb8' stroke-width='3' opacity='.55'/><path d='M32 12v40M24 20l8-8 8 8M24 44l8 8 8-8' fill='none' stroke='%23fff6e0' stroke-width='4.5' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='10' fill='%23f2e6cb'/><rect x='4' y='4' width='56' height='56' rx='6' fill='none' stroke='%234a3320' stroke-width='2'/><g fill='%23f8efd8' stroke='%234a3320' stroke-width='2.4'><path d='M12 46V24l10-8v22z'/><path d='M22 48V26l10-8v22z'/><path d='M32 50V28l10-8v22z'/></g><path d='M10 52L54 16' stroke='%23a8742a' stroke-width='4' stroke-linecap='round'/></svg>">
 <style>
 /* 節目の版をカードで新しい順に（いちばん上が最新＝index.html）。下の表には全版（versions に残さない版は Git のリンク）。決まりは ../RULES.md 3章 */
 :root{--bg:#f2e6d2;--ink:#241b14;--muted:#6f6152;--line:#d9c8ad;--card:#fffaf0;--accent:#b4532a;color-scheme:light dark}
@@ -37,12 +37,14 @@ td a{color:var(--accent)}
   <p class="lead">節目ごとに残した版です。いちばん上が最新です。下の表には、すべての版があります。</p>
   <div class="cards">
     <a class="card" href="index.html"><span class="ver">最新</span><span><b>いまの版</b><p>開発中の最新版。</p></span></a>
+    <a class="card" href="versions/v005-museum/index.html"><span class="ver">v005</span><span><b>案2（図鑑の銅版画）に決めて、UI を標本室ふうに</b><p>古い紙と二重の罫、明朝とセピアのインク、真鍮の差し色。時間の帯は物差しふう、時計は図版の番号ふう。世界線もセピアと真鍮に。ほかの案は見くらべ用に残す。</p></span><span class="date">2026-10-16</span></a>
     <a class="card" href="versions/v003-looks/index.html"><span class="ver">v003</span><span><b>見た目の3案を切りかえ</b><p>案1 アリの巣キットと観察者・案2 図鑑の銅版画と標本室（キーウィ・石膏像）・案3 切り紙の国と粘土人形、それに「いまの試作」。左上のメニューか L キーで切りかえ。</p></span><span class="date">2026-10-16</span></a>
     <a class="card" href="versions/v001-proto/index.html"><span class="ver">v001</span><span><b>はじめの試作（段階A）</b><p>1秒ずつの2D世界のページの束。3Dの形（角材・斜めの板・縦の板）を置くと断面が2D世界に現れ、歴史が描きかわる。1面「崖と段」、世界線、くらべて再生。</p></span><span class="date">2026-10-16</span></a>
   </div>
   <h2>すべての版</h2>
   <table>
-    <tr><td>v004-wasd</td><td>主人公の移動を WASD にも（A・D で横、W・S で昔・未来）</td></tr>
+    <tr><td>v005-museum</td><td><a href="versions/v005-museum/index.html">案2に決めて、UI を標本室ふうに</a></td></tr>
+    <tr><td>v004-wasd</td><td>主人公の移動を WASD にも（A・D で横、W・S で昔・未来） <a href="https://github.com/sishiya/asobi-lab/tree/24836f8/flat-history" target="_blank" rel="noopener">Git</a></td></tr>
     <tr><td>v003-looks</td><td><a href="versions/v003-looks/index.html">見た目の3案を切りかえ</a></td></tr>
     <tr><td>v002-fix</td><td>縦の板をのりこえるバグを直す、右下の小窓でいまの歴史をくりかえし再生、カメラをマウスで回す <a href="https://github.com/sishiya/asobi-lab/tree/9e44343/flat-history" target="_blank" rel="noopener">Git</a></td></tr>
     <tr><td>v001-proto</td><td><a href="versions/v001-proto/index.html">はじめの試作（段階A）</a></td></tr>

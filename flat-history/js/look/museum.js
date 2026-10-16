@@ -254,9 +254,10 @@ export default {
   kindNames: { beam: '標本の板', lift: '真鍮の板', wall: '石膏の柱' },
   kindColors: { beam: '#c99a63', lift: '#d4ad4a', wall: '#ece8de' },
   bg: 'radial-gradient(120% 90% at 30% 0%, #f5ead2 0%, #e2d2b0 50%, #b9a27c 100%)',
-  fog: '#ddcca8', paper: ['#f4ead2', '#eadcbc'], paperTint: '#f8efd8',
+  fog: '#ddcca8', fogNear: 38, fogFar: 100, paper: ['#f4ead2', '#eadcbc'], paperTint: '#f8efd8',
   edge: '#b29a6c', focus: '#a8742a', shelf: '#f0e2c0', shelfLine: '#a88e5e',
   labelColor: 'rgba(74,51,32,.85)',
+  ribbon: { line: '#5a3d22', gold: '#c9942e', dead: '#8f3b2b', old: '#a0634f' },
   light: { sky: '#fff2d8', ground: '#7a5a3a', sun: '#ffe2b5' },
   drawTerrain, drawBackdrop, drawWalker, drawSection, makeHero, makeEnv,
 };

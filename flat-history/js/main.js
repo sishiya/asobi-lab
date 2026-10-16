@@ -177,13 +177,15 @@ function drawTimeline(focus) {
   tg.setTransform(dpr, 0, 0, dpr, 0, 0);
   tg.clearRect(0, 0, w, h);
   const pad = 30, X = (t) => pad + (t / L.T) * (w - pad * 2);
-  // 目盛り
-  tg.strokeStyle = 'rgba(60,80,110,.35)'; tg.fillStyle = '#5d6b84'; tg.font = '11px system-ui'; tg.textAlign = 'center';
+  // 目盛り（物差しの彫り）
+  tg.strokeStyle = 'rgba(74,51,32,.55)'; tg.fillStyle = '#6b4f33'; tg.font = 'italic 11px Georgia, serif'; tg.textAlign = 'center';
+  tg.beginPath(); tg.moveTo(X(0), 44.5); tg.lineTo(X(L.T), 44.5); tg.stroke();
   for (let t = 0; t <= L.T; t++) {
     const big = t % 5 === 0;
-    tg.beginPath(); tg.moveTo(X(t), 44); tg.lineTo(X(t), big ? 36 : 40); tg.stroke();
+    tg.beginPath(); tg.moveTo(X(t), 44.5); tg.lineTo(X(t), big ? 35 : 40); tg.stroke();
     if (big) tg.fillText(t + '', X(t), 58);
   }
+  tg.font = '11px "Yu Mincho", serif';
   tg.textAlign = 'left'; tg.fillText('昔', 4, 48); tg.textAlign = 'right'; tg.fillText('未来', w - 2, 48);
   // 置いた形の期間
   st.pieces.forEach((p, i) => {
@@ -191,25 +193,27 @@ function drawTimeline(focus) {
     tg.fillStyle = kindColor(p.kind);
     const y = 4 + (i % 3) * 9;
     tg.fillRect(X(p.t0), y, X(Math.min(L.T, p.t0 + k.d)) - X(p.t0), 7);
+    tg.strokeStyle = 'rgba(74,51,32,.7)'; tg.lineWidth = 1;
+    tg.strokeRect(X(p.t0) + 0.5, y + 0.5, X(Math.min(L.T, p.t0 + k.d)) - X(p.t0) - 1, 6);
   });
   // 2D人の結末（はじめの歴史はうすく）
   const mark = (e, faint) => {
     if (e.type === 'time') return;
     const x = X(e.t);
     tg.globalAlpha = faint ? 0.35 : 1;
-    if (e.type === 'goal') { tg.fillStyle = '#f5b82e'; tg.beginPath(); tg.arc(x, 31, 6, 0, 7); tg.fill(); }
-    else { tg.fillStyle = '#e0453a'; tg.beginPath(); tg.moveTo(x, 24); tg.lineTo(x + 6, 31); tg.lineTo(x, 38); tg.lineTo(x - 6, 31); tg.fill(); }
+    if (e.type === 'goal') { tg.fillStyle = '#c99a4a'; tg.strokeStyle = '#4a3320'; tg.beginPath(); tg.arc(x, 31, 6, 0, 7); tg.fill(); tg.stroke(); }
+    else { tg.fillStyle = '#8f3b2b'; tg.beginPath(); tg.moveTo(x, 24); tg.lineTo(x + 6, 31); tg.lineTo(x, 38); tg.lineTo(x - 6, 31); tg.fill(); }
     tg.globalAlpha = 1;
   };
   if (st.hist !== st.base) mark(st.base.end, true);
   mark(st.hist.end, false);
   // 小窓の再生位置
   if (performance.now() >= ins.browseUntil) {
-    tg.fillStyle = '#3f7fd6';
+    tg.fillStyle = '#4a3320';
     tg.beginPath(); tg.moveTo(X(ins.t), 44); tg.lineTo(X(ins.t) + 5, 50); tg.lineTo(X(ins.t) - 5, 50); tg.fill();
   }
   // 主人公のいる秒
-  tg.fillStyle = '#f2a93b';
+  tg.fillStyle = '#a8742a';
   tg.fillRect(X(focus) - 1.5, 2, 3, 42);
   tg.beginPath(); tg.moveTo(X(focus) - 6, 0); tg.lineTo(X(focus) + 6, 0); tg.lineTo(X(focus), 7); tg.fill();
 }

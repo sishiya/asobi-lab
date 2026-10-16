@@ -169,7 +169,8 @@ export function createStage(canvas, L) {
     const seg = pts.length * 2;
     const geo = new THREE.TubeGeometry(curve, seg, 0.075, 6, false);
     const gold = h.end.type === 'goal';
-    const m = new THREE.Mesh(geo, ribbonMat(gold ? '#f5b82e' : '#3f7fd6', 0.95));
+    const rc = look().ribbon || {};
+    const m = new THREE.Mesh(geo, ribbonMat(gold ? (rc.gold || '#f5b82e') : (rc.line || '#3f7fd6'), 0.95));
     m.userData = { seg, tEnd: pts[pts.length - 1].z / GAP };
     return m;
   }
@@ -178,10 +179,10 @@ export function createStage(canvas, L) {
     if (endMark) { scene.remove(endMark); endMark = null; }
     const e = h.end;
     if (e.type === 'goal') {
-      endMark = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.07, 8, 24), new THREE.MeshBasicMaterial({ color: '#f5b82e' }));
+      endMark = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.07, 8, 24), new THREE.MeshBasicMaterial({ color: (look().ribbon || {}).gold || '#f5b82e' }));
       endMark.position.set(e.x, e.y + 0.5, e.t * GAP);
     } else if (e.type !== 'time') {
-      endMark = new THREE.Mesh(new THREE.OctahedronGeometry(0.32), new THREE.MeshBasicMaterial({ color: '#e0453a' }));
+      endMark = new THREE.Mesh(new THREE.OctahedronGeometry(0.32), new THREE.MeshBasicMaterial({ color: (look().ribbon || {}).dead || '#e0453a' }));
       endMark.position.set(e.x, Math.max(e.y, -2.5) + 0.45, e.t * GAP);
     }
     if (endMark) { endMark.visible = false; scene.add(endMark); }
@@ -203,7 +204,7 @@ export function createStage(canvas, L) {
     }
     // リボン
     if (ribbon) {
-      ribbon.material = ribbonMat('#d06a5a', 0.5);
+      ribbon.material = ribbonMat((look().ribbon || {}).old || '#d06a5a', 0.5);
       ribbon.userData.fade = 1;
       oldRibbons.push(ribbon);
     }
@@ -353,6 +354,7 @@ export function createStage(canvas, L) {
   function applyLook() {
     const lk = look();
     scene.fog.color.set(lk.fog);
+    scene.fog.near = lk.fogNear || 26; scene.fog.far = lk.fogFar || 70;
     hemi.color.set(lk.light.sky); hemi.groundColor.set(lk.light.ground); sun.color.set(lk.light.sun);
     edgeLines.material.color.set(lk.edge);
     paper.material.color.set(lk.paperTint);
@@ -369,7 +371,12 @@ export function createStage(canvas, L) {
       scene.add(o); pieceObjs.set(p.id, o);
     }
     if (ghost) { scene.remove(ghost); ghost = null; ghostKind = null; }
-    if (hist) for (const sh of sheets) drawOne(sh);
+    if (hist) {
+      for (const sh of sheets) drawOne(sh);
+      if (ribbon) { scene.remove(ribbon); ribbon.geometry.dispose(); }
+      ribbon = buildRibbon(hist); scene.add(ribbon);
+      setEndMark(hist); if (endMark) endMark.visible = waveT === null;
+    }
     document.body.style.background = lk.bg;
   }
 

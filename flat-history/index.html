@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ぺらぺら世界の歴史係（仮）</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%232e4a7a'/><g fill='none' stroke='%23f3eee6' stroke-width='3'><path d='M14 44V22l10-8v22z' opacity='.35'/><path d='M24 46V24l10-8v22z' opacity='.6'/><path d='M34 48V26l10-8v22z'/></g><path d='M12 50L52 18' stroke='%23f5b82e' stroke-width='4' stroke-linecap='round'/></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='10' fill='%23f2e6cb'/><rect x='4' y='4' width='56' height='56' rx='6' fill='none' stroke='%234a3320' stroke-width='2'/><g fill='%23f8efd8' stroke='%234a3320' stroke-width='2.4'><path d='M12 46V24l10-8v22z'/><path d='M22 48V26l10-8v22z'/><path d='M32 50V28l10-8v22z'/></g><path d='M10 52L54 16' stroke='%23a8742a' stroke-width='4' stroke-linecap='round'/></svg>">
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="description" content="1秒ずつの2D世界が奥と手前に並んでいる。3Dの形を置くと、2D世界にはその断面が現れて、歴史が書きかわる。">
-<meta name="theme-color" content="#dde7ee">
-<link rel="stylesheet" href="css/style.css?v=3">
+<meta name="theme-color" content="#e2d2b0">
+<link rel="stylesheet" href="css/style.css?v=5">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body>
@@ -21,7 +21,7 @@
   <button type="button" class="icon-btn" id="btnHelp" aria-label="あそびかた">?</button>
 </header>
 
-<div class="clock" aria-live="polite"><span id="clockNum">0</span><small>秒目のページ</small></div>
+<div class="clock" aria-live="polite"><span class="pl">Pl.</span><span id="clockNum">0</span><small>秒目のページ</small></div>
 <div id="status" class="status"></div>
 
 <aside class="tray" aria-label="置ける3Dの形">
@@ -91,6 +91,6 @@
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=4"></script>
+<script type="module" src="js/main.js?v=5"></script>
 </body>
 </html>
