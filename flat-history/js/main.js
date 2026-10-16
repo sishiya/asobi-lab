@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=29';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=29';
-import { drawSheet } from './sheet.js?v=29';
-import { createStage } from './stage3d.js?v=29';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=29';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=29';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=29';
+import { LEVELS } from './level.js?v=31';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=31';
+import { drawSheet } from './sheet.js?v=31';
+import { createStage } from './stage3d.js?v=31';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=31';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=31';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=31';
 
 const $ = (id) => document.getElementById(id);
 
@@ -99,7 +99,8 @@ function openPreview() {
 }
 function closePreview() { $('preview').hidden = true; showIntro(); lockEnter(400); }
 function drawPreview(dt) {
-  const endT = Math.min(L.T, st.base.end.t + 1.5);
+  const lastEv = st.base.events.reduce((m, e) => (e.type === 'plug' || e.type === 'stoneStop' || e.type === 'stoneGone' ? Math.max(m, e.t) : m), 0);
+  const endT = Math.min(L.T, Math.max(st.base.end.t, lastEv) + 1.5);
   if (pv.playing) { pv.t += dt * 2; if (pv.t > endT + 1) pv.t = 0; }
   const t = Math.min(pv.t, endT);
   if (t < (pv.lastT || 0)) { pv.lastT = t; pv.walk = 0; }
@@ -454,6 +455,7 @@ function replaySounds(h, o, t) {
     if (e.type === 'turn') se.kiwiTurn(res);
     else if (e.type === 'goal') se.kiwiHome();
     else if (e.type === 'abyss' || e.type === 'fall') se.kiwiFall();
+    else if (e.type === 'plug' || e.type === 'stoneStop') se.land();
   }
   // 足音: 歩いた横の距離 0.6 マスごと（速く流しても 1秒に8つまで）
   const a = frameAt(h.frames, t0), b = frameAt(h.frames, t);

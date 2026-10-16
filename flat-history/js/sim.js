@@ -1,5 +1,5 @@
 // 2D世界の決まったルール。置いた3Dの形は、その秒の断面（長方形）として2D世界に現れる。
-import { KINDS } from './level.js?v=29';
+import { KINDS } from './level.js?v=31';
 
 export const DT = 0.1;          // 1コマ＝0.1秒
 const SPEED = 1.5;              // 2D人の歩く速さ（マス/秒）
@@ -77,6 +77,43 @@ function blockTop(L, fx, y, secs) {
   return best;
 }
 
+// ---- ころがる石（2D世界の物。決まった時刻にころがりだす） ----
+// 1マスの石。壁や形にぶつかると止まる。足もとがなければ落ちる。幅1マスの割れ目に落ちると、はさまって「ふた」になる
+const STONE_V = 2;
+function stoneRect(s) { return { x0: s.x - 0.5, x1: s.x + 0.5, y0: s.y, y1: s.y + 1, stone: true }; }
+function stepStone(L, s, t, secs) {
+  if (s.st === 'gone' || s.st === 'plug' || s.st === 'stop') return null;
+  if (s.st === 'wait') { if (t >= s.t0) s.st = 'roll'; else return null; }
+  const colTop = (c) => (c < 0 || c >= L.W ? Infinity : L.tops[c]);
+  const supAt = (x) => {
+    let g = colTop(Math.floor(x));
+    for (const r of secs) if (x > r.x0 && x < r.x1 && r.y1 <= s.y + 0.05 && r.y1 > g) g = r.y1;
+    return g;
+  };
+  if (s.st === 'roll') {
+    const nx = s.x + s.dir * STONE_V * DT, fx = nx + s.dir * 0.5;
+    let blocked = colTop(Math.floor(fx)) > s.y + 0.05;
+    for (const r of secs) if (fx > r.x0 && fx < r.x1 && r.y0 < s.y + 0.9 && r.y1 > s.y + 0.05) blocked = true;
+    if (blocked) { s.st = 'stop'; return { type: 'stoneStop', t, x: s.x }; }
+    s.x = nx;
+    const c = Math.floor(s.x);
+    if (supAt(s.x) < s.y - 0.05 && Math.abs(s.x - (c + 0.5)) < 0.2) {
+      // 幅1マスの割れ目なら、はさまってふたになる
+      if (colTop(c) < s.y - 1 && colTop(c - 1) >= s.y && colTop(c + 1) >= s.y) {
+        s.x = c + 0.5; s.y -= 1; s.st = 'plug';
+        return { type: 'plug', t, x: s.x };
+      }
+      s.st = 'fall'; s.vy = 0;
+    }
+  }
+  if (s.st === 'fall') {
+    s.vy -= G * DT; const ny = s.y + s.vy * DT;
+    const g = supAt(s.x);
+    if (ny <= g) { s.y = g; s.st = 'roll'; } else { s.y = ny; if (s.y < -3) { s.st = 'gone'; return { type: 'stoneGone', t, x: s.x }; } }
+  }
+  return null;
+}
+
 // はじめから終わりまで計算する。frames[k] は時刻 k*DT の2D人
 export function simulate(L, pieces) {
   const N = Math.round(L.T / DT);
@@ -84,9 +121,13 @@ export function simulate(L, pieces) {
   const events = [];
   const w = { x: L.start.x, y: L.tops[Math.floor(L.start.x)], dir: L.start.dir || 1, vy: 0, st: 'walk', from: 0 };
   let end = null, overlap = null, nestPass = null;
+  const stones = (L.stones || []).map((s) => ({ x: s.x, y: L.tops[Math.floor(s.x)], dir: s.dir, t0: s.t, st: 'wait', vy: 0 }));
   for (let k = 0; k <= N; k++) {
     const t = k * DT;
-    const secs = sectionsAt(pieces, t);
+    const pieceSecs = sectionsAt(pieces, t);
+    for (const s of stones) { const ev = stepStone(L, s, t, pieceSecs); if (ev) events.push(ev); }
+    // 住人には、石も固い物
+    const secs = pieceSecs.concat(stones.filter((s) => s.st !== 'gone').map(stoneRect));
     if (w.st === 'walk' || w.st === 'fall') {
       // 断面が体に重なって現れた・下から上がってきた
       for (const s of secs) {
@@ -104,7 +145,7 @@ export function simulate(L, pieces) {
         }
       }
     }
-    frames[k] = { x: w.x, y: w.y, dir: w.dir, st: w.st };
+    frames[k] = { x: w.x, y: w.y, dir: w.dir, st: w.st, stones: stones.length ? stones.map((s) => ({ x: s.x, y: s.y, st: s.st })) : null };
     if (w.st !== 'walk' && w.st !== 'fall') continue;
 
     const sup = support(L, w.x, w.y + 0.02, secs);
@@ -161,7 +202,7 @@ export function frameAt(frames, t) {
   const i = Math.floor(f), j = Math.min(frames.length - 1, i + 1), u = f - i;
   const a = frames[i], b = frames[j];
   if (a.st !== b.st) return a;
-  return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, dir: a.dir, st: a.st };
+  return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, dir: a.dir, st: a.st, stones: a.stones };
 }
 
 // 置き場所: 下にある地形（標本台もふくむ）でとまる高さ（底なしの上だけなら -Infinity）

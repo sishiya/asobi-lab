@@ -104,6 +104,14 @@ export const LEVELS = [
     stock: { beam: 1, slide: 1 },
     hints: [], fail: '',
   },
+  {
+    // ころがる石: 14秒に右の石がころがりだし、幅1マスの割れ目にはさまって「ふた」になる。それまで住人を待たせる
+    ...base, id: 's4', plate: 'X', name: '石のふた',
+    tops: tops([[14, 14, null]]), start: { x: 1.6, dir: 1 }, goal: { x: 30 },
+    stones: [{ x: 32.5, t: 14, dir: -1 }],
+    stock: { wall: 1 },
+    hints: [{ text: '石は、どこへころがっていく？', when: (c) => c.placed }], fail: '',
+  },
 ];
 
 export const LEVEL = LEVELS[0];

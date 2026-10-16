@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・標本台・主人公・置いた形・持っている形・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=29';
-import { radialTexture } from './look/util.js?v=29';
-import { S, drawSheet } from './sheet.js?v=29';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=29';
-import { TABLE, tableY } from './hero.js?v=29';
+import { look, kindColor } from './look/index.js?v=31';
+import { radialTexture } from './look/util.js?v=31';
+import { S, drawSheet } from './sheet.js?v=31';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=31';
+import { TABLE, tableY } from './hero.js?v=31';
 
 export const GAP = 1.0;
 const Z = (t) => -t * GAP;

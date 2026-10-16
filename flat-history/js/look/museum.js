@@ -1,7 +1,7 @@
 // 見た目「図鑑の銅版画と標本室」: 線で彫った博物画の大地と、標本室。住人と主人公は residents.js・heroes.js（設定で選ぶ）
 import * as THREE from 'three';
-import { rng, canvasTexture, floorPlane } from './util.js?v=29';
-import { INK, hatch } from './ink.js?v=29';
+import { rng, canvasTexture, floorPlane } from './util.js?v=31';
+import { INK, hatch } from './ink.js?v=31';
 
 function drawTerrain(g, L, S, res) {
   const R = rng(23);
@@ -84,6 +84,20 @@ function drawBackdrop(g, L, S, res) {
   g.fillText('Pl. ' + (L.plate || 'I') + ' — ' + res.plate, W - 16, 22); g.textAlign = 'left';
 }
 
+// ころがる石（ころがった分だけ線が回る）
+function drawStone(g, L, s, S) {
+  const cx = s.x * S, cy = (L.H - s.y - 0.5) * S, r = S * 0.48;
+  g.save(); g.translate(cx, cy);
+  g.fillStyle = '#cbb894'; g.beginPath(); g.arc(0, 0, r, 0, 7); g.fill();
+  g.save(); g.clip(); hatch(g, -r, -r * 0.2, r * 2, r * 1.3, 2.2, -0.9, 'rgba(74,51,32,.55)'); g.restore();
+  g.rotate(-s.x * 2);
+  g.strokeStyle = 'rgba(74,51,32,.7)'; g.lineWidth = 1;
+  g.beginPath(); g.arc(0, 0, r * 0.55, 0.3, 2.2); g.stroke();
+  g.beginPath(); g.moveTo(-r * 0.2, -r * 0.6); g.lineTo(r * 0.3, -r * 0.2); g.stroke();
+  g.restore();
+  g.strokeStyle = INK; g.lineWidth = 1.4; g.beginPath(); g.arc(cx, cy, r, 0, 7); g.stroke();
+}
+
 function drawSection(g, L, s, S, color) {
   const x = s.x0 * S, y = (L.H - s.y1) * S, w = (s.x1 - s.x0) * S, h = (s.y1 - s.y0) * S;
   const kind = s.p.kind === 'plank' || s.p.kind === 'short' ? 'beam' : s.p.kind;
@@ -155,5 +169,5 @@ export default {
   labelColor: 'rgba(74,51,32,.85)',
   ribbon: { line: '#5a3d22', gold: '#c9942e', dead: '#8f3b2b', old: '#a0634f' },
   light: { sky: '#fff2d8', ground: '#7a5a3a', sun: '#ffe2b5' },
-  drawTerrain, drawBackdrop, drawSection, makeEnv,
+  drawTerrain, drawBackdrop, drawSection, drawStone, makeEnv,
 };
