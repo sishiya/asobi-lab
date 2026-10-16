@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=20';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=20';
-import { drawSheet } from './sheet.js?v=20';
-import { createStage } from './stage3d.js?v=20';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=20';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=20';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm } from './audio.js?v=20';
+import { LEVELS } from './level.js?v=21';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=21';
+import { drawSheet } from './sheet.js?v=21';
+import { createStage } from './stage3d.js?v=21';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=21';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=21';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm } from './audio.js?v=21';
 
 const $ = (id) => document.getElementById(id);
 
@@ -346,7 +346,6 @@ function drawInset(focus) {
   insetKey = k;
   const fr = st.hist.frames[Math.round(focus / 0.1)];
   drawSheet(insetG, L, focus, fr, sectionsAt(blockPieces(), focus), { paper: true, label: focus + '秒', goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null });
-  stage.drawTrailOn(insetG, focus);
   stage.drawHeroOn(insetG, focus);
   $('insetCap').textContent = focus + '秒目のページ（V でしまう）';
 }
@@ -442,6 +441,12 @@ function bind() {
   if (bindingNow) return;
   if (stage.waving()) stage.skipWave();
   st.boundOnce = true;
+  // 綴じる前に、主人公は近くの標本台へさがる（ページの外にいるので、綴じた歴史には映らない）
+  const h = st.hero;
+  if (h.x > -0.5) {
+    h.x = -3.5; h.t = Math.max(0, Math.min(33, h.t)); h.y = tableY(L); h.vy = 0; h.grounded = true;
+    h.fx = 1; h.ft = 0;
+  }
   se.click();
   closeAll();
   showBindReplay();
@@ -498,8 +503,6 @@ function drawReplay() {
   const t = rp.t, lab = t.toFixed(1) + '秒';
   drawSheet(rp.gA, L, t, frameAt(st.base.frames, t), [], { paper: true, label: lab });
   drawSheet(rp.gB, L, t, frameAt(st.hist.frames, t), sectionsAt(blockPieces(), t), { paper: true, label: lab, goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null });
-  stage.drawTrailOn(rp.gB, t);
-  stage.drawHeroOn(rp.gB, t);
   $('rpSeek').value = t;
   $('rpTime').textContent = t.toFixed(1) + ' 秒';
 }
