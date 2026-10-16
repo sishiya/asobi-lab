@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩き、形をつかんで運んで置く（REDESIGN.md 段階1〜2）
-import { LEVELS } from './level.js?v=18';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=18';
-import { drawSheet } from './sheet.js?v=18';
-import { createStage } from './stage3d.js?v=18';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=18';
-import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=18';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm } from './audio.js?v=18';
+import { LEVELS } from './level.js?v=19';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, pieceDims } from './sim.js?v=19';
+import { drawSheet } from './sheet.js?v=19';
+import { createStage } from './stage3d.js?v=19';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=19';
+import { makeHero, stepHero, groundAt, tableY } from './hero.js?v=19';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm } from './audio.js?v=19';
 
 const $ = (id) => document.getElementById(id);
 
@@ -268,7 +268,8 @@ window.addEventListener('keydown', (e) => {
   if (k === ' ') jumpQueued = true;
   if (k === 'e' || k === 'E') useE();
   if (k === 'q' || k === 'Q') rotate();
-  if (k === 'Enter') { if (st.solved && hasNext()) goNext(); else bind(); }
+  if (k === 'h' || k === 'H') { if (st.solved && hasNext()) goNext(); else bind(); }
+  if (k === 'Enter' && st.solved && hasNext()) goNext();
   if (k === 'm' || k === 'M') nextBgm();
 });
 window.addEventListener('keyup', (e) => { const k = e.key; keys.delete(k); keys.delete(k.toLowerCase()); keys.delete(k.toUpperCase()); });
@@ -403,7 +404,7 @@ function drawTimeline() {
 // ---- ひとことの導き ----
 function coachText() {
   if (st.solved) return hasNext() ? '正史ができた。Enter で次の図版へ' : '正史ができた';
-  if (st.lv === 0 && !st.boundOnce && !st.carry && blockPieces().length && st.hintIdx >= (L.hints || []).length) return tx('これで巣に着くと思ったら、「綴じる」（Enter）で答えよう');
+  if (st.lv === 0 && !st.boundOnce && !st.carry && blockPieces().length && st.hintIdx >= (L.hints || []).length) return tx('これで巣に着くと思ったら、「綴じる」（H）で答えよう');
   const hs = L.hints || [];
   const c = { walked: st.walked, seenEnd: st.revealT >= st.base.end.t, placed: blockPieces().length > 0 };
   while (st.hintIdx < hs.length && hs[st.hintIdx].when(c)) st.hintIdx++;
@@ -558,9 +559,9 @@ function loop(now) {
       $('tRot').hidden = !st.carry;
       $('tNudge').hidden = !st.carry;
     }
-    const bindHtml = st.solved && hasNext() ? '次へ <kbd>Enter</kbd>' : '綴じる <kbd>Enter</kbd>';
+    const bindHtml = st.solved && hasNext() ? '次へ <kbd>Enter</kbd>' : '綴じる <kbd>H</kbd>';
     if ($('btnBind').innerHTML !== bindHtml) $('btnBind').innerHTML = bindHtml;
-    // 正史かどうかは、遊ぶ人が「綴じる」（Enter）まで判定しない
+    // 正史かどうかは、遊ぶ人が「綴じる」（H）まで判定しない
   }
   requestAnimationFrame(loop);
 }
