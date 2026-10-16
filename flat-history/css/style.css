@@ -731,3 +731,21 @@ body.touch .inset { left: 12px; right: auto; top: 120px; }
 .t-name::after { display: none; }
 .title-card .t-acts { margin-top: 26px; }
 @media (max-height: 520px) { .title-card .t-acts { margin-top: 12px; } }
+
+/* v052: スマホでは、メニューだけ左上。図版の名前・説明・回答するボタンは右上に右寄せでたて並び（ユーザー）。小窓は左へ */
+@media (max-width: 760px), (max-height: 520px) {
+  .headgroup { top: 6px; left: auto; right: 6px; transform: none; align-items: flex-end; max-width: calc(100vw - 60px); }
+  .headgroup .coach { text-align: right; }
+}
+@media (max-width: 760px) {
+  .inset, body.touch .inset { top: auto; bottom: 130px; left: 6px; right: auto; width: 40vw; }
+}
+@media (max-height: 520px) {
+  .headgroup { max-width: 52vw; }
+  .inset, body.touch .inset { top: 50px; bottom: auto; left: 6px; right: auto; width: 30vw; }
+  /* 右下の親指のボタンは小さめにして下へ（右上のまとまりとぶつからないように） */
+  .touch-ui { bottom: 58px; }
+  .tbtns { bottom: 4px; grid-template-columns: 52px 52px; }
+  .tb { width: 52px; height: 52px; font-size: 11px; white-space: nowrap; letter-spacing: 0; }
+  #tPlace { width: 68px; height: 68px; font-size: 14px; }
+}
