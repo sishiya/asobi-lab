@@ -36,7 +36,7 @@
 | `js/shell.js` | 外まわり: `ask()`（確認・名前の入力）、エラーのおしらせ `onError()` `fatal()`、音のボタン、タイトル画面 `showTitle()`（セーブがあれば「つづきから／はじめから」）、`resetAll()`、セーブの書き出し `exportSave()`（`dino-race-日付.json`）と読み込み `importSave()`（`cleanDino()` で確かめ、遺伝子は範囲の中へ）、メニュー `openMenu()`、クレジット `CREDITS`、エンディング `showEnding()`（`prog.endingSeen`） | `VERSION` `SKIP_TITLE` `allMedals()` |
 | `js/main.js` | 画面 `setTab(t, {top})`（`SCREENS`、`body[data-screen]`、画面ごとのスクロール位置 `scrollMemo`）、見出しの高さ `measureTop()`（CSS の `--top-h`）、はじめ（読み込み・描画・記録をはかる）、planck が読めないときは `fatal()`、`?thumb`（ティラノ1匹。タイトルは出さない）、`window.__dino` | `tab` |
 | `test.html` | 物理と GA だけを試す開発用のページ（画面なし） | |
-| `../tools/make-motion-thumbs.ps1` | サムネイル `../thumbs/dino-race.jpg` と動くほう `.mp4`（ヘッドレスの Chrome で `?thumb` の場面から、ティラノが走りつづける4秒。`../tools/thumb.html` の MOTION。サーバー `games` を起動しておく） | |
+| `../tools/make-motion-thumbs.ps1` | サムネイル `../thumbs/dino-race.jpg` と動くほう `.mp4`（ヘッドレスの Chrome で `?thumb` の作りのまま、ゆっくりのティラノと脚が高速で回るコンプソグナトゥスの2レーンが走る4秒。`../tools/thumb.html` の MOTION。サーバー `games` を起動しておく） | |
 
 ## 英語（v008、2026-10-17）
 - 言語の決め方は flat-history・edge-falls と同じ（`index.html` の head: `?lang=` → `localStorage` の `manabi-lang` → ブラウザの言語）。`?thumb` は日本語。切りかえはタイトルの右上 JP/EN とメニューの「言語 Language」（`setLang()` で読み直す）。

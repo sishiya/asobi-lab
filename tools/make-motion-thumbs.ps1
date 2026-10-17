@@ -12,15 +12,17 @@ param(
   [string]$Probe = '',   # 確かめ用: 撮りはじめと撮り終わりに、この式をゲームの窓（w）で評価して表示（例: 'w.__rz.world.t'）
   [double]$Sec = 4,
   [int]$Fps = 15,
-  [int]$Crf = 30,
+  [int]$Crf = 0,   # 画質（大きいほど小さく・あらく）。0 なら下の $CrfOf（なければ 30）
   [int]$Port = 8780,
   [int]$DebugPort = 9344,
   [int]$TimeoutSec = 90,
+  [string]$Query = '',   # 確かめ用: thumb.html に足す引数（例: '&dino=raptor&t=3'）
   [switch]$NoStill   # 静止画 <game>.jpg を撮り直さない（ふつうは最初のコマで撮り直して、動画とそろえる）
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 $Games = $Games | ForEach-Object { $_ -split ',' } | Where-Object { $_ }
+$CrfOf = @{ 'dino-race' = 32 }   # 背景が速く流れて大きくなるゲームだけ、少しあらく（1本 150KB まで）
 $root = Split-Path -Parent $PSScriptRoot
 $out = Join-Path $root 'thumbs'
 $ffmpeg = (Get-Command ffmpeg -ErrorAction SilentlyContinue).Source
@@ -61,7 +63,7 @@ try {
   $ep.Param[0] = New-Object Drawing.Imaging.EncoderParameter([Drawing.Imaging.Encoder]::Quality, [long]86)   # make-thumbs.ps1 と同じ画質
 
   foreach ($a in $Games) {
-    $url = "http://localhost:$Port/tools/thumb.html?game=$a&motion=1"
+    $url = "http://localhost:$Port/tools/thumb.html?game=$a&motion=1$Query"
     $tab = Invoke-RestMethod -Method Put "http://127.0.0.1:$DebugPort/json/new?about:blank"
     $ws = New-Object Net.WebSockets.ClientWebSocket
     $ws.ConnectAsync([Uri]$tab.webSocketDebuggerUrl, [Threading.CancellationToken]::None).Wait()
@@ -110,7 +112,7 @@ try {
 
     $mp4 = Join-Path $out "$a.mp4"
     & $ffmpeg -y -loglevel error -framerate $Fps -i (Join-Path $dir 'f%04d.jpg') -vf 'scale=640:360,format=yuv420p' `
-      -c:v libx264 -preset slow -crf $Crf -profile:v main -movflags +faststart -an $mp4
+      -c:v libx264 -preset slow -crf $(if ($Crf) { $Crf } elseif ($CrfOf[$a]) { $CrfOf[$a] } else { 30 }) -profile:v main -movflags +faststart -an $mp4
     if ($LASTEXITCODE -ne 0) { throw "ffmpeg に失敗: $a" }
     if ($Sheet) {
       [IO.Directory]::CreateDirectory($Sheet) | Out-Null

@@ -22,6 +22,16 @@ const run = (w, js) => w.eval(js);   // ゲームの外から、ゲームの let
 
 // 静止画・動画のどちらでも、?thumb の場面のあとにすること（w = ゲームの window）
 const SETUP = {
+  // ?thumb（ティラノ1匹）の作りのまま、ゆっくりのティラノと、脚が高速で回るコンプソグナトゥスの2レーンに（2026-10-17 ユーザー）。
+  // main.js の ?thumb の one() と同じ手順。&dino=<種>,<種>&t=<秒> で試せる
+  'dino-race': w => {
+    const ids = (q.get('dino') || 'trex,compy').split(','), t = +(q.get('t') || 2.6);
+    run(w, `{ const st = ${JSON.stringify(ids)}.map(id => starter(SPECIES.find(s => s.id === id)));
+      startView(st.map(x => x.g), st.map(x => x.name), { mode: 'idle-run' });
+      for (let i = 0; i < ${t} / DT; i++) stepRace(VIEW.R);
+      updateCamera(true);
+      drawScene($('view'), VIEW.R, VIEW.cams, { title: false, labels: VIEW.labels, progressH: 0 }); }`);
+  },
   // ?thumb は「時を止める」にしてあり、止まっているときの色あせ（body.paused）がかかる。サムネイルでは外す
   'edge-falls': async w => { w.document.body.classList.remove('paused'); await wait(800); },
   // ?thumb の「鳥がもう触角の目の前」の場面は、動かすと 0.3 秒で面クリアになる。2026-10-17 に場面を選び直した:
@@ -35,11 +45,47 @@ const SETUP = {
       Object.assign(G.pointer, { on: true, x: 560, y: 380 });
       last = performance.now();`);
   },
+  // ぺらぺら世界: 3D の構図（?thumb）に、2D 世界の帯を下に重ねる（2026-10-17 ユーザー「2D世界も見せて」）。
+  // 絵はゲームの小窓と同じ drawSheet・同じ台紙（?thumb では小窓をしまう作りなので、ここで出す）。中身はゲームの計算した歴史のまま
+  'flat-history': async w => {
+    const main = [...w.document.scripts].find(s => /main\.js/.test(s.src));
+    const src = await (await fetch(main.src)).text();
+    const mod = name => w.eval(`import('${new URL(src.match(new RegExp(`'\\./(${name}\\.js[^']*)'`))[1], main.src).href}')`);   // main.js と同じ URL で読む（同じモジュールになる）
+    const [{ drawSheet }, { sectionsAt }, { misprintOf }] = await Promise.all([mod('sheet'), mod('sim'), mod('stage3d')]);
+    const d = w.document, st = w.__fh.st;
+    // ?thumb の板（x0=9）は、図版 I が作り直される前の答えのままで、いまはキーウィが崖に落ちる（2026-10-17 に気づいた）。
+    // 正史になる場所（総当たりで x0=16〜18・3〜11 秒）へ、遊ぶ人と同じ手（持ち上げて置く）で置き直す
+    w.__fh.pickUp(st.pieces[0]); w.__fh.lockTo({ kind: 'plank', rot: 0, x0: 17, t0: 3 }); w.__fh.place(); w.__fh.stage.skipWave();
+    const hist = w.__fh.simulate(w.__fh.L, st.pieces);
+    w.__thumbHist = hist;
+    // 3D の構図は ?thumb（v072）と同じ向きのまま、板の所（x 17）へ 8 ずらす。主人公も板の手前に
+    w.__fh.stage.setShot([8, 8.2, 6.5, 21, 3.6, -11]);
+    Object.assign(st.hero, { x: 16.6, t: 2.4 });
+    // 2D 世界は、下に横長の帯で。ページの地面のあたり（キーウィが歩く所）だけを大きく見せる
+    const css = d.createElement('style');
+    css.textContent = `.thumb2d { position: fixed; left: 8px; right: 8px; bottom: 8px; height: 31vh; margin: 0; z-index: 4; padding: 6px;
+      background-color: var(--paper); background-image: var(--grain), linear-gradient(180deg, rgba(255, 252, 240, .6), rgba(200, 170, 120, .12));
+      border: 1px solid var(--rule); box-shadow: inset 0 0 0 3px var(--paper), inset 0 0 0 4px var(--line), 0 3px 14px rgba(60, 40, 15, .22); border-radius: 3px; }
+      .thumb2d div { position: relative; height: 100%; overflow: hidden; border: 1px solid var(--line); }
+      .thumb2d canvas { position: absolute; left: 0; width: 100%; height: auto; }`;
+    d.head.append(css);
+    const fig = d.createElement('figure'); fig.className = 'thumb2d';
+    const win = d.createElement('div'), cv = d.createElement('canvas'); cv.width = 720; cv.height = 280;   // 小窓と同じ大きさ（drawSheet はこの大きさで描く）
+    win.append(cv); fig.append(win); d.body.append(fig);
+    const hc = win.clientWidth * 280 / 720;
+    cv.style.top = Math.round(win.clientHeight * 0.66 - hc * 0.70) + 'px';   // ページの地面（高さの 7 割）を、帯の 2/3 の高さに
+    const g = cv.getContext('2d');
+    w.__thumb2d = t => {   // 2D 世界の t 秒のページ（小窓の drawInset と同じ描き方。0.1 秒ごとのコマ）
+      const L = w.__fh.L, T = Math.round(t * 10) / 10;
+      drawSheet(g, L, T, hist.frames[Math.round(T / 0.1)], sectionsAt(st.pieces, T), { paper: true, label: '', goalT: hist.end.type === 'goal' ? hist.end.t : null, misprintAfter: misprintOf(hist) });
+    };
+    w.__thumb2d(0);
+  },
 };
 
 // ゲームごとの、?thumb の場面からの動かし方（w = ゲームの window。時計を止めたあとに呼ぶ）。関数を返すと、撮るコマごとに（コマ番号を渡して）呼ぶ
 const MOTION = {
-  // ?thumb は1枚描いて止まる。練習場の計算（stepView）を進めながら、?thumb と同じ描き方（進みの棒なし）で描きつづける。ティラノがそのまま走る
+  // ?thumb は1枚描いて止まる。練習場の計算（stepView）を進めながら、?thumb と同じ描き方（進みの棒なし）で描きつづける。2匹がそのまま走る
   'dino-race': w => {
     run(w, `lastT = performance.now();
       (function thumbLoop(now) {
@@ -54,11 +100,13 @@ const MOTION = {
   // ぺらぺら世界: 主人公がページの束の上を、浮かんだまま横へ行って戻る（タップで行き先を決める walkTo。遊ぶ人の操作そのまま）。
   // 終わりは ?thumb の場所の近くにもどるので、くり返してもつながる。
   // （はじめは板を持ち上げて置き直す案を撮ったが、変わるのが板のうしろのページで見えず、書きかわりの光の板がちらつくだけだったのでやめた）
+  // 下の帯の 2D 世界は、はじめ（0 秒）から巣に着くまでを 4 秒に縮めて再生する（再生の画面の早送りと同じ。歴史はそのまま）
   'flat-history': w => {
-    const fh = w.__fh;
+    const fh = w.__fh, end = w.__thumbHist.end.t + 0.6, n = 4 * 15;
     return k => {
-      if (k === 3) fh.walkTo(4.6, 2.4);
-      if (k === 32) fh.walkTo(8.6, 2.4);
+      if (k === 3) fh.walkTo(12.6, 2.4);
+      if (k === 32) fh.walkTo(16.6, 2.4);
+      w.__thumb2d(Math.min(end, end * k / (n - 8)));   // 最後の半秒は巣に着いたところで止める
     };
   },
   // 2.8 秒目に「触角をふくらませる」を押す（遊ぶ人の操作そのまま）

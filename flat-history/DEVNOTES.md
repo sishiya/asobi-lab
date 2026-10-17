@@ -191,7 +191,7 @@
 3. Enter で「この歴史を綴じる」→ 再生が結末まで流れて「正史」の判。Enter で図版 II。わざと遅い秒に置いて綴じると「まだ」の判と、考えなおすボタン。
 4. Esc でメニュー、メニューから あそびかた → Esc でメニューにもどる。
 5. 音を出さずに確かめるときは `index.html?mute`。コンソールで: `window.__fh`（`st.hero` の x・t・y、`candidate()`、`useE()`）。
-6. サムネイル: `../tools/make-motion-thumbs.ps1 -Games flat-history`（静止画 `../thumbs/flat-history.jpg` と動くほうの `.mp4`。`?thumb` の構図のまま、主人公がタップの行き先 `walkTo` で横へ行って戻る4秒。場面は `../tools/thumb.html`。2026-10-17。板を持ち上げて置き直す案も撮ったが、書きかわるのが板のうしろのページで見えなかったのでやめた）。
+6. サムネイル: `../tools/make-motion-thumbs.ps1 -Games flat-history`（静止画 `../thumbs/flat-history.jpg` と動くほうの `.mp4`。場面は `../tools/thumb.html`）。2026-10-17: 3D の構図（`?thumb` の向き）の下に、2D 世界の帯（小窓と同じ `drawSheet`）を重ね、キーウィが巣穴を出て板をわたり巣に着くまでを4秒に縮めて再生（ユーザー「2D世界も見せて」）。3D では主人公が横へ行って戻る。**`?thumb` と、タイトルのうしろの場面（`setupTitleScene`）の板 x0=9・3秒は、いまの図版 I ではキーウィが崖（x≈18）に落ちる**（総当たりで正史になるのは x0=16〜18・3〜11秒）。サムネイルは撮影ページで x0=17・3秒に置き直し、カメラも 8 ずらしている。ゲームの中の2か所は、まだ直していない。
 
 ## 確認のしかた（v008 まで）
 1. `start.bat flat-history`（Claude は launch.json の `games` → http://localhost:8780/flat-history/）。
