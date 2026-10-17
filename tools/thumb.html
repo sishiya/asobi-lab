@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>サムネイル撮影用</title>
+<style>html,body{margin:0;overflow:hidden;background:#000}iframe{display:block;width:640px;height:360px;border:0}</style>
+</head>
+<body>
+<!--
+  あそびラボのサムネイルを撮るためのページ（ローカル用）。tools/make-thumbs.ps1（静止画）と tools/make-motion-thumbs.ps1（動画）が
+  ヘッドレスの Chrome で開いて撮る。?game=<フォルダ名> のゲームを <game>/?thumb で 640×360 の画面に開く（撮る道具が2倍の細かさにする）（各ゲームは ?thumb で見せたい場面を作る）。
+  &motion=1 のときは、そのあとゲームの時計を止めて、撮る側が __motionStep(ms) で1コマずつ進める。
+  ?thumb で止まる作りのゲームは、下の MOTION で同じ場面から動きはじめさせる（ゲームのコードは変えず、物理やルールもそのまま）。
+-->
+<iframe id="f"></iframe>
+<script>
+const q = new URLSearchParams(location.search);
+const game = q.get('game');
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const run = (w, js) => w.eval(js);   // ゲームの外から、ゲームの let の変数・関数にさわる（どれも普通の <script>）
+
+// 静止画・動画のどちらでも、?thumb の場面のあとにすること（w = ゲームの window）
+const SETUP = {
+  // ?thumb は「時を止める」にしてあり、止まっているときの色あせ（body.paused）がかかる。サムネイルでは外す
+  'edge-falls': async w => { w.document.body.classList.remove('paused'); await wait(800); },
+  // ?thumb の「鳥がもう触角の目の前」の場面は、動かすと 0.3 秒で面クリアになる。2026-10-17 に場面を選び直した:
+  // 1面の遊びのとちゅう（31 秒目）。遊ぶ人がカタツムリをまん中の日なたに引っぱりとめ（G.pointer）、上を鳥がまわっている。
+  // 動画では、とちゅうで「触角をふくらませる」を押す（MOTION）→ 鳥が気づいて降りてくる。食べられる前に 4 秒が終わる
+  'parasite-pilot': w => {
+    run(w, `Object.assign(G, { running: true, paused: false, ability: false, gauge: 100, t: 31 });
+      Object.assign(G.host, { x: 575, y: 395, a: -1.2, m: 100, shell: 0 });
+      Object.assign(G.bird, { x: 680, y: 229, st: 'circle', spot: 0, ph: 0.6 });
+      Object.assign(G.beetle, { x: 250, y: 470, a: 0.3 });
+      Object.assign(G.pointer, { on: true, x: 560, y: 380 });
+      last = performance.now();`);
+  },
+};
+
+// ゲームごとの、?thumb の場面からの動かし方（w = ゲームの window。時計を止めたあとに呼ぶ）。関数を返すと、撮るコマごとに（コマ番号を渡して）呼ぶ
+const MOTION = {
+  // ?thumb は1枚描いて止まる。練習場の計算（stepView）を進めながら、?thumb と同じ描き方（進みの棒なし）で描きつづける。ティラノがそのまま走る
+  'dino-race': w => {
+    run(w, `lastT = performance.now();
+      (function thumbLoop(now) {
+        const dt = (now - lastT) / 1000; lastT = now;
+        stepView(dt); updateCamera();
+        drawScene($('view'), VIEW.R, VIEW.cams, { title: false, labels: VIEW.labels, progressH: 0, ghosts: VIEW.ghosts, fx: VIEW.fx, clock: VIEW.clock });
+        requestAnimationFrame(thumbLoop);
+      })(performance.now());`);
+  },
+  // ?thumb は「時を止める」にしてある。×4 の速さにする（ふつうの速さだと 4 秒ではほとんど動かない。×4 はゲームの速さのボタンの1つ）
+  'edge-falls': w => { w.__ef.setSpeed(4); },
+  // ぺらぺら世界: 主人公がページの束の上を、浮かんだまま横へ行って戻る（タップで行き先を決める walkTo。遊ぶ人の操作そのまま）。
+  // 終わりは ?thumb の場所の近くにもどるので、くり返してもつながる。
+  // （はじめは板を持ち上げて置き直す案を撮ったが、変わるのが板のうしろのページで見えず、書きかわりの光の板がちらつくだけだったのでやめた）
+  'flat-history': w => {
+    const fh = w.__fh;
+    return k => {
+      if (k === 3) fh.walkTo(4.6, 2.4);
+      if (k === 32) fh.walkTo(8.6, 2.4);
+    };
+  },
+  // 2.8 秒目に「触角をふくらませる」を押す（遊ぶ人の操作そのまま）
+  'parasite-pilot': w => k => { if (k === 42) run(w, 'G.ability = true'); },
+  // ?thumb は rAF を回さない。同じ世界のまま時間を進める（thumbMode のままなので知らせは出ない）
+  'heaven-spheres': w => { run(w, 'lastT = performance.now(); requestAnimationFrame(frame)'); },
+  // ?thumb は第1夜の 10 秒目で止めてある（S.phase = 'thumb'）。夜にもどすと虫が動きだす。はじめてのてびきは出さない
+  'resistance': w => { run(w, "S.phase = 'night'; S.paused = false; S.bannerT = 0; TIPS.forEach((t, i) => tipsShown.add(i)); lastT = performance.now()"); },
+};
+
+// ゲームの時計（requestAnimationFrame と performance.now）を止め、撮る側が __motionStep(ms) で1コマずつ進める。
+// 重いゲームでも撮るのが遅いだけで、動画の中の速さは本物と同じになる（まなびラボの _dev/tools/thumb.html と同じ）
+async function freezeClock(w) {
+  const qu = [];
+  let now = w.performance.now();
+  w.requestAnimationFrame = cb => { qu.push(cb); return qu.length; };
+  w.performance.now = () => now;
+  await wait(200);   // 本物の rAF に残っている分が1回まわって、止めた rAF に入るのを待つ
+  let k = 0, onFrame = null;
+  window.__motionStep = async ms => {
+    if (onFrame) { try { onFrame(k); } catch (e) { console.error(e); } }
+    k++;
+    const sub = Math.max(1, Math.round(ms / (1000 / 60)));   // 1/60 秒ずつ（dt に上限のあるゲームのため）
+    for (let i = 0; i < sub; i++) { now += ms / sub; qu.splice(0).forEach(cb => { try { cb(now); } catch (e) { console.error(e); } }); }
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));   // 描いた絵が画面に出るのを待つ
+  };
+  return fn => { onFrame = fn; };
+}
+
+const f = document.getElementById('f');
+f.onload = async () => {
+  const w = f.contentWindow;
+  for (let i = 0; i < 100 && w.document.readyState !== 'complete'; i++) await wait(100);
+  await wait(+(q.get('wait') || 4000));   // フォント・3D の読みこみと、?thumb の場面づくり
+  if (SETUP[game]) { try { await SETUP[game](w); } catch (e) { console.error(e); } }
+  // 静止画も時計を止めて1コマだけ進めて撮る（動画の最初の絵とそろう）
+  const setOnFrame = await freezeClock(w);
+  if (q.get('motion')) {
+    if (MOTION[game]) { try { const fn = await MOTION[game](w); if (typeof fn === 'function') setOnFrame(fn); } catch (e) { console.error(e); } }
+  } else await window.__motionStep(1000 / 15);
+  document.title = 'ready';
+};
+f.src = '../' + game + '/?thumb';
+</script>
+</body>
+</html>

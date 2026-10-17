@@ -191,6 +191,7 @@
 3. Enter で「この歴史を綴じる」→ 再生が結末まで流れて「正史」の判。Enter で図版 II。わざと遅い秒に置いて綴じると「まだ」の判と、考えなおすボタン。
 4. Esc でメニュー、メニューから あそびかた → Esc でメニューにもどる。
 5. 音を出さずに確かめるときは `index.html?mute`。コンソールで: `window.__fh`（`st.hero` の x・t・y、`candidate()`、`useE()`）。
+6. サムネイル: `../tools/make-motion-thumbs.ps1 -Games flat-history`（静止画 `../thumbs/flat-history.jpg` と動くほうの `.mp4`。`?thumb` の構図のまま、主人公がタップの行き先 `walkTo` で横へ行って戻る4秒。場面は `../tools/thumb.html`。2026-10-17。板を持ち上げて置き直す案も撮ったが、書きかわるのが板のうしろのページで見えなかったのでやめた）。
 
 ## 確認のしかた（v008 まで）
 1. `start.bat flat-history`（Claude は launch.json の `games` → http://localhost:8780/flat-history/）。

@@ -14,7 +14,7 @@
 
 - **公開中**: https://sishiya.github.io/asobi-lab/ （GitHub Pages。push で更新）。作りかけ・試作は保管庫（`archive.html`、入口の下の注記から）
 - 各ゲームの `index.html` が最新版、`launcher.html` から過去の版（`versions/`）。仕組みや確認のしかたは各フォルダの `DEVNOTES.md`、企画は `PLAN.md`。
-- サムネイルは `thumbs/`（`tools/make-thumbs.ps1` で撮り直し）。
+- サムネイルは `thumbs/`。静止画 `<game>.jpg` と、マウスを乗せる（スマホはまんなかの1枚）と動く `<game>.mp4`（4秒・音なし）。どちらも `tools/make-motion-thumbs.ps1` で撮る（場面は `tools/thumb.html`、再生は `assets/motion-thumbs.js`）。動画のないゲームの静止画は `tools/make-thumbs.ps1`。
 
 ## ローカルで動かす（Windows）
 

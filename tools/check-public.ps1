@@ -71,6 +71,15 @@ foreach ($f in $files) {
     if ($ascii -match 'Exif\x00|GPSInfo|<x:xmpmeta|tEXt|iTXt|zTXt|eXIf') { [void]$hits.Add("$rel : 画像に撮影情報・メタデータがある（消してから公開）") }
     continue
   }
+  if ($ext -eq '.mp4' -and $rel -like 'thumbs\*') {
+    # 動くサムネイル（make-motion-thumbs.ps1）: 作者・場所・題などの付加情報がないか（ffprobe）。写っている中身は目で確かめる
+    $probe = Get-Command ffprobe -ErrorAction SilentlyContinue
+    if (-not $probe) { [void]$hits.Add("$rel : ffprobe がなく付加情報を調べられない（目で確認）"); continue }
+    $tags = & $probe.Source -v error -show_entries 'format_tags:stream_tags' -of 'default=nw=1' $f
+    $extra = @($tags | Where-Object { $_ -and $_ -notmatch '^TAG:(major_brand|minor_version|compatible_brands|encoder|handler_name|vendor_id|language)=' })
+    if ($extra.Count) { [void]$hits.Add("$rel : mp4 に付加情報がある（$($extra -join ', ')）") }
+    continue
+  }
   if ($textExt -notcontains $ext) { [void]$hits.Add("$rel : テキスト以外のファイル（画像なら撮影情報・写り込みを目で確認）"); continue }
   $lines = [IO.File]::ReadAllLines($f, [Text.Encoding]::UTF8)
   for ($i = 0; $i -lt $lines.Length; $i++) {

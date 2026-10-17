@@ -167,10 +167,11 @@ h2+.grid{margin-top:0}
   <p class="note sub" lang="en">About analytics: This site uses Google Analytics to learn which pages are viewed and how often. It collects browsing records using cookies, but it does not collect information that identifies you, such as your name, and it is not used for advertising. The data is handled under Google's privacy policy (<a href="https://policies.google.com/technologies/partner-sites?hl=en">How Google uses information from sites or apps that use its services</a>). If you do not want to be tracked, use the <a href="https://tools.google.com/dlpage/gaoptout?hl=en">opt-out browser add-on</a> or turn off cookies in your browser.</p>
   </div>
 </main>
+<script src="assets/motion-thumbs.js"></script>
 <script>
 // ゲームの一覧。並びは公開した順。新しいゲームはいちばん下に足す。
 // 例: {id:'フォルダ名', title:'名前', cat:'puzzle', created:'2026-10-10', updated:'2026-10-10', desc:'一言の説明', title_en:'Name', desc_en:'One line', en:true}
-// サムネイルは thumbs/<id>.jpg（640×360）。created は公開日、updated は中身が変わった日。
+// サムネイルは thumbs/<id>.jpg（640×360）と、動くほうの thumbs/<id>.mp4（tools/make-motion-thumbs.ps1。マウスを乗せる・スマホはまんなかの1枚で再生）。created は公開日、updated は中身が変わった日。
 // title_en・desc_en は英語の入口での名前と説明。en:true は、ゲームの中も英語に切り替えられるもの（ないものは「Japanese only」と出す）。
 const GAMES = [
   {id:'dino-race', title:'恐竜かけっこ牧場', cat:'sim', created:'2026-10-17', updated:'2026-10-17',
@@ -287,7 +288,7 @@ function render() {
   }
 }
 
-function update() { saveState(); render(); }
+function update() { saveState(); render(); MotionThumbs.pick(); }   // 動くサムネイル: assets/motion-thumbs.js
 
 // 並べかえ・しぼりこみは2本以上になってから出す
 $('tools').hidden = GAMES.length < 2;
@@ -301,7 +302,7 @@ $('lang').hidden = false;
 $('lang').addEventListener('click', e => { const b = e.target.closest('button'); if (b && b.dataset.lang !== LANG) { LANG = b.dataset.lang; try { localStorage.setItem('manabi-lang', LANG); } catch (err) {} renderTexts(); update(); } });
 
 renderTexts();
-render();
+render(); MotionThumbs.pick();
 showChosenCat();
 </script>
 </body>
