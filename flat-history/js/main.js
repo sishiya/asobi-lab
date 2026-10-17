@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
-import { LEVELS, REVEALS } from './level.js?v=73';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=73';
-import { drawSheet } from './sheet.js?v=73';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=73';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=73';
-import { makeHero, stepHero, groundAt } from './hero.js?v=73';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=73';
+import { LEVELS, REVEALS } from './level.js?v=74';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=74';
+import { drawSheet } from './sheet.js?v=74';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=74';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=74';
+import { makeHero, stepHero, groundAt } from './hero.js?v=74';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=74';
 
 const $ = (id) => document.getElementById(id);
 
@@ -645,7 +645,7 @@ function drawTimeline() {
 // ---- ひとことの導き ----
 function coachText() {
   if (st.solved) return TX('正史ができた。もう一度見るなら「結果を見る」', 'A true history! Press “See result” to watch it again');
-  if (st.lv === 0 && !st.boundOnce && !st.carry && blockPieces().length && st.hintIdx >= (L.hints || []).length) return tx(TX('これで巣に着くと思ったら、「回答する」で答えよう', 'If you think the kiwi will reach the nest now, press “Answer”'));
+  if (st.lv === 0 && !st.boundOnce && !st.carry && blockPieces().length && st.hintIdx >= (L.hints || []).length) return tx(TX('これで巣に着くと思ったら、「正史にする」を押そう', 'If you think the kiwi will reach the nest now, press “Make it the true history”'));
   const hs = L.hints || [];
   const c = { walked: st.walked, seenEnd: st.revealT >= st.base.end.t, placed: blockPieces().length > 0, rotated: !!st.rotatedOnce };
   while (st.hintIdx < hs.length && hs[st.hintIdx].when(c)) st.hintIdx++;
@@ -709,7 +709,7 @@ function replaySounds(h, o, t) {
 }
 const cfgRes = () => cfg.res;
 
-// ---- 回答する: 再生して見届けてから、正史かどうかを出す ----
+// ---- 正史にする（v087 まで「回答する」）: 再生して見届けてから、正史かどうかを出す ----
 const hasNext = () => st.lv + 1 < LEVELS.length;
 function goNext() {
   se.click();
@@ -736,7 +736,7 @@ function bind() {
 }
 let bindingNow = false;
 function showBindReplay() {
-  $('rpTitle').textContent = TX('この歴史で回答する', 'Answering with this history');
+  $('rpTitle').textContent = TX('この歴史を正史にする', 'Making this the true history');
   $('rpResult').hidden = true;
   $('rpWhy').hidden = true;
   document.querySelector('.replay-card').classList.remove('with-why', 'with-reveal');
@@ -921,11 +921,11 @@ function loop(now) {
       $('tRot').hidden = !st.carry;
       $('tCancel').hidden = !st.carry;
     }
-    const bindHtml = st.solved ? TX('結果を見る', 'See result') : TX('回答する', 'Answer');
+    const bindHtml = st.solved ? TX('結果を見る', 'See result') : TX('正史にする', 'Make it the true history');
     if ($('btnBind').innerHTML !== bindHtml) $('btnBind').innerHTML = bindHtml;
-    // 形を置いて歴史が変わったのに、まだ回答していないあいだは、ボタンが脈打つ
+    // 形を置いて歴史が変わったのに、まだ正史にしていないあいだは、ボタンが脈打つ
     $('btnBind').classList.toggle('ready', !st.solved && st.dirty && blockPieces().length > 0);
-    // 正史かどうかは、遊ぶ人が「回答する」（Enter）まで判定しない
+    // 正史かどうかは、遊ぶ人が「正史にする」（Enter）まで判定しない
   }
   requestAnimationFrame(loop);
 }
