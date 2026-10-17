@@ -1,5 +1,5 @@
 // 裏で計算する: 記録の測定（evaluate）と、おまかせの進化（evolve）。画面が固まらないように。
-importScripts('https://cdn.jsdelivr.net/npm/planck@1.5.0/dist/planck.min.js', 'genome.js', 'sim.js', 'ga.js');
+importScripts('https://cdn.jsdelivr.net/npm/planck@1.5.0/dist/planck.min.js', 'genome.js?v=8', 'sim.js?v=8', 'ga.js?v=8');
 
 let job = 0;
 onmessage = e => {

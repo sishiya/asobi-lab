@@ -255,7 +255,7 @@ dialog#ask input{width:100%;font:inherit;font-size:16px;min-height:44px;padding:
 body.thumb .title-screen,body.thumb .top,body.thumb .tabbar,body.thumb .screens,body.thumb .hud,body.thumb .actbar{display:none!important}
 body.thumb main#app{padding:0;max-width:none}
 body.thumb .stage{border:0;border-radius:0}
-body.thumb #view{height:100vh}
+body.thumb #view{height:100vh;flex:none}
 
 /* v004 遊びの芯（しっかり度・卵・かけ合わせ・お題の段・記録帳の図） */
 .small{font-size:12px;color:var(--muted)}
@@ -345,3 +345,8 @@ body.thumb #view{height:100vh}
 .gait-opt{padding:8px 10px}
 .gait-opt canvas{height:52px}
 @media (max-height:640px){.gait-opt canvas{height:40px}.sheet-body h3{margin:10px 0 4px}}
+/* 言語（v008）: <span lang> の対のうち、いまの言語でないほうを隠す。タイトルの右上に JP / EN */
+:root[lang=en] [lang=ja],:root:not([lang=en]) [lang=en]{display:none!important}
+.langsw{position:absolute;top:calc(12px + env(safe-area-inset-top));right:14px;display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--scrim);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.langsw button{min-height:32px;padding:2px 12px;border:0;border-radius:999px;background:none;color:var(--muted);font-size:13px;font-weight:700;letter-spacing:.06em}
+.langsw button[aria-pressed=true]{background:var(--ink);color:var(--paper)}

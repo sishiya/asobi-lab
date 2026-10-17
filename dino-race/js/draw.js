@@ -492,7 +492,7 @@ function drawScene(canvas, R, cams, {labels = [], progressH = 0, ghosts = [], fx
     // 目盛りの数字・ゴール
     ctx.fillStyle = INK.muted; ctx.font = '11px ' + f; ctx.textAlign = 'center';
     for (let m = Math.ceil(x0 / major) * major; m <= x1; m += major) if (m >= -1e-9 && m <= FINISH) haloText(ctx, fmtLen(+m.toFixed(2)), (m - cam.x) * s, base + 22);
-    if (FINISH >= x0 && FINISH <= x1) { ctx.fillStyle = INK.accent; ctx.font = '700 12px ' + f; haloText(ctx, 'ゴール', (FINISH - cam.x) * s, top + 16); }
+    if (FINISH >= x0 && FINISH <= x1) { ctx.fillStyle = INK.accent; ctx.font = '700 12px ' + f; haloText(ctx, TX('ゴール', 'Finish'), (FINISH - cam.x) * s, top + 16); }
     // ゴーストの線（このレーンの縮尺で、いまの位置に）
     for (const gh of ghosts) {
       const gx = (ghostAt(gh, R.t) - cam.x) * s; if (gx < 0 || gx > W) continue;
@@ -502,7 +502,7 @@ function drawScene(canvas, R, cams, {labels = [], progressH = 0, ghosts = [], fx
     }
     // 名前と物差し（この縮尺で何 m か）
     ctx.textAlign = 'left'; ctx.fillStyle = INK.ink; ctx.font = '600 13px ' + f;
-    const status = d.finishT != null ? ` ゴール ${d.finishT.toFixed(2)}秒` : d.fell ? ' 転んだ' : '';
+    const status = d.finishT != null ? TX(` ゴール ${fmtT(d.finishT)}`, ` Finished ${fmtT(d.finishT)}`) : d.fell ? TX(' 転んだ', ' Fell') : '';
     haloText(ctx, `${i + 1}. ${labels[i] || ''}${status}`, 10, top + 18);
     const bar = niceStep(s, 50), bx = 10, by = top + 30;
     ctx.strokeStyle = INK.ink; ctx.lineWidth = 1.5; ctx.beginPath();

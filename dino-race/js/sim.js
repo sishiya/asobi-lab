@@ -233,7 +233,7 @@ function evaluate(genomes, {robust = false, seed = 1000} = {}) {
 
 // 記録としっかり度: いつもの走り＋走り方を少しずらした TRIES 通り（ずらし方は毎回同じ）。
 // rb = {ok: ゴールできた数, n, lo, hi: ゴールしたタイムの幅}。本番のかけっこは毎回ちがうずらし方で走る（当日の調子。v004）
-const TRIES = 6;
+const TRIES = 10; // v004 は 6。6回だと見積もりが粗く「6回中6回」の子が本番でよく崩れたので 10 に（2026-10-17）
 function measureRobust(genomes) {
   const list = genomes.flatMap(g => [g, ...Array.from({length: TRIES}, (_, k) => jitter(g, 501 + k * 97))]);
   const R = makeRace(list);

@@ -39,16 +39,17 @@ let resizeT = 0;
 addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { paintPortraits($('ranch'), ranch); paintPortraits($('nurseryBox'), kids); if (tab === 'book') drawBookChart(); measureTop(); }, 150); });
 if (new URLSearchParams(location.search).has('thumb')) {
   // サムネイルを撮るとき（?thumb）: ティラノサウルスを数秒走らせたところで止め、title を ready に
-  document.body.classList.add('thumb');
-  const st = [starter(SPECIES[0])];
+  // タイトルと同じ絵づくり（1匹を大きく、名前・物差しなし）。v008 からはラプトル
+  document.body.classList.add('thumb', 'titled');
+  const st = [starter(SPECIES[1])];
   startView(st.map(x => x.g), st.map(x => x.name), {mode: 'idle-run'});
-  for (let i = 0; i < 2.6 / DT; i++) stepRace(VIEW.R);
+  for (let i = 0; i < 6.3 / DT; i++) stepRace(VIEW.R); // 胴が水平に近く、脚を大きく開いた瞬間
   updateCamera(true);
-  drawScene($('view'), VIEW.R, VIEW.cams, {labels: VIEW.labels, progressH: 0});
+  drawScene($('view'), VIEW.R, VIEW.cams, {title: true, labels: VIEW.labels, progressH: 0});
   document.title = 'ready';
 } else if (typeof planck === 'undefined') {
   // 物理のライブラリ（CDN）が読めなかった
-  fatal('恐竜を走らせる物理の計算（Planck.js）を読み込めませんでした。インターネットにつながっているか確かめて、ページを読み直してください。');
+  fatal(TX('恐竜を走らせる物理の計算（Planck.js）を読み込めませんでした。インターネットにつながっているか確かめて、ページを読み直してください。', 'Could not load the physics engine (Planck.js) that runs the dinosaurs. Check your internet connection and reload the page.'));
 } else {
   renderSoundBtn();
   showTitle(); // 先にタイトル（練習場の恐竜の数が変わる）

@@ -24,6 +24,8 @@ $('sheet').addEventListener('click', e => { if (e.target === $('sheet')) closeSh
 
 // 詳しく: 大きな絵・体のようす・記録・操作
 const SHOW_GENES = ['legLen', 'tibRatio', 'metaRatio', 'muscle', 'tailLen', 'neckLen', 'bodyLen'];
+// 遺伝子の英語の名前（genome.js は Worker でも読むので TX を使わない。英語はここで持つ）
+const GENE_EN = {legLen: 'Leg length', tibRatio: 'Shin ÷ thigh', metaRatio: 'Foot ÷ thigh', muscle: 'Leg muscle ÷ body weight', tailLen: 'Tail ÷ leg', neckLen: 'Neck ÷ leg', bodyLen: 'Body ÷ leg'};
 function geneRatio(d, v) { return d.log ? Math.log(v / d.min) / Math.log(d.max / d.min) : (v - d.min) / (d.max - d.min); }
 function openDetail(x) { openSheet(x.name, '', 'detail', x); renderDetail(x); }
 function renderDetail(x) {
@@ -33,29 +35,29 @@ function renderDetail(x) {
     const shown = k === 'legLen' ? v.toFixed(2) + 'm' : k === 'muscle' ? Math.round(v * 100) + '%' : v.toFixed(2);
     // 両親の位置（v004。かけ合わせで生まれた子だけ）: 1・2 の小さな印
     const par = (x.pg || []).map((pg, i) => pg && pg[k] != null ? `<b class="par" style="left:${(geneRatio(d, pg[k]) * 100).toFixed(1)}%">${i + 1}</b>` : '').join('');
-    return `<span>${esc(d.label)} <b>${shown}</b></span><span class="bar">${par}<i style="left:${(geneRatio(d, v) * 100).toFixed(1)}%"></i></span>`;
+    return `<span>${esc(TX(d.label, GENE_EN[k]))} <b>${shown}</b></span><span class="bar">${par}<i style="left:${(geneRatio(d, v) * 100).toFixed(1)}%"></i></span>`;
   }).join('');
   const busy = !!x.practice, evo = evolving && evolving.src === x;
   $('sheetTitle').textContent = x.name;
   $('sheetBody').innerHTML = `<canvas class="big" data-portrait="${esc(x.id)}"></canvas>
     <div class="facts">
-      <div><span>体重</span>${fmtMass(p.M)}</div>
-      <div><span>全長</span>${(r.headEnd[0] - r.tailEnd[0]).toFixed(2)}m</div>
-      <div><span>腰の高さ</span>${r.hip[1].toFixed(2)}m</div>
-      <div><span>世代</span>${x.gen ? x.gen + '代目' : 'はじめの恐竜'}${x.practiced ? `・練習 ${x.practiced}回` : ''}</div>
+      <div><span>${TX('体重', 'Weight')}</span>${fmtMass(p.M)}</div>
+      <div><span>${TX('全長', 'Length')}</span>${(r.headEnd[0] - r.tailEnd[0]).toFixed(2)}m</div>
+      <div><span>${TX('腰の高さ', 'Hip height')}</span>${r.hip[1].toFixed(2)}m</div>
+      <div><span>${TX('世代', 'Generation')}</span>${x.gen ? TX(x.gen + '代目', 'Gen ' + x.gen) : TX('はじめの恐竜', 'Founder')}${x.practiced ? TX(`・練習 ${x.practiced}回`, ` ・ trained ${x.practiced}×`) : ''}</div>
     </div>
     <p>${recText(x.rec)} <span class="status">${statusOf(x)}</span><br><span class="rb ${rbClass(x.rec)}">${rbText(x.rec)}</span>${x.practiceNote ? `<br><span class="small">${esc(x.practiceNote)}</span>` : ''}</p>
-    ${x.parents && x.parents.length ? `<p class="hint">親: ${esc(x.parents.map((n, i) => (x.pg ? (i + 1) + ' ' : '') + n).join(' × '))}${x.gaitName ? ` ・ 走り方は${esc(x.gaitName)}ゆずり` : ''}</p>` : ''}
-    <h3>体のようす（遺伝子の範囲のどこにいるか${x.pg ? '。1・2 は両親' : ''}）</h3>
+    ${x.parents && x.parents.length ? `<p class="hint">${TX('親: ', 'Parents: ')}${esc(x.parents.map((n, i) => (x.pg ? (i + 1) + ' ' : '') + n).join(' × '))}${x.gaitName ? TX(`${SEP}走り方は${esc(x.gaitName)}ゆずり`, `${SEP}gait from ${esc(x.gaitName)}`) : ''}</p>` : ''}
+    <h3>${TX(`体のようす（遺伝子の範囲のどこにいるか${x.pg ? '。1・2 は両親' : ''}）`, `Body (where it sits in each gene’s range${x.pg ? '; 1 and 2 are the parents' : ''})`)}</h3>
     <div class="bars">${bars}</div>
     <div class="btn-row">
-      <button type="button" data-d="watch"${x.rec ? '' : ' disabled'}>走りを見る</button>
-      <button type="button" data-d="practice"${busy ? ' disabled' : ''}>${busy ? practiceLabel(x) : '練習させる'}</button>
-      <button type="button" data-d="evolve"${evolving ? ' disabled' : ''}>${evo ? 'おまかせで進化中' : 'おまかせで進化'}</button>
-      <button type="button" data-d="rename">名前を変える</button>
-      <button type="button" data-d="release" class="quiet"${ranch.length <= 1 ? ' disabled' : ''}>逃がす</button>
+      <button type="button" data-d="watch"${x.rec ? '' : ' disabled'}>${TX('走りを見る', 'Watch run')}</button>
+      <button type="button" data-d="practice"${busy ? ' disabled' : ''}>${busy ? practiceLabel(x) : TX('練習させる', 'Train')}</button>
+      <button type="button" data-d="evolve"${evolving ? ' disabled' : ''}>${evo ? TX('おまかせで進化中', 'Auto-evolving') : TX('おまかせで進化', 'Auto-evolve')}</button>
+      <button type="button" data-d="rename">${TX('名前を変える', 'Rename')}</button>
+      <button type="button" data-d="release" class="quiet"${ranch.length <= 1 ? ' disabled' : ''}>${TX('逃がす', 'Release')}</button>
     </div>
-    <p class="hint">練習: 体はそのままで走り方を数秒〜数十秒かけて練習（よくなったら覚える。体が変わらないので、伸びには限りがある）。おまかせ: この恐竜をもとに群れを育て、いちばん速い子を連れて帰る（数分）。</p>`;
+    <p class="hint">${TX('練習: 体はそのままで走り方を数秒〜数十秒かけて練習（よくなったら覚える。体が変わらないので、伸びには限りがある）。おまかせ: この恐竜をもとに群れを育て、いちばん速い子を連れて帰る（数分）。', 'Train: practise the gait for a few seconds to a minute with the body unchanged (it keeps any improvement; since the body stays the same, gains are limited). Auto-evolve: raise a herd from this dinosaur and bring back the fastest one (a few minutes).')}</p>`;
   paintPortraits($('sheetBody'), [x]);
   $('sheetBody').querySelector('.btn-row').onclick = async e => {
     const b = e.target.closest('[data-d]'); if (!b || b.disabled) return;
@@ -64,11 +66,11 @@ function renderDetail(x) {
     if (act === 'practice') practice(x);
     if (act === 'evolve') openEvolve(x);
     if (act === 'rename') {
-      const nm = await ask('新しい名前（12文字まで）', {input: x.name, ok: '決める'});
+      const nm = await ask(TX('新しい名前（12文字まで）', 'New name (up to 12 characters)'), {input: x.name, ok: TX('決める', 'OK')});
       if (nm) { x.name = nm; save(); renderRanch(); if (sheetDino === x) renderDetail(x); }
     }
-    if (act === 'release' && await ask(`${x.name} を逃がしますか？（もどせません）`, {ok: '逃がす'})) {
-      ranch = ranch.filter(y => y !== x); save(); closeSheet(); renderRanch(); renderKids(); toast(`${x.name} を逃がしました`);
+    if (act === 'release' && await ask(TX(`${x.name} を逃がしますか？（もどせません）`, `Release ${x.name}? (This can’t be undone.)`), {ok: TX('逃がす', 'Release')})) {
+      ranch = ranch.filter(y => y !== x); save(); closeSheet(); renderRanch(); renderKids(); toast(TX(`${x.name} を逃がしました`, `Released ${x.name}`));
     }
   };
 }
@@ -78,14 +80,14 @@ let evolving = null;
 function openEvolve(x) {
   if (evolving) return showEvolve();
   const bodyOk = tierOpen(3);
-  openSheet(`おまかせで進化: ${x.name}`, `<p>${esc(x.name)} をもとに、24匹の群れを牧場の外で育てます。走り方は毎回変わり、「体の形も変える」と体も変わります。終わると、いちばん速い子を1匹連れて帰ります（生まれた子に入る）。</p>
+  openSheet(TX(`おまかせで進化: ${x.name}`, `Auto-evolve: ${x.name}`), `<p>${TX(`${esc(x.name)} をもとに、24匹の群れを牧場の外で育てます。走り方は毎回変わり、「体の形も変える」と体も変わります。終わると、いちばん速い子を1匹連れて帰ります（生まれた子に入る）。`, `Raise a herd of 24 from ${esc(x.name)} outside the ranch. The gait changes every generation, and with “Also change body shape” the body changes too. When it ends, the fastest one comes back (to Hatchlings).`)}</p>
     <div class="evo-set">
-      <label>世代 <select id="selGens"><option>5</option><option selected>10</option><option>30</option></select></label>
-      <label${bodyOk ? '' : ' class="off"'}><input type="checkbox" id="chkBody"${bodyOk ? '' : ' disabled'}> 体の形も変える</label>
+      <label>${TX('世代', 'Generations')} <select id="selGens"><option>5</option><option selected>10</option><option>30</option></select></label>
+      <label${bodyOk ? '' : ' class="off"'}><input type="checkbox" id="chkBody"${bodyOk ? '' : ' disabled'}> ${TX('体の形も変える', 'Also change body shape')}</label>
     </div>
-    ${bodyOk ? '' : '<p class="hint">「体の形も変える」は、上級のお題が開くと使えます（それまでは体の形はかけ合わせで）。</p>'}
-    <p class="hint">1世代に数秒〜十数秒かかります。シートを閉じても、裏で進みます。</p>
-    <div class="btn-row"><button type="button" class="primary" id="btnEvolveGo">はじめる</button></div>`, 'evolve-set', x);
+    ${bodyOk ? '' : `<p class="hint">${TX('「体の形も変える」は、上級のお題が開くと使えます（それまでは体の形はかけ合わせで）。', '“Also change body shape” unlocks with the Advanced cups (until then, shape bodies by breeding).')}</p>`}
+    <p class="hint">${TX('1世代に数秒〜十数秒かかります。シートを閉じても、裏で進みます。', 'Each generation takes a few to 20-odd seconds. It keeps going if you close this sheet.')}</p>
+    <div class="btn-row"><button type="button" class="primary" id="btnEvolveGo">${TX('はじめる', 'Start')}</button></div>`, 'evolve-set', x);
   $('btnEvolveGo').onclick = () => {
     const gens = +$('selGens').value;
     evolving = {src: x, gens, hist: [], best: null, id: reqId++};
@@ -95,9 +97,9 @@ function openEvolve(x) {
 }
 function showEvolve() {
   const E = evolving; if (!E) return;
-  openSheet(`おまかせで進化: ${E.src.name}`, `<canvas id="evoChart" aria-label="世代ごとの記録のグラフ"></canvas>
+  openSheet(TX(`おまかせで進化: ${E.src.name}`, `Auto-evolve: ${E.src.name}`), `<canvas id="evoChart" aria-label="${TX('世代ごとの記録のグラフ', 'Score by generation')}"></canvas>
     <p class="evo-stat" id="evoStat"></p>
-    <div class="btn-row"><button type="button" id="btnEvolveStop">ここでやめて、いちばん速い子を連れて帰る</button></div>`, 'evolve', E.src);
+    <div class="btn-row"><button type="button" id="btnEvolveStop">${TX('ここでやめて、いちばん速い子を連れて帰る', 'Stop here and bring back the fastest')}</button></div>`, 'evolve', E.src);
   $('btnEvolveStop').onclick = () => { worker.postMessage({type: 'stop'}); bringBack(); };
   updateEvolveView();
 }
@@ -110,7 +112,7 @@ function onEvolveProgress(m) {
 }
 function updateEvolveView() {
   const E = evolving; if (!E || sheetKind !== 'evolve') return;
-  $('evoStat').innerHTML = E.best ? `第${E.hist.length}世代 / ${E.gens} ・ いちばん速い子: ${recText(E.best.res)}` : '第0世代を走らせています…';
+  $('evoStat').innerHTML = E.best ? TX(`第${E.hist.length}世代 / ${E.gens} ・ いちばん速い子: ${recText(E.best.res)}`, `Generation ${E.hist.length} / ${E.gens} ・ Fastest: ${recText(E.best.res)}`) : TX('第0世代を走らせています…', 'Running generation 0…');
   $('btnEvolveStop').disabled = !E.best;
   drawEvoChart();
 }
@@ -118,7 +120,7 @@ function renderBanner() {
   const E = evolving, el = $('evolveBanner');
   if (!E) { el.hidden = true; return; }
   el.hidden = false;
-  el.innerHTML = `<span>おまかせで進化中: ${esc(E.src.name)} ${E.hist.length}/${E.gens}世代${E.best ? ' ・ いちばん ' + recShort(E.best.res) : ''}</span><button type="button" class="chip-btn" id="btnEvoShow">見る</button>`;
+  el.innerHTML = `<span>${TX(`おまかせで進化中: ${esc(E.src.name)} ${E.hist.length}/${E.gens}世代${E.best ? ' ・ いちばん ' + recShort(E.best.res) : ''}`, `Auto-evolving: ${esc(E.src.name)} gen ${E.hist.length}/${E.gens}${E.best ? ' ・ best ' + recShort(E.best.res) : ''}`)}</span><button type="button" class="chip-btn" id="btnEvoShow">${TX('見る', 'View')}</button>`;
   $('btnEvoShow').onclick = showEvolve;
 }
 function bringBack() {
@@ -127,12 +129,12 @@ function bringBack() {
   renderBanner(); refreshDino(E.src);
   if (sheetKind === 'evolve') closeSheet();
   if (!E.best) return;
-  const x = E.src, n = E.hist.length;
+  const x = E.src, n = E.hist.length, no = serial++;
   prog.evolved++; prog.born++; saveProg();
-  addKids([{id: 'e-' + Date.now(), line: x.line, name: `${x.line} ${serial++}号`, g: E.best.g, rec: null, gen: (x.gen || 0) + n,
-    parents: [x.name], parentBest: x.rec?.finishT ?? null, origin: `${x.name}から ${n}世代 進化（もと ${recShort(x.rec)}）`}]);
+  addKids([{id: 'e-' + Date.now(), line: x.line, name: TX(`${x.line} ${no}号`, `${x.line} #${no}`), g: E.best.g, rec: null, gen: (x.gen || 0) + n,
+    parents: [x.name], parentBest: x.rec?.finishT ?? null, origin: TX(`${x.name}から ${n}世代 進化（もと ${recShort(x.rec)}）`, `Evolved ${n} generations from ${x.name} (was ${recShort(x.rec)})`)}]);
   SFX.play('done');
-  toast(`おまかせの進化が終わりました（${recShort(E.best.res)}）`);
+  toast(TX(`おまかせの進化が終わりました（${recShort(E.best.res)}）`, `Auto-evolve finished (${recShort(E.best.res)})`));
 }
 function drawEvoChart() {
   const cv = $('evoChart'); if (!cv) return;
@@ -146,8 +148,8 @@ function drawEvoChart() {
   const X = g => pad.l + (W - pad.l - pad.r) * g / maxX, Y = v => H - pad.b - (H - pad.t - pad.b) * Math.max(0, v) / maxY;
   ctx.strokeStyle = INK['paper-line']; ctx.fillStyle = INK.muted; ctx.font = '11px ' + getComputedStyle(document.body).fontFamily; ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) { const v = maxY * i / 4, y = Y(v); ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke(); ctx.textAlign = 'right'; ctx.fillText(v.toFixed(0), pad.l - 6, y + 4); }
-  ctx.textAlign = 'center'; ctx.fillText('世代', W / 2, H - 6);
-  ctx.textAlign = 'left'; ctx.fillText('点数（ゴールすると 100点 ＋ 速さ）', pad.l + 4, 14);
+  ctx.textAlign = 'center'; ctx.fillText(TX('世代', 'Generation'), W / 2, H - 6);
+  ctx.textAlign = 'left'; ctx.fillText(TX('点数（ゴールすると 100点 ＋ 速さ）', 'Score (finish = 100 + speed)'), pad.l + 4, 14);
   if (maxY > FINISH) { const y = Y(FINISH); ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = INK.accent; ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke(); ctx.restore(); }
   const line = (key, color, w) => { if (!h.length) return; ctx.strokeStyle = color; ctx.lineWidth = w; ctx.beginPath(); h.forEach((p, i) => { const x = X(p.gen), y = Y(p[key]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); };
   line('median', INK['ink-soft'], 1.5);
