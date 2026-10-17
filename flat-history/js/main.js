@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
-import { LEVELS, REVEALS } from './level.js?v=70';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=70';
-import { drawSheet } from './sheet.js?v=70';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=70';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=70';
-import { makeHero, stepHero, groundAt } from './hero.js?v=70';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=70';
+import { LEVELS, REVEALS } from './level.js?v=71';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=71';
+import { drawSheet } from './sheet.js?v=71';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=71';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=71';
+import { makeHero, stepHero, groundAt } from './hero.js?v=71';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=71';
 
 const $ = (id) => document.getElementById(id);
 
@@ -63,6 +63,18 @@ stage.onHover = (x, t, pid) => {
   if (st.carry && x !== null) { st.aim = { x, t }; st.lock = null; }
 };
 stage.onRight = () => { if (playing() && st.carry) rotate(); };
+// 指で形をひきずって置く（v080）: ゴーストを押してひきずると、指についてきて、離した所に置く。
+// 置いた形を押してひきずると、持ち上げて動かし、離した所に置きなおす。形のない所をひきずれば、いままでどおりカメラ
+let grabOff = { x: 0, t: 0 }; // 指で押した所と、形のまん中のずれ（ひきずっても、形が指の下へとばないように）
+stage.onShapeGrab = (pid, gx, gt) => {
+  if (!playing()) return;
+  if (!st.carry && pid !== null) { const p = st.pieces.find((q) => q.id === pid); if (p) pickUp(p); }
+  const c = st.carry && candidate();
+  grabOff = { x: 0, t: 0 };
+  if (c && gx !== null) { const d = pieceDims(c); grabOff = { x: c.x0 + d.wx / 2 - gx, t: c.t0 + d.dz / 2 - gt }; }
+};
+stage.onShapeMove = (x, t) => { if (playing() && st.carry) { st.aim = { x: x + grabOff.x, t: t + grabOff.t }; st.lock = null; } };
+stage.onShapeDrop = () => { if (playing() && st.carry) place(); };
 stage.setInvert(!!cfg.invX, !!cfg.invY);
 // 指での動かし方: タップで歩く（スティックをしまう）／スティック
 const blockPieces = () => st.pieces;

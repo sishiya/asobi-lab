@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・主人公・置いた形・置き場所のゴースト・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=70';
-import { radialTexture } from './look/util.js?v=70';
-import { S, drawSheet } from './sheet.js?v=70';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=70';
-import { groundAt } from './hero.js?v=70';
+import { look, kindColor } from './look/index.js?v=71';
+import { radialTexture } from './look/util.js?v=71';
+import { S, drawSheet } from './sheet.js?v=71';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=71';
+import { groundAt } from './hero.js?v=71';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -56,7 +56,19 @@ export function pieceGeometry(p) {
       for (let k = 0; k <= 48; k++) { const tt = (k / 48) * d.dz, a = -(Math.PI * 2 * sp.turns * tt) / d.dz - Math.PI / 2; pts.push(new THREE.Vector3(cx + rr * Math.cos(a), cy + rr * Math.sin(a), -tt * GAP)); }
       return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 96, rad, 8, false);
     });
-    const g = mergeGeos([hub, ...tubes]); g.userData.edgeAngle = 50;
+    // 棒（v080）: 2Dの断面の木の棒は、3Dでは軸から外の玉までのねじれた板（らせん面）。まえは玉の管と軸だけで、断面と見た目が合わなかった
+    const N = 96, R1 = Math.max(...sp.r), hw = 0.12, bar = [];
+    const ring = (k) => { const tt = (k / N) * d.dz, a = -(Math.PI * 2 * sp.turns * tt) / d.dz - Math.PI / 2, ux = Math.cos(a), uy = Math.sin(a), z = -tt * GAP;
+      // 断面の四すみ: 軸がわ・外がわ × 棒の厚みの両がわ
+      return [[0, -hw], [R1, -hw], [R1, hw], [0, hw]].map(([r, w]) => [cx + ux * r - uy * w, cy + uy * r + ux * w, z]); };
+    let prev = ring(0);
+    for (let k = 1; k <= N; k++) {
+      const cur = ring(k);
+      for (let e = 0; e < 4; e++) { const a0 = prev[e], a1 = prev[(e + 1) % 4], b0 = cur[e], b1 = cur[(e + 1) % 4]; bar.push(...a0, ...a1, ...b1, ...a0, ...b1, ...b0); }
+      prev = cur;
+    }
+    const barGeo = new THREE.BufferGeometry(); barGeo.setAttribute('position', new THREE.Float32BufferAttribute(bar, 3));
+    const g = mergeGeos([hub, barGeo, ...tubes]); g.userData.edgeAngle = 50;
     geoCache.set(key, g); return g;
   }
   const bw = d.vx ? d.wbase : d.wx;
@@ -326,7 +338,7 @@ export function createStage(canvas, L) {
       color: col, transparent: true, opacity: ghost ? 0.22 : 0.55, roughness: 0.3, metalness: 0.1, depthWrite: false,
     }));
     const eg = new THREE.EdgesGeometry(geo, geo.userData.edgeAngle || 1);
-    const edges = ghost ? thickEdges(eg, 0.04) : new THREE.LineSegments(eg,
+    const edges = ghost ? thickEdges(eg, 0.032) : new THREE.LineSegments(eg,
       new THREE.LineBasicMaterial({ color: new THREE.Color(col).multiplyScalar(0.55), transparent: true, opacity: 0.95 }));
     grp.add(fill, edges);
     grp.userData = { fill, edges, edgeCol: edges.material.color.clone() };
@@ -338,8 +350,11 @@ export function createStage(canvas, L) {
       const fillHid = new THREE.Mesh(geo, fill.material.clone()), edgesHid = new THREE.Mesh(edges.geometry, edges.material.clone());
       fillHid.material.depthTest = false; edgesHid.material.depthTest = false; // かくれていても見える、うすい下描き
       fillHid.renderOrder = 9; edgesHid.renderOrder = 9;
-      grp.add(fillHid, edgesHid);
-      Object.assign(grp.userData, { fillHid, edgesHid });
+      // わくのまわりの、ぼんやりした金の光（v080。白い線だけだと浮いて見えた）
+      const halo = thickEdges(eg, 0.1);
+      Object.assign(halo.material, { blending: THREE.AdditiveBlending, depthTest: false }); halo.renderOrder = 9;
+      grp.add(fillHid, edgesHid, halo);
+      Object.assign(grp.userData, { fillHid, edgesHid, halo });
     }
     return grp;
   }
@@ -470,13 +485,20 @@ export function createStage(canvas, L) {
   const ORBIT0 = { yaw: 0.35, pitch: 0.52, dist: 17 };
   const orbit = { ...ORBIT0 };
   let homeYaw = ORBIT0.yaw; // はじめの向き（図版の内側を向く。resetCamera で決める）
+  let shapeDrag = null, onShapeGrab = null, onShapeMove = null, onShapeDrop = null; // 指で形をひきずる（v080）
   let drag = null, lastManual = -10, invX = false, invY = false; // 設定: 回す向きをさかさに
   const touches = new Map(); let pinch0 = 0;
   canvas.addEventListener('pointerdown', (e) => {
     if (e.button === 1) e.preventDefault();
     if (e.pointerType === 'touch') {
       touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (touches.size === 2) { const [a, b] = [...touches.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); drag = null; return; }
+      if (touches.size === 2) { const [a, b] = [...touches.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); drag = null; shapeDrag = null; return; }
+      // 指で形（ゴーストか置いた形）を押したら、カメラではなく形をひきずる（v080）
+      const onGhost = ghost && ray && hitGhost(e.clientX, e.clientY), pid = onGhost ? null : pickPiece(e.clientX, e.clientY);
+      if (onGhost || pid !== null) {
+        shapeDrag = { pid, x0: e.clientX, y0: e.clientY, at: performance.now(), moved: false };
+        canvas.setPointerCapture(e.pointerId); return;
+      }
     }
     drag = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, at: performance.now() };
     canvas.setPointerCapture(e.pointerId);
@@ -493,6 +515,13 @@ export function createStage(canvas, L) {
         pinch0 = d; return;
       }
     }
+    if (shapeDrag) {
+      if (!shapeDrag.moved && Math.hypot(e.clientX - shapeDrag.x0, e.clientY - shapeDrag.y0) < 8) return;
+      if (!shapeDrag.moved) { shapeDrag.moved = true; const g0 = pickGround(shapeDrag.x0, shapeDrag.y0); if (onShapeGrab) onShapeGrab(shapeDrag.pid, g0 ? g0.x : null, g0 ? g0.t : null); }
+      const p = pickGround(e.clientX, e.clientY);
+      if (p && onShapeMove) onShapeMove(p.x, p.t);
+      return;
+    }
     if (!drag) {
       // マウスを動かしただけ: 指している地面と形を知らせる（パレットの形のゴーストがついてくる）
       if (e.pointerType === 'mouse' && onHover) { const p = pickGround(e.clientX, e.clientY); onHover(p ? p.x : null, p ? p.t : null, pickPiece(e.clientX, e.clientY)); }
@@ -504,6 +533,15 @@ export function createStage(canvas, L) {
     lastManual = performance.now() / 1000;
   });
   const endDrag = (e) => {
+    if (shapeDrag) {
+      const sd = shapeDrag; shapeDrag = null;
+      if (e && touches.has(e.pointerId)) { touches.delete(e.pointerId); pinch0 = 0; }
+      if (!e || e.type !== 'pointerup') return;
+      if (sd.moved) { if (onShapeDrop) onShapeDrop(); return; } // ひきずって離した所に置く
+      // 動かさずに離した: いままでどおりのタップ
+      if (onTap) { const p = pickGround(e.clientX, e.clientY); onTap(p ? p.x : null, p ? p.t : null, sd.pid); }
+      return;
+    }
     if (drag && e && e.type === 'pointerup' && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 8 && performance.now() - drag.at < 350) {
       // 右クリック（その場で離す）: 持っている形を回す
       if (e.button === 2) { if (onRight) onRight(); }
@@ -536,6 +574,12 @@ export function createStage(canvas, L) {
     return s > 0 ? { x: o.x + d.x * s, t: -(o.z + d.z * s) / GAP } : null;
   }
   // 画面の点にある、置いた形の id（なければ null）
+  function hitGhost(cx, cy) {
+    const r = canvas.getBoundingClientRect();
+    ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    return ghost.visible !== false && ray.intersectObject(ghost.userData.fill, false).length > 0;
+  }
   function pickPiece(cx, cy) {
     const r = canvas.getBoundingClientRect();
     ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
@@ -749,11 +793,14 @@ export function createStage(canvas, L) {
     if (ghost) {
       ghost.position.set(cand.x0, Number.isFinite(cand.y0) ? cand.y0 : h.y, Z(cand.t0));
       const gu = ghost.userData;
-      for (const m of [gu.edges.material, gu.edgesHid.material]) m.color.set(candOk ? '#ffffff' : '#ff5a4a');
+      // わくの色（v080）: 白ではなく、UI の金の線（--d-gold）と同じ真鍮の色みを明るく。置けないときは朱
+      for (const m of [gu.edges.material, gu.edgesHid.material]) m.color.set(candOk ? '#f6dc9a' : '#e2735a');
+      gu.halo.material.color.set(candOk ? '#d9b45f' : '#c8503a');
       for (const m of [gu.fill.material, gu.fillHid.material]) m.color.set(candOk ? kindColor(cand.kind) : '#ff5a4a');
       // 明滅（v077）: わくと面をゆっくり明るく暗く。どこにどんな形を置くのかを目で追いやすく
       const bl = 0.5 + 0.5 * Math.sin(tm * 5);
-      gu.edges.material.opacity = 0.6 + 0.4 * bl; gu.edgesHid.material.opacity = 0.18 + 0.12 * bl;
+      gu.edges.material.opacity = 0.7 + 0.3 * bl; gu.edgesHid.material.opacity = 0.2 + 0.12 * bl;
+      gu.halo.material.opacity = 0.12 + 0.16 * bl;
       gu.fill.material.opacity = 0.14 + 0.16 * bl; gu.fillHid.material.opacity = 0.04 + 0.05 * bl;
     }
     const socks = v.sockets || [];
@@ -818,5 +865,5 @@ export function createStage(canvas, L) {
 
   const setInvert = (x, y) => { invX = !!x; invY = !!y; };
   const setShot = (a) => { shot = a; };
-  return { setShot, setInvert, setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, heroPortrait, pickGround, set onTap(f) { onTap = f; }, set onHover(f) { onHover = f; }, set onRight(f) { onRight = f; }, setCursor: (c) => { if (!drag && canvas.style.cursor !== c) canvas.style.cursor = c; }, closeBook, openBook, waving: () => waveT !== null };
+  return { setShot, setInvert, setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, heroPortrait, pickGround, set onTap(f) { onTap = f; }, set onHover(f) { onHover = f; }, set onRight(f) { onRight = f; }, set onShapeGrab(f) { onShapeGrab = f; }, set onShapeMove(f) { onShapeMove = f; }, set onShapeDrop(f) { onShapeDrop = f; }, setCursor: (c) => { if (!drag && canvas.style.cursor !== c) canvas.style.cursor = c; }, closeBook, openBook, waving: () => waveT !== null };
 }

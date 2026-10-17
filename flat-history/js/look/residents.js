@@ -1,7 +1,7 @@
 // 2D世界の住人（設定で選ぶ）。どちらも図鑑の銅版画の線で描く
 //   kiwi: 実在の生き物（飛べない鳥キーウィ。巣穴から卵の巣へ）
 //   penguin: アデリーペンギン（小石の巣）／snail: カタツムリ（雨つぶの葉）
-import { INK, hatch, dizzyStars } from './ink.js?v=70';
+import { INK, hatch, dizzyStars } from './ink.js?v=71';
 
 // 4つの光の星（彫った線の星）
 export function sparkle(g, x, y, r, a) {
