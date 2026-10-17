@@ -1060,3 +1060,11 @@ kbd { border-width: 1px !important; border-style: solid !important; border-color
 @media (max-width: 760px), (max-height: 520px) { .headgroup .bind-btn { margin-top: 10px; } }
 /* スマホ: まとまりは右寄せのまま（v052）。説明の字は、行の頭がそろうよう左寄せ（右寄せだと2行目の頭がずれて読みにくい） */
 @media (max-width: 760px), (max-height: 520px) { .headgroup .coach { text-align: left; } }
+
+/* v084: やること2つ（回答する・パレットの形）の色を、青緑の宝石から「瑠璃（ラピスラズリ）に金のふち」へ（ユーザー「世界観にあっていてかつ見やすい配色に」）。
+   標本室の鉱物の色で、金と組む古い写本の配色。奈落の深い緑・紙のクリームのどちらとも補色に近く、まぎれない。形の絵（茶・橙）もよく見える */
+.headgroup .bind-btn { --edge: #f0cf7a; --fill: linear-gradient(180deg, #4d72b8, #24407c); color: #fbf3dc; text-shadow: 0 1px 2px rgba(0, 0, 0, .4); }
+.headgroup .bind-btn:hover { --edge: #fff0bf; --fill: linear-gradient(180deg, #5b82ca, #2c4b8e); }
+.palette .kind { --edge: #f0cf7a; --fill: linear-gradient(180deg, #4d72b8, #24407c); }
+.palette .kind:hover { --edge: #fff0bf; --fill: linear-gradient(180deg, #5b82ca, #2c4b8e); }
+.palette .kind.sel { --edge: #fff0bf; --fill: linear-gradient(180deg, #7d9fe0, #3a5aa6); }
