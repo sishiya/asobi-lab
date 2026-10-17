@@ -1,7 +1,7 @@
 // 主人公の動き方。時空の大地（ページの上のふちが奥行きに並んだ地形）の上を、浮かんで進む（v038）。
 // 座標: x＝2D世界の横（マス）、t＝時間（秒。3Dの奥行き）、y＝高さ（マス）。
 // 主人公の体はページの間隔（1秒）より薄いので、ページのあいだを歩くかぎり2D世界とは交わらない（REDESIGN 3-1）
-import { pieceDims, sectionRects } from './sim.js?v=61';
+import { pieceDims, sectionRects } from './sim.js?v=65';
 
 // v038: 主人公は浮かんでいる。跳ぶ・よじ登る・落ちるはやめた。足もとの高さへ、ばねのようにふわりと寄る（少しゆれて、ぴたりとは張りつかない）
 // 奈落の上では、さっきの高さのまま浮かんでいる（落ちない）
@@ -14,8 +14,8 @@ export function groundAt(L, pieces, x, t, yRef = Infinity) {
   for (const p of pieces) {
     const d = pieceDims(p);
     if (x < p.x0 || x > p.x0 + d.wx || t < p.t0 || t > p.t0 + d.dz) continue;
-    if (d.vx || d.dia) {
-      // すべる足場（平行四辺形）: その秒の断面の上だけが床
+    if (d.vx || d.dia || d.hump || d.comb || d.spiral) {
+      // すべる足場・ひし形・しかけの形: その秒の断面の上だけが床
       for (const r of sectionRects(p, Math.min(t, p.t0 + d.dz - 1e-3))) if (x >= r.x0 && x <= r.x1 && r.y0 <= yRef + 1.0) g = Math.max(g, r.y1);
       continue;
     }

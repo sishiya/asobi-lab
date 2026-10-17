@@ -1,5 +1,5 @@
 // 2D世界の決まったルール。置いた3Dの形は、その秒の断面（長方形）として2D世界に現れる。
-import { KINDS } from './level.js?v=61';
+import { KINDS } from './level.js?v=65';
 
 // 言語（index.html の TX(日本語, 英語)。ノードでの試験のときは日本語）
 const TX = globalThis.TX || ((ja) => ja);
@@ -14,12 +14,16 @@ const G = 22;
 // 3Dの形 p の大きさ。rot=1 なら横と奥行きを入れかえる（ななめの板は、横の方向に上がる坂になる）
 export function pieceDims(p) {
   const k = KINDS[p.kind];
+  // v073: しかけの形（回せない）。rise は、下の面からいちばん高い上の面までの、h より上にのびる分
+  if (k.hump) return { wx: k.w, dz: k.d, h: k.h, slope: 0, along: 'z', hump: k.hump, rise: k.hump, noRot: true };
+  if (k.comb) return { wx: k.w, dz: k.d, h: k.h, slope: 0, along: 'z', comb: k.comb, rise: 0, noRot: true };
+  if (k.spiral) return { wx: k.w, dz: k.d, h: k.h, slope: 0, along: 'z', spiral: k.spiral, rise: 0, noRot: true };
   // 平行四辺形の板: 回すと、すべる向きが反対になる（横の広がり wx は、すべる道のりもふくむ）
-  if (k.shear) return { wx: k.w + k.shear * k.d, dz: k.d, h: k.h, slope: 0, along: 'z', wbase: k.w, vx: p.rot ? -k.shear : k.shear };
-  if (k.dia) return { wx: p.rot ? k.d : k.w, dz: p.rot ? k.w : k.d, h: k.h, slope: 0, along: 'z', dia: true };
+  if (k.shear) return { wx: k.w + k.shear * k.d, dz: k.d, h: k.h, slope: 0, along: 'z', wbase: k.w, vx: p.rot ? -k.shear : k.shear, rise: 0 };
+  if (k.dia) return { wx: p.rot ? k.d : k.w, dz: p.rot ? k.w : k.d, h: k.h, slope: 0, along: 'z', dia: true, rise: 0 };
   return p.rot
-    ? { wx: k.d, dz: k.w, h: k.h, slope: k.slope, along: 'x' }
-    : { wx: k.w, dz: k.d, h: k.h, slope: k.slope, along: 'z' };
+    ? { wx: k.d, dz: k.w, h: k.h, slope: k.slope, along: 'x', rise: k.slope * k.d }
+    : { wx: k.w, dz: k.d, h: k.h, slope: k.slope, along: 'z', rise: k.slope * k.d };
 }
 
 // 3Dの形 p の、時刻 t のページでの断面（長方形の並び。坂は半マスずつの段で表す）
@@ -31,6 +35,23 @@ export function sectionRects(p, t) {
     const u = t - p.t0;
     const xs = d.vx > 0 ? p.x0 + d.vx * u : p.x0 + (d.wx - d.wbase) + d.vx * u;
     return [{ x0: xs, x1: xs + d.wbase, y0: p.y0, y1: p.y0 + d.h, p, vx: d.vx }];
+  }
+  if (d.hump) {
+    // 「へ」の字: まん中の秒でいちばん高い（上がって下がる往復リフト）
+    const u = (t - p.t0) / d.dz, y = p.y0 + d.hump * (1 - Math.abs(2 * u - 1));
+    return [{ x0: p.x0, x1: p.x0 + d.wx, y0: y, y1: y + d.h, p }];
+  }
+  if (d.comb) {
+    // くし形: 歯のある秒だけ出る（出たり消えたりするブロック）
+    const u = t - p.t0;
+    return d.comb.some(([a, b]) => u >= a - 1e-6 && u < b - 1e-6) ? [{ x0: p.x0, x1: p.x0 + d.wx, y0: p.y0, y1: p.y0 + d.h, p }] : [];
+  }
+  if (d.spiral) {
+    // らせん: まん中の軸（動かない）と、まわりを回る玉（ふれた住人は引き返す。hot）。下を通る玉は左へ動く（正面からぶつかる）
+    const sp = d.spiral, a = -(Math.PI * 2 * sp.turns * (t - p.t0)) / d.dz - Math.PI / 2, cx = p.x0 + d.wx / 2, cy = p.y0 + d.h / 2, b = sp.ball / 2;
+    const r = [{ x0: cx - b, x1: cx + b, y0: cy - b, y1: cy + b, p, hot: true }];
+    for (const rr of sp.r) { const x = cx + rr * Math.cos(a), y = cy + rr * Math.sin(a); r.push({ x0: x - b, x1: x + b, y0: y - b, y1: y + b, p, hot: true }); }
+    return r;
   }
   if (d.dia) {
     // ひし形: その秒の幅（まん中の秒でいちばん広く、はしの秒ではほとんどない）
@@ -69,6 +90,7 @@ function support(L, x, lim, secs) {
     if (tp <= lim && tp > best) best = tp;
   }
   for (const s of secs) {
+    if (s.hot) continue; // 火の玉には乗れない
     if (x + HALF > s.x0 && x - HALF < s.x1 && s.y1 <= lim && s.y1 > best) best = s.y1;
   }
   return best;
@@ -80,6 +102,7 @@ function blockTop(L, fx, y, secs) {
   const tp = terrTop(L, Math.floor(fx));
   if (tp > y + 0.02) best = tp;
   for (const s of secs) {
+    if (s.hot) { if (fx > s.x0 - 0.1 && fx < s.x1 + 0.1 && s.y0 < y + BODY && s.y1 > y) best = Infinity; continue; } // 火の玉の手前で引き返す
     if (fx > s.x0 && fx < s.x1 && s.y1 > y + 0.02 && s.y0 < y + BODY && s.y1 > best) best = s.y1;
   }
   return best;
@@ -152,6 +175,15 @@ export function simulate(L, pieces) {
     if (w.st === 'walk' || w.st === 'fall') {
       // 断面が体に重なって現れた・下から上がってきた
       for (const s of secs) {
+        if (s.hot) {
+          // 火の玉が体にふれた: びっくりして、玉と反対の向きへ引き返す（押し出す）
+          if (w.x + HALF > s.x0 && w.x - HALF < s.x1 && s.y0 < w.y + BODY && s.y1 > w.y) {
+            const away = w.x < (s.x0 + s.x1) / 2 ? -1 : 1;
+            w.x = away < 0 ? s.x0 - HALF - 0.02 : s.x1 + HALF + 0.02;
+            if (w.dir !== away) { w.dir = away; events.push({ t, type: 'turn', x: w.x, y: w.y }); }
+          }
+          continue;
+        }
         if (w.x + HALF > s.x0 && w.x - HALF < s.x1 && s.y0 < w.y + BODY && s.y1 > w.y + 1e-6) {
           if (s.y1 - s.y0 <= STEP && s.y1 - w.y <= STEP && s.y0 < w.y + 0.6) {
             // 低い・下から → 押し上げられる
@@ -260,7 +292,7 @@ export function canPlaceQuick(L, cand, pieces) {
   const d = pieceDims(cand);
   if (cand.y0 === -Infinity) return TX('下に支えがない', 'Nothing to rest on');
   if (cand.x0 + d.wx > L.W || cand.x0 < 0) return TX('ここには置けない', 'You can’t place it here');
-  const top = cand.y0 + d.h + (d.along === 'z' ? d.slope * d.dz : d.slope * d.wx);
+  const top = cand.y0 + d.h + (d.rise || 0);
   if (top > L.H + 0.01) return TX('空の上につき出てしまう', 'It would stick out above the sky');
   // 0〜60秒の外へはみ出せない
   if ((cand.t0 < 0 || cand.t0 + d.dz > L.T)) return TX('ページの外へはみ出してしまう', 'It would stick out of the pages');

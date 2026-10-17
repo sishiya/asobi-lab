@@ -1009,3 +1009,12 @@ kbd { background: rgba(26, 163, 155, .12); color: var(--d-gold2); border-color: 
 
 /* v071: タイトル・図版えらびのうしろは、タイトル専用の場面（ページの束を見わたすカメラ）。まん中はすかして、ふちだけ暗く */
 .screen { background: radial-gradient(75% 65% at 50% 50%, rgba(4, 16, 14, .12), rgba(4, 16, 14, .58)); }
+
+/* v073: 種明かし（舞台裏）。正史の判の下に、2Dでの見え方と3Dの形を、形の絵といっしょに */
+.reveal { margin: 10px auto 2px; max-width: 520px; text-align: left; }
+.rv-title { margin: 0 0 6px; text-align: center; font: 700 13px var(--serif); letter-spacing: .3em; color: var(--d-gold2); }
+.rv-item { display: flex; align-items: center; gap: 12px; padding: 6px 10px; margin-bottom: 6px; border: 1px solid var(--d-line2); background: rgba(26, 163, 155, .08); clip-path: var(--facet); }
+.rv-item img { width: 66px; height: 48px; flex: none; }
+.rv-item p { margin: 0; font: 13px/1.6 var(--serif); color: var(--d-cream); }
+.rv-item b { color: var(--d-gold2); font-weight: 700; }
+.replay-card.with-reveal .rp-orig { display: none; }

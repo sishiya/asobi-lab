@@ -1,7 +1,7 @@
 // 見た目「図鑑の銅版画と標本室」: 線で彫った博物画の大地と、標本室。住人と主人公は residents.js・heroes.js（設定で選ぶ）
 import * as THREE from 'three';
-import { rng, canvasTexture } from './util.js?v=61';
-import { INK, hatch } from './ink.js?v=61';
+import { rng, canvasTexture } from './util.js?v=65';
+import { INK, hatch } from './ink.js?v=65';
 
 function drawTerrain(g, L, S, res) {
   const R = rng(23);
@@ -101,6 +101,31 @@ function drawStone(g, L, s, S) {
 function drawSection(g, L, s, S, color) {
   const x = s.x0 * S, y = (L.H - s.y1) * S, w = (s.x1 - s.x0) * S, h = (s.y1 - s.y0) * S;
   const kind = s.p.kind === 'plank' || s.p.kind === 'short' ? 'beam' : s.p.kind;
+  // v073: しかけの形の断面（銅版画の線で、2Dアクションのしかけらしく）
+  if (kind === 'spiral') { // 火の玉（まん中の軸は、ほかより暗い玉）
+    const cx = x + w / 2, cy = y + h / 2, r = w / 2;
+    const hub = Math.abs((s.x0 + s.x1) / 2 - (s.p.x0 + 3)) < 0.01 && Math.abs((s.y0 + s.y1) / 2 - (s.p.y0 + 3)) < 0.01;
+    g.fillStyle = hub ? '#8a6a4a' : '#e9a25a'; g.beginPath(); g.arc(cx, cy, r, 0, 7); g.fill();
+    if (!hub) { g.fillStyle = '#f6dca0'; g.beginPath(); g.arc(cx - r * 0.25, cy - r * 0.25, r * 0.45, 0, 7); g.fill(); }
+    g.strokeStyle = INK; g.lineWidth = 1.4; g.beginPath(); g.arc(cx, cy, r - 0.7, 0, 7); g.stroke();
+    if (!hub) for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; g.beginPath(); g.moveTo(cx + Math.cos(a) * r * 1.05, cy + Math.sin(a) * r * 1.05); g.lineTo(cx + Math.cos(a) * r * 1.35, cy + Math.sin(a) * r * 1.35); g.lineWidth = 1; g.stroke(); }
+    return;
+  }
+  if (kind === 'comb') { // 消えるブロック: レンガのような四角を並べる
+    g.fillStyle = '#d8cbe8'; g.fillRect(x, y, w, h);
+    g.strokeStyle = 'rgba(74,51,32,.7)'; g.lineWidth = 1;
+    for (let xx = S; xx < w - 1; xx += S) { g.beginPath(); g.moveTo(x + xx, y); g.lineTo(x + xx, y + h); g.stroke(); }
+    hatch(g, x, y + h * 0.6, w, h * 0.4, 2.2, 0, 'rgba(74,51,32,.45)');
+    g.strokeStyle = INK; g.lineWidth = 1.5; g.strokeRect(x + 0.75, y + 0.75, w - 1.5, h - 1.5);
+    return;
+  }
+  if (kind === 'hump') { // 往復リフト: 両はしに金具のついた板
+    g.fillStyle = '#e8c08a'; g.fillRect(x, y, w, h);
+    hatch(g, x, y + h * 0.5, w, h * 0.5, 2, 0, 'rgba(74,51,32,.5)');
+    g.fillStyle = INK; for (const xx of [x + 4, x + w - 7]) g.fillRect(xx, y + 4, 3, 3);
+    g.strokeStyle = INK; g.lineWidth = 1.5; g.strokeRect(x + 0.75, y + 0.75, w - 1.5, h - 1.5);
+    return;
+  }
   g.fillStyle = kind === 'beam' ? '#d8b483' : kind === 'lift' ? '#dcb85a' : kind === 'slide' ? '#b9c7b0' : kind === 'diamond' ? '#d9c2d4' : '#f4f1e8';
   g.fillRect(x, y, w, h);
   if (kind === 'slide') {
@@ -248,9 +273,9 @@ function makeEnv(L) {
 
 export default {
   id: 'museum',
-  kindNamesEn: { beam: 'long specimen board', plank: 'specimen board', short: 'thin specimen board', lift: 'brass slanted board', wall: 'plaster pillar', slide: 'parallelogram board', diamond: 'diamond board' },
-  kindNames: { beam: '長い標本の板', plank: '標本の板', short: 'うすい標本の板', lift: '真鍮のななめ板', wall: '石膏の柱', slide: '平行四辺形の板', diamond: 'ひし形の板' },
-  kindColors: { beam: '#c9732f', plank: '#c9732f', short: '#d9893f', lift: '#e8a91c', wall: '#e9eef2', slide: '#4f9a86', diamond: '#a0628f' },
+  kindNamesEn: { beam: 'long specimen board', plank: 'specimen board', short: 'thin specimen board', lift: 'brass slanted board', wall: 'plaster pillar', slide: 'parallelogram board', diamond: 'diamond board', hump: 'humped board', comb: 'comb board', spiral: 'spiral' },
+  kindNames: { beam: '長い標本の板', plank: '標本の板', short: 'うすい標本の板', lift: '真鍮のななめ板', wall: '石膏の柱', slide: '平行四辺形の板', diamond: 'ひし形の板', hump: '「へ」の字の板', comb: 'くし形の板', spiral: 'らせん' },
+  kindColors: { beam: '#c9732f', plank: '#c9732f', short: '#d9893f', lift: '#e8a91c', wall: '#e9eef2', slide: '#4f9a86', diamond: '#a0628f', hump: '#d47a3a', comb: '#8c7ac4', spiral: '#d8533c' },
   bg: 'linear-gradient(180deg, #f2e8cc 0%, #b9c7a0 45%, #173c37 100%)',
   fog: '#cfd2ae', fogNear: 38, fogFar: 100, paper: ['#f4ead2', '#eadcbc'], paperTint: '#f8efd8',
   edge: '#8aa98a', focus: '#c9952e',

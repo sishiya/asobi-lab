@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・主人公・置いた形・置き場所のゴースト・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=61';
-import { radialTexture } from './look/util.js?v=61';
-import { S, drawSheet } from './sheet.js?v=61';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=61';
-import { groundAt } from './hero.js?v=61';
+import { look, kindColor } from './look/index.js?v=65';
+import { radialTexture } from './look/util.js?v=65';
+import { S, drawSheet } from './sheet.js?v=65';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=65';
+import { groundAt } from './hero.js?v=65';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -30,18 +30,44 @@ function textSprite(text, size = 0.9, color = '#5a4430') {
 
 // 3Dの形の立体（rot と slope に合わせて、ななめにずらした直方体）
 const geoCache = new Map();
+// いくつかの形を一つにまとめる（三角形をならべるだけ）
+function mergeGeos(list) {
+  const pos = [];
+  for (const g of list) { const n = g.index ? g.toNonIndexed() : g; pos.push(...n.attributes.position.array); }
+  const m = new THREE.BufferGeometry();
+  m.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  m.computeVertexNormals();
+  return m;
+}
 export function pieceGeometry(p) {
   const key = p.kind + ':' + (p.rot ? 1 : 0);
   if (geoCache.has(key)) return geoCache.get(key);
   const d = pieceDims(p);
+  // v073: しかけの形
+  if (d.comb) { // くし形: 歯ごとの板
+    const g = mergeGeos(d.comb.map(([a, b]) => { const bx = new THREE.BoxGeometry(d.wx, d.h, (b - a) * GAP); bx.translate(d.wx / 2, d.h / 2, -(a + b) / 2 * GAP); return bx; }));
+    geoCache.set(key, g); return g;
+  }
+  if (d.spiral) { // らせん: まん中の軸と、まわりを巻く玉の管
+    const sp = d.spiral, cx = d.wx / 2, cy = d.h / 2, rad = sp.ball / 2;
+    const hub = new THREE.CylinderGeometry(rad, rad, d.dz * GAP, 10); hub.rotateX(Math.PI / 2); hub.translate(cx, cy, -d.dz * GAP / 2);
+    const tubes = sp.r.map((rr) => {
+      const pts = [];
+      for (let k = 0; k <= 48; k++) { const tt = (k / 48) * d.dz, a = -(Math.PI * 2 * sp.turns * tt) / d.dz - Math.PI / 2; pts.push(new THREE.Vector3(cx + rr * Math.cos(a), cy + rr * Math.sin(a), -tt * GAP)); }
+      return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 96, rad, 8, false);
+    });
+    const g = mergeGeos([hub, ...tubes]); g.userData.edgeAngle = 50;
+    geoCache.set(key, g); return g;
+  }
   const bw = d.vx ? d.wbase : d.wx;
-  const g = new THREE.BoxGeometry(bw, d.h, d.dz * GAP, Math.max(1, Math.round(bw)), 1, Math.max(1, Math.round(d.dz)));
+  const g = new THREE.BoxGeometry(bw, d.h, d.dz * GAP, Math.max(1, Math.round(bw)), 1, Math.max(1, Math.round(d.dz * (d.hump ? 2 : 1))));
   g.translate(bw / 2, d.h / 2, -d.dz * GAP / 2);
   const pos = g.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const tt = -pos.getZ(i) / GAP;
     if (d.vx) { pos.setX(i, pos.getX(i) + (d.vx > 0 ? d.vx * tt : (d.wx - d.wbase) + d.vx * tt)); continue; } // 平行四辺形
     if (d.dia) { const k = 1 - Math.abs(2 * tt / d.dz - 1); pos.setX(i, d.wx / 2 + (pos.getX(i) - d.wx / 2) * k); continue; } // ひし形
+    if (d.hump) { pos.setY(i, pos.getY(i) + d.hump * (1 - Math.abs(2 * tt / d.dz - 1))); continue; } // 「へ」の字
     pos.setY(i, pos.getY(i) + d.slope * (d.along === 'z' ? tt : pos.getX(i)));
   }
   g.computeVertexNormals();
@@ -160,7 +186,7 @@ export function drawPieceIcon(cv, kind, rot = 0) {
     g.beginPath(); g.moveTo(sx(t.a), sy(t.a)); g.lineTo(sx(t.b), sy(t.b)); g.lineTo(sx(t.q), sy(t.q)); g.closePath(); g.fill(); g.stroke();
   }
   // ふちの線（うらのふちも、うすく見せる）
-  const eg = new THREE.EdgesGeometry(geo), ep = eg.attributes.position;
+  const eg = new THREE.EdgesGeometry(geo, geo.userData.edgeAngle || 1), ep = eg.attributes.position;
   g.strokeStyle = '#' + base.clone().multiplyScalar(0.4).getHexString(); g.lineWidth = 1.2; g.lineCap = 'round';
   g.beginPath();
   for (let i = 0; i < ep.count; i += 2) {
@@ -278,7 +304,7 @@ export function createStage(canvas, L) {
     const fill = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
       color: col, transparent: true, opacity: ghost ? 0.22 : 0.55, roughness: 0.3, metalness: 0.1, depthWrite: false,
     }));
-    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo, geo.userData.edgeAngle || 1),
       new THREE.LineBasicMaterial({ color: ghost ? '#ffffff' : new THREE.Color(col).multiplyScalar(0.55), transparent: true, opacity: 0.95, depthTest: !ghost }));
     // ゴーストの線は、ページの束の奥にあっても見えるように上から描く
     if (ghost) edges.renderOrder = 10;
@@ -674,7 +700,7 @@ export function createStage(canvas, L) {
       const dd = pieceDims(gp);
       ePop = Math.min(1, ePop + dt * 6);
       const pop = ePop < 1 ? 1 + Math.sin(ePop * Math.PI) * 0.35 : 1;
-      const top = gp.y0 + dd.h + (dd.along === 'z' ? dd.slope * dd.dz : dd.slope * dd.wx);
+      const top = gp.y0 + dd.h + (dd.rise || 0);
       eIcon.position.set(gp.x0 + dd.wx / 2, top + 0.7 + Math.sin(tm * 4) * 0.08, Z(gp.t0 + dd.dz / 2));
       eIcon.scale.setScalar(0.75 * pop * ePop);
     }

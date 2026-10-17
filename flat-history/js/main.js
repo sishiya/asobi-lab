@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
-import { LEVELS } from './level.js?v=61';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=61';
-import { drawSheet } from './sheet.js?v=61';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=64';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=61';
-import { makeHero, stepHero, groundAt } from './hero.js?v=61';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=63';
+import { LEVELS, REVEALS } from './level.js?v=65';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=65';
+import { drawSheet } from './sheet.js?v=65';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=65';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=65';
+import { makeHero, stepHero, groundAt } from './hero.js?v=65';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=65';
 
 const $ = (id) => document.getElementById(id);
 
@@ -208,7 +208,7 @@ function renderSelect(from) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'plate' + (p ? ' done' : '');
-      b.innerHTML = `<span class="pn">Pl. ${l.plate} ・ ${TX(`${i + 1}代目`, `Gen. ${i + 1}`)}</span><span class="nm">${l.name}</span><span class="st">${p ? TX(`正史ずみ・ひながかえった（形 ${p.best} つ）`, `True history ✓ (${p.best} shape${p.best > 1 ? 's' : ''})`) : TX('まだ', 'Not yet')}</span>`;
+      b.innerHTML = `<span class="pn">Pl. ${l.plate} ・ ${TX(`${i + 1}代目`, `Gen. ${i + 1}`)}</span><span class="nm">${l.name}</span><span class="st">${p ? TX(`クリア ・ 使った形 ${p.best}つ`, `Cleared · ${p.best} shape${p.best > 1 ? 's' : ''} used`) : TX('まだクリアしていない', 'Not cleared yet')}</span>`;
       b.addEventListener('click', () => { se.click(); startGame(i); });
       box.appendChild(b);
     });
@@ -268,7 +268,7 @@ function fitScore(c) {
   let gap = false;
   for (let i = x0; i < x1; i++) if (colTop(i) < c.y0 - 0.5) gap = true;
   if (gap && colTop(x0) >= c.y0 - 0.01 && colTop(x1 - 1) >= c.y0 - 0.01) s += 2.5;
-  const rise = d.along === 'z' ? d.slope * d.dz : d.slope * d.wx;
+  const rise = d.rise || 0;
   for (const tp of [c.y0 + d.h, c.y0 + d.h + rise]) if (Math.abs(colTop(x0 - 1) - tp) < 0.15 || Math.abs(colTop(x1) - tp) < 0.15) { s += 1; break; }
   return s;
 }
@@ -415,6 +415,7 @@ function pickUp(p) {
 }
 function rotate() {
   if (!st.carry) return;
+  if (pieceDims(st.carry).noRot) { flashPrompt(TX('この形は回せない', 'This shape can’t be rotated')); se.no(); return; }
   st.carry = { ...st.carry, rot: st.carry.rot ? 0 : 1 };
   st.lock = null;
   st.rotatedOnce = true;
@@ -721,7 +722,7 @@ function showBindReplay() {
   $('rpTitle').textContent = TX('この歴史で回答する', 'Answering with this history');
   $('rpResult').hidden = true;
   $('rpWhy').hidden = true;
-  document.querySelector('.replay-card').classList.remove('with-why');
+  document.querySelector('.replay-card').classList.remove('with-why', 'with-reveal');
   $('rpNext').hidden = true;
   $('rpClose').hidden = true;
   $('replay').hidden = false;
@@ -746,7 +747,7 @@ function judge() {
     const prev = progress[L.id];
     progress[L.id] = { best: prev ? Math.min(prev.best, n) : n };
     saveProgress();
-    el.innerHTML = `<span class="stamp">${TX('正史', 'True history')}</span><p>` + tx(TX('キーウィは巣に着いた。この歴史が正史になった。', 'The kiwi reached the nest. This history is now the true history.')) + '</p>';
+    el.innerHTML = `<span class="stamp">${TX('正史', 'True history')}</span><p>` + tx(TX('キーウィは巣に着いた。この歴史が正史になった。', 'The kiwi reached the nest. This history is now the true history.')) + '</p>' + revealHtml();
     $('rpTitle').textContent = TX('正史ができた', 'A true history!');
     setTimeout(() => se.goal(), 120);
   } else {
@@ -761,6 +762,8 @@ function judge() {
     setTimeout(() => se.notyet(), 120);
   }
   if (ok) { $('rpWhy').hidden = true; document.querySelector('.replay-card').classList.remove('with-why'); }
+  // 種明かしが出るときは、はじめの歴史の段をしまって、画面の高さに収める
+  document.querySelector('.replay-card').classList.toggle('with-reveal', ok && !!el.querySelector('.reveal'));
   el.hidden = false;
   el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   $('rpNext').hidden = !ok;
@@ -768,6 +771,15 @@ function judge() {
   // 正史のあとは「次へ」だけ（もどりたいときは、パネルの外をタッチ）。まだのときは「考えなおす」
   $('rpClose').hidden = ok;
   $('rpClose').textContent = TX('考えなおす', 'Think again');
+}
+// 種明かし（v073）: 置いた形ごとに「2Dではこう見えた → 3Dではこんな形だった」。形の絵はパレットと同じ
+function revealHtml() {
+  const kinds = [...new Set(blockPieces().map((p) => p.kind))].filter((k) => REVEALS[k]);
+  if (!kinds.length) return '';
+  return `<div class="reveal"><p class="rv-title">${TX('舞台裏', 'Behind the scenes')}</p>` + kinds.map((k) => {
+    const cv = document.createElement('canvas'); cv.width = 132; cv.height = 96; drawPieceIcon(cv, k);
+    return `<div class="rv-item"><img src="${cv.toDataURL()}" alt=""><p>${TX('2Dでは', 'In 2D:')} <b>${REVEALS[k][0]}</b><br>${TX('3Dでは', 'In 3D:')} <b>${REVEALS[k][1]}</b></p></div>`;
+  }).join('') + '</div>';
 }
 // 「まだ」のわけを2枚の絵で: 住人がつまずいたページと、いちばん近い形の、出ていた（いなかった）ページ
 function showWhy(e, np) {
