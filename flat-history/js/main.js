@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
-import { LEVELS, REVEALS } from './level.js?v=74';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=74';
-import { drawSheet } from './sheet.js?v=74';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=74';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=74';
-import { makeHero, stepHero, groundAt } from './hero.js?v=74';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=74';
+import { LEVELS, REVEALS } from './level.js?v=75';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=75';
+import { drawSheet } from './sheet.js?v=75';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=75';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=75';
+import { makeHero, stepHero, groundAt } from './hero.js?v=75';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=75';
 
 const $ = (id) => document.getElementById(id);
 
@@ -120,7 +120,11 @@ function renderPalette() {
     b.setAttribute('aria-label', kindName(kind));
     b.insertAdjacentHTML('beforeend', '<span class="ct"></span>');
     b.addEventListener('click', () => { initAudio(); startBgm(); if (playing()) choose(kind); });
-    box.appendChild(b);
+    // うしろに、ボタンと同じ形のぼかした影（v090。正史にするボタンと同じ）
+    const w = document.createElement('span'); w.className = 'kind-wrap';
+    w.innerHTML = '<span class="bind-shadow" aria-hidden="true"></span>';
+    w.append(b);
+    box.appendChild(w);
   });
   palKey = '';
 }
@@ -129,7 +133,7 @@ function updatePalette() {
   const k = Object.keys(L.stock).map((kind) => left(kind)).join(',') + '|' + (st.carry ? st.carry.kind : '');
   if (k === palKey) return;
   palKey = k;
-  for (const b of $('palList').children) {
+  for (const b of $('palList').querySelectorAll('.kind')) {
     const n = left(b.dataset.kind), sel = !!st.carry && st.carry.kind === b.dataset.kind;
     b.querySelector('.ct').textContent = n;
     b.classList.toggle('sel', sel);

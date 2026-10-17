@@ -1141,3 +1141,7 @@ kbd { border-width: 1px !important; border-style: solid !important; border-color
 .bind-halo::before { content: none; }
 .bind-shadow { position: absolute; inset: -6px -8px; z-index: -1; pointer-events: none; filter: blur(12px); }
 .bind-shadow::before { content: ""; position: absolute; inset: 0; background: rgba(8, 26, 22, .72); clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px); }
+
+/* v090: パレットの影も、形のボタンと同じ面取りの形に（ユーザー「パレットの影も形状あわせて」）。だ円の光の輪はやめる */
+.pal-list::before { content: none; }
+.kind-wrap { position: relative; display: inline-flex; isolation: isolate; }
