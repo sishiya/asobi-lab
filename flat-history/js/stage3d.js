@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・主人公・置いた形・置き場所のゴースト・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=68';
-import { radialTexture } from './look/util.js?v=68';
-import { S, drawSheet } from './sheet.js?v=68';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=68';
-import { groundAt } from './hero.js?v=68';
+import { look, kindColor } from './look/index.js?v=69';
+import { radialTexture } from './look/util.js?v=69';
+import { S, drawSheet } from './sheet.js?v=69';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=69';
+import { groundAt } from './hero.js?v=69';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -211,8 +211,10 @@ export function createStage(canvas, L) {
 
   // ---- ページの束 ----
   const planeGeo = new THREE.PlaneGeometry(L.W, L.H);
+  // v078: ページの数は図版ごと（L.T）。いちばん多い図版のぶんだけ作っておき、使わないページは出さない
+  const TMAX = 60;
   const sheets = [];
-  for (let t = 0; t <= L.T; t++) {
+  for (let t = 0; t <= TMAX; t++) {
     const cv = document.createElement('canvas');
     cv.width = L.W * S; cv.height = L.H * S;
     const tex = new THREE.CanvasTexture(cv);
@@ -251,13 +253,15 @@ export function createStage(canvas, L) {
     geo.computeVertexNormals();
     slabs = new THREE.InstancedMesh(geo, slabMat, sheets.length);
     sheets.forEach((sh, i) => slabs.setMatrixAt(i, _m4.makeTranslation(0, 0, sh.mesh.position.z)));
+    slabs.count = Math.min(sheets.length, L.T + 1); // この図版のページのぶんだけ
     scene.add(slabs);
   }
   buildSlabs();
 
   // ページのふち（5秒ごとに外わく、ほかは上のふち）
   const edgeGeo = new THREE.BufferGeometry();
-  {
+  const tSprites = [];
+  function buildEdges() {
     const v = [];
     for (let t = 0; t <= L.T; t++) {
       const z = Z(t);
@@ -265,14 +269,18 @@ export function createStage(canvas, L) {
       v.push(0, 0, z, 0, L.H, z, 0, L.H, z, L.W, L.H, z, L.W, L.H, z, L.W, 0, z);
     }
     edgeGeo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+    for (const sp of tSprites) scene.remove(sp);
+    tSprites.length = 0;
+    for (let t = 0; t <= L.T; t += 5) {
+      const sp = textSprite(t + '', 0.9);
+      sp.position.set(L.W + 1.6, 0.6, Z(t));
+      scene.add(sp); tSprites.push(sp);
+    }
+    for (const sh of sheets) sh.mesh.visible = sh.t <= L.T;
   }
+  buildEdges();
   const edgeLines = new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({ color: '#b29a6c', transparent: true, opacity: 0.45 }));
   scene.add(edgeLines);
-  for (let t = 0; t <= L.T; t += 5) {
-    const sp = textSprite(t + '', 0.9);
-    sp.position.set(L.W + 1.6, 0.6, Z(t));
-    scene.add(sp);
-  }
   // いまのページ（主人公にいちばん近いページ）: 紙の地と真鍮のふち
   const paper = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ color: '#f8efd8', transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide }));
   scene.add(paper);
@@ -413,6 +421,7 @@ export function createStage(canvas, L) {
     return trails.get(t);
   }
   function drawOne(sh) {
+    if (sh.t > L.T) { sh.pending = false; return; } // この図版にはないページ
     const fr = hist.frames[Math.round(sh.t / DT)];
     drawSheet(sh.g, L, sh.t, fr, sectionsAt(pieces, sh.t), { goalT: hist.end.type === 'goal' ? hist.end.t : null, misprintAfter: misprintOf(hist) });
     if (trails.has(sh.t)) sh.g.drawImage(trails.get(sh.t), 0, 0);
@@ -782,6 +791,8 @@ export function createStage(canvas, L) {
     for (const [id, o] of pieceObjs) { scene.remove(o); pieceObjs.delete(id); }
     pieces = [];
     buildSlabs();
+    buildEdges();
+    scene.remove(env); env = look().makeEnv(L); scene.add(env); // 深淵の広さも、ページの数に合わせる
   }
 
   const camYaw = () => orbit.yaw;

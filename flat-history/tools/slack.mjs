@@ -41,11 +41,12 @@ const known = {
   s2: (L) => [mk(L, 'wall', 0, 16, 0), mk(L, 'lift', 0, 7, 2)],
 };
 const want = process.argv.slice(2);
-for (const L of LEVELS) {
-  if (want.length && !want.includes(L.id)) continue;
+for (const L0 of LEVELS) {
+  if (want.length && !want.includes(L0.id)) continue;
+  const L = process.env.T ? { ...L0, T: Number(process.env.T) } : L0; // T=40 のように、ページの数を変えて測れる
   let r;
   if (known[L.id] && ok(L, known[L.id](L))) { const ps = known[L.id](L); r = { ps, sl: slackOf(L, ps) }; }
   else r = search(L, Number(process.env.TRIES || 60000));
   if (!r) { console.log(L.id, L.plate, L.name, '答えが見つからない'); continue; }
-  console.log(`${L.id} ${L.plate} ${L.name}:`, r.ps.map((p, i) => `${p.kind}${p.rot ? '(回す)' : ''} x${p.x0} t${p.t0} → 秒のゆとり ${r.sl[i].t}・マスのゆとり ${r.sl[i].x}`).join(' ／ '));
+  console.log(`${L.id} ${L.plate} ${L.name} T${L.T}:`, r.ps.map((p, i) => `${p.kind}${p.rot ? '(回す)' : ''} x${p.x0} t${p.t0} → 秒のゆとり ${r.sl[i].t}・マスのゆとり ${r.sl[i].x}`).join(' ／ '));
 }
