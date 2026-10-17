@@ -1,0 +1,8 @@
+{
+  "name": "asobi-lab-shots",
+  "private": true,
+  "description": "Playwright で入口・保管庫・各ゲームを画面の幅ごとに撮る（公開しない開発用）",
+  "type": "module",
+  "scripts": { "shots": "node shots.mjs" },
+  "devDependencies": { "playwright": "1.56.1" }
+}

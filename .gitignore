@@ -33,3 +33,6 @@ _dev/tools/out/
 
 # 掘れば昔、積めば未来: きりのいいところまで push しない（2026-10-15 ユーザー。保管庫を見ている人がいるので）。そのときにこの行を消して戻す
 time-strata/
+
+# Playwright の撮影（tools/playwright/shots.mjs）。画面の記録なので Git に入れない
+_dev/shots/

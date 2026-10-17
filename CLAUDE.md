@@ -8,7 +8,7 @@
 - **基本ルール: 画面設計は UX デザインと認知科学をふまえる**（2026-10-17 ユーザー「必ず守って」）。区割り・よく使うものは近く大きく・まとまりと余白・字は少なく・目立たせるのは1つ・幅ごとに目で確かめる。くわしくは `RULES.md` 4章。
 - 1ゲーム1フォルダ（英小文字とハイフン）。
 - **新しいゲームはまず保管庫（`archive.html`）に置く**。入口（`index.html` の `GAMES`）へ移すのはユーザーが指示したときだけ（2026-10-09 ユーザーが決めた。まなびラボの RULES 8.1 と同じ）。保管庫は入口の下の注記からだけリンクし、`noindex`。
-- 動かし方: ユーザーはルートの `start.bat`（`start.bat dino-race` でゲームを直接。`tools/start.ps1` がサーバーを起動して開く。どちらも ASCII だけで書く）。Claude は `.claude/launch.json` の `games`（http://localhost:8780/）。
+- 動かし方: ユーザーはルートの `start.bat`（`start.bat dino-race` でゲームを直接。`tools/start.ps1` がサーバーを起動して開く。どちらも ASCII だけで書く）。Claude は `.claude/launch.json` の `games`（http://localhost:8780/）。幅ごとの画面の確認は `node tools/playwright/shots.mjs`、3D の形は Blender（どちらも `RULES.md` 9章）。
 - **git の commit／push の前には毎回、公開前チェック**: `tools/check-public.ps1` で個人情報・秘密情報を探し、結果をユーザーに伝える。見つかったら公開しない。Public リポジトリなので push＝公開。チェックで問題がなければ push まで進めてよい（2026-10-09 ユーザー）。
 - **アクセス解析**: まなびラボと同じ GA4（`G-E2VPYKV2Y9`）。入口と各ゲームの `index.html` の、ファビコンの `<link rel="icon">` の次の行に、入口の `index.html` の `<script>/* アクセス解析 …` の1行をそのままコピーする（`content_group:'asobi-lab'` つき。GA の「コンテンツ グループ」でまなびラボと見分ける。まなびラボ側は未設定＝(not set)）。`sishiya.github.io` のときだけ読むので、ローカルでは何もしない。`versions/` には入れない。
 - 返事は日本語で。
