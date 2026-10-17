@@ -1135,3 +1135,9 @@ kbd { border-width: 1px !important; border-style: solid !important; border-color
 .palette .kind { padding: 13px; }
 .palette .kind .ct { right: 11px; bottom: 8px; line-height: 1; }
 @media (max-width: 760px), (max-height: 520px) { .palette .kind { padding: 11px; } .palette .kind .ct { right: 10px; bottom: 7px; } }
+
+/* 正史にするの光の輪を、ボタンと同じ形（面取りの長方形）に（ユーザー「影の形状が合ってない。ぼかし具合はGood」）。
+   同じ面取りの暗い形を、親の span ごと blur でぼかす（clip-path を付けた物そのものに blur をかけると、ふちが切れたままになるので、親でぼかす） */
+.bind-halo::before { content: none; }
+.bind-shadow { position: absolute; inset: -6px -8px; z-index: -1; pointer-events: none; filter: blur(12px); }
+.bind-shadow::before { content: ""; position: absolute; inset: 0; background: rgba(8, 26, 22, .72); clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px); }
