@@ -38,14 +38,23 @@ for (const x of ranch) noteRecord(x);
 let resizeT = 0;
 addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { paintPortraits($('ranch'), ranch); paintPortraits($('nurseryBox'), kids); if (tab === 'book') drawBookChart(); measureTop(); }, 150); });
 if (new URLSearchParams(location.search).has('thumb')) {
-  // サムネイルを撮るとき（?thumb）: ティラノサウルスを数秒走らせたところで止め、title を ready に
-  // タイトルと同じ絵づくり（1匹を大きく、名前・物差しなし）。v008 からはラプトル
-  document.body.classList.add('thumb', 'titled');
-  const st = [starter(SPECIES[1])];
-  startView(st.map(x => x.g), st.map(x => x.name), {mode: 'idle-run'});
-  for (let i = 0; i < 6.3 / DT; i++) stepRace(VIEW.R); // 胴が水平に近く、脚を大きく開いた瞬間
-  updateCamera(true);
-  drawScene($('view'), VIEW.R, VIEW.cams, {title: true, labels: VIEW.labels, progressH: 0});
+  // サムネイルを撮るとき（?thumb）: 場面を描いて止め、title を ready に。?thumb=<絵> で絵を選ぶ（../tools/make-thumbs.ps1）
+  //   orig（v001〜v007 と同じ: ティラノの2.6秒目、名前と物差しつき）／big（同じティラノを、名前・物差しなしで大きく）／
+  //   raptor（orig の作りで、ラプトルが似た姿勢の瞬間）／run（v008: タイトルと同じ絵づくりで、ラプトル1匹を大きく）
+  const kind = new URLSearchParams(location.search).get('thumb') || 'orig'; // 入口のサムネイルは orig（2026-10-17 ユーザーが3案から選んだ）
+  document.body.classList.add('thumb');
+  const one = (id, t, title) => {
+    if (title) document.body.classList.add('titled');
+    const st = [starter(SPECIES.find(q => q.id === id))];
+    startView(st.map(x => x.g), st.map(x => x.name), {mode: 'idle-run'});
+    for (let i = 0; i < t / DT; i++) stepRace(VIEW.R);
+    updateCamera(true);
+    drawScene($('view'), VIEW.R, VIEW.cams, {title, labels: VIEW.labels, progressH: 0});
+  };
+  if (kind === 'orig') one('trex', 2.6, false);
+  else if (kind === 'big') one('trex', 2.6, true);
+  else if (kind === 'raptor') one('raptor', +(new URLSearchParams(location.search).get('t') || 2.6), false);
+  else one('raptor', 6.3, true); // 胴が水平に近く、脚を大きく開いた瞬間
   document.title = 'ready';
 } else if (typeof planck === 'undefined') {
   // 物理のライブラリ（CDN）が読めなかった
