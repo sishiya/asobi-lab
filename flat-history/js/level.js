@@ -44,7 +44,7 @@ function tops(spans) {
   return a;
 }
 
-// T: ページの数（秒）。v078 から図版ごとに、巣に着く秒＋5 くらいに（ユーザー「奥（未来）ってほぼ使われない」）。tools/span.mjs で測った
+// T: ページの数（秒）。v078 から図版ごとに、巣に着く秒＋10 くらいに（ユーザー「奥（未来）ってほぼ使われない」、v079 で「もうすこし余韻がほしい」で＋5）。tools/span.mjs で測った
 const base = { W: 36, H: 14, T: 60 };
 
 // hints: 面の中で順に出すひとことの導き。when(ctx) が true になったら次へ。fail は結末がだめなときのひとこと
@@ -53,7 +53,7 @@ const base = { W: 36, H: 14, T: 60 };
 //   「つかのまの橋」は「時をめくる」とやることが同じなのでやめた。2Dアクションのしかけの図版を3つ足した（PLAN 2-2）
 export const LEVELS = [
   {
-    ...base, T: 25, id: 't1', plate: 'I', name: TX('時をめくる', 'Turning Time'), tutorial: true,
+    ...base, T: 30, id: 't1', plate: 'I', name: TX('時をめくる', 'Turning Time'), tutorial: true,
     tops: tops([[18, 20, null]]), start: { x: 1.6, dir: 1 }, goal: { x: 31 },
     stock: { plank: 1 },
     hints: [
@@ -64,7 +64,7 @@ export const LEVELS = [
     fail: TX('まだ落ちてしまう。板のある時間と、キーウィが通る時間は重なっている？', 'It still falls. Does the time of the board overlap the time the kiwi passes?'),
   },
   {
-    ...base, T: 25, id: 't3', plate: 'II', name: TX('のぼる板', 'The Rising Board'), tutorial: true,
+    ...base, T: 30, id: 't3', plate: 'II', name: TX('のぼる板', 'The Rising Board'), tutorial: true,
     tops: tops([[14, 18, 3], [19, 35, 6]]), start: { x: 1.6, dir: 1 }, goal: { x: 31 },
     stock: { lift: 1 },
     hints: [
@@ -73,7 +73,7 @@ export const LEVELS = [
     fail: TX('板の上で、キーウィはどうなった？', 'What happened to the kiwi on the board?'),
   },
   {
-    ...base, T: 25, id: 't4', plate: 'III', name: TX('ひきかえせ', 'Turn Back'), tutorial: true,
+    ...base, T: 30, id: 't4', plate: 'III', name: TX('ひきかえせ', 'Turn Back'), tutorial: true,
     tops: tops([[28, 31, null]]), start: { x: 18, dir: 1 }, goal: { x: 2.6 },
     stock: { wall: 1 },
     hints: [
@@ -83,7 +83,7 @@ export const LEVELS = [
   },
   {
     // 回すと意味がかわる: 長い板は、そのままでは崖に届かない。回すと横に長く（そのかわり短い時間だけ）
-    ...base, T: 25, id: 't5', plate: 'IV', name: TX('まわす板', 'The Turned Board'), tutorial: true,
+    ...base, T: 30, id: 't5', plate: 'IV', name: TX('まわす板', 'The Turned Board'), tutorial: true,
     tops: tops([[17, 24, null]]), start: { x: 1.6, dir: 1 }, goal: { x: 31 },
     stock: { beam: 1 },
     hints: [
@@ -93,7 +93,7 @@ export const LEVELS = [
   },
   {
     // 平行四辺形の板（すべる足場）: 9マスの崖は、どの板でも届かない。のせて運べば、わたれる
-    ...base, T: 25, id: 't6', plate: 'V', name: TX('はこぶ板', 'The Carrying Board'), tutorial: true,
+    ...base, T: 30, id: 't6', plate: 'V', name: TX('はこぶ板', 'The Carrying Board'), tutorial: true,
     tops: tops([[17, 25, null]]), start: { x: 1.6, dir: 1 }, goal: { x: 31 },
     stock: { slide: 1 },
     hints: [
@@ -103,13 +103,13 @@ export const LEVELS = [
   },
   {
     // 板で崖をわたり、ななめ板で段をのぼる（v073: 時刻の窓と柱はやめた）
-    ...base, T: 30, id: 's1', plate: 'VI', name: TX('崖と段', 'Cliff and Step'),
+    ...base, T: 35, id: 's1', plate: 'VI', name: TX('崖と段', 'Cliff and Step'),
     tops: tops([[12, 16, null], [19, 23, 3], [24, 35, 6]]), start: { x: 1.6, dir: 1 }, goal: { x: 32.4 },
     stock: { beam: 1, lift: 1 },
     hints: [], fail: TX('崖をわたったあと、キーウィは段をのぼれた？', 'After crossing the chasm, could the kiwi climb the step?'),
   },
   {
-    ...base, T: 25, id: 's2', plate: 'VII', name: TX('高い巣', 'The High Nest'),
+    ...base, T: 30, id: 's2', plate: 'VII', name: TX('高い巣', 'The High Nest'),
     tops: tops([[0, 6, 6], [7, 11, 3], [25, 29, null]]), start: { x: 16, dir: 1 }, goal: { x: 3 },
     window: [14, 26], // 柱でひきかえさせる「時刻」と、ななめ板の時刻を、両方合わせる（窓は広め）
     stock: { wall: 1, lift: 1 },
@@ -117,7 +117,7 @@ export const LEVELS = [
   },
   {
     // 崖が2つ: 広い崖はすべる板で運び、せまい崖は長い板。卵が光っているあいだに着く
-    ...base, T: 25, id: 's3', plate: 'VIII', name: TX('まにあう巣', 'Just in Time'),
+    ...base, T: 30, id: 's3', plate: 'VIII', name: TX('まにあう巣', 'Just in Time'),
     tops: tops([[8, 16, null], [22, 26, null]]), start: { x: 1.6, dir: 1 }, goal: { x: 32 },
     window: [15, 22],
     stock: { beam: 1, slide: 1 },
@@ -125,7 +125,7 @@ export const LEVELS = [
   },
   {
     // ころがる石: 20秒に右の石がころがりだし、幅1マスの割れ目にはさまって「ふた」になる。それまで住人を待たせる
-    ...base, T: 50, id: 's4', plate: 'IX', name: TX('石のふた', 'The Stone Lid'),
+    ...base, T: 55, id: 's4', plate: 'IX', name: TX('石のふた', 'The Stone Lid'),
     tops: tops([[20, 20, null]]), start: { x: 1.6, dir: 1 }, goal: { x: 30 },
     stones: [{ x: 32.5, t: 20, dir: -1 }],
     stock: { wall: 1 },
@@ -133,7 +133,7 @@ export const LEVELS = [
   },
   {
     // ひし形の板: 断面は、まん中の秒にいちばん広くなり、また縮む。崖をわたるあいだに、広いところを合わせる
-    ...base, T: 25, id: 's5', plate: 'X', name: TX('ひし形の橋', 'The Diamond Bridge'),
+    ...base, T: 30, id: 's5', plate: 'X', name: TX('ひし形の橋', 'The Diamond Bridge'),
     tops: tops([[19, 22, null]]), start: { x: 1.6, dir: 1 }, goal: { x: 31 },
     stock: { diamond: 1 },
     hints: [{ text: TX('ひし形の板は、どの秒で切っても同じ幅？', 'Is a diamond board the same width at every second?'), when: (c) => c.placed }], fail: '',
@@ -141,7 +141,7 @@ export const LEVELS = [
   // ---- 2Dアクションのしかけの「舞台裏」（v073） ----
   {
     // 往復リフト: 高い台から低い地面へ、とびおりるとだめ（5マス）。「へ」の字の板に乗って、下ろしてもらう
-    ...base, T: 25, id: 'g1', plate: 'XI', name: TX('往復するリフト', 'The Shuttle Lift'),
+    ...base, T: 30, id: 'g1', plate: 'XI', name: TX('往復するリフト', 'The Shuttle Lift'),
     tops: tops([[0, 19, 7], [20, 35, 2]]), start: { x: 1.6, dir: 1 }, goal: { x: 31 },
     stock: { hump: 1 },
     hints: [{ text: TX('この台から下へ落ちると、キーウィは助からない', 'If it drops off this ledge, the kiwi won’t survive'), when: (c) => c.placed }],
@@ -149,7 +149,7 @@ export const LEVELS = [
   },
   {
     // 消えるブロック: くし形の板は、出たり消えたりする。出ているあいだに、わたりきる
-    ...base, T: 25, id: 'g2', plate: 'XII', name: TX('消えるブロック', 'The Vanishing Blocks'),
+    ...base, T: 30, id: 'g2', plate: 'XII', name: TX('消えるブロック', 'The Vanishing Blocks'),
     tops: tops([[18, 18, null]]), start: { x: 1.6, dir: 1 }, goal: { x: 31 },
     stock: { comb: 1 },
     hints: [{ text: TX('このブロックは、ときどき消える', 'These blocks vanish now and then'), when: (c) => c.placed }],
@@ -157,7 +157,7 @@ export const LEVELS = [
   },
   {
     // 回る棒: 巣はうしろ。回る棒にぶつかると、キーウィは引き返す
-    ...base, T: 30, id: 'g3', plate: 'XIII', name: TX('回る棒', 'The Spinning Bar'),
+    ...base, T: 35, id: 'g3', plate: 'XIII', name: TX('回る棒', 'The Spinning Bar'),
     tops: tops([[30, 33, null]]), start: { x: 14, dir: 1 }, goal: { x: 3 },
     stock: { spiral: 1 },
     hints: [{ text: TX('巣はうしろ。回る棒にぶつかると、キーウィは引き返す', 'The nest is behind. When the spinning bar bumps the kiwi, it turns back'), when: (c) => c.placed }],

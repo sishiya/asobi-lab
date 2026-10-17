@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
-import { LEVELS, REVEALS } from './level.js?v=69';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=69';
-import { drawSheet } from './sheet.js?v=69';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=69';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=69';
-import { makeHero, stepHero, groundAt } from './hero.js?v=69';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=69';
+import { LEVELS, REVEALS } from './level.js?v=70';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=70';
+import { drawSheet } from './sheet.js?v=70';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=70';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=70';
+import { makeHero, stepHero, groundAt } from './hero.js?v=70';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=70';
 
 const $ = (id) => document.getElementById(id);
 
@@ -169,15 +169,18 @@ function openPreview() {
   lockEnter();
   $('pvPlate').textContent = 'Pl. ' + L.plate;
   $('pvName').textContent = L.name;
-  $('pvSeek').max = L.T;
+  $('pvSeek').max = previewEnd(); // シークバーは、見せる長さ（つまずいて少しあと）まで（v079）
   pv.t = 0; pv.playing = true; $('pvPlay').textContent = '❚❚';
   $('preview').hidden = false;
   keys.clear();
 }
 function closePreview() { $('preview').hidden = true; showIntro(); lockEnter(400); }
-function drawPreview(dt) {
+function previewEnd() {
   const lastEv = st.base.events.reduce((m, e) => (e.type === 'plug' || e.type === 'stoneStop' || e.type === 'stoneGone' ? Math.max(m, e.t) : m), 0);
-  const endT = Math.min(L.T, Math.max(st.base.end.t, lastEv) + 1.5);
+  return Math.min(L.T, Math.max(st.base.end.t, lastEv) + 1.5);
+}
+function drawPreview(dt) {
+  const endT = previewEnd();
   if (pv.playing) { pv.t += dt * 2; if (pv.t > endT + 1) pv.t = 0; }
   const t = Math.min(pv.t, endT);
   if (t < (pv.lastT || 0)) { pv.lastT = t; pv.walk = 0; }
@@ -706,6 +709,7 @@ function reopenResult() {
   se.click(); closeAll();
   $('replay').hidden = false;
   rp.t = 0; rp.playing = true; rp.lastT = 0; rp.walk = 0; $('rpPlay').textContent = '❚❚';
+  $('rpSeek').max = L.T; // シークバーは、この図版のページの数ぶん（v079）
   lockEnter(500); keys.clear();
 }
 function bind() {
@@ -728,6 +732,7 @@ function showBindReplay() {
   $('replay').hidden = false;
   rp.judged = false;
   rp.endT = Math.min(L.T, st.hist.end.t + 1.2);
+  $('rpSeek').max = L.T; // シークバーは、この図版のページの数ぶん（v079）
   rp.t = 0; rp.playing = true; $('rpPlay').textContent = '❚❚';
   rp.pend = 0; rp.lastT = 0; rp.walk = 0;
   duckBgm(true);
