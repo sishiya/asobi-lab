@@ -1,6 +1,6 @@
 // 入口・保管庫・各ゲームを、RULES 4章の幅ごとに撮る（公開しない開発用）。
 // 使い方（ゲームのフォルダで）: node tools/playwright/shots.mjs [ページ...] [--sizes=1280x720,375x740] [--query=lang=en] [--wait=1500]
-//   ページは index・archive・ゲームのフォルダ名（dino-race など）。省くと全部。
+//   ページは index・archive・ゲームのフォルダ名（dino-race など）・_dev の下のページ（_dev/blender など）。省くと全部（_dev は入らない）。
 // 撮った絵とエラーの記録は _dev/shots/<日時>/（Git に入れない）。
 //
 // 情報がうつらないための決まり（RULES 9章）:
@@ -72,7 +72,7 @@ try {
       let loadError = null;
       try { await page.goto(url, { waitUntil: 'load', timeout: 30000 }); await page.waitForTimeout(wait); }
       catch (e) { loadError = String(e.message || e).split('\n')[0]; }
-      const file = `${name}-${w}x${h}.png`;
+      const file = `${name.replace(/[\\/]/g, '_')}-${w}x${h}.png`;
       if (new URL(page.url()).origin === origin) await page.screenshot({ path: path.join(outDir, file) }).catch(() => {});
       const overflowX = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1).catch(() => null);
       report.push({ page: name, size: `${w}x${h}`, file, loadError, errors, blocked, overflowX });

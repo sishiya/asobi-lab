@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Blender のためし</title>
+<!-- Blender で作った glb（tools/blender/kiwi.py → kiwi.glb）を Three.js で見るためしのページ。公開のゲームではない -->
+<style>
+html,body{margin:0;height:100%;background:#1c2a26;color:#e8dcc0;font:14px/1.5 serif;overflow:hidden}
+canvas{display:block}
+#info{position:fixed;left:16px;bottom:16px;opacity:.75}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+<div id="info">kiwi.glb — Blender 5.2 で作成・ドラッグで回す</div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1c2a26);
+// 金属（真鍮の札）が映りこむ部屋の光。ないと金属は真っ黒になる
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.5;
+scene.add(new THREE.HemisphereLight(0xfff2dc, 0x22302b, 0.8));
+const sun = new THREE.DirectionalLight(0xfff0d8, 2.2);
+sun.position.set(2, 4, 3);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.radius = 4;
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02; // 影のしま模様（シャドウアクネ）をなくす
+Object.assign(sun.shadow.camera, { left: -2, right: 2, top: 2, bottom: -2 });
+scene.add(sun);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(4, 48), new THREE.ShadowMaterial({ opacity: 0.35 }));
+floor.rotation.x = -Math.PI / 2; floor.position.y = -0.12; floor.receiveShadow = true;
+scene.add(floor);
+
+const camera = new THREE.PerspectiveCamera(35, 1, 0.05, 50);
+camera.position.set(1.6, 1.2, 2.4);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0.15, 0.4, 0);
+controls.enableDamping = true;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.8;
+
+new GLTFLoader().load('kiwi.glb', gltf => {
+  gltf.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  scene.add(gltf.scene);
+  window.__ready = true;
+});
+
+function resize() {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.fov = camera.aspect < 0.8 ? 62 : 35; // たて長の画面では広く撮って、くちばしまで入れる
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+</script>
+</body>
+</html>

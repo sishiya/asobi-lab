@@ -13,7 +13,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-$textExt = '.html','.htm','.js','.mjs','.css','.md','.txt','.json','.ps1','.sh','.bat','.cmd','.yml','.yaml','.xml','.svg','.csv','.ini','.cfg','.toml',''
+$textExt = '.html','.htm','.js','.mjs','.css','.md','.txt','.json','.ps1','.sh','.bat','.cmd','.yml','.yaml','.xml','.svg','.csv','.ini','.cfg','.toml','.py','.gltf',''
 $imageExt = '.jpg','.jpeg','.png','.gif','.webp'
 $badNames ='^\.env', '\.pem$', '\.key$', '\.pfx$', '\.p12$', '^id_(rsa|ed25519|ecdsa)', '^credentials', '\.kdbx$'
 $skipDirs = '\\\.git\\', '\\node_modules\\'
@@ -78,6 +78,13 @@ foreach ($f in $files) {
     $tags = & $probe.Source -v error -show_entries 'format_tags:stream_tags' -of 'default=nw=1' $f
     $extra = @($tags | Where-Object { $_ -and $_ -notmatch '^TAG:(major_brand|minor_version|compatible_brands|encoder|handler_name|vendor_id|language)=' })
     if ($extra.Count) { [void]$hits.Add("$rel : mp4 に付加情報がある（$($extra -join ', ')）") }
+    continue
+  }
+  if ($ext -eq '.glb') {
+    # 3D の形（tools/blender/*.py で書き出す）: 先頭の JSON に作者・著作権・付加情報（extras）・PC のパスがないか。形そのものは目で確かめる
+    $bytes = [IO.File]::ReadAllBytes($f)
+    $json = [Text.Encoding]::UTF8.GetString($bytes, 20, [BitConverter]::ToUInt32($bytes, 12))
+    if ($json -match '"(copyright|extras|author)"|[A-Za-z]:[\\/]|/Users/|/home/') { [void]$hits.Add("$rel : glb に作者・付加情報・パスがある（書き出しの設定を見直す）") }
     continue
   }
   if ($textExt -notcontains $ext) { [void]$hits.Add("$rel : テキスト以外のファイル（画像なら撮影情報・写り込みを目で確認）"); continue }
