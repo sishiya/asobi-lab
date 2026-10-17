@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・主人公・置いた形・置き場所のゴースト・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=67';
-import { radialTexture } from './look/util.js?v=67';
-import { S, drawSheet } from './sheet.js?v=67';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=67';
-import { groundAt } from './hero.js?v=67';
+import { look, kindColor } from './look/index.js?v=68';
+import { radialTexture } from './look/util.js?v=68';
+import { S, drawSheet } from './sheet.js?v=68';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=68';
+import { groundAt } from './hero.js?v=68';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -296,6 +296,19 @@ export function createStage(canvas, L) {
   scene.add(env);
 
   // ---- 置いた形・持っている形・ゴースト ----
+  // 太い線（v077）: WebGL の線は 1px なので、辺ごとに細い円柱を立ててひとつにまとめる
+  function thickEdges(eg, r) {
+    const p = eg.attributes.position, parts = [], a = new THREE.Vector3(), b = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+    for (let i = 0; i < p.count; i += 2) {
+      a.fromBufferAttribute(p, i); b.fromBufferAttribute(p, i + 1);
+      const len = a.distanceTo(b); if (len < 1e-4) continue;
+      const c = new THREE.CylinderGeometry(r, r, len + r * 2, 6, 1, true);
+      c.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, b.clone().sub(a).normalize()));
+      c.translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
+      parts.push(c.toNonIndexed ? c.toNonIndexed() : c);
+    }
+    return new THREE.Mesh(mergeGeos(parts), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.95, depthWrite: false }));
+  }
   const pieceObjs = new Map();
   function makePieceObj(p, ghost) {
     const col = kindColor(p.kind);
@@ -304,12 +317,22 @@ export function createStage(canvas, L) {
     const fill = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
       color: col, transparent: true, opacity: ghost ? 0.22 : 0.55, roughness: 0.3, metalness: 0.1, depthWrite: false,
     }));
-    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo, geo.userData.edgeAngle || 1),
-      new THREE.LineBasicMaterial({ color: ghost ? '#ffffff' : new THREE.Color(col).multiplyScalar(0.55), transparent: true, opacity: 0.95, depthTest: !ghost }));
-    // ゴーストの線は、ページの束の奥にあっても見えるように上から描く
-    if (ghost) edges.renderOrder = 10;
+    const eg = new THREE.EdgesGeometry(geo, geo.userData.edgeAngle || 1);
+    const edges = ghost ? thickEdges(eg, 0.04) : new THREE.LineSegments(eg,
+      new THREE.LineBasicMaterial({ color: new THREE.Color(col).multiplyScalar(0.55), transparent: true, opacity: 0.95 }));
     grp.add(fill, edges);
     grp.userData = { fill, edges, edgeCol: edges.material.color.clone() };
+    if (ghost) {
+      // ゴースト（v077）: 地形にかくれた所はうすく、見えている所はこく、の2回描く。
+      // まえは手前のページの地面が形の手前がわをかくして、置き場所の色が奥のほうにしか出ていなかった
+      if (!geo.userData.edgeAngle) fill.material.side = THREE.DoubleSide; // 管の形（らせん）は、うらまで描くと色がにごる
+      fill.renderOrder = 10; edges.renderOrder = 11; // ページを描いたあとに、深さを見て描く
+      const fillHid = new THREE.Mesh(geo, fill.material.clone()), edgesHid = new THREE.Mesh(edges.geometry, edges.material.clone());
+      fillHid.material.depthTest = false; edgesHid.material.depthTest = false; // かくれていても見える、うすい下描き
+      fillHid.renderOrder = 9; edgesHid.renderOrder = 9;
+      grp.add(fillHid, edgesHid);
+      Object.assign(grp.userData, { fillHid, edgesHid });
+    }
     return grp;
   }
   let ghost = null, ghostKey = '';
@@ -437,6 +460,7 @@ export function createStage(canvas, L) {
   // ---- カメラ: 主人公を追いかける。ドラッグで回す、ホイールで寄る、ダブルクリックでもと ----
   const ORBIT0 = { yaw: 0.35, pitch: 0.52, dist: 17 };
   const orbit = { ...ORBIT0 };
+  let homeYaw = ORBIT0.yaw; // はじめの向き（図版の内側を向く。resetCamera で決める）
   let drag = null, lastManual = -10, invX = false, invY = false; // 設定: 回す向きをさかさに
   const touches = new Map(); let pinch0 = 0;
   canvas.addEventListener('pointerdown', (e) => {
@@ -483,7 +507,7 @@ export function createStage(canvas, L) {
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); orbit.dist = Math.max(6, Math.min(60, orbit.dist * Math.pow(1.0015, e.deltaY))); }, { passive: false });
-  canvas.addEventListener('dblclick', () => { Object.assign(orbit, ORBIT0); });
+  canvas.addEventListener('dblclick', () => { Object.assign(orbit, ORBIT0, { yaw: homeYaw }); });
   // 画面の点 → 時空の大地の (x, t)。主人公の高さの床、だめなら地面の高さで探す
   let onTap = null, onHover = null, onRight = null, heroY = 4;
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
@@ -715,8 +739,13 @@ export function createStage(canvas, L) {
     }
     if (ghost) {
       ghost.position.set(cand.x0, Number.isFinite(cand.y0) ? cand.y0 : h.y, Z(cand.t0));
-      ghost.userData.edges.material.color.set(candOk ? '#ffffff' : '#ff5a4a');
-      ghost.userData.fill.material.color.set(candOk ? kindColor(cand.kind) : '#ff5a4a');
+      const gu = ghost.userData;
+      for (const m of [gu.edges.material, gu.edgesHid.material]) m.color.set(candOk ? '#ffffff' : '#ff5a4a');
+      for (const m of [gu.fill.material, gu.fillHid.material]) m.color.set(candOk ? kindColor(cand.kind) : '#ff5a4a');
+      // 明滅（v077）: わくと面をゆっくり明るく暗く。どこにどんな形を置くのかを目で追いやすく
+      const bl = 0.5 + 0.5 * Math.sin(tm * 5);
+      gu.edges.material.opacity = 0.6 + 0.4 * bl; gu.edgesHid.material.opacity = 0.18 + 0.12 * bl;
+      gu.fill.material.opacity = 0.14 + 0.16 * bl; gu.fillHid.material.opacity = 0.04 + 0.05 * bl;
     }
     const socks = v.sockets || [];
     sockMarks.forEach((m, i) => {
@@ -756,7 +785,14 @@ export function createStage(canvas, L) {
   }
 
   const camYaw = () => orbit.yaw;
-  function resetCamera() { Object.assign(orbit, ORBIT0); lastManual = -10; }
+  // はじめのカメラ（v077）: 主人公が図版の左はしにいれば左うしろから右（内側）を、右はしにいれば右うしろから左を見る。
+  // まんなかあたりなら巣のほうを向く
+  function resetCamera(heroX) {
+    let right = true;
+    if (heroX != null) right = heroX > L.W * 0.7 || (heroX >= L.W * 0.3 && L.goal.x < heroX);
+    homeYaw = right ? 0.42 : -0.42;
+    Object.assign(orbit, ORBIT0, { yaw: homeYaw }); lastManual = -10;
+  }
 
   function resize() {
     const w = canvas.clientWidth, h = canvas.clientHeight;

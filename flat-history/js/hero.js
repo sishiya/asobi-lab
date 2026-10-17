@@ -1,7 +1,7 @@
 // 主人公の動き方。時空の大地（ページの上のふちが奥行きに並んだ地形）の上を、浮かんで進む（v038）。
 // 座標: x＝2D世界の横（マス）、t＝時間（秒。3Dの奥行き）、y＝高さ（マス）。
 // 主人公の体はページの間隔（1秒）より薄いので、ページのあいだを歩くかぎり2D世界とは交わらない（REDESIGN 3-1）
-import { pieceDims, sectionRects } from './sim.js?v=67';
+import { pieceDims, sectionRects } from './sim.js?v=68';
 
 // v038: 主人公は浮かんでいる。跳ぶ・よじ登る・落ちるはやめた。足もとの高さへ、ばねのようにふわりと寄る（少しゆれて、ぴたりとは張りつかない）
 // 奈落の上では、さっきの高さのまま浮かんでいる（落ちない）
@@ -33,8 +33,16 @@ function footGround(L, pieces, x, t, yRef) {
 }
 
 // はじめは、住人の立つ所の、1秒目と2秒目のページのあいだ（v031: 標本台はやめた）
+// はじめの場所（v077）: 住人の家（スタート）や巣と重ならないよう、スタートから歩く向きへ少し進んだ地面の上。1.5 秒目
 export function makeHero(L) {
-  const x = L.start.x, t = 1.5, y = L.tops[Math.floor(x)];
+  const dir = L.start.dir || 1, want = L.start.x + 3.5 * dir;
+  let x = L.start.x, best = Infinity;
+  for (let c = 1.5; c <= L.W - 1.5; c += 0.5) {
+    const g = L.tops[Math.floor(c)];
+    if (!Number.isFinite(g) || Math.abs(c - L.start.x) < 3 || Math.abs(c - L.goal.x) < 3) continue;
+    if (Math.abs(c - want) < best) { best = Math.abs(c - want); x = c; }
+  }
+  const t = 1.5, y = L.tops[Math.floor(x)];
   return { x, t, y, vy: 0, vx: 0, vt: 0, floor: y, grounded: true, fx: 0, ft: 1 };
 }
 

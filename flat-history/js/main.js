@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
-import { LEVELS, REVEALS } from './level.js?v=67';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=67';
-import { drawSheet } from './sheet.js?v=67';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=67';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=67';
-import { makeHero, stepHero, groundAt } from './hero.js?v=67';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=67';
+import { LEVELS, REVEALS } from './level.js?v=68';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=68';
+import { drawSheet } from './sheet.js?v=68';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=68';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=68';
+import { makeHero, stepHero, groundAt } from './hero.js?v=68';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=68';
 
 const $ = (id) => document.getElementById(id);
 
@@ -77,7 +77,7 @@ function loadLevel(i) {
   st.hintIdx = 0; st.solved = false; st.lastEnd = st.base.end.type; st.failedOnce = false; st.boundOnce = false; st.rotatedOnce = false;
   stage.setLevel(L);
   stage.setHistory(st.hist, st.pieces, 0, false);
-  stage.resetCamera();
+  stage.resetCamera(st.hero.x);
   st.lock = null; st.dirty = false;
   renderPalette();
   $('lvPlate').textContent = 'Pl. ' + L.plate;
