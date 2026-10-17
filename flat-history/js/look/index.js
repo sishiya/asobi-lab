@@ -1,9 +1,9 @@
 // 見た目: 図鑑の銅版画と標本室（museum）に、設定で選ぶ主人公（3D）と住人（2D）をのせる
 // 言語（index.html の TX(日本語, 英語)。ノードでの試験のときは日本語）
 const TX = globalThis.TX || ((ja) => ja);
-import museum from './museum.js?v=65';
-import { RESIDENTS } from './residents.js?v=65';
-import { HEROES, HERO_LIST } from './heroes.js?v=65';
+import museum from './museum.js?v=66';
+import { RESIDENTS } from './residents.js?v=66';
+import { HEROES, HERO_LIST } from './heroes.js?v=66';
 
 export { HERO_LIST };
 export const RES_LIST = [{ id: 'kiwi', name: TX('キーウィ', 'Kiwi') }, { id: 'penguin', name: TX('ペンギン', 'Penguin') }, { id: 'snail', name: TX('カタツムリ', 'Snail') }];
@@ -23,6 +23,7 @@ export function look() {
     drawTerrain: (g, L, S) => museum.drawTerrain(g, L, S, res),
     drawBackdrop: (g, L, S) => museum.drawBackdrop(g, L, S, res),
     drawWalker: res.drawWalker,
+    drawFaint: res.drawFaint, // 気絶の絵（ない住人は sheet.js の faintFallback）
     drawStone: museum.drawStone,
     drawGoalJoy: res.drawGoalJoy,
     drawGoalReady: res.drawGoalReady,

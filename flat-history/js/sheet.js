@@ -1,5 +1,6 @@
 // 1秒のページ（2D世界）の絵。空は透明にして、ページを重ねると地面が奥行きにのびて見えるようにする。
-import { look, kindColor } from './look/index.js?v=65';
+import { look, kindColor } from './look/index.js?v=66';
+import { dizzyStars } from './look/ink.js?v=66';
 
 export const S = 20; // 1マスのピクセル
 
@@ -16,9 +17,18 @@ export function terrainCanvas(L) {
   return cv;
 }
 
-export function drawWalker(g, L, f, scale = 1) {
-  if (!f || f.st === 'dead') return;
+export function drawWalker(g, L, f, scale = 1, t = 0) {
+  if (!f) return;
+  // 高い所から落ちて気絶（v074）: 地面にのびて、目を回す。奈落へ落ちたときは見えない
+  if (f.st === 'dead') { if (f.faint != null) (look().drawFaint || faintFallback)(g, L, f, S, Math.max(0, t - f.faint), scale); return; }
   look().drawWalker(g, L, f, S, scale);
+}
+// 気絶の絵がない住人: 歩く絵をたおして、頭の上に星
+function faintFallback(g, L, f, S, since, scale) {
+  g.save(); g.translate(f.x * S, (L.H - f.y) * S); g.rotate(-Math.PI / 2 * f.dir); g.translate(-f.x * S, -(L.H - f.y) * S);
+  look().drawWalker(g, L, { ...f, st: 'idle' }, S, scale);
+  g.restore();
+  dizzyStars(g, f.x * S, (L.H - f.y) * S - 12 * scale, since, scale);
 }
 
 // ページを描く。opt.paper: 紙の地を敷く、opt.label: 秒の札
@@ -39,7 +49,7 @@ export function drawSheet(g, L, t, frame, secs, opt = {}) {
   if (since !== null && look().drawGoalJoy) look().drawGoalJoy(g, L, S, since);
   for (const s of secs) look().drawSection(g, L, s, S, kindColor(s.p.kind));
   if (frame && frame.stones) for (const st of frame.stones) if (st.st !== 'gone') look().drawStone(g, L, st, S);
-  drawWalker(g, L, since !== null ? { ...frame, since } : frame);
+  drawWalker(g, L, since !== null ? { ...frame, since } : frame, 1, t);
   // 刷りそこない（だめな歴史の、つまずいたあとのページ）: 紙の色をかぶせてかすれさせる
   if (opt.misprintAfter != null && t > opt.misprintAfter) {
     const u = Math.min(1, (t - opt.misprintAfter) / 1.5);

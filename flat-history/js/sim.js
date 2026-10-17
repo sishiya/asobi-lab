@@ -1,5 +1,5 @@
 // 2D世界の決まったルール。置いた3Dの形は、その秒の断面（長方形）として2D世界に現れる。
-import { KINDS } from './level.js?v=65';
+import { KINDS } from './level.js?v=66';
 
 // 言語（index.html の TX(日本語, 英語)。ノードでの試験のときは日本語）
 const TX = globalThis.TX || ((ja) => ja);
@@ -208,7 +208,7 @@ export function simulate(L, pieces) {
         if (onTop || side) { touched.add(s.p); events.push({ type: 'touch', t, x: w.x, y: w.y }); }
       }
     }
-    frames[k] = { x: w.x, y: w.y, dir: w.dir, st: w.st, stones: stones.length ? stones.map((s) => ({ x: s.x, y: s.y, st: s.st })) : null };
+    frames[k] = { x: w.x, y: w.y, dir: w.dir, st: w.st, faint: w.faint, stones: stones.length ? stones.map((s) => ({ x: s.x, y: s.y, st: s.st })) : null };
     if (w.st !== 'walk' && w.st !== 'fall') continue;
 
     const sup = support(L, w.x, w.y + 0.02, secs);
@@ -247,7 +247,7 @@ export function simulate(L, pieces) {
       const ny = w.y + w.vy * DT;
       if (ny <= sup) {
         w.y = sup; w.vy = 0;
-        if (w.from - w.y > SAFE_FALL) { w.st = 'dead'; end = { type: 'fall', t, x: w.x, y: w.y }; events.push(end); }
+        if (w.from - w.y > SAFE_FALL) { w.st = 'dead'; w.faint = t; end = { type: 'fall', t, x: w.x, y: w.y }; events.push(end); } // 高い所から落ちて気絶（地面にのこる）
         else w.st = 'walk';
       } else {
         w.y = ny;
@@ -265,7 +265,7 @@ export function frameAt(frames, t) {
   const i = Math.floor(f), j = Math.min(frames.length - 1, i + 1), u = f - i;
   const a = frames[i], b = frames[j];
   if (a.st !== b.st) return a;
-  return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, dir: a.dir, st: a.st, stones: a.stones };
+  return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, dir: a.dir, st: a.st, faint: a.faint, stones: a.stones };
 }
 
 // 置き場所: 下にある地形でとまる高さ（底なしの上だけなら -Infinity）

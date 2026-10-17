@@ -1,7 +1,7 @@
 // 見た目「図鑑の銅版画と標本室」: 線で彫った博物画の大地と、標本室。住人と主人公は residents.js・heroes.js（設定で選ぶ）
 import * as THREE from 'three';
-import { rng, canvasTexture } from './util.js?v=65';
-import { INK, hatch } from './ink.js?v=65';
+import { rng, canvasTexture } from './util.js?v=66';
+import { INK, hatch } from './ink.js?v=66';
 
 function drawTerrain(g, L, S, res) {
   const R = rng(23);

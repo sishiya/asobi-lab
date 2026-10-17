@@ -1,7 +1,7 @@
 // 2D世界の住人（設定で選ぶ）。どちらも図鑑の銅版画の線で描く
 //   kiwi: 実在の生き物（飛べない鳥キーウィ。巣穴から卵の巣へ）
 //   penguin: アデリーペンギン（小石の巣）／snail: カタツムリ（雨つぶの葉）
-import { INK, hatch } from './ink.js?v=65';
+import { INK, hatch, dizzyStars } from './ink.js?v=66';
 
 // 4つの光の星（彫った線の星）
 export function sparkle(g, x, y, r, a) {
@@ -115,6 +115,42 @@ const kiwi = {
       g.save(); g.scale(f.dir, 1); g.fillText('♪', -4 * f.dir + Math.sin(f.since * 3) * 2, -22 - (f.since * 6) % 6); g.restore();
     }
     g.restore();
+  },
+  // 高い所から落ちて気絶（v074）: あおむけにのびて足を上に、くちばしを投げ出し、目は×、頭の上で星が回る
+  drawFaint(g, L, f, S, since, scale = 1) {
+    g.save();
+    g.translate(f.x * S, py(L, S, f.y));
+    g.scale(f.dir * scale, scale);
+    // 落ちた瞬間の砂ぼこり
+    if (since < 0.6) {
+      const k = since / 0.6;
+      g.strokeStyle = `rgba(74,51,32,${0.6 * (1 - k)})`; g.lineWidth = 1;
+      for (const sx of [-1, 1]) { g.beginPath(); g.arc(sx * (8 + k * 8), -2, 2 + k * 3, Math.PI, 0); g.stroke(); }
+    }
+    g.strokeStyle = INK; g.lineCap = 'round';
+    // 上に向いた足（少しぴくぴく）
+    const tw = since < 2 ? Math.sin(since * 18) * 0.8 : 0;
+    g.lineWidth = 1.6;
+    g.beginPath(); g.moveTo(-2, -7); g.lineTo(-3.5 + tw, -14); g.lineTo(-1.5 + tw, -15.5); g.stroke();
+    g.beginPath(); g.moveTo(1.5, -7.5); g.lineTo(2.5 - tw, -15); g.lineTo(4.5 - tw, -16); g.stroke();
+    // つぶれた胴
+    g.fillStyle = '#c9a77a';
+    g.beginPath(); g.ellipse(0, -4.5, 8, 4.8, 0.08, 0, 7); g.fill();
+    g.save(); g.beginPath(); g.ellipse(0, -4.5, 8, 4.8, 0.08, 0, 7); g.clip();
+    g.strokeStyle = 'rgba(74,51,32,.75)'; g.lineWidth = 0.7;
+    for (let i = -9; i < 9; i += 1.6) { g.beginPath(); g.moveTo(i, -10); g.quadraticCurveTo(i + 1.2, -5, i + 0.4, 0); g.stroke(); }
+    g.restore();
+    g.strokeStyle = INK; g.lineWidth = 1.2;
+    g.beginPath(); g.ellipse(0, -4.5, 8, 4.8, 0.08, 0, 7); g.stroke();
+    // 地面についた頭と、投げ出したくちばし
+    g.fillStyle = '#d8bb8f';
+    g.beginPath(); g.arc(9, -3, 3, 0, 7); g.fill(); g.stroke();
+    g.beginPath(); g.moveTo(11.8, -2.2); g.quadraticCurveTo(15, -1, 18.5, -0.6); g.stroke();
+    // ×の目
+    g.lineWidth = 0.9;
+    g.beginPath(); g.moveTo(8.2, -4.6); g.lineTo(10, -2.8); g.moveTo(10, -4.6); g.lineTo(8.2, -2.8); g.stroke();
+    g.restore();
+    dizzyStars(g, f.x * S + 4 * f.dir * scale, py(L, S, f.y) - 14 * scale, since, scale);
   },
 };
 
