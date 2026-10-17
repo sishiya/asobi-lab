@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・主人公・置いた形・置き場所のゴースト・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=66';
-import { radialTexture } from './look/util.js?v=66';
-import { S, drawSheet } from './sheet.js?v=66';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=66';
-import { groundAt } from './hero.js?v=66';
+import { look, kindColor } from './look/index.js?v=67';
+import { radialTexture } from './look/util.js?v=67';
+import { S, drawSheet } from './sheet.js?v=67';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=67';
+import { groundAt } from './hero.js?v=67';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）

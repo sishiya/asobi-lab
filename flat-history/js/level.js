@@ -19,7 +19,7 @@ export const KINDS = {
   hump: { w: 5, h: 1, d: 12, slope: 0, hump: 4, desc: 'まん中が山になった、「へ」の字の板' },
   // くし形の板: すき間をあけて並んだ板。2D世界では、出たり消えたりするブロック
   comb: { w: 5, h: 1, d: 14, slope: 0, comb: [[0, 4], [5, 9], [10, 14]], desc: 'すき間をあけて並んだ、くし形の板' },
-  // らせん: まん中の軸と、まわりを巻く3すじの玉。2D世界では、ぐるぐる回る火の玉の棒（ファイアバー）
+  // らせん: まん中の軸と、まわりを巻く3すじの玉。2D世界では、ぐるぐる回る棒（v076: 火の棒はキーウィがかわいそうなので、ただの棒に）
   spiral: { w: 6, h: 6, d: 8, slope: 0, spiral: { r: [0.9, 1.75, 2.6], ball: 0.7, turns: 2 }, desc: '軸のまわりを玉が巻く、らせん' },
 };
 
@@ -34,7 +34,7 @@ export const REVEALS = {
   diamond: [TX('広がって縮む足場', 'a platform that grows and shrinks'), TX('上から見ると、ひし形の板', 'a board shaped like a diamond')],
   hump: [TX('上がって下がる、往復リフト', 'a lift that goes up and comes back down'), TX('「へ」の字に曲がった、一枚の板', 'a single board bent into a hump')],
   comb: [TX('出たり消えたりするブロック', 'blocks that appear and vanish'), TX('すき間をあけて並んだ、くし形の板', 'a comb of boards with gaps between them')],
-  spiral: [TX('ぐるぐる回る火の棒', 'a spinning fire bar'), TX('軸のまわりを玉が巻く、一本のらせん', 'a single spiral of balls around an axis')],
+  spiral: [TX('ぐるぐる回る棒', 'a spinning bar'), TX('軸のまわりを玉が巻く、一本のらせん', 'a single spiral of balls around an axis')],
 };
 
 // 地形の列の高さを、[はじめの列, 終わりの列, 高さ] の並びから作る（書いていない列は 4。null は底なし）
@@ -155,12 +155,12 @@ export const LEVELS = [
     fail: TX('ブロックが出ているあいだに、わたりきれた？', 'Did the kiwi get across while the blocks were there?'),
   },
   {
-    // ファイアバー: 巣はうしろ。回る火の玉にふれると、キーウィはびっくりして引き返す
-    ...base, id: 'g3', plate: 'XIII', name: TX('回る火の棒', 'The Fire Bar'),
+    // 回る棒: 巣はうしろ。回る棒にぶつかると、キーウィは引き返す
+    ...base, id: 'g3', plate: 'XIII', name: TX('回る棒', 'The Spinning Bar'),
     tops: tops([[30, 33, null]]), start: { x: 14, dir: 1 }, goal: { x: 3 },
     stock: { spiral: 1 },
-    hints: [{ text: TX('巣はうしろ。火の玉にふれると、キーウィはびっくりして引き返す', 'The nest is behind. When a fireball touches the kiwi, it turns back in surprise'), when: (c) => c.placed }],
-    fail: TX('火の玉は、キーウィの通る高さを通った？', 'Did a fireball pass at the kiwi’s height?'),
+    hints: [{ text: TX('巣はうしろ。回る棒にぶつかると、キーウィは引き返す', 'The nest is behind. When the spinning bar bumps the kiwi, it turns back'), when: (c) => c.placed }],
+    fail: TX('棒の先は、キーウィの通る高さを通った？', 'Did the end of the bar pass at the kiwi’s height?'),
   },
 ];
 
