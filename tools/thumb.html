@@ -53,14 +53,9 @@ const SETUP = {
     const mod = name => w.eval(`import('${new URL(src.match(new RegExp(`'\\./(${name}\\.js[^']*)'`))[1], main.src).href}')`);   // main.js と同じ URL で読む（同じモジュールになる）
     const [{ drawSheet }, { sectionsAt }, { misprintOf }] = await Promise.all([mod('sheet'), mod('sim'), mod('stage3d')]);
     const d = w.document, st = w.__fh.st;
-    // ?thumb の板（x0=9）は、図版 I が作り直される前の答えのままで、いまはキーウィが崖に落ちる（2026-10-17 に気づいた）。
-    // 正史になる場所（総当たりで x0=16〜18・3〜11 秒）へ、遊ぶ人と同じ手（持ち上げて置く）で置き直す
-    w.__fh.pickUp(st.pieces[0]); w.__fh.lockTo({ kind: 'plank', rot: 0, x0: 17, t0: 3 }); w.__fh.place(); w.__fh.stage.skipWave();
+    // 板（x0=17。正史になる場所）・カメラ・主人公は ?thumb（v091）のまま
     const hist = w.__fh.simulate(w.__fh.L, st.pieces);
     w.__thumbHist = hist;
-    // 3D の構図は ?thumb（v072）と同じ向きのまま、板の所（x 17）へ 8 ずらす。主人公も板の手前に
-    w.__fh.stage.setShot([8, 8.2, 6.5, 21, 3.6, -11]);
-    Object.assign(st.hero, { x: 16.6, t: 2.4 });
     // 2D 世界は、下に横長の帯で。ページの地面のあたり（キーウィが歩く所）だけを大きく見せる
     const css = d.createElement('style');
     css.textContent = `.thumb2d { position: fixed; left: 8px; right: 8px; bottom: 8px; height: 31vh; margin: 0; z-index: 4; padding: 6px;

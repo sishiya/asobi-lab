@@ -154,15 +154,15 @@ function cancelCarry() { if (!st.carry) return; st.carry = null; st.lock = null;
 
 // ---- 画面の切りかえ ----
 let screen = 'title';
-// タイトルのうしろの場面（v071）: 図版 I に板をかけて、キーウィが巣に着く正史。主人公は束のそばに浮かぶ。音は鳴らさない
+// タイトルのうしろの場面（v071）: 図版 I に板をかけて、キーウィが巣に着く正史（v091 で板を x0=17 へ。図版 I の作り直しのあと、x0=9 ではキーウィが崖に落ちていた）。主人公は束のそばに浮かぶ。音は鳴らさない
 function setupTitleScene() {
   loadLevel(0);
-  const p = { id: st.nextId++, kind: 'plank', rot: 0, x0: 9, t0: 3 };
+  const p = { id: st.nextId++, kind: 'plank', rot: 0, x0: 17, t0: 3 };
   p.y0 = restHeight(L, p);
   st.pieces = [p];
   st.hist = simulate(L, st.pieces);
   stage.setHistory(st.hist, st.pieces, 0, false);
-  Object.assign(st.hero, { x: 7.5, t: 8.5, vx: 0, vt: 0, fx: 0.4, ft: 1 });
+  Object.assign(st.hero, { x: 15.5, t: 8.5, vx: 0, vt: 0, fx: 0.4, ft: 1 });
   st.hero.y = st.hero.floor = groundAt(L, st.pieces, st.hero.x, st.hero.t, Infinity);
   st.revealT = L.T;
 }
@@ -945,15 +945,15 @@ if (new URLSearchParams(location.search).has('thumb')) {
   document.body.classList.add('thumb');
   cfg.inset = false; applyInset();
   loadLevel(0); showScreen('game');
-  st.carry = { kind: 'plank', rot: 0 }; lockTo({ kind: 'plank', rot: 0, x0: 9, t0: 3 }); place();
+  st.carry = { kind: 'plank', rot: 0 }; lockTo({ kind: 'plank', rot: 0, x0: 17, t0: 3 }); place();
   stage.setHistory(st.hist, st.pieces, null, false); stage.skipWave();
-  Object.assign(st.hero, { x: 7.2, t: 0.6, y: 4, fx: 0.5, ft: 1 });
+  Object.assign(st.hero, { x: 15.2, t: 0.6, y: 4, fx: 0.5, ft: 1 });
   st.revealT = L.T;
-  // v072: サムネイル用の決めたカメラ（?cam=カメラx,y,z,見る先x,y,z で変えられる。z は -秒）
+  // v072: サムネイル用の決めたカメラ（?cam=カメラx,y,z,見る先x,y,z で変えられる。z は -秒）。v091 で板を x0=17 へ置き直したので、カメラと主人公も x を 8 ずらした
   const cam = (new URLSearchParams(location.search).get('cam') || '').split(',').map(Number);
-  stage.setShot(cam.length === 6 && cam.every(Number.isFinite) ? cam : [0, 8.2, 6.5, 13, 3.6, -11]); // 住人の列が板へ向かい、主人公がまん中に浮かぶ構図
+  stage.setShot(cam.length === 6 && cam.every(Number.isFinite) ? cam : [8, 8.2, 6.5, 21, 3.6, -11]); // 住人の列が板へ向かい、主人公がまん中に浮かぶ構図
   const hp = (new URLSearchParams(location.search).get('hero') || '').split(',').map(Number);
-  Object.assign(st.hero, hp.length === 2 && hp.every(Number.isFinite) ? { x: hp[0], t: hp[1] } : { x: 8.6, t: 2.4 });
+  Object.assign(st.hero, hp.length === 2 && hp.every(Number.isFinite) ? { x: hp[0], t: hp[1] } : { x: 16.6, t: 2.4 });
   st.hero.y = st.hero.floor = groundAt(L, st.pieces, st.hero.x, st.hero.t, Infinity);
 }
 requestAnimationFrame(loop);
