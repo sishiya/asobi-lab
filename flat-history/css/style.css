@@ -1083,3 +1083,20 @@ kbd { border-width: 1px !important; border-style: solid !important; border-color
   clip-path: polygon(evenodd, calc(3px + 5.2px) 3px, calc(100% - 3px - 5.2px) 3px, calc(100% - 3px) calc(3px + 5.2px), calc(100% - 3px) calc(100% - 3px - 5.2px), calc(100% - 3px - 5.2px) calc(100% - 3px), calc(3px + 5.2px) calc(100% - 3px), 3px calc(100% - 3px - 5.2px), 3px calc(3px + 5.2px), calc(3px + 5.2px) 3px, calc(4px + 4.6px) 4px, calc(100% - 4px - 4.6px) 4px, calc(100% - 4px) calc(4px + 4.6px), calc(100% - 4px) calc(100% - 4px - 4.6px), calc(100% - 4px - 4.6px) calc(100% - 4px), calc(4px + 4.6px) calc(100% - 4px), 4px calc(100% - 4px - 4.6px), 4px calc(4px + 4.6px), calc(4px + 4.6px) 4px);
 }
 .headgroup .bind-btn { color: #fbefcf; letter-spacing: .24em; text-shadow: 0 1px 0 rgba(10, 20, 50, .7), 0 0 10px rgba(240, 207, 122, .25); }
+
+
+/* v086: やること2つ（回答する・パレットの形）を、ほかの画面のいちばんの行動と同じ「金」に（ユーザー「黄色ベースにしつつ、2D背景と重なった時に埋もれないように」）。
+   紙（明るいクリーム）にまぎれないよう、金のふちの外に暗い墨のふち 2px と、下へ落ちるやわらかい影。奈落（暗い緑）の上では金そのものが目立つ。
+   回答する: 金の地に暗い字（ほかの画面の いちばんの行動 と同じ）、内がわに彫った細い線。
+   形のボタン: 金のわくの中に暗い窓（黄色い板なども金にまぎれない）。標本を金のわくに入れたように */
+.headgroup .bind-btn, .palette .kind { --edge: #14231f; }
+.headgroup .bind-btn::before, .palette .kind::before { inset: 2px; clip-path: polygon(calc(2px + 5.82px) 2px, calc(100% - 2px - 5.82px) 2px, calc(100% - 2px) calc(2px + 5.82px), calc(100% - 2px) calc(100% - 2px - 5.82px), calc(100% - 2px - 5.82px) calc(100% - 2px), calc(2px + 5.82px) calc(100% - 2px), 2px calc(100% - 2px - 5.82px), 2px calc(2px + 5.82px)); }
+.headgroup .bind-btn { --fill: linear-gradient(180deg, rgba(255, 255, 255, .28), rgba(255, 255, 255, 0) 42%), linear-gradient(180deg, #f6dc8e, #e0b14c 55%, #c08a28); --ring: rgba(120, 78, 18, .55); color: #14302a; letter-spacing: .24em; text-shadow: 0 1px 0 rgba(255, 244, 210, .65); }
+.headgroup .bind-btn:hover { --fill: linear-gradient(180deg, rgba(255, 255, 255, .32), rgba(255, 255, 255, 0) 42%), linear-gradient(180deg, #fbe6a6, #e9be5a 55%, #cc9632); --ring: rgba(120, 78, 18, .7); }
+.headgroup .bind-btn::after { clip-path: polygon(evenodd, calc(4px + 4.64px) 4px, calc(100% - 4px - 4.64px) 4px, calc(100% - 4px) calc(4px + 4.64px), calc(100% - 4px) calc(100% - 4px - 4.64px), calc(100% - 4px - 4.64px) calc(100% - 4px), calc(4px + 4.64px) calc(100% - 4px), 4px calc(100% - 4px - 4.64px), 4px calc(4px + 4.64px), calc(4px + 4.64px) 4px, calc(5px + 4.05px) 5px, calc(100% - 5px - 4.05px) 5px, calc(100% - 5px) calc(5px + 4.05px), calc(100% - 5px) calc(100% - 5px - 4.05px), calc(100% - 5px - 4.05px) calc(100% - 5px), calc(5px + 4.05px) calc(100% - 5px), 5px calc(100% - 5px - 4.05px), 5px calc(5px + 4.05px), calc(5px + 4.05px) 5px); }
+.palette .kind { --fill: linear-gradient(180deg, rgba(255, 255, 255, .28), rgba(255, 255, 255, 0) 42%), linear-gradient(180deg, #f6dc8e, #e0b14c 55%, #c08a28); --ring: #14342f; }
+.palette .kind:hover { --fill: linear-gradient(180deg, rgba(255, 255, 255, .32), rgba(255, 255, 255, 0) 42%), linear-gradient(180deg, #fbe6a6, #e9be5a 55%, #cc9632); --ring: #1a453e; }
+.palette .kind.sel { --edge: #fff3c8; --fill: linear-gradient(180deg, rgba(255, 255, 255, .32), rgba(255, 255, 255, 0) 42%), linear-gradient(180deg, #fbe6a6, #e9be5a 55%, #cc9632); --ring: #2b5f55; }
+.palette .kind::after { clip-path: polygon(calc(7px + 2.87px) 7px, calc(100% - 7px - 2.87px) 7px, calc(100% - 7px) calc(7px + 2.87px), calc(100% - 7px) calc(100% - 7px - 2.87px), calc(100% - 7px - 2.87px) calc(100% - 7px), calc(7px + 2.87px) calc(100% - 7px), 7px calc(100% - 7px - 2.87px), 7px calc(7px + 2.87px)); background: var(--ring); box-shadow: none; }
+.palette .kind .ct { color: #fbefcf; text-shadow: 0 1px 2px #000, 0 0 3px #000; }
+.headgroup, .pal-list { filter: drop-shadow(0 2px 3px rgba(10, 18, 14, .55)) drop-shadow(0 6px 10px rgba(10, 18, 14, .25)); }
