@@ -1021,3 +1021,42 @@ kbd { background: rgba(26, 163, 155, .12); color: var(--d-gold2); border-color: 
 
 /* v075: 結果画面のボタンの下のあきを、開始の画面とそろえる（17px → 25px） */
 .rp-foot .win-acts { padding-bottom: 10px; }
+
+
+/* v083: かどの形をそろえる（ユーザー「フレームが直角なもの・角丸・45度に落としたものがあって統一感がない」）。
+   きまり: 四角い枠はぜんぶ45度の面取り。大きいパネルは 12px（線は二重）、ボタンと小さい枠は 7px、とても小さいもの（キーの札・言語の切りかえの中）は 3px。
+   丸のままは、ほんとうに丸いものだけ（指のスティック・シークバーのつまみ）。
+   線は面取りした絵（border-image）で描く。clip-path で枠ごと切ると、かどの斜めの線が欠けるため（v059 と同じ悩み）。スクロールするパネルでも、線は動かない */
+:root {
+  --facet-lg: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
+  --facet-xs: polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px);
+  --frame-lg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpolygon points='12.21,0.5 35.79,0.5 47.5,12.21 47.5,35.79 35.79,47.5 12.21,47.5 0.5,35.79 0.5,12.21' fill='none' stroke='rgba%28216,182,104,0.6%29' stroke-width='1'/%3E%3Cpolygon points='14.28,5.5 33.72,5.5 42.5,14.28 42.5,33.72 33.72,42.5 14.28,42.5 5.5,33.72 5.5,14.28' fill='none' stroke='rgba%28216,182,104,0.26%29' stroke-width='1'/%3E%3C/svg%3E");
+  --frame-sm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30'%3E%3Cpolygon points='7.21,0.5 22.79,0.5 29.5,7.21 29.5,22.79 22.79,29.5 7.21,29.5 0.5,22.79 0.5,7.21' fill='none' stroke='rgba%28216,182,104,0.6%29' stroke-width='1'/%3E%3C/svg%3E");
+  --frame-xs: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Cpolygon points='3.21,0.5 10.79,0.5 13.5,3.21 13.5,10.79 10.79,13.5 3.21,13.5 0.5,10.79 0.5,3.21' fill='none' stroke='rgba%28216,182,104,0.6%29' stroke-width='1'/%3E%3C/svg%3E");
+}
+.title-card, .select-card, .modal-card {
+  border-width: 1px !important; border-style: solid !important; border-color: transparent !important; border-radius: 0 !important;
+  border-image: var(--frame-lg) 18 / 18px stretch !important; clip-path: var(--facet-lg);
+  box-shadow: none !important;
+}
+.inset, .bottom, .coach, .prompt, .toast, .undo-tip, .langsw, .icon-btn, .back, select, .rv-item, .tnudge button {
+  border-width: 1px !important; border-style: solid !important; border-color: transparent !important; border-radius: 0 !important;
+  border-image: var(--frame-sm) 10 / 10px stretch !important; clip-path: var(--facet);
+}
+.inset canvas { border-radius: 0; }
+kbd { border-width: 1px !important; border-style: solid !important; border-color: transparent !important; border-radius: 0 !important; border-image: var(--frame-xs) 5 / 5px stretch !important; clip-path: var(--facet-xs); }
+/* 入れ子のかど（ユーザー「単純にぜんぶそろえるとミスマッチがおこる」）: 外の枠の中に置く面は、外と同じ中心の面取りにする。
+   すきま d だけ内側なら、かどは 外のかど − 0.59×d（斜めの線がそろって平行になる）。
+   言語の切りかえ: 外 7px・すきま 3px → 中のボタンは 5px。小窓の2Dのページは すきま 10px → 約 1px なので、四角のままでよい */
+.langsw button { border-radius: 0; clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px); }
+/* スクロールバーも、白い丸ではなく、金の細い棒（かどは四角） */
+.select-card, .modal-card, .modal-card * { scrollbar-width: thin; scrollbar-color: rgba(216, 182, 104, .45) transparent; }
+.select-card::-webkit-scrollbar, .modal-card ::-webkit-scrollbar, .modal-card::-webkit-scrollbar { width: 8px; height: 8px; }
+.select-card::-webkit-scrollbar-track, .modal-card ::-webkit-scrollbar-track, .modal-card::-webkit-scrollbar-track { background: transparent; }
+.select-card::-webkit-scrollbar-thumb, .modal-card ::-webkit-scrollbar-thumb, .modal-card::-webkit-scrollbar-thumb { background: rgba(216, 182, 104, .45); border-radius: 0; border: 2px solid transparent; background-clip: padding-box; }
+/* v083: 回答するボタンが中央からずれていた（右上にあったころの right: 24px・top: 16px が、見出しの中の relative でも効いて、左へ 24px・下へ 16px）。
+   見出しの中では位置のずらしを消し、すきまは margin でとる */
+.headgroup .bind-btn { top: auto !important; right: auto !important; bottom: auto !important; left: auto !important; margin-top: 24px; }
+@media (max-width: 760px), (max-height: 520px) { .headgroup .bind-btn { margin-top: 10px; } }
+/* スマホ: まとまりは右寄せのまま（v052）。説明の字は、行の頭がそろうよう左寄せ（右寄せだと2行目の頭がずれて読みにくい） */
+@media (max-width: 760px), (max-height: 520px) { .headgroup .coach { text-align: left; } }
