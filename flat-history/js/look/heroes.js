@@ -9,7 +9,7 @@
 // userData.sliceHatch: 断面にハッチングの線をのせる（銅版画になじませる）
 // userData.animate(dt, s) で動く。s = { speed(0〜), run, grounded, vy, carry, landT }
 import * as THREE from 'three';
-import { radialTexture } from './util.js?v=71';
+import { radialTexture } from './util.js?v=72';
 
 // 言語（index.html の TX(日本語, 英語)。ノードでの試験のときは日本語）
 const TX = globalThis.TX || ((ja) => ja);

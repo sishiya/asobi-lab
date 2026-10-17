@@ -1,9 +1,9 @@
 // 見た目: 図鑑の銅版画と標本室（museum）に、設定で選ぶ主人公（3D）と住人（2D）をのせる
 // 言語（index.html の TX(日本語, 英語)。ノードでの試験のときは日本語）
 const TX = globalThis.TX || ((ja) => ja);
-import museum from './museum.js?v=71';
-import { RESIDENTS } from './residents.js?v=71';
-import { HEROES, HERO_LIST } from './heroes.js?v=71';
+import museum from './museum.js?v=72';
+import { RESIDENTS } from './residents.js?v=72';
+import { HEROES, HERO_LIST } from './heroes.js?v=72';
 
 export { HERO_LIST };
 export const RES_LIST = [{ id: 'kiwi', name: TX('キーウィ', 'Kiwi') }, { id: 'penguin', name: TX('ペンギン', 'Penguin') }, { id: 'snail', name: TX('カタツムリ', 'Snail') }];

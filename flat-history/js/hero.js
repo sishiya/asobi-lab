@@ -1,7 +1,7 @@
 // 主人公の動き方。時空の大地（ページの上のふちが奥行きに並んだ地形）の上を、浮かんで進む（v038）。
 // 座標: x＝2D世界の横（マス）、t＝時間（秒。3Dの奥行き）、y＝高さ（マス）。
 // 主人公の体はページの間隔（1秒）より薄いので、ページのあいだを歩くかぎり2D世界とは交わらない（REDESIGN 3-1）
-import { pieceDims, sectionRects } from './sim.js?v=71';
+import { pieceDims, sectionRects } from './sim.js?v=72';
 
 // v038: 主人公は浮かんでいる。跳ぶ・よじ登る・落ちるはやめた。足もとの高さへ、ばねのようにふわりと寄る（少しゆれて、ぴたりとは張りつかない）
 // 奈落の上では、さっきの高さのまま浮かんでいる（落ちない）
@@ -39,7 +39,7 @@ export function makeHero(L) {
   let x = L.start.x, best = Infinity;
   for (let c = 1.5; c <= L.W - 1.5; c += 0.5) {
     const g = L.tops[Math.floor(c)];
-    if (!Number.isFinite(g) || Math.abs(c - L.start.x) < 3 || Math.abs(c - L.goal.x) < 3) continue;
+    if (!Number.isFinite(g) || [L.start, L.goal, ...(L.more || []).flatMap((m) => [m.start, m.goal])].some((q) => Math.abs(c - q.x) < 3)) continue;
     if (Math.abs(c - want) < best) { best = Math.abs(c - want); x = c; }
   }
   const t = 1.5, y = L.tops[Math.floor(x)];

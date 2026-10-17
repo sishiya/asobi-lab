@@ -1,5 +1,5 @@
 // 2D世界の決まったルール。置いた3Dの形は、その秒の断面（長方形）として2D世界に現れる。
-import { KINDS } from './level.js?v=71';
+import { KINDS } from './level.js?v=72';
 
 // 言語（index.html の TX(日本語, 英語)。ノードでの試験のときは日本語）
 const TX = globalThis.TX || ((ja) => ja);
@@ -158,100 +158,123 @@ function stepStone(L, s, t, secs) {
 }
 
 // はじめから終わりまで計算する。frames[k] は時刻 k*DT の2D人
+// v081: 住人が二羽以上の図版（L.more: [{ start, goal }]）。住人どうしはぶつかると引き返す。みんなが巣に着いたら正史
 export function simulate(L, pieces) {
   const N = Math.round(L.T / DT);
   const frames = new Array(N + 1);
   const events = [];
-  const w = { x: L.start.x, y: L.tops[Math.floor(L.start.x)], dir: L.start.dir || 1, vy: 0, st: 'walk', from: 0 };
-  let end = null, overlap = null, nestPass = null;
+  const mkW = (s, g, main) => ({ x: s.x, y: L.tops[Math.floor(s.x)], dir: s.dir || 1, vy: 0, st: 'walk', from: 0, goal: g.x, main, gt: null });
+  const ws = [mkW(L.start, L.goal, true), ...(L.more || []).map((m) => mkW(m.start, m.goal, false))];
+  const w = ws[0];
+  let end = null, overlap = null, nestPass = null, arrived = 0;
   const touched = new Set(); // 住人がふれた形（断面）。形ごとに、はじめてふれたときだけ 'touch' を記録する（判定画面の音）
   const stones = (L.stones || []).map((s) => ({ x: s.x, y: L.tops[Math.floor(s.x)], dir: s.dir, t0: s.t, st: 'wait', vy: 0 }));
+  const live = (v) => v.st === 'walk' || v.st === 'fall';
+  // v081: スイッチと扉（L.switches: [{ x, w, door: { x, h } }]）。板の上に何か（形の断面・石・住人）がのっているあいだだけ、扉が開く
+  const sws = (L.switches || []).map((sw) => ({ ...sw, on: false }));
   for (let k = 0; k <= N; k++) {
     const t = k * DT;
     const pieceSecs = sectionsAt(pieces, t);
     for (const s of stones) { const ev = stepStone(L, s, t, pieceSecs); if (ev) events.push(ev); }
     // 住人には、石も固い物
-    const secs = pieceSecs.concat(stones.filter((s) => s.st !== 'gone').map(stoneRect));
-    if (w.st === 'walk' || w.st === 'fall') {
+    const stoneRs = stones.filter((s) => s.st !== 'gone').map(stoneRect);
+    let secs = pieceSecs.concat(stoneRs);
+    if (sws.length) {
+      for (const sw of sws) {
+        const top = L.tops[Math.floor(sw.x)], x0 = sw.x - sw.w / 2, x1 = sw.x + sw.w / 2;
+        const press = (r) => !r.hot && r.x0 < x1 && r.x1 > x0 && r.y0 <= top + 0.2 && r.y1 > top;
+        const on = pieceSecs.some(press) || stoneRs.some(press) || ws.some((v) => live(v) && Math.abs(v.y - top) < 0.05 && v.x > x0 && v.x < x1);
+        if (on !== sw.on) { sw.on = on; events.push({ type: on ? 'swOn' : 'swOff', t, x: sw.x }); }
+      }
+      // しまっている扉は、背より高い壁（ぶつかると引き返す）
+      secs = secs.concat(sws.filter((sw) => !sw.on).map((sw) => { const g = L.tops[Math.floor(sw.door.x)]; return { x0: sw.door.x - 0.3, x1: sw.door.x + 0.3, y0: g, y1: g + sw.door.h, door: true }; }));
+    }
+    for (const v of ws) {
+      if (!live(v)) continue;
       // 断面が体に重なって現れた・下から上がってきた
       for (const s of secs) {
         if (s.hot) {
           // 回る棒が体にぶつかった: 棒と反対の向きへ引き返す（押し出す）
-          if (w.x + HALF > s.x0 && w.x - HALF < s.x1 && s.y0 < w.y + BODY && s.y1 > w.y) {
-            const away = w.x < (s.x0 + s.x1) / 2 ? -1 : 1;
-            w.x = away < 0 ? s.x0 - HALF - 0.02 : s.x1 + HALF + 0.02;
-            if (w.dir !== away) { w.dir = away; events.push({ t, type: 'turn', x: w.x, y: w.y }); }
+          if (v.x + HALF > s.x0 && v.x - HALF < s.x1 && s.y0 < v.y + BODY && s.y1 > v.y) {
+            const away = v.x < (s.x0 + s.x1) / 2 ? -1 : 1;
+            v.x = away < 0 ? s.x0 - HALF - 0.02 : s.x1 + HALF + 0.02;
+            if (v.dir !== away) { v.dir = away; events.push({ t, type: 'turn', x: v.x, y: v.y }); }
           }
           continue;
         }
-        if (w.x + HALF > s.x0 && w.x - HALF < s.x1 && s.y0 < w.y + BODY && s.y1 > w.y + 1e-6) {
-          if (s.y1 - s.y0 <= STEP && s.y1 - w.y <= STEP && s.y0 < w.y + 0.6) {
+        if (v.x + HALF > s.x0 && v.x - HALF < s.x1 && s.y0 < v.y + BODY && s.y1 > v.y + 1e-6) {
+          if (s.y1 - s.y0 <= STEP && s.y1 - v.y <= STEP && s.y0 < v.y + 0.6) {
             // 低い・下から → 押し上げられる
-            w.y = s.y1;
-            if (w.st === 'fall') { w.st = 'walk'; w.vy = 0; }
+            v.y = s.y1;
+            if (v.st === 'fall') { v.st = 'walk'; v.vy = 0; }
           } else {
             // 背より高い形が、住人のいる所に現れた → そういう置き方は置けない（canPlace が見る）
-            if (!overlap) overlap = { t, x: w.x };
-            const toL = w.x - s.x0, toR = s.x1 - w.x;
-            w.x = toL < toR ? s.x0 - HALF - 0.01 : s.x1 + HALF + 0.01;
+            if (!overlap && !s.door) overlap = { t, x: v.x }; // しまる扉に押し出されるのは、置き方のせいではない
+            const toL = v.x - s.x0, toR = s.x1 - v.x;
+            v.x = toL < toR ? s.x0 - HALF - 0.01 : s.x1 + HALF + 0.01;
           }
         }
       }
-    }
-    // 住人が形の断面にふれた（上に立つ・横にぶつかる）か。形ごとにはじめての1回だけ 'touch'
-    if (w.st === 'walk' || w.st === 'fall') {
+      // 住人が形の断面にふれた（上に立つ・横にぶつかる）か。形ごとにはじめての1回だけ 'touch'
       for (const s of pieceSecs) {
         if (touched.has(s.p)) continue;
-        const overX = w.x + HALF + 0.25 > s.x0 && w.x - HALF - 0.25 < s.x1; // 横は、ぶつかって引き返す手前も入れる
-        const onTop = Math.abs(s.y1 - w.y) < 0.06 && w.x + HALF > s.x0 && w.x - HALF < s.x1;
-        const side = overX && s.y0 < w.y + BODY && s.y1 > w.y + 0.06;
-        if (onTop || side) { touched.add(s.p); events.push({ type: 'touch', t, x: w.x, y: w.y }); }
+        const overX = v.x + HALF + 0.25 > s.x0 && v.x - HALF - 0.25 < s.x1; // 横は、ぶつかって引き返す手前も入れる
+        const onTop = Math.abs(s.y1 - v.y) < 0.06 && v.x + HALF > s.x0 && v.x - HALF < s.x1;
+        const side = overX && s.y0 < v.y + BODY && s.y1 > v.y + 0.06;
+        if (onTop || side) { touched.add(s.p); events.push({ type: 'touch', t, x: v.x, y: v.y }); }
       }
     }
-    frames[k] = { x: w.x, y: w.y, dir: w.dir, st: w.st, faint: w.faint, stones: stones.length ? stones.map((s) => ({ x: s.x, y: s.y, st: s.st })) : null };
-    if (w.st !== 'walk' && w.st !== 'fall') continue;
+    frames[k] = { x: w.x, y: w.y, dir: w.dir, st: w.st, faint: w.faint, gt: w.gt, stones: stones.length ? stones.map((s) => ({ x: s.x, y: s.y, st: s.st })) : null,
+      sw: sws.length ? sws.map((sw) => sw.on) : null,
+      others: ws.length > 1 ? ws.slice(1).map((v) => ({ x: v.x, y: v.y, dir: v.dir, st: v.st, faint: v.faint, gt: v.gt })) : null };
 
-    const sup = support(L, w.x, w.y + 0.02, secs);
-    if (w.st === 'walk') {
-      if (w.y - sup > 0.2) { w.st = 'fall'; w.from = w.y; w.vy = 0; }
-      else {
-        w.y = sup;
-        // すべる足場の上なら、足場といっしょに横へ運ばれる（行く手が壁ならそこで止まる）
-        const ride = secs.find((s) => s.vx && Math.abs(s.y1 - sup) < 1e-6 && w.x + HALF > s.x0 && w.x - HALF < s.x1);
-        if (ride) {
-          const cx = w.x + ride.vx * DT;
-          const bt = blockTop(L, cx + Math.sign(ride.vx) * HALF, w.y, secs.filter((s) => s !== ride));
-          if (bt === -Infinity || bt - w.y <= 0.02) w.x = cx;
-        }
-        const nx = w.x + w.dir * SPEED * DT;
-        const bt = blockTop(L, nx + w.dir * HALF, w.y, secs);
-        if (bt > -Infinity) {
-          if (bt - w.y <= STEP) { w.y = bt; w.x = nx; }
-          else { w.dir = -w.dir; events.push({ t, type: 'turn', x: w.x, y: w.y }); }
-        } else w.x = nx;
-        if (Math.abs(w.x - L.goal.x) < 0.3 && w.y >= L.tops[Math.floor(L.goal.x)] - 0.01) {
-          // 時刻の窓（卵が光っているあいだ）があるなら、そのあいだに着いたときだけ巣に入る。外れたら通りすぎる
-          if (!L.window || (t >= L.window[0] && t <= L.window[1])) {
-            w.st = 'goal';
-            end = { type: 'goal', t, x: w.x, y: w.y };
-            events.push(end);
-          } else if (!nestPass || t - nestPass.t > 1) {
-            nestPass = { t, early: t < L.window[0] };
-            events.push({ type: 'nest', t, x: w.x, early: nestPass.early });
+    for (const v of ws) {
+      if (!live(v)) continue;
+      // ほかの住人は、ぶつかると引き返す相手（乗れない）
+      const mates = ws.filter((o) => o !== v && live(o)).map((o) => ({ x0: o.x - 0.3, x1: o.x + 0.3, y0: o.y, y1: o.y + BODY, hot: true, mate: true }));
+      const bsecs = mates.length ? secs.concat(mates) : secs;
+      const sup = support(L, v.x, v.y + 0.02, secs);
+      if (v.st === 'walk') {
+        if (v.y - sup > 0.2) { v.st = 'fall'; v.from = v.y; v.vy = 0; }
+        else {
+          v.y = sup;
+          // すべる足場の上なら、足場といっしょに横へ運ばれる（行く手が壁ならそこで止まる）
+          const ride = secs.find((s) => s.vx && Math.abs(s.y1 - sup) < 1e-6 && v.x + HALF > s.x0 && v.x - HALF < s.x1);
+          if (ride) {
+            const cx = v.x + ride.vx * DT;
+            const bt = blockTop(L, cx + Math.sign(ride.vx) * HALF, v.y, bsecs.filter((s) => s !== ride));
+            if (bt === -Infinity || bt - v.y <= 0.02) v.x = cx;
+          }
+          const nx = v.x + v.dir * SPEED * DT;
+          const bt = blockTop(L, nx + v.dir * HALF, v.y, bsecs);
+          if (bt > -Infinity) {
+            if (bt - v.y <= STEP) { v.y = bt; v.x = nx; }
+            else { v.dir = -v.dir; events.push({ t, type: 'turn', x: v.x, y: v.y }); }
+          } else v.x = nx;
+          if (Math.abs(v.x - v.goal) < 0.3 && v.y >= L.tops[Math.floor(v.goal)] - 0.01) {
+            // 時刻の窓（卵が光っているあいだ）があるなら、そのあいだに着いたときだけ巣に入る。外れたら通りすぎる（窓は、はじめの住人だけ）
+            if (!v.main || !L.window || (t >= L.window[0] && t <= L.window[1])) {
+              v.st = 'goal'; v.gt = t; arrived++;
+              if (arrived === ws.length && !end) { end = { type: 'goal', t, x: v.x, y: v.y }; events.push(end); }
+              else events.push({ type: 'arrive', t, x: v.x, y: v.y });
+            } else if (!nestPass || t - nestPass.t > 1) {
+              nestPass = { t, early: t < L.window[0] };
+              events.push({ type: 'nest', t, x: v.x, early: nestPass.early });
+            }
           }
         }
       }
-    }
-    if (w.st === 'fall') {
-      w.vy -= G * DT;
-      const ny = w.y + w.vy * DT;
-      if (ny <= sup) {
-        w.y = sup; w.vy = 0;
-        if (w.from - w.y > SAFE_FALL) { w.st = 'dead'; w.faint = t; end = { type: 'fall', t, x: w.x, y: w.y }; events.push(end); } // 高い所から落ちて気絶（地面にのこる）
-        else w.st = 'walk';
-      } else {
-        w.y = ny;
-        if (w.y < -3) { w.st = 'dead'; end = { type: 'abyss', t, x: w.x, y: w.y }; events.push(end); }
+      if (v.st === 'fall') {
+        v.vy -= G * DT;
+        const ny = v.y + v.vy * DT;
+        if (ny <= sup) {
+          v.y = sup; v.vy = 0;
+          if (v.from - v.y > SAFE_FALL) { v.st = 'dead'; v.faint = t; const e = { type: 'fall', t, x: v.x, y: v.y }; if (!end) { end = e; events.push(e); } } // 高い所から落ちて気絶（地面にのこる）
+          else v.st = 'walk';
+        } else {
+          v.y = ny;
+          if (v.y < -3) { v.st = 'dead'; const e = { type: 'abyss', t, x: v.x, y: v.y }; if (!end) { end = e; events.push(e); } }
+        }
       }
     }
   }
@@ -265,7 +288,8 @@ export function frameAt(frames, t) {
   const i = Math.floor(f), j = Math.min(frames.length - 1, i + 1), u = f - i;
   const a = frames[i], b = frames[j];
   if (a.st !== b.st) return a;
-  return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, dir: a.dir, st: a.st, faint: a.faint, stones: a.stones };
+  const others = a.others && b.others ? a.others.map((o, n) => { const q = b.others[n]; return o.st !== q.st ? o : { ...o, x: o.x + (q.x - o.x) * u, y: o.y + (q.y - o.y) * u }; }) : a.others;
+  return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, dir: a.dir, st: a.st, faint: a.faint, gt: a.gt, stones: a.stones, sw: a.sw, others };
 }
 
 // 置き場所: 下にある地形でとまる高さ（底なしの上だけなら -Infinity）

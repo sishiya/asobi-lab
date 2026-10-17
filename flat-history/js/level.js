@@ -163,6 +163,35 @@ export const LEVELS = [
     hints: [{ text: TX('巣はうしろ。回る棒にぶつかると、キーウィは引き返す', 'The nest is behind. When the spinning bar bumps the kiwi, it turns back'), when: (c) => c.placed }],
     fail: TX('棒の先は、キーウィの通る高さを通った？', 'Did the end of the bar pass at the kiwi’s height?'),
   },
+  // ---- 次の巻より（v081。むずかしい図版。次の作品で広がりそうな、新しいしくみ） ----
+  {
+    // ふたりの住人: 二羽とも、自分の巣と反対へ歩きだし、崖に落ちる。住人どうしはぶつかると引き返す。
+    // 崖に橋をかけて、二羽を出会わせれば、ぶつかって、そろって巣へ帰る（橋は、帰り道にもいる）
+    ...base, T: 30, id: 'x1', plate: 'XIV', name: TX('ふたりの住人', 'Two Residents'), extra: true,
+    tops: tops([[17, 19, null]]), start: { x: 6, dir: 1 }, goal: { x: 2 },
+    more: [{ start: { x: 31, dir: -1 }, goal: { x: 34 } }],
+    reveal: ['plank', TX('ふたりが出会う、つかのまの橋', 'a fleeting bridge where the two meet'), TX('二羽の行きと帰りをつつむ、一枚の板', 'one board that holds both the way out and the way back')],
+    stock: { plank: 1 },
+    hints: [
+      { text: TX('キーウィが二羽。どちらも、自分の巣と反対へ歩いていく', 'Two kiwis. Both are walking away from their own nests'), when: (c) => c.seenEnd },
+      { text: TX('キーウィどうしは、ぶつかると引き返す', 'When two kiwis bump into each other, they both turn back'), when: (c) => c.placed },
+    ],
+    fail: TX('二羽は出会えた？　帰り道にも、橋はある？', 'Did the two meet? Is the bridge still there on the way back?'),
+  },
+  {
+    // 見えない手のスイッチ: 扉は、スイッチの板の上に何かがのっているあいだだけ開く。キーウィはスイッチに届かない。
+    // 橋の板の断面が、スイッチを押しつづける（一枚で、橋とスイッチを押す手をかねる）
+    ...base, T: 30, id: 'x2', plate: 'XV', name: TX('見えない手のスイッチ', 'The Invisible Hand'), extra: true,
+    tops: tops([[0, 1, null], [18, 19, null]]), start: { x: 4, dir: 1 }, goal: { x: 31 },
+    switches: [{ x: 21, w: 2, door: { x: 13, h: 3 } }],
+    reveal: ['plank', TX('スイッチを押しつづける、見えない手', 'an invisible hand holding the switch'), TX('橋にかけた板の、はしのほう', 'the far end of the board bridging the chasm')],
+    stock: { plank: 1 },
+    hints: [
+      { text: TX('扉は、スイッチの上に何かがのっているあいだだけ開く', 'The gate stays open only while something is on the switch'), when: (c) => c.seenEnd },
+      { text: TX('板は一枚。橋にも、スイッチを押す手にもなれる？', 'Only one board. Can it be a bridge and the hand on the switch at once?'), when: (c) => c.placed },
+    ],
+    fail: TX('キーウィが扉を通るとき、スイッチは押されていた？', 'Was the switch held down when the kiwi reached the gate?'),
+  },
 ];
 
 export const LEVEL = LEVELS[0];

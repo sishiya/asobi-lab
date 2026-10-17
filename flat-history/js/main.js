@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
-import { LEVELS, REVEALS } from './level.js?v=71';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=71';
-import { drawSheet } from './sheet.js?v=71';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=71';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=71';
-import { makeHero, stepHero, groundAt } from './hero.js?v=71';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=71';
+import { LEVELS, REVEALS } from './level.js?v=72';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=72';
+import { drawSheet } from './sheet.js?v=72';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=72';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=72';
+import { makeHero, stepHero, groundAt } from './hero.js?v=72';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=72';
 
 const $ = (id) => document.getElementById(id);
 
@@ -214,11 +214,11 @@ function firstUnsolved() { const i = LEVELS.findIndex((l) => !progress[l.id]); r
 let selectFrom = 'title';
 function renderSelect(from) {
   selectFrom = from;
-  for (const [boxId, tut] of [['selTut', true], ['selMain', false]]) {
+  for (const [boxId, grp] of [['selTut', 'tut'], ['selMain', 'main'], ['selExtra', 'extra']]) {
     const box = $(boxId);
     box.innerHTML = '';
     LEVELS.forEach((l, i) => {
-      if (!!l.tutorial !== tut) return;
+      if ((l.extra ? 'extra' : l.tutorial ? 'tut' : 'main') !== grp) return;
       const p = progress[l.id];
       const b = document.createElement('button');
       b.type = 'button';
@@ -231,7 +231,7 @@ function renderSelect(from) {
   $('selEnding').hidden = !allSolved();
   showScreen('select');
 }
-const allSolved = () => LEVELS.every((l) => progress[l.id]);
+const allSolved = () => LEVELS.every((l) => l.extra || progress[l.id]); // 「次の巻より」の図版は、おわりの図版の条件に入れない
 // ---- エンディング: 全部の図版が正史になったら、代々の住人が一枚のページをいっしょに歩く ----
 const ENDL = { id: 'ending', W: 36, H: 14, T: 60, plate: '∞', tops: new Array(36).fill(4), start: { x: 1.6, dir: 1 }, goal: { x: 31 } };
 const ed = { t: 0, on: false, g: null };
@@ -692,7 +692,8 @@ function replaySounds(h, o, t) {
   for (const e of h.events) {
     if (e.t <= t0 || e.t > t) continue;
     if (e.type === 'turn') se.kiwiTurn(res);
-    else if (e.type === 'goal') se.kiwiHome();
+    else if (e.type === 'goal' || e.type === 'arrive') se.kiwiHome();
+    else if (e.type === 'swOn' || e.type === 'swOff') se.land();
     else if (e.type === 'abyss' || e.type === 'fall') se.kiwiFall();
     else if (e.type === 'touch') se.kiwiTouch();
     else if (e.type === 'plug' || e.type === 'stoneStop') se.land();
@@ -764,7 +765,7 @@ function judge() {
     const prev = progress[L.id];
     progress[L.id] = { best: prev ? Math.min(prev.best, n) : n };
     saveProgress();
-    el.innerHTML = `<span class="stamp">${TX('正史', 'True history')}</span><p>` + tx(TX('キーウィは巣に着いた。この歴史が正史になった。', 'The kiwi reached the nest. This history is now the true history.')) + '</p>' + revealHtml();
+    el.innerHTML = `<span class="stamp">${TX('正史', 'True history')}</span><p>` + tx(L.more ? TX('キーウィは二羽とも巣に着いた。この歴史が正史になった。', 'Both kiwis reached their nests. This history is now the true history.') : TX('キーウィは巣に着いた。この歴史が正史になった。', 'The kiwi reached the nest. This history is now the true history.')) + '</p>' + revealHtml();
     $('rpTitle').textContent = TX('正史ができた', 'A true history!');
     setTimeout(() => se.goal(), 120);
   } else {
@@ -792,10 +793,12 @@ function judge() {
 // 種明かし（v073）: 置いた形ごとに「2Dではこう見えた → 3Dではこんな形だった」。形の絵はパレットと同じ
 function revealHtml() {
   const kinds = [...new Set(blockPieces().map((p) => p.kind))].filter((k) => REVEALS[k]);
-  if (!kinds.length) return '';
-  return `<div class="reveal"><p class="rv-title">${TX('舞台裏', 'Behind the scenes')}</p>` + kinds.map((k) => {
+  // 図版だけの種明かし（v081。L.reveal: [形, 2Dでは, 3Dでは]）は、形の種明かしのかわりに
+  const items = kinds.map((k) => (L.reveal && L.reveal[0] === k ? L.reveal : [k, REVEALS[k][0], REVEALS[k][1]]));
+  if (!items.length) return '';
+  return `<div class="reveal"><p class="rv-title">${TX('舞台裏', 'Behind the scenes')}</p>` + items.map(([k, a, b]) => {
     const cv = document.createElement('canvas'); cv.width = 132; cv.height = 96; drawPieceIcon(cv, k);
-    return `<div class="rv-item"><img src="${cv.toDataURL()}" alt=""><p>${TX('2Dでは', 'In 2D:')} <b>${REVEALS[k][0]}</b><br>${TX('3Dでは', 'In 3D:')} <b>${REVEALS[k][1]}</b></p></div>`;
+    return `<div class="rv-item"><img src="${cv.toDataURL()}" alt=""><p>${TX('2Dでは', 'In 2D:')} <b>${a}</b><br>${TX('3Dでは', 'In 3D:')} <b>${b}</b></p></div>`;
   }).join('') + '</div>';
 }
 // 「まだ」のわけを2枚の絵で: 住人がつまずいたページと、いちばん近い形の、出ていた（いなかった）ページ

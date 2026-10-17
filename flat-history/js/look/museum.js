@@ -1,7 +1,7 @@
 // 見た目「図鑑の銅版画と標本室」: 線で彫った博物画の大地と、標本室。住人と主人公は residents.js・heroes.js（設定で選ぶ）
 import * as THREE from 'three';
-import { rng, canvasTexture } from './util.js?v=71';
-import { INK, hatch } from './ink.js?v=71';
+import { rng, canvasTexture } from './util.js?v=72';
+import { INK, hatch } from './ink.js?v=72';
 
 function drawTerrain(g, L, S, res) {
   const R = rng(23);
@@ -70,6 +70,8 @@ function drawTerrain(g, L, S, res) {
   // 家とゴール（住人ごとにちがう）
   res.drawHome(g, L, S);
   res.drawGoal(g, L, S, R);
+  // ふたりめからの住人の家と巣（v081）: 同じ絵を、その住人のスタートと巣の所に
+  for (const m of L.more || []) { const Lm = { ...L, start: m.start, goal: m.goal }; res.drawHome(g, Lm, S); res.drawGoal(g, Lm, S, R); }
 }
 
 function drawBackdrop(g, L, S, res) {
