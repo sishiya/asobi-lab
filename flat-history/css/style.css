@@ -1100,3 +1100,38 @@ kbd { border-width: 1px !important; border-style: solid !important; border-color
 .palette .kind::after { clip-path: polygon(calc(7px + 2.87px) 7px, calc(100% - 7px - 2.87px) 7px, calc(100% - 7px) calc(7px + 2.87px), calc(100% - 7px) calc(100% - 7px - 2.87px), calc(100% - 7px - 2.87px) calc(100% - 7px), calc(7px + 2.87px) calc(100% - 7px), 7px calc(100% - 7px - 2.87px), 7px calc(7px + 2.87px)); background: var(--ring); box-shadow: none; }
 .palette .kind .ct { color: #fbefcf; text-shadow: 0 1px 2px #000, 0 0 3px #000; }
 .headgroup, .pal-list { filter: drop-shadow(0 2px 3px rgba(10, 18, 14, .55)) drop-shadow(0 6px 10px rgba(10, 18, 14, .25)); }
+
+
+/* v088: 新しい金のボタンが「目立つけど、ださい」（ユーザー）。暗い墨のふちと、きつい影をやめる。
+   形と色はそのまま、ふちはほかの画面のいちばんの行動と同じ明るい金。うしろに、ふちへ向かって消えるうす暗い光の輪を置き、
+   その中だけ背景を少しぼかす（メニューなどを開いたときの うしろのぼかし 3px と同じ）。ボタンは紙の上でも浮き上がって見える */
+.headgroup .bind-btn, .palette .kind { --edge: #f6dc8e; }
+.palette .kind.sel { --edge: #fff3c8; }
+.headgroup .bind-btn::before, .palette .kind::before { inset: 1px; clip-path: var(--facet-in); }
+.headgroup, .pal-list { filter: none; }
+.bind-halo { position: relative; display: inline-flex; margin-top: 24px; isolation: isolate; }
+.headgroup .bind-halo .bind-btn { margin-top: 0; }
+@media (max-width: 760px), (max-height: 520px) { .bind-halo { margin-top: 10px; } }
+.bind-halo::before, .pal-list::before {
+  content: ""; position: absolute; inset: -16px -28px; z-index: -1; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(8, 26, 22, .55), rgba(8, 26, 22, .28) 60%, rgba(8, 26, 22, 0));
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  -webkit-mask-image: radial-gradient(closest-side, #000 50%, transparent); mask-image: radial-gradient(closest-side, #000 50%, transparent);
+}
+.pal-list { position: relative; isolation: isolate; }
+.pal-list::before { inset: -18px -30px; }
+/* 光の輪を、ボタンのまわりにしっかり見えるだけ広く（たてが狭いと、ボタンのふちに届く前に消えていた） */
+.bind-halo::before { inset: -30px -46px; background: radial-gradient(closest-side, rgba(8, 26, 22, .6), rgba(8, 26, 22, .4) 62%, rgba(8, 26, 22, 0)); -webkit-mask-image: radial-gradient(closest-side, #000 62%, transparent); mask-image: radial-gradient(closest-side, #000 62%, transparent); }
+.pal-list::before { inset: -30px -46px; background: radial-gradient(closest-side, rgba(8, 26, 22, .6), rgba(8, 26, 22, .4) 62%, rgba(8, 26, 22, 0)); -webkit-mask-image: radial-gradient(closest-side, #000 62%, transparent); mask-image: radial-gradient(closest-side, #000 62%, transparent); }
+/* うしろのぼかし（backdrop-filter）は、ふちを消す mask といっしょだと効かず、mask なしだと四角いふちが見えた → ぼかしはやめ、
+   ふちへ向かってやわらかく消える、うす暗い光の輪だけにする（グラデーションそのものが消えるので mask はいらない） */
+.bind-halo::before, .pal-list::before {
+  -webkit-backdrop-filter: none; backdrop-filter: none; -webkit-mask-image: none; mask-image: none;
+  background: radial-gradient(closest-side, rgba(8, 26, 22, .62), rgba(8, 26, 22, .42) 55%, rgba(8, 26, 22, .14) 82%, rgba(8, 26, 22, 0));
+}
+/* パレットの形の絵が金のわくにかかっていた（絵は 4px 内側、暗い窓は 7px 内側から）→ 絵を窓の中に、まわりに 4px のあきをとって収める */
+.palette .kind { padding: 11px; }
+@media (max-width: 760px), (max-height: 520px) { .palette .kind { padding: 10px; } }
+.palette .kind { padding: 13px; }
+.palette .kind .ct { right: 11px; bottom: 8px; line-height: 1; }
+@media (max-width: 760px), (max-height: 520px) { .palette .kind { padding: 11px; } .palette .kind .ct { right: 10px; bottom: 7px; } }
