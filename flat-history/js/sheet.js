@@ -1,6 +1,6 @@
 // 1秒のページ（2D世界）の絵。空は透明にして、ページを重ねると地面が奥行きにのびて見えるようにする。
-import { look, kindColor } from './look/index.js?v=72';
-import { dizzyStars } from './look/ink.js?v=72';
+import { look, kindColor } from './look/index.js?v=73';
+import { dizzyStars } from './look/ink.js?v=73';
 
 export const S = 20; // 1マスのピクセル
 
@@ -37,10 +37,20 @@ function drawSwitch(g, L, sw, on) {
   const py = (y) => (L.H - y) * S;
   // 板
   const top = L.tops[Math.floor(sw.x)], x0 = (sw.x - sw.w / 2) * S, x1 = (sw.x + sw.w / 2) * S, y = py(top);
-  const th = on ? 2 : 6;
-  g.fillStyle = BRASS; g.strokeStyle = INK; g.lineWidth = 1.2;
+  const th = on ? 2 : sw.heavy ? 9 : 6;
+  // 重いスイッチ（v082）: 鉄の板にびょうと、おもりの印
+  g.fillStyle = sw.heavy ? '#6f675c' : BRASS; g.strokeStyle = INK; g.lineWidth = 1.2;
   g.fillRect(x0 + 2, y - th, x1 - x0 - 4, th); g.strokeRect(x0 + 2, y - th, x1 - x0 - 4, th);
   g.fillStyle = 'rgba(255,240,200,.6)'; g.fillRect(x0 + 4, y - th + 1, x1 - x0 - 8, 1);
+  if (sw.heavy) {
+    g.fillStyle = INK;
+    for (const rx of [x0 + 6, x1 - 6]) { g.beginPath(); g.arc(rx, y - th / 2, 1.4, 0, 7); g.fill(); }
+    if (!on) { // おもりの印（台形と輪）
+      const cx = (x0 + x1) / 2, by = y - th - 3;
+      g.fillStyle = '#6f675c'; g.beginPath(); g.moveTo(cx - 7, by); g.lineTo(cx + 7, by); g.lineTo(cx + 5, by - 9); g.lineTo(cx - 5, by - 9); g.closePath(); g.fill(); g.stroke();
+      g.beginPath(); g.arc(cx, by - 11, 2.6, 0, 7); g.stroke();
+    }
+  }
   // 扉: 柱とまぐさ、格子（開いているときは上へ）
   const d = sw.door, gy = py(L.tops[Math.floor(d.x)]), dh = d.h * S, dx = d.x * S, hw = 0.42 * S;
   const lift = on ? dh * 0.82 : 0;

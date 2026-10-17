@@ -163,11 +163,10 @@ export const LEVELS = [
     hints: [{ text: TX('巣はうしろ。回る棒にぶつかると、キーウィは引き返す', 'The nest is behind. When the spinning bar bumps the kiwi, it turns back'), when: (c) => c.placed }],
     fail: TX('棒の先は、キーウィの通る高さを通った？', 'Did the end of the bar pass at the kiwi’s height?'),
   },
-  // ---- 次の巻より（v081。むずかしい図版。次の作品で広がりそうな、新しいしくみ） ----
   {
-    // ふたりの住人: 二羽とも、自分の巣と反対へ歩きだし、崖に落ちる。住人どうしはぶつかると引き返す。
+    // ふたりの住人（v082 で本番の図版へ。むずかしくはないので）: 二羽とも、自分の巣と反対へ歩きだし、崖に落ちる。住人どうしはぶつかると引き返す。
     // 崖に橋をかけて、二羽を出会わせれば、ぶつかって、そろって巣へ帰る（橋は、帰り道にもいる）
-    ...base, T: 30, id: 'x1', plate: 'XIV', name: TX('ふたりの住人', 'Two Residents'), extra: true,
+    ...base, T: 30, id: 'x1', plate: 'XIV', name: TX('ふたりの住人', 'Two Residents'),
     tops: tops([[17, 19, null]]), start: { x: 6, dir: 1 }, goal: { x: 2 },
     more: [{ start: { x: 31, dir: -1 }, goal: { x: 34 } }],
     reveal: ['plank', TX('ふたりが出会う、つかのまの橋', 'a fleeting bridge where the two meet'), TX('二羽の行きと帰りをつつむ、一枚の板', 'one board that holds both the way out and the way back')],
@@ -178,6 +177,7 @@ export const LEVELS = [
     ],
     fail: TX('二羽は出会えた？　帰り道にも、橋はある？', 'Did the two meet? Is the bridge still there on the way back?'),
   },
+  // ---- 次の巻より（v081。むずかしい図版。次の作品で広がりそうな、新しいしくみ） ----
   {
     // 見えない手のスイッチ: 扉は、スイッチの板の上に何かがのっているあいだだけ開く。キーウィはスイッチに届かない。
     // 橋の板の断面が、スイッチを押しつづける（一枚で、橋とスイッチを押す手をかねる）
@@ -191,6 +191,36 @@ export const LEVELS = [
       { text: TX('板は一枚。橋にも、スイッチを押す手にもなれる？', 'Only one board. Can it be a bridge and the hand on the switch at once?'), when: (c) => c.placed },
     ],
     fail: TX('キーウィが扉を通るとき、スイッチは押されていた？', 'Was the switch held down when the kiwi reached the gate?'),
+  },
+  {
+    // もう一羽が押すスイッチ（v082）: スイッチは、もう一羽のキーウィでも押せる。もう一羽は一度だけスイッチをふんで行ってしまう。
+    // 壁で、もう一羽を引き返させてもう一度ふませる（または、こちらのキーウィを崖の手前で引き返させ、もう一羽の帰り道を待つ）
+    ...base, T: 40, id: 'x3', plate: 'XVI', name: TX('もう一羽が押すスイッチ', 'The Friend on the Switch'), extra: true,
+    tops: tops([[0, 1, null]]), start: { x: 4, dir: 1 }, goal: { x: 31 },
+    more: [{ start: { x: 27, dir: -1 }, goal: { x: 34 } }],
+    switches: [{ x: 22, w: 3, door: { x: 12, h: 3 } }],
+    stock: { wall: 1 },
+    reveal: ['wall', TX('もう一羽を、もう一度スイッチへ帰す壁', 'a wall that sends the friend back onto the switch'), TX('奥行きのある、一本の柱', 'a single pillar with depth')],
+    hints: [
+      { text: TX('もう一羽がスイッチをふむと、扉が開く。でも、早すぎる', 'When the other kiwi steps on the switch, the gate opens. But too early'), when: (c) => c.seenEnd },
+      { text: TX('もう一羽に、もう一度ふんでもらえない？', 'Could the other kiwi step on it once more?'), when: (c) => c.placed },
+    ],
+    fail: TX('キーウィが扉に着いたとき、だれかがスイッチの上にいた？', 'When the kiwi reached the gate, was anyone on the switch?'),
+  },
+  {
+    // 重いスイッチ（v082）: 石の重さでしか沈まないスイッチ。ころがる石は、スイッチの上を通りすぎてしまう。
+    // 壁で、石をスイッチの上に止める（形の断面ではスイッチは沈まない）
+    ...base, T: 20, id: 'x4', plate: 'XVII', name: TX('重いスイッチ', 'The Heavy Switch'), extra: true,
+    tops: tops([[0, 1, null]]), start: { x: 4, dir: 1 }, goal: { x: 18.5 },
+    switches: [{ x: 22.5, w: 3, heavy: true, door: { x: 15.5, h: 3 } }],
+    stones: [{ x: 33.5, t: 0, dir: -1 }],
+    stock: { wall: 1 },
+    reveal: ['wall', TX('ころがる石を、スイッチの上で止める壁', 'a wall that stops the rolling stone on the switch'), TX('奥行きのある、一本の柱', 'a single pillar with depth')],
+    hints: [
+      { text: TX('このスイッチは重い。石がのったときだけ沈む', 'This switch is heavy. Only a stone can push it down'), when: (c) => c.seenEnd },
+      { text: TX('石は、スイッチの上を通りすぎてしまう', 'The stone just rolls over the switch'), when: (c) => c.placed },
+    ],
+    fail: TX('石は、スイッチの上で止まった？', 'Did the stone stop on the switch?'),
   },
 ];
 

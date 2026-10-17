@@ -1,5 +1,5 @@
 // 2D世界の決まったルール。置いた3Dの形は、その秒の断面（長方形）として2D世界に現れる。
-import { KINDS } from './level.js?v=72';
+import { KINDS } from './level.js?v=73';
 
 // 言語（index.html の TX(日本語, 英語)。ノードでの試験のときは日本語）
 const TX = globalThis.TX || ((ja) => ja);
@@ -183,7 +183,8 @@ export function simulate(L, pieces) {
       for (const sw of sws) {
         const top = L.tops[Math.floor(sw.x)], x0 = sw.x - sw.w / 2, x1 = sw.x + sw.w / 2;
         const press = (r) => !r.hot && r.x0 < x1 && r.x1 > x0 && r.y0 <= top + 0.2 && r.y1 > top;
-        const on = pieceSecs.some(press) || stoneRs.some(press) || ws.some((v) => live(v) && Math.abs(v.y - top) < 0.05 && v.x > x0 && v.x < x1);
+        // 重いスイッチ（heavy。v082）は、石の重さでしか沈まない
+        const on = sw.heavy ? stoneRs.some(press) : pieceSecs.some(press) || stoneRs.some(press) || ws.some((v) => live(v) && Math.abs(v.y - top) < 0.05 && v.x > x0 && v.x < x1);
         if (on !== sw.on) { sw.on = on; events.push({ type: on ? 'swOn' : 'swOff', t, x: sw.x }); }
       }
       // しまっている扉は、背より高い壁（ぶつかると引き返す）
