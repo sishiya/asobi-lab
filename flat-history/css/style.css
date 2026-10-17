@@ -1018,3 +1018,6 @@ kbd { background: rgba(26, 163, 155, .12); color: var(--d-gold2); border-color: 
 .rv-item p { margin: 0; font: 13px/1.6 var(--serif); color: var(--d-cream); }
 .rv-item b { color: var(--d-gold2); font-weight: 700; }
 .replay-card.with-reveal .rp-orig { display: none; }
+
+/* v075: 結果画面のボタンの下のあきを、開始の画面とそろえる（17px → 25px） */
+.rp-foot .win-acts { padding-bottom: 10px; }
