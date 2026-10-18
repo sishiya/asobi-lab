@@ -67,4 +67,16 @@
 
 - **Playwright で幅ごとに撮る**: `node tools/playwright/shots.mjs [ページ...]`（ページは `index`・`archive`・ゲームのフォルダ名。省くと全部。`--sizes=1280x720,375x740`・`--query=lang=en`・`--wait=1500`）。4章の4つの幅で入口・保管庫・各ゲームを撮り、ゲームのエラー・横のはみ出しを一覧にする。結果は `_dev/shots/<日時>/`（絵と `report.json`。Git に入れない）。画面を大きく変えたら、見せる前にこれを通して絵を見る。はじめての PC では `tools/playwright` で `npm install` と `npx playwright install chromium`（`node_modules/` は Git に入れない）。
 - **ID・パスワードなどがうつらないように（ユーザーが心配したこと）**: Playwright は毎回まっさらなブラウザで開く（保存したパスワード・自動入力・Cookie・拡張機能・履歴なし）。**ふだんの Chrome のユーザーデータは使わない**（`launchPersistentContext` やログイン状態の保存・読みこみ `storageState` は使わない）。開くのは `shots.mjs` が `127.0.0.1` に立てる読むだけのサーバーだけで（「.」で始まるファイルは出さない）、外のページへの移動は止める。外から読むのはフォントと three.js（`LIBS`）だけ。撮るのはブラウザの中の画面だけで、音は消す（`--mute-audio`）。
+- **主人公の案をゲームの中で並べる**（ぺらぺら世界の歴史係）: `node tools/playwright/hero-lineup.mjs 案.glb ... --names=いま,A,B`。ゲームの図版 I に入れて、PC・スマホの原寸・シルエット・白黒を1枚に（`_dev/lineup/<日時>/sheet.png`）。見た目の決めごとは `flat-history/ART.md`。
+- **1こまずつ録画する**: `node tools/playwright/record.mjs <ページ> --query=... --sheet=秒,秒,...`。ページに `window.__capture = { duration, step(dt) }` を用意する。動画とこま割りは `_dev/motion/<日時>/`（Git に入れない）。
 - **Blender**: 5.2.2 LTS（`C:\Program Files\Blender Foundation\Blender 5.2\blender.exe`。2026-10-17 にユーザーが入れた）。Claude は Python のスクリプトを書いて `blender -b -P <script.py>` で画面なしで動かし、glTF（`.glb`）に書き出して Three.js で読む。見本は `tools/blender/kiwi.py`（標本台のキーウィ、三角形 約4600・157KB）→ `_dev/blender/kiwi.glb`、見るページは `_dev/blender/`（`node tools/playwright/shots.mjs _dev/blender` で撮れる）。つまずいたこと: ① Blender の色の数はリニアなので、画面で見る色（sRGB）を書くときは変換する（しないと白っぽく出る。見本の `mat()`）② 金属は映りこむ光（Three.js の `scene.environment`、`RoomEnvironment` など）がないと真っ黒 ③ 影のしま模様は `shadow.bias`・`normalBias` で消す。
+
+## 10. 見た目の質の上げ方（2026-10-17 ユーザー「ツールが変わっても、手を動かす人とその考え方が変わらないから」「クオリティを上げるための対策を考えておいて」）
+
+3D の形・キャラなど、見た目を作りこむときの手順。道具（Blender・Playwright。9章）を足すだけでは質は上がらない。作り方を変える。手本は `flat-history/ART.md`（天球儀の旅人で通した記録つき）。
+
+1. **作る前に、目標を決める**: 参考（本物の作品・器具・自然の形。写さず、形と作りの手本に）を集め、ゲームごとの `ART.md` に、ゲームの中で測った大きさ・光・カメラ・制約（断面など）、形の言葉、大・中・小の比率、明暗の段、採点のしかたを書く。
+2. **大まかな形を2〜3案、ゲームの中の原寸で並べ、ユーザーに選んでもらう**（作りこむ前に。6章の「案を並べる」と同じ考え）。
+3. **作る人と見る人を分ける**: 別のエージェントを「アートディレクター役」にして、`ART.md`・並べた絵・数値の入ったスクリプトだけで採点させる（点数、重い順の直すべき所を数値で、残す所）。**最低3回直してから見せる**。同じ役を続けて使うと、前の指摘が直ったかも見てくれる。
+4. **動きは決め絵から**: 大事なポーズを数で決めて絵で確かめ、そのあいだを部品ごとに速さのちがうばねでつなぐ。こま割り（`record.mjs --sheet`）でタイミングを見る。
+5. **ビューアーの大写しで決めない**。ゲームの光・カメラ・原寸で見る。採点の道具の絵も疑う（道具の不具合で、まちがった方向に直しかけた）。

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>旅人の動きくらべ</title>
+<!-- いまの「多面体の旅人」（ゲームの makePoly）と、B 天球儀（flat-history/js/look/armillary.js）を、同じ操作で並べて動かす（RULES 10章の④。公開のゲームではない）
+     ?poses       … B の決め絵（ポーズ）を並べる。上の段は横から、下の段はゲームのカメラから
+     ?capture     … 録画用。時計を止め、tools/playwright/record.mjs が __capture.step(dt) で1こまずつ進める
+     ?dist=17     … カメラの遠さ（17 がゲームと同じ大きさ。ふつうは見やすく 10）
+     光・霧・カメラの向きは、ゲーム（stage3d.js・museum.js）と同じ数 -->
+<style>
+html,body{margin:0;height:100%;background:#173c37;overflow:hidden;font-family:"Hiragino Mincho ProN","Yu Mincho",serif}
+canvas{display:block}
+.lab{position:fixed;top:14px;color:#fff6dc;font-size:22px;font-weight:600;letter-spacing:.12em;text-shadow:0 0 4px #0f302b,0 0 8px #0f302b,0 1px 2px #0f302b;transform:translateX(-50%);white-space:nowrap}
+#state{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);color:#f3e6c8;font-size:22px;letter-spacing:.2em;padding:6px 18px;background:rgba(15,48,43,.75);border:1px solid rgba(216,182,104,.6)}
+#poseLabels{position:fixed;inset:0;pointer-events:none}
+#poseLabels div{position:absolute;color:#2a1c10;font-size:15px;transform:translateX(-50%);letter-spacing:.1em}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+<div id="labA" class="lab">いま</div><div id="labB" class="lab">B 天球儀</div>
+<div id="state"></div>
+<div id="poseLabels"></div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { HEROES } from '../../flat-history/js/look/heroes.js?v=75';
+import { makeTravelerB, KEYS } from '../../flat-history/js/look/armillary.js?v=75';
+
+const Q = new URLSearchParams(location.search);
+const POSES_MODE = Q.has('poses'), CAPTURE = Q.has('capture');
+const DIST = Number(Q.get('dist')) || 10;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#9fb592');
+scene.fog = new THREE.Fog('#cfd2ae', 38, 100);
+scene.add(new THREE.HemisphereLight('#fff2d8', '#2f5a4e', 1.25));
+const sun = new THREE.DirectionalLight('#ffe2b5', 1.5); sun.position.set(-12, 30, 20); scene.add(sun);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 400);
+
+// 床: 紙のページの束のように、1 単位ごとにページのふち（奥行きの線）と、こまかいハッチング
+function paperTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = '#efe2c4'; g.fillRect(0, 0, 256, 256);
+  g.strokeStyle = 'rgba(90,60,30,.22)'; g.lineWidth = 1;
+  for (let k = -256; k < 256; k += 9) { g.beginPath(); g.moveTo(k, 256); g.lineTo(k + 256, 0); g.stroke(); }
+  g.strokeStyle = 'rgba(70,45,22,.75)'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, 2); g.lineTo(256, 2); g.stroke();
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(200, 200); t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshLambertMaterial({ map: paperTexture() }));
+floor.rotation.x = -Math.PI / 2; scene.add(floor);
+// 足もとの影（ゲームの blob と同じ考え）
+const blobTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(40,25,10,.45)'); gr.addColorStop(1, 'rgba(40,25,10,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const makeBlob = () => { const b = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false })); b.rotation.x = -Math.PI / 2; scene.add(b); return b; };
+
+const gltf = await new GLTFLoader().loadAsync('../../flat-history/models/armillary.glb');
+
+// ---------------- 決め絵 ----------------
+if (POSES_MODE) {
+  document.getElementById('labA').hidden = document.getElementById('labB').hidden = true;
+  document.getElementById('state').textContent = 'B 天球儀の決め絵（上: 横から ／ 下: ゲームのカメラから）';
+  const names = [['idle', '待機'], ['start', '動きだし'], ['walk', '歩く'], ['run', '走る'], ['stop', '止まる（つんのめる）'], ['air', '宙'], ['land', '着地'], ['carry', '持ち上げる']];
+  const W = 2.6;
+  const rows = [];
+  names.forEach(([k], i) => {
+    for (const row of [0, 1]) {
+      const h = makeTravelerB(gltf.scene);
+      // 上の段は横から見せる（前＝右）。下の段はゲームと同じ向き（前＝奥）
+      h.userData.body.rotation.y = row === 0 ? 0 : Math.PI / 2 - 0.35;
+      h.position.set((i - (names.length - 1) / 2) * W, row === 0 ? 3.4 : 0, 0);
+      if (k === 'air') h.position.y += 0.5;
+      scene.add(h); h.userData.setKey(k); rows.push(h);
+    }
+  });
+  floor.visible = false; scene.background = new THREE.Color('#efe2c4'); scene.fog = null;
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight; camera.fov = 30; camera.updateProjectionMatrix();
+  camera.position.set(0, 3.0, 26); camera.lookAt(0, 2.2, 0);
+  renderer.render(scene, camera);
+  const pl = document.getElementById('poseLabels');
+  names.forEach(([, label], i) => {
+    const v = new THREE.Vector3((i - (names.length - 1) / 2) * W, -0.6, 0).project(camera);
+    const d = document.createElement('div'); d.textContent = label; d.style.left = ((v.x + 1) / 2 * innerWidth) + 'px'; d.style.top = ((1 - v.y) / 2 * innerHeight) + 'px'; pl.append(d);
+  });
+  window.__ready = true;
+} else {
+  // ---------------- ならべて動かす ----------------
+  const heroes = [
+    { hero: HEROES.poly(), x0: -1.7, lab: document.getElementById('labA') },
+    { hero: makeTravelerB(gltf.scene), x0: 1.7, lab: document.getElementById('labB') },
+  ];
+  for (const H of heroes) {
+    scene.add(H.hero);
+    H.blob = makeBlob();
+    H.s = { x: H.x0, z: 0, vx: 0, vz: 0, fx: 0, fz: 1, speed: 0, y: 0, vy: 0, grounded: true, landT: 0 };
+  }
+  // 操作の台本（ふたりに同じ入力）。mx・mt はゲームと同じ（mt＞0 が前＝未来＝奥）
+  const SCRIPT = [
+    [0, 1.8, '待機', {}],
+    [1.8, 4.2, '前へ歩く', { mt: 1 }],
+    [4.2, 6.0, '止まる', {}],
+    [6.0, 7.6, '横へ', { mx: 1 }],
+    [7.6, 9.8, '前へ走る', { mt: 1, run: true }],
+    [9.8, 10.6, '止まる', {}],
+    [10.6, 12.0, '跳ぶ', { jump: true }],
+    [12.0, 14.0, '持ち上げる', { carry: true }],
+    [14.0, 15.5, '待機', {}],
+  ];
+  const DUR = 15.5, SPEED = 5.2, RUN = 1.9, ACCEL = 7, SETTLE = 4;
+  let T = 0, jumped = false;
+  const camT = new THREE.Vector3(), camP = new THREE.Vector3(); let camInit = false;
+  const ORBIT = { yaw: 0.35, pitch: 0.52 };
+
+  function step(dt) {
+    T = Math.min(DUR, T + dt);
+    const seg = SCRIPT.find(([a, b]) => T >= a && T < b) || SCRIPT[SCRIPT.length - 1];
+    const inp = seg[3];
+    document.getElementById('state').textContent = seg[2];
+    if (inp.jump && !jumped) { jumped = true; heroes.forEach(H => { H.s.vy = 7; H.s.grounded = false; }); }
+    if (!inp.jump) jumped = jumped && T < 10.6 ? jumped : (T >= 12 ? jumped : false);
+    for (const H of heroes) {
+      const s = H.s, mx = inp.mx || 0, mt = inp.mt || 0, len = Math.hypot(mx, mt);
+      // ゲームの stepHero と同じ: 速さはなめらかに上がり、はなすとその場で止まる。見た目の速さは少しずつ落ちる
+      const sp = SPEED * (inp.run ? RUN : 1);
+      if (len > 0.05) { s.fx = mx; s.fz = mt; const r = Math.min(1, dt * ACCEL); s.vx += (mx * sp - s.vx) * r; s.vz += (mt * sp - s.vz) * r; }
+      else { s.vx = 0; s.vz = 0; }
+      s.x += s.vx * dt; s.z -= s.vz * dt;
+      const real = Math.hypot(s.vx, s.vz) / SPEED;
+      if (real >= s.speed) s.speed = real; else { if (len <= 0.05) s.speed = Math.min(s.speed, 1); s.speed += (real - s.speed) * Math.min(1, dt * SETTLE); }
+      // 跳ぶ
+      if (!s.grounded) { s.vy -= 18 * dt; s.y += s.vy * dt; if (s.y <= 0) { s.y = 0; s.vy = 0; s.grounded = true; s.landT = 1; } }
+      s.landT = Math.max(0, s.landT - dt * 3);
+      // 置く・向き（ゲームの stage3d.js と同じ）
+      H.hero.position.set(s.x, s.y + 0.3, s.z);
+      const want = Math.atan2(s.fz, s.fx);
+      const ud = H.hero.userData;
+      let d = want - ud.body.rotation.y; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
+      ud.body.rotation.y += d * Math.min(1, dt * 12);
+      ud.animate(dt, { speed: s.speed, run: !!inp.run, grounded: s.grounded, vy: s.vy, carry: !!inp.carry, landT: s.landT });
+      H.blob.position.set(s.x, 0.02, s.z); H.blob.scale.setScalar(1 / (1 + s.y * 0.3));
+    }
+    // カメラ: ふたりのまん中を、ゲームと同じ向き（うしろ・ななめ上）から追う
+    const mx = (heroes[0].s.x + heroes[1].s.x) / 2, mz = (heroes[0].s.z + heroes[1].s.z) / 2;
+    camT.set(mx, 1.6, mz);
+    const cp = Math.cos(ORBIT.pitch);
+    const want = new THREE.Vector3(mx + Math.sin(ORBIT.yaw) * cp * DIST, 1.6 + Math.sin(ORBIT.pitch) * DIST, mz + Math.cos(ORBIT.yaw) * cp * DIST);
+    if (!camInit) { camP.copy(want); camInit = true; }
+    camP.lerp(want, Math.min(1, dt * 7));
+    camera.position.copy(camP); camera.lookAt(camT);
+    renderer.render(scene, camera);
+    // 名前の札を主人公の上に
+    for (const H of heroes) {
+      const v = H.hero.position.clone().add(new THREE.Vector3(0, 3.1, 0)).project(camera);
+      H.lab.style.left = ((v.x + 1) / 2 * innerWidth) + 'px'; H.lab.style.top = ((1 - v.y) / 2 * innerHeight - 24) + 'px';
+    }
+  }
+  function resize() { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+  addEventListener('resize', resize); resize();
+  step(0);
+  window.__capture = { duration: DUR, step };
+  window.__ready = true;
+  if (!CAPTURE) { let last = performance.now(); const loop = (now) => { step(Math.min(0.05, (now - last) / 1000)); last = now; if (T >= DUR) { T = 0; } requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+}
+</script>
+</body>
+</html>

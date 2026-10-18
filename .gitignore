@@ -36,3 +36,7 @@ time-strata/
 
 # Playwright の撮影（tools/playwright/shots.mjs）。画面の記録なので Git に入れない
 _dev/shots/
+_dev/lineup/
+_dev/motion/
+# 見た目の採点に使った絵と動画（大きいので公開しない。ローカルだけ）
+_dev/blender/review/

@@ -94,6 +94,7 @@ function sliceObject(root, z) {
   root.updateWorldMatrix(true, true);
   root.traverse((o) => {
     if (!o.isMesh || !o.visible || !o.material || o.material.wireframe || !o.material.color) return;
+    if (o.userData.noSlice) return; // 断面に出さない部品（天球儀の旅人の環・留め玉など。点が散らばって汚れに見える）
     if (o.material.transparent && !o.userData.slice) return; // すける飾りは断面にしない（ガラスなど、出したいものは userData.slice）
     const pos = o.geometry.attributes.position, idx = o.geometry.index;
     const n = idx ? idx.count : pos.count;

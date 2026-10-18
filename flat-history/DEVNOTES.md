@@ -3,7 +3,7 @@
 企画は `PLAN.md`。進め方は `../RULES.md`。
 
 ## いまの状態
-- v091-titleplank（作り直し `REDESIGN.md` の段階1〜2・試作。ver. の番号はまだつけない）。2026-10-17。
+- v092-armillary（作り直し `REDESIGN.md` の段階1〜2・試作。ver. の番号はまだつけない）。2026-10-18。
 - 2026-10-17 の大きな改修（v031〜v071）は、ユーザーの「これで push しよう」で公開した。節目として `versions/v071-titlebg/`。
 - 2026-10-16 に試作として保管庫に載せて push した（`32d1571`。ユーザーの指示）。
 
@@ -154,6 +154,7 @@
 | `js/look/museum.js` | 図鑑の銅版画の地形・紙・形の断面・標本室（`makeEnv`）・色・形の呼び名 |
 | `js/look/residents.js` | 2D世界の住人（キーウィ・サンカク）: 歩く絵・家・ゴール・正史のよろこび |
 | `js/look/heroes.js` | 主人公（多面体の旅人・学芸員）と動き（`userData.animate`） |
+| `js/look/armillary.js`・`models/armillary.glb` | 主人公「天球儀の旅人」の動き（ばね）と形（Blender。`ART.md` 6章） |
 | `js/look/index.js` | 登場する者の組み合わせ `CHAR_SETS` と `look()`（museum に住人・主人公をのせる） |
 | `js/hero.js` | 主人公の歩き方（時空の大地の高さ `groundAt`・跳ぶ・よじ登る・落ちたらもどす）。標本台は v031 でやめた |
 | `js/main.js` | 入力・形のトレイ・置く／持ち上げる・右下の窓・時間の帯・結末の一言・正史の札・くらべて再生 |

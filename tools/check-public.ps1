@@ -84,7 +84,10 @@ foreach ($f in $files) {
     # 3D の形（tools/blender/*.py で書き出す）: 先頭の JSON に作者・著作権・付加情報（extras）・PC のパスがないか。形そのものは目で確かめる
     $bytes = [IO.File]::ReadAllBytes($f)
     $json = [Text.Encoding]::UTF8.GetString($bytes, 20, [BitConverter]::ToUInt32($bytes, 12))
-    if ($json -match '"(copyright|extras|author)"|[A-Za-z]:[\\/]|/Users/|/home/') { [void]$hits.Add("$rel : glb に作者・付加情報・パスがある（書き出しの設定を見直す）") }
+    # extras は、ゲームが使う印（slice・noInk・noSlice の true）だけならよい
+    $extrasOk = $true
+    foreach ($m in [regex]::Matches($json, '"extras":\{([^}]*)\}')) { if ($m.Groups[1].Value -notmatch '^("(slice|noInk|noSlice)":true,?)+$') { $extrasOk = $false } }
+    if (-not $extrasOk -or $json -match '"(copyright|author)"|[A-Za-z]:[\\/]|/Users/|/home/') { [void]$hits.Add("$rel : glb に作者・付加情報・パスがある（書き出しの設定を見直す）") }
     continue
   }
   if ($textExt -notcontains $ext) { [void]$hits.Add("$rel : テキスト以外のファイル（画像なら撮影情報・写り込みを目で確認）"); continue }

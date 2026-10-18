@@ -330,9 +330,43 @@ const makeDodeca = () => makeGeo({
   spinBody: (m, sp) => m.rotation.set(sp * 0.3, sp * 0.6, sp * 0.2),
 });
 
-export const HEROES = { poly: makePoly, cube: makeCube, prism: makePrism, dodeca: makeDodeca, hourglass: makeHourglass, star: makeStar, crane: makeCrane, balloon: makeBalloon };
+// ---------------- 天球儀の旅人（Blender で作った形 models/armillary.glb と、ばねの動き armillary.js。ART.md 6章） ----------------
+// glb はあとから読み終わるので、まず空の入れ物をかえし、読み終わったら中身を入れる（断面と小窓は次のこまから出る）
+let armSrc = null, armLoad = null;
+function loadArmillary() {
+  if (!armLoad) {
+    armLoad = Promise.all([
+      import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'),
+      import('./armillary.js?v=75'),
+    ]).then(async ([{ GLTFLoader }, mod]) => {
+      const gltf = await new GLTFLoader().loadAsync(new URL('../../models/armillary.glb', import.meta.url).href);
+      armSrc = { scene: gltf.scene, make: mod.makeTravelerB };
+      return armSrc;
+    });
+  }
+  return armLoad;
+}
+function makeArmillary() {
+  const hero = new THREE.Group(), body = new THREE.Group();
+  hero.add(body);
+  let inner = null;
+  const fill = (src) => { inner = src.make(src.scene); hero.add(inner); };
+  if (armSrc) fill(armSrc); else loadArmillary().then(fill);
+  hero.userData = {
+    body,
+    animate(dt, s) {
+      if (!inner) return;
+      inner.userData.body.rotation.copy(body.rotation);   // ゲームが向きを入れるのは外の body。中の主人公へわたす
+      inner.userData.animate(dt, s);
+    },
+  };
+  return hero;
+}
+
+export const HEROES = { poly: makePoly, armillary: makeArmillary, cube: makeCube, prism: makePrism, dodeca: makeDodeca, hourglass: makeHourglass, star: makeStar, crane: makeCrane, balloon: makeBalloon };
 export const HERO_LIST = [
   { id: 'poly', name: TX('多面体の旅人', 'Polyhedron Traveler') },
+  { id: 'armillary', name: TX('天球儀の旅人', 'Armillary Traveler') },
   { id: 'cube', name: TX('立方体の測量士', 'Cube Surveyor') },
   { id: 'prism', name: TX('六角柱の灯守', 'Hexagonal Lamp-keeper') },
   { id: 'dodeca', name: TX('十二面体の賢者', 'Dodecahedron Sage') },

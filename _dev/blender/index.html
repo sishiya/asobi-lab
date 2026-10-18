@@ -14,7 +14,7 @@ canvas{display:block}
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 </head>
 <body>
-<div id="info">kiwi.glb — Blender 5.2 で作成・ドラッグで回す</div>
+<div id="info">Blender 5.2 で作成・ドラッグで回す</div>
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -54,7 +54,8 @@ controls.enableDamping = true;
 controls.autoRotate = true;
 controls.autoRotateSpeed = 0.8;
 
-new GLTFLoader().load('kiwi.glb', gltf => {
+const model = new URLSearchParams(location.search).get('m') || 'kiwi.glb'; // ?m=traveler.glb でほかの形
+new GLTFLoader().load(model, gltf => {
   gltf.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   scene.add(gltf.scene);
   window.__ready = true;
