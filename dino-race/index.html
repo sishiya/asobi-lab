@@ -9,7 +9,7 @@
 <script>/* 言語 ja／en（まなびラボの I18N.md・edge-falls・flat-history と同じ決め方。localStorage の manabi-lang はまなびラボ・あそびラボで共通）: ?lang= → 前に選んだもの → ブラウザの言語。js の中の文は TX(日本語, 英語)、HTML は <span lang> の対 */var LANG=(function(){var q=new URLSearchParams(location.search).get('lang'),s=null;if(new URLSearchParams(location.search).has('thumb'))q='ja';/* サムネイルは日本語 */try{s=localStorage.getItem('manabi-lang');}catch(e){}var l=q==='en'||q==='ja'?q:s==='en'||s==='ja'?s:/^ja/i.test(navigator.language||'ja')?'ja':'en';document.documentElement.lang=l;if(l==='en')document.title='Dino Sprint Ranch';return l;})();function TX(ja,en){return LANG==='en'?en:ja;}function setLang(l){try{localStorage.setItem('manabi-lang',l);}catch(e){}var u=new URL(location.href);u.searchParams.set('lang',l);location.href=u.href;}</script>
 <meta name="theme-color" content="#efe7d4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#16120d" media="(prefers-color-scheme: dark)">
-<link rel="stylesheet" href="css/style.css?v=11">
+<link rel="stylesheet" href="css/style.css?v=12">
 </head>
 <body class="app" data-screen="ranch">
 <header class="top">
@@ -152,19 +152,19 @@
 </template>
 
 <script src="https://cdn.jsdelivr.net/npm/planck@1.5.0/dist/planck.min.js"></script>
-<script src="js/genome.js?v=11"></script>
-<script src="js/sim.js?v=11"></script>
-<script src="js/ga.js?v=11"></script>
-<script src="js/draw.js?v=11"></script>
-<script src="js/cups.js?v=11"></script>
-<script src="js/sound.js?v=11"></script>
-<script src="js/store.js?v=11"></script>
-<script src="js/ranch.js?v=11"></script>
-<script src="js/view.js?v=11"></script>
-<script src="js/race.js?v=11"></script>
-<script src="js/sheets.js?v=11"></script>
-<script src="js/online.js?v=11"></script>
-<script src="js/shell.js?v=11"></script>
-<script src="js/main.js?v=11"></script>
+<script src="js/genome.js?v=12"></script>
+<script src="js/sim.js?v=12"></script>
+<script src="js/ga.js?v=12"></script>
+<script src="js/draw.js?v=12"></script>
+<script src="js/cups.js?v=12"></script>
+<script src="js/sound.js?v=12"></script>
+<script src="js/store.js?v=12"></script>
+<script src="js/ranch.js?v=12"></script>
+<script src="js/view.js?v=12"></script>
+<script src="js/race.js?v=12"></script>
+<script src="js/sheets.js?v=12"></script>
+<script src="js/online.js?v=12"></script>
+<script src="js/shell.js?v=12"></script>
+<script src="js/main.js?v=12"></script>
 </body>
 </html>

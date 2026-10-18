@@ -13,7 +13,7 @@
 | `test/check.mjs` | `npm test`: 範囲と体重がゲームと同じか（はじめの種＋くじの 2000 匹） |
 | `wrangler.toml` | 名前・Durable Object・送ってよい出どころ `ALLOW`・ログを残さない設定。**秘密は書かない** |
 
-道: `GET /dino-race/board?v=sim1&farm=<番号>`（クラスごとの上位20と、その牧場の順位）、`POST /dino-race/submit?v=sim1`（`{farm, fname, line, t, ok, g}`）。
+道: `GET /dino-race/board?v=sim1&farm=<番号>`（クラスごとの上位20と、その牧場の順位）、`POST /dino-race/submit?v=sim1`（`{farm, fname, line, t, ok, g}`）、`POST /dino-race/rename?v=sim1`（`{farm, fname}`。その牧場の行の名前をそろえる）。
 
 ## ローカルで試す（Claude もこれ）
 ```

@@ -148,6 +148,9 @@ body.racing .hud{padding-bottom:calc(4px + env(safe-area-inset-bottom))}
 .ol-msg{font-size:13px;color:var(--accent);margin:4px 0}
 .ol-msg:empty{display:none}
 .ol-pick:disabled small{color:var(--muted)}
+.ol-farm{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0}
+.ol-farm select{font:inherit;font-size:15px;min-height:44px;padding:4px 8px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);max-width:100%}
+.ol-preview{font-size:17px;margin:4px 0 8px}
 .ol-picks{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
 .ol-pick{text-align:left}
 .ol-pick small{color:var(--muted)}

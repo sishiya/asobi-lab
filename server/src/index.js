@@ -6,7 +6,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { cleanGenome, massOf, classOf, CLASSES, LINES } from './dino.js';
 
 const PHYS = ['sim1'];           // 物理の版（sim.js や planck を変えてタイムが変わったら足す。版ごとに別の表）
-const FARM_WORDS = [16, 8];      // 牧場の名前の言葉の数（dino-race/js/online.js の FARM_A・FARM_B）
+const FARM_WORDS = [40, 30];      // 牧場の名前の言葉の数（dino-race/js/online.js の FARM_A・FARM_B）
 const TOP = 20, KEEP = 300;      // 見せる数・クラスごとに残す数
 const MAX_BODY = 4096;
 const LIMIT = {submit: [12, 600e3], read: [60, 60e3]}; // [回数, ミリ秒] 1つの IP あたり
@@ -31,12 +31,13 @@ export default {
       const r = await stub.board(ip, url.searchParams.get('farm') || '');
       return json(r, r.error ? 429 : 200, cors);
     }
-    if (req.method === 'POST' && url.pathname === '/dino-race/submit') {
+    const kind = {'/dino-race/submit': 'submit', '/dino-race/rename': 'rename'}[url.pathname];
+    if (req.method === 'POST' && kind) {
       const text = await req.text();
       if (text.length > MAX_BODY) return json({error: 'size'}, 413, cors);
       let body;
       try { body = JSON.parse(text); } catch { return json({error: 'json'}, 400, cors); }
-      const r = await stub.submit(ip, body);
+      const r = await stub[kind](ip, body);
       return json(r, r.error ? (r.error === 'busy' ? 429 : 400) : 200, cors);
     }
     return json({error: 'not found'}, 404, cors);
@@ -45,6 +46,7 @@ export default {
 
 const isFarm = s => typeof s === 'string' && /^[0-9a-f]{32}$/.test(s);
 const isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
+const isFname = f => Array.isArray(f) && f.length === 2 && f.every((x, i) => isInt(x, 0, FARM_WORDS[i] - 1));
 
 async function hashOf(g) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(g)));
@@ -108,7 +110,7 @@ export class Board extends DurableObject {
     const g = cleanGenome(b.g);
     if (!g) return {error: 'genome'};
     if (!isFarm(b.farm)) return {error: 'farm'};
-    if (!Array.isArray(b.fname) || b.fname.length !== 2 || !b.fname.every((x, i) => isInt(x, 0, FARM_WORDS[i] - 1))) return {error: 'fname'};
+    if (!isFname(b.fname)) return {error: 'fname'};
     if (!Array.isArray(b.line) || b.line.length < 1 || b.line.length > 2 || !b.line.every(x => LINES.includes(x))) return {error: 'line'};
     if (typeof b.t !== 'number' || !Number.isFinite(b.t) || b.t < 5 || b.t > 40) return {error: 'time'};
     if (!isInt(b.ok, 7, 10)) return {error: 'steady'};
@@ -126,5 +128,14 @@ export class Board extends DurableObject {
     this.sql.exec('DELETE FROM rec WHERE cls = ? AND rowid NOT IN (SELECT rowid FROM rec WHERE cls = ? ORDER BY t, at LIMIT ?)', cls, cls, KEEP);
     this.top = null;
     return {ok: true, cls, M, mine: this.mine(b.farm)};
+  }
+
+  // 牧場の名前だけ変える（その牧場の行ぜんぶ）
+  async rename(ip, b) {
+    if (this.busy(ip, 'submit')) return {error: 'busy'};
+    if (!b || !isFarm(b.farm) || !isFname(b.fname)) return {error: 'shape'};
+    this.sql.exec('UPDATE rec SET fname = ? WHERE farm = ?', JSON.stringify(b.fname), b.farm);
+    this.top = null;
+    return {ok: true};
   }
 }

@@ -14,10 +14,20 @@ const PHYS_VER = 'sim1';   // 物理の版。sim.js や planck を変えてタ�
 const ONLINE_KEY = 'asobi-lab/dino-race/online-v1';
 const STEADY_MIN = 7;      // 出せるしっかり度（10回中）
 
-// 牧場の名前は決まった言葉の組み合わせ（自由な文字は送らない）。数を変えたらサーバーの FARM_WORDS も
+// 牧場の名前は、決まった言葉を2つ自分で選んで組み立てる（自由な文字は送らない。2026-10-18 ユーザー「A案でいこう」）。
+// 番号で送るので、足すときは必ず後ろに（前の番号の言葉を変えると、もう出した名前が変わる）。数を変えたらサーバーの FARM_WORDS も。
+// 自然・恐竜の時代の植物・紙と化石の言葉だけ。どう組み合わせても悪い意味にならないもの（ディレクターが確かめた）
 const FARM_A = [['ひだまり', 'Sunny'], ['そよかぜ', 'Breezy'], ['あさやけ', 'Dawn'], ['ゆうやけ', 'Sunset'], ['ほしぞら', 'Starry'], ['こはく', 'Amber'], ['いしころ', 'Pebble'], ['どんぐり', 'Acorn'],
-  ['シダ', 'Fern'], ['こけ', 'Moss'], ['すなはま', 'Sandy'], ['いずみ', 'Spring'], ['かせき', 'Fossil'], ['あおぞら', 'Bluesky'], ['わかば', 'Leafy'], ['にじ', 'Rainbow']];
-const FARM_B = [['おか', 'Hill'], ['たに', 'Valley'], ['はら', 'Meadow'], ['もり', 'Wood'], ['かわら', 'Riverside'], ['みさき', 'Cape'], ['だいち', 'Plateau'], ['いりえ', 'Cove']];
+  ['シダ', 'Fern'], ['こけ', 'Moss'], ['すなはま', 'Sandy'], ['いずみ', 'Spring'], ['かせき', 'Fossil'], ['あおぞら', 'Sky'], ['わかば', 'Leafy'], ['にじ', 'Rainbow'],
+  // v010 の2回目で足した（16〜）
+  ['つきよ', 'Moonlit'], ['あさつゆ', 'Dewy'], ['こもれび', 'Dappled'], ['ほたる', 'Firefly'], ['やまびこ', 'Echo'], ['くるみ', 'Walnut'], ['まつぼっくり', 'Pinecone'], ['さんご', 'Coral'],
+  ['ひすい', 'Jade'], ['たんぽぽ', 'Dandelion'], ['ひまわり', 'Sunflower'], ['もみじ', 'Maple'], ['さくら', 'Blossom'], ['ソテツ', 'Cycad'], ['イチョウ', 'Ginkgo'], ['トクサ', 'Horsetail'],
+  ['あけぼの', 'Daybreak'], ['ゆうなぎ', 'Calm'], ['ながれぼし', 'Comet'], ['すいれん', 'Lotus'], ['しずく', 'Droplet'], ['かざぐるま', 'Pinwheel'], ['ゆきどけ', 'Snowmelt'], ['オーロラ', 'Aurora']];
+const FARM_B = [['おか', 'Hill'], ['たに', 'Valley'], ['はら', 'Meadow'], ['もり', 'Wood'], ['かわら', 'Riverside'], ['みさき', 'Cape'], ['だいち', 'Plateau'], ['いりえ', 'Cove'],
+  // v010 の2回目で足した（8〜）
+  ['みずうみ', 'Lake'], ['ぬま', 'Marsh'], ['しま', 'Island'], ['はま', 'Shore'], ['さわ', 'Brook'], ['たき', 'Falls'], ['こみち', 'Lane'], ['せせらぎ', 'Creek'],
+  ['さきゅう', 'Dune'], ['がけ', 'Cliff'], ['ほらあな', 'Cave'], ['くさはら', 'Grassland'], ['ふもと', 'Foothill'], ['わん', 'Bay'], ['うみべ', 'Seaside'], ['いけ', 'Pond'],
+  ['こだち', 'Grove'], ['かわぐち', 'Rivermouth'], ['やまあい', 'Glen'], ['とうげ', 'Pass'], ['いわば', 'Crag'], ['こうげん', 'Highland']];
 const farmName = f => TX(`${FARM_A[f[0]][0]}の${FARM_B[f[1]][0]}牧場`, `${FARM_A[f[0]][1]} ${FARM_B[f[1]][1]} Ranch`);
 
 let online = {farm: null, fname: null, agreed: false, sent: {}, cache: null};
@@ -27,6 +37,24 @@ function loadOnline() {
   if (!Array.isArray(online.fname) || !(online.fname[0] in FARM_A) || !(online.fname[1] in FARM_B)) rerollFarm();
 }
 function saveOnline() { try { localStorage.setItem(ONLINE_KEY, JSON.stringify(online)); } catch (e) { /* 保存できなくても遊べる */ } }
+// 牧場の名前を選ぶ（2つの一覧。並びは見る人の言語の五十音・ABC 順、値は番号）
+function farmPickerHTML() {
+  const opts = (list, cur) => list.map((w, i) => [TX(w[0], w[1]), i]).sort((a, b) => a[0].localeCompare(b[0], LANG))
+    .map(([w, i]) => `<option value="${i}"${i === cur ? ' selected' : ''}>${esc(w)}</option>`).join('');
+  return `<div class="ol-farm">
+    <select data-farm="0" aria-label="${TX('牧場の名前（はじめの言葉）', 'Ranch name (first word)')}">${opts(FARM_A, online.fname[0])}</select>
+    ${TX('<span>の</span>', '')}
+    <select data-farm="1" aria-label="${TX('牧場の名前（あとの言葉）', 'Ranch name (second word)')}">${opts(FARM_B, online.fname[1])}</select>
+    <span>${TX('牧場', 'Ranch')}</span>
+    <button type="button" class="chip-btn" data-ol="dice">${TX('おまかせ', 'Surprise me')}</button></div>`;
+}
+// 選ぶと online.fname に入れて、見本（.ol-fname）を書きかえる。はじめて出す前の名前は保存もする
+function bindFarmPicker(box, onChange) {
+  const sel = [...box.querySelectorAll('[data-farm]')];
+  const show = () => box.querySelectorAll('.ol-fname').forEach(e => e.textContent = farmName(online.fname));
+  sel.forEach(el => el.onchange = () => { online.fname = sel.map(x => +x.value); show(); onChange && onChange(); });
+  box.querySelector('[data-ol=dice]').onclick = () => { rerollFarm(); sel.forEach((x, k) => x.value = online.fname[k]); show(); onChange && onChange(); };
+}
 function rerollFarm() {
   const r = n => crypto.getRandomValues(new Uint32Array(1))[0] % n;
   let f; do { f = [r(FARM_A.length), r(FARM_B.length)]; } while (online.fname && f[0] === online.fname[0] && f[1] === online.fname[1]);
@@ -124,7 +152,8 @@ function onlineHTML() {
   return `<div class="ol-chips" role="group" aria-label="${TX('体重クラス', 'Weight class')}">${chips}</div>
     ${status}${empty}<ol class="ol-list">${list}</ol>${meLine}
     <div class="btn-row"><button type="button" class="primary" data-ol="send">${TX('このクラスに出す', 'Enter this class')}</button></div>
-    <p class="note">${TX(`あなたの牧場: ${esc(farmName(online.fname))}。行を押すと、その恐竜の走りをこの画面で計算して見られます。`, `Your ranch: ${esc(farmName(online.fname))}. Tap a row to watch that dinosaur run, computed on your device.`)}
+    <p class="note">${TX(`あなたの牧場: ${esc(farmName(online.fname))}`, `Your ranch: ${esc(farmName(online.fname))}`)} <button type="button" class="link ol-link" data-ol="farm">${TX('名前を変える', 'Rename')}</button><br>
+    ${TX('行を押すと、その恐竜の走りをこの画面で計算して見られます。', 'Tap a row to watch that dinosaur run, computed on your device.')}
     <button type="button" class="link ol-link" data-ol="about">${TX('送るもの・送らないもの', 'What is sent')}</button></p>`;
 }
 function onlineBind() {
@@ -133,6 +162,7 @@ function onlineBind() {
   box.querySelectorAll('.ol-row').forEach(b => b.onclick = () => watchEntry(+b.dataset.i));
   box.querySelector('[data-ol=send]').onclick = () => openSendPick(olCls);
   box.querySelector('[data-ol=about]').onclick = openOnlineAbout;
+  box.querySelector('[data-ol=farm]').onclick = openFarmName;
   const re = box.querySelector('[data-ol=retry]'); if (re) re.onclick = loadBoard;
   if (online.cache) checkRows(online.cache.classes[olCls] || []);
   // 開いたとき読みこむ。前に読んだ表が1分より古ければ読み直す（失敗したときは「もう一度」を待つ）
@@ -199,19 +229,49 @@ function confirmFirstSend(x) {
     <p>${TX('送るのは、この1行と走りのもと（遺伝子の数値）だけです。名前やあなたのことは送りません。', 'Only this one line and the dinosaur’s genes (numbers) are sent — no names or anything about you.')}</p>
     <ol class="ol-list"><li><div class="ol-row me"><b class="rk">?</b><span class="tm">${fmtT(x.rec.finishT)}<small>${x.rec.rb.ok}/10</small></span>
       <span class="who">${esc(lineName(lineIds(x.line)))}<small class="ol-fname">${esc(farmName(online.fname))}</small></span></div></li></ol>
-    <p class="note">${TX('牧場の名前はくじで決まります。', 'Your ranch name is picked at random.')} <button type="button" class="link ol-link" data-ol="reroll">${TX('引き直す', 'Pick another')}</button></p>
+    <h3>${TX('牧場の名前', 'Ranch name')}</h3>
+    ${farmPickerHTML()}
+    <p class="note">${TX('言葉を2つ選んで組み立てます（あとから「みんな」のページで変えられます）。', 'Build it from two words (you can change it later on the Everyone page).')}</p>
     <p class="ol-msg" aria-live="polite"></p>
     <div class="btn-row"><button type="button" class="primary" data-ol="yes">${TX('出す', 'Enter')}</button><button type="button" data-ol="no">${TX('やめる', 'Cancel')}</button></div></div>`, 'online-confirm');
   const body = $('sheetBody');
-  body.querySelector('[data-ol=reroll]').onclick = () => { rerollFarm(); saveOnline(); body.querySelector('.ol-fname').textContent = farmName(online.fname); };
+  bindFarmPicker(body, saveOnline);
   body.querySelector('[data-ol=yes]').onclick = e => doSend(x, e.currentTarget);
   body.querySelector('[data-ol=no]').onclick = closeSheet;
+}
+
+// 牧場の名前を変える。もう出していれば、サーバーの自分の行もすぐにそろえる
+function openFarmName() {
+  const before = [...online.fname];
+  openSheet(TX('牧場の名前', 'Ranch name'), `<div class="about-body">
+    <p class="ol-preview"><b class="ol-fname">${esc(farmName(online.fname))}</b></p>
+    ${farmPickerHTML()}
+    <p class="ol-msg" aria-live="polite"></p>
+    <div class="btn-row"><button type="button" class="primary" data-ol="save">${TX('決める', 'Save')}</button><button type="button" data-ol="no">${TX('やめる', 'Cancel')}</button></div></div>`, 'online-farm');
+  const body = $('sheetBody');
+  bindFarmPicker(body);
+  let saved = false; // やめたとき（× や外側を押したときも）は前の名前にもどす
+  const onClose = () => { if (!$('sheet').open) { if (!saved) online.fname = before; $('sheet').removeEventListener('close', onClose); } };
+  $('sheet').addEventListener('close', onClose);
+  body.querySelector('[data-ol=no]').onclick = closeSheet;
+  body.querySelector('[data-ol=save]').onclick = async e => {
+    const btn = e.currentTarget, msg = body.querySelector('.ol-msg');
+    if (online.agreed && Object.keys(online.sent).length) {
+      btn.disabled = true; btn.textContent = TX('送っています…', 'Sending…'); msg.textContent = '';
+      const r = await api('rename', {farm: online.farm, fname: online.fname});
+      if (r.error) { btn.disabled = false; btn.textContent = TX('決める', 'Save'); msg.textContent = errText(r.error) + TX('。もう一度押してください', '. Please try again'); return; }
+      olState = 'idle';
+    }
+    saved = true; saveOnline(); closeSheet();
+    toast(TX(`牧場の名前を「${farmName(online.fname)}」にしました`, `Ranch renamed to “${farmName(online.fname)}”`));
+    renderBook();
+  };
 }
 
 function openOnlineAbout() {
   openSheet(TX('送るもの・送らないもの', 'What is sent'), `<div class="about-body">
     <h3>${TX('送るもの（「出す」を押したときだけ）', 'Sent (only when you press “Enter”)')}</h3>
-    <p>${TX('100m のタイムとしっかり度、恐竜の系統（ラプコンなど）、遺伝子の数値、牧場の名前（決まった言葉のくじ）、この端末でくじ引きした牧場の番号（同じ牧場の記録を入れかえるため）。', 'The 100m time and steadiness, the dinosaur’s line (e.g. Rapcom), its gene values, your ranch name (random fixed words), and a random ranch number made on this device (to replace your own entries).')}</p>
+    <p>${TX('100m のタイムとしっかり度、恐竜の系統（ラプコンなど）、遺伝子の数値、牧場の名前（決まった言葉から選んだもの）、この端末でくじ引きした牧場の番号（同じ牧場の記録を入れかえるため）。', 'The 100m time and steadiness, the dinosaur’s line (e.g. Rapcom), its gene values, your ranch name (chosen from fixed words), and a random ranch number made on this device (to replace your own entries).')}</p>
     <h3>${TX('送らないもの', 'Not sent')}</h3>
     <p>${TX('恐竜につけた名前、あなたの名前やメールなど。サーバーは IP アドレスを保存しません（送りすぎを防ぐために少しのあいだ数えるだけ）。', 'Names you gave your dinosaurs, or your name, e-mail, etc. The server does not store IP addresses (it only counts requests briefly to prevent flooding).')}</p>
     <p class="note">${TX('サーバーは Cloudflare の無料の枠で動かしています。混みあうと、その日は見られないことがあります。', 'The server runs on Cloudflare’s free tier; on busy days it may be unavailable.')}</p></div>`, 'online');
