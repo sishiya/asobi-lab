@@ -1,0 +1,7 @@
+{
+  "name": "asobi-lab-dino-autoplay",
+  "private": true,
+  "description": "恐竜かけっこ牧場を、ヒントどおりに遊ぶつもりで最初から最後まで自動で遊び、お題ごとの手数と時間を測る（公開しない開発用）",
+  "scripts": { "play": "node bot.js 1", "summary": "node summary.js out" },
+  "devDependencies": { "planck": "1.5.0" }
+}

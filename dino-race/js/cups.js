@@ -56,9 +56,10 @@ const CUPS = [
 
   {id: 'human', tier: 2, title: TX('人の世界記録をやぶれ', 'Break the human record'), text: TX('100m 9.58秒（人の世界記録）より速く走る。', 'Run 100m faster than 9.58s (the human world record).'), ghosts: ['human'],
    target: REFS.human.t, win: under(REFS.human.t), hint: TX('ラプトル系どうしをかけ合わせて、速い子を練習。しっかり度が低いと本番で転びます。', 'Breed Raptor lines together and train the fast ones. Low steadiness means falls on race day.')},
+  // 自動プレイ（2026-10-19）: コンピーどうしの子を練習・かけ合わせ直しで 9.0〜9.4秒（ふだん）に届き、4〜25分で取れる
   {id: 'tiny', tier: 2, title: TX('小さな俊足', 'Small and swift'), text: TX('体重 3kg 以下で、9.5秒を切る。', 'Weighing 3kg or less, run under 9.5s.'),
    need: massIn(0, 3, TX('体重 3kg 以下が出られます', 'Only 3kg or less may enter')), target: 9.5, win: under(9.5),
-   hint: TX('コンピーどうしの子は練習だけでは 9.7秒ほどで止まりがち。脚の長い子を選んでかけ合わせを重ねる。', 'Compy × Compy young tend to stall around 9.7s with training alone. Keep breeding the longest-legged ones.')},
+   hint: TX('コンピーどうしの子を練習で仕上げる。いちばん速い子どうしをかけ合わせ直すと、もう一歩伸びる。', 'Train Compy × Compy young. Breeding the fastest ones together again adds a little more.')},
   {id: 'medium', tier: 2, title: TX('中型級の韋駄天', 'Middleweight sprinter'), text: TX('体重 50〜500kg で、12秒を切る。', 'Weighing 50–500kg, run under 12s.'),
    need: massIn(50, 500, TX('体重 50〜500kg が出られます', 'Only 50–500kg may enter')), target: 12, win: under(12),
    hint: TX('はじめの3種にはこの重さがいません。ストルティオミムスの子か、大きさのちがう親どうしの子で。', 'None of the first three species fits this weight. Use Struthiomimus young, or young of parents of different sizes.')},
@@ -67,13 +68,15 @@ const CUPS = [
    hint: TX('大きいほど力が足りません（相似則）。ティラノとストルティオミムスやラプトルの子を、練習で仕上げる。', 'The bigger the body, the less strength to spare (scaling). Train young of T. rex with Struthiomimus or Raptor.')},
 
   {id: 'raptor', tier: 3, title: TX('ラプトルに勝て', 'Beat the Raptor'), text: TX('ヴェロキラプトルより先にゴールする。', 'Finish ahead of Velociraptor.'), rivals: ['raptor'], win: beatRivals,
-   hint: TX('ラプトル（8.7秒）より速い子が要ります。ストルティオミムスの長い脚が助けになるかも。', 'You need one faster than the Raptor (8.7s). Struthiomimus\'s long legs may help.')},
-  {id: 'giant', tier: 3, title: TX('巨人の全力', 'Giant at full speed'), text: TX('体重 5t 以上で、22秒を切る（はじめのティラノは 23.7秒）。', 'Weighing 5t or more, run under 22s (the founder T. rex runs 23.7s).'),
+   // ヒントは「ストルティオミムスの長い脚」だったが、ラプトル×ストルティオの子はほとんど転ぶ。体ごとのおまかせ 30世代なら 1〜2回で勝ち目が出る（2026-10-18）
+   hint: TX('ラプトル（8.6秒）より速い子が要ります。いちばん速い子を、おまかせの「体の形も変える」で 30世代。', 'You need one faster than the Raptor (8.6s). Auto-evolve your fastest for 30 generations with "Also change body shape".')},
+  {id: 'giant', tier: 3, title: TX('巨人の全力', 'Giant at full speed'), text: TX('体重 5t 以上で、22秒を切る（はじめのティラノは 23.6秒）。', 'Weighing 5t or more, run under 22s (the founder T. rex runs 23.6s).'),
    need: massIn(5000, Infinity, TX('体重 5t 以上が出られます', 'Only 5t or more may enter')), target: 22, win: under(22),
    hint: TX('ティラノどうしの子を練習・おまかせで。しっかり度の低い巨体は本番で転びやすい。', 'Use T. rex × T. rex young with training and Auto-evolve. Giants with low steadiness fall easily on race day.')},
-  // はじめは「時速 50km（7.2秒）」にしたが、ラプトル系を体ごと進化させても 8.7秒あたりで頭打ちだったので 8.0秒に（2026-10-11）
+  // はじめは「時速 50km（7.2秒）」にしたが、ラプトル系を体ごと進化させても 8.7秒あたりで頭打ちだったので 8.0秒に（2026-10-11）。
+  // 2026-10-19 の自動プレイ: 体ごとのおまかせ 30世代を重ねると 7.5〜8.0秒（ふだん）に届き、ラプトル戦で育てた子から 0.5〜9分
   {id: 'ostrich', tier: 3, title: TX('ダチョウに近づけ', 'Chase the ostrich'), text: TX('時速 45km（100m 8.0秒）を超える。ダチョウは時速 50〜70km と言われ、まだずっと先。', 'Top 45 km/h (100m in 8.0s). Ostriches are said to reach 50–70 km/h — still far ahead.'), ghosts: ['ostrich'],
-   target: 8.0, win: under(8.0), hint: TX('おまかせで「体の形も変える」を使って、体ごと速い形をさがす。', 'Use Auto-evolve with "Also change body shape" to search for a faster body.')},
+   target: 8.0, win: under(8.0), hint: TX('おまかせで「体の形も変える」を 30世代。何度か重ねて、体ごと速い形をさがす。', 'Auto-evolve with "Also change body shape" for 30 generations. Repeat a few times to find a faster body.')},
 ];
 
 // その段が開いているか（前の段のお題をぜんぶ取った）
