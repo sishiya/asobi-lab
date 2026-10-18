@@ -1,0 +1,32 @@
+{
+  "_todo": "TODO publishAt はユーザーの GO のあと、サプライズ投稿の日を決めてから（説明動画の少しあと。20:00〜20:15 はさける）。2026-10-19 に ver. 1.3 で録りなおしたショート（予告編の形、まなびラボの姉妹サイトとして）。済んだらこの行を消す",
+  "file": "_dev/promo/out/dino-race-short.mp4",
+  "thumbnail": "_dev/promo/thumbs/dino-race-short.jpg",
+  "privacy": "private",
+  "captions": {
+    "en": "_dev/promo/out/dino-race-short.en.srt"
+  },
+  "title": "人の世界記録 9.58秒より速い恐竜を育てろ！ #Shorts",
+  "description": "恐竜をかけ合わせて育て、物理の計算で本当に走らせる 100m のかけっこ。かけ合わせた子は体と走り方が合わずに転ぶけれど、練習で走りきれるようになる。ラプトルどうしの子が、人の100m世界記録 9.58秒に挑む。しし屋 まなびラボの姉妹サイト「あそびラボ」のブラウザゲーム「恐竜かけっこ牧場」から。\n\nゲーム: https://sishiya.github.io/asobi-lab/dino-race/\n\nしし屋 あそびラボ（ほかのゲーム）: https://sishiya.github.io/asobi-lab/\nしし屋 まなびラボ（学べるアプリ）: https://sishiya.github.io/manabi-lab/\n\nおもな出どころ: Sellers & Manning (2007), Hutchinson & Garcia (2002), Alexander (1976)\n\n音楽: プログラムで合成したオリジナルの音です。\n\n#恐竜 #ブラウザゲーム #あそびラボ",
+  "tags": [
+    "恐竜かけっこ牧場",
+    "Shorts",
+    "恐竜",
+    "ブラウザゲーム",
+    "育成ゲーム",
+    "遺伝的アルゴリズム",
+    "物理シミュレーション",
+    "あそびラボ",
+    "まなびラボ",
+    "しし屋",
+    "Dino Sprint Ranch",
+    "dinosaur",
+    "browser game"
+  ],
+  "localizations": {
+    "en": {
+      "title": "Raise a Dinosaur Faster Than the 9.58 s World Record! #Shorts",
+      "description": "Breed dinosaurs and race them over 100 m with real physics. Hybrids fall because their bodies and gaits don't match, but training gets them to the finish. A Velociraptor × Velociraptor young takes on the human 100 m world record of 9.58 s. From \"Dino Sprint Ranch\", a browser game on Shishiya Asobi Lab, the sister site of Manabi Lab.\n\nGame (Japanese / English): https://sishiya.github.io/asobi-lab/dino-race/\n\nShishiya Asobi Lab (more games): https://sishiya.github.io/asobi-lab/\nShishiya Manabi Lab (learning apps): https://sishiya.github.io/manabi-lab/\n\nMain sources: Sellers & Manning (2007), Hutchinson & Garcia (2002), Alexander (1976)\n\nMusic: original sounds synthesized by code.\n\n#Dinosaur #BrowserGame"
+    }
+  }
+}

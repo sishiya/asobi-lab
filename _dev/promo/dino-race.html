@@ -13,55 +13,105 @@
 <script src="dino-race-common.js"></script>
 <script>
 'use strict';
-// 台本: 恐竜かけっこ牧場（ショート、縦長 40秒。?short で開く）
-// 上にかけっこ（ゲームの絵そのまま）、下に字幕。下の約25%は YouTube の表示が重なるので何も置かない
-const CW = 540, CH = 560, TOP = 110;   // かけっこの絵（css の大きさ。4倍で描く）と、置く高さ（PW×PH の座標）
+// 台本: 恐竜かけっこ牧場（ショート、縦長 40秒＋締め 5秒。?short で開く）
+// v2（2026-10-19、ver. 1.3 で録りなおし）: あそびラボらしいゲームの予告編。ミッション → はじめの3種 → スマホの画面でかけ合わせ →
+// 練習で走りきる → 人の世界記録に挑む（よーい・ドン → WIN の判子）→「あなたの牧場は何秒？」。
+// まなびラボと同じしし屋のチャンネルに「姉妹サイト あそびラボ」として出す（左上の目印の下に札）。BGM は楽しげな romp。
+// 上 300px は字幕・札、まんなかにかけっこ（ゲームの絵そのまま）かスマホの画面。下の約25%は YouTube の表示が重なるので何も置かない
+// ゲームは書き出したコミットずみの版（out/game。README「別の会話がゲームを書きかえている途中」）。?game= で替えられる
+const GAME = new URLSearchParams(location.search).get('game') || 'out/game/dino-race/index.html';
+const CW = 540, CH = 560, TOP = 300;
 let SC = [];
+const FACT = {};
+const T_PH = 9.5, T_PR = 15.5, T_RC = 22.5, T_GO = 23.3, T_END = 34.6;
 const CAPS = [
-  { a: 6.0, b: 13.6, main: '体の形と走り方は、遺伝子で決まる', sub: 'ティラノサウルス・ヴェロキラプトル・コンプソグナトゥス',
-    en: ['Body shape and running style are set by genes', 'Tyrannosaurus, Velociraptor, Compsognathus'] },
-  { a: 14.2, b: 18.8, main: 'かけ合わせた子は、うまく走れない', sub: 'ラプトル × ティラノの子（1.5t）',
-    en: ['Their offspring can\'t run well at first', 'A Velociraptor × T. rex hybrid (1.5 t)'] },
-  { a: 19.2, b: 24.0, main: '練習すると、走りきった！', sub: '上から 練習なし／1回／3回',
-    en: ['With practice, it makes it to the finish!', 'From the top: no practice / once / three times'] },
-  { a: 24.6, b: 29.8, main: '人の世界記録 9.58秒に挑む', sub: '100m。旗と点線が人の世界記録の速さ',
-    en: ['Taking on the human world record: 9.58 s', '100 m. The flag and dotted line run at world-record pace'] },
-  { a: 30.2, b: 35.0, main: '8.83秒。人の世界記録に勝った！', sub: 'ラプトルどうしの子',
-    en: ['8.83 seconds. Faster than the human record!', 'Offspring of two Velociraptors'] },
+  { a: 5.6, b: 9.3, main: 'はじめの恐竜は3種', sub: '体の形も走り方も、遺伝子で決まる',
+    en: ['You start with three species', 'Body shape and running style are set by genes'] },
+  { a: 9.7, b: 12.4, main: '2匹を選んで、かけ合わせる', sub: '体は両親のあいだ、走り方は片方の親から',
+    en: ['Pick two and breed them', 'The body falls between the parents; the gait comes from one'] },
+  { a: 12.6, b: 15.3, main: 'たまごから、子が3匹', sub: 'でも、体と走り方が合わずに転ぶ',
+    en: ['Three young hatch from the eggs', 'But body and gait don\'t match, so they fall'] },
+  { a: 15.7, b: 22.3, main: '練習すると、走りきった！', sub: '上から 練習なし／1回／3回（5倍の速さ）',
+    en: ['With practice, it makes it to the finish!', 'From the top: no practice / once / three times (5× speed)'] },
+  { a: T_RC + 0.1, b: T_END - 0.2, main: '人の世界記録 9.58秒に挑戦', sub: 'ラプトルどうしの子。旗と点線が人の世界記録の速さ',
+    en: ['Taking on the human world record: 9.58 s', 'Offspring of two Velociraptors. The flag and dotted line run at world-record pace'] },
 ];
 const NAME = '恐竜かけっこ牧場', SUB = '恐竜をかけ合わせて育て、物理で走らせる';
-const END_LINE = 'ブラウザで遊べます（パソコン・スマホ）';
-const CREDIT = 'おもな出どころ: Sellers & Manning（2007）、Hutchinson & Garcia（2002）、Alexander（1976）';
+const MUSIC = { style: 'romp', stopAt: SHORT_END, cues: [
+  { t: 0.6, type: 'pop' }, ...CAPS.map(c => ({ t: c.a, type: 'pop' })),
+  { t: T_PH, type: 'whoosh' }, { t: 11.4, type: 'pop' }, { t: 11.8, type: 'whoosh' }, { t: 12.4, type: 'whoosh' }, { t: 14.3, type: 'whoosh' },
+  { t: T_RC + 0.2, type: 'ready' }, { t: T_GO, type: 'go' }, { t: T_END + 0.4, type: 'whoosh' }, { t: T_END + 2.6, type: 'pop' },
+  { t: SHORT_END, type: 'jingle' }] };
 promoStart({
-  name: NAME, out: 'dino-race', src: '../../dino-race/index.html', iw: 1080, ih: 1920, dur: SHORT_END + IDENT_CLOSE, peek: 20,
+  name: NAME, out: 'dino-race', src: GAME, iw: 1080, ih: 1920, dur: SHORT_END + IDENT_CLOSE, peek: 32.5,
   inject: { dpr: DR.dpr, raf: true },
-  music: { style: 'journey', root: 146.83, stopAt: SHORT_END, cues: [{ t: SHORT_END, type: 'jingle' }] },
-  subs: shortSubs(NAME, 'Dino Dash Ranch', SUB, 'Breed dinosaurs and race them with real physics', CAPS, END_LINE, 'Play in your browser (PC or phone). On-screen text is in Japanese for now'),
-  ready: w => drReady(w),
+  music: MUSIC,
+  subs: () => [
+    { a: 0.6, b: 5.4, ja: 'ミッション: 人の世界記録 9.58秒より速い恐竜を育てろ！\n恐竜かけっこ牧場', en: 'Mission: raise a dinosaur faster than the human record of 9.58 s!\nDino Sprint Ranch' },
+    ...capSubs(CAPS),
+    { a: FACT.winAt, b: T_END, ja: `${FACT.fastT}秒。人の世界記録に勝った！`, en: `${FACT.fastT} seconds. Faster than the human record!` },
+    { a: T_END + 0.4, b: SHORT_END, ja: 'あなたの牧場は、何秒？\nブラウザですぐ遊べます（パソコン・スマホ／日本語・英語）', en: 'How fast can your ranch go?\nPlay right in your browser (PC or phone, Japanese or English)' },
+  ],
+  ready: w => drReady(w) && Object.keys(SHOTS).length > 0,
   setup(w) {
     drCanvas(w, CW, CH);
     const G = DR.G, st = id => drStarter(w, id);
     SC = [
-      { a: 0, b: 14, key: 'starters', lanes: [[st('trex'), 'ティラノサウルス'], [st('raptor'), 'ヴェロキラプトル'], [st('compy'), 'コンプソグナトゥス']], from: 1.5 },
-      // 練習の前と後（3回目は 33.67秒でゴールするので、3.6倍で見せる）
-      { a: 14, b: 24.3, key: 'practice', lanes: [[G.kids[0], 'ラプティ 1号（練習なし）'], [G.p1, '練習 1回'], [G.p3, '練習 3回']], speed: 3.6 },
-      { a: 24.3, b: 99, key: 'record', lanes: [[G.fast, 'ラプトル 4号']], ghosts: ['human'], from: -0.4 },
+      { a: 0, b: T_PH, key: 'starters', lanes: [[st('trex'), 'ティラノサウルス'], [st('raptor'), 'ヴェロキラプトル'], [st('compy'), 'コンプソグナトゥス']], from: 1.5 },
+      { a: T_PH, b: T_PR, key: 'kid', lanes: [[G.kids[0], 'ラプトル × ティラノの子']], from: 0.3, speed: 0.6 },
+      { a: T_PR, b: T_RC, key: 'practice', lanes: [[G.kids[0], '練習なし'], [G.p1, '練習 1回'], [G.p3, '練習 3回']], speed: 5 },
+      { a: T_RC, b: 99, key: 'record', lanes: [[G.fast, 'ラプトル 4号']], ghosts: ['human'], from: -(T_GO - T_RC) },
     ];
+    const df = drResult(w, G.fast);
+    FACT.fastT = df.finishT.toFixed(2); FACT.winAt = T_GO + df.finishT + 0.1;
+    MUSIC.cues.push({ t: FACT.winAt, type: 'stamp' }, { t: FACT.winAt + 0.25, type: 'fanfare' });
     return null;
   },
-  renderAt(t) { drRender(SC, t, CW, CH); },
+  renderAt(t) { drRender2(SC, t, CW, CH); },
   drawSource(g) {
     const R = RES;
     g.fillStyle = '#16120d'; g.fillRect(0, 0, PW * R, PH * R);
-    g.drawImage(DR.cv, 0, TOP * R, PW * R, CW && PW * R * CH / CW);
+    g.drawImage(DR.cv, 0, TOP * R, PW * R, PW * R * CH / CW);
   },
   overlay(g, t) {
-    drawCaps(g, t, CAPS);
-    drawShortChrome(g, t, NAME, SUB, END_LINE, CREDIT);
+    // スマホの画面（2匹を選ぶ → かけ合わせ → たまご → かえった子）。後ろのかけっこは暗く
+    const fp = fade(t, T_PH, T_PR, 0.35);
+    if (fp > 0) {
+      g.shadowBlur = 0; g.globalAlpha = 0.72 * fp; g.fillStyle = '#0d0a07'; g.fillRect(0, TOP, PW, PW * CH / CW); g.globalAlpha = 1;
+      const seq = [['ranch-selected', T_PH], ['breed', 11.8], ['eggs', 12.4], ['kids', 14.3]];
+      let cur = 0; for (let i = 0; i < seq.length; i++) if (t >= seq[i][1]) cur = i;
+      const img = SHOTS[seq[cur][0]], from = cur > 0 ? SHOTS[seq[cur - 1][0]] : null, slide = cur > 0 ? (t - seq[cur][1]) / 0.35 : 1;
+      const tap = t < 11.8 ? { x: 0.645, y: 0.895, u: (t - 11.1) / 0.6 } : t < 12.4 ? { x: 0.5, y: 0.958, u: (t - 11.9) / 0.5 } : null;
+      drPhone(g, PW / 2, TOP + 560, 1040, clamp((t - T_PH) / 0.5, 0, 1) * (t > T_PR - 0.35 ? fp : 1), img, { from, slide, tap, tilt: -0.02 });
+    }
+    // よーい・ドン
+    if (t > T_RC && t < T_GO + 0.9) {
+      const go = t >= T_GO;
+      drBigStamp(g, go ? t - T_GO : t - T_RC - 0.15, PW / 2, TOP + 300, go ? 'ドン！' : 'よーい', '', { size: go ? 170 : 130, color: go ? '#ffd27a' : '#fff', rot: go ? -0.08 : 0, until: go ? 0.8 : T_GO - T_RC - 0.15 });
+    }
+    // WIN の判子
+    if (t < T_END + 0.4) drBigStamp(g, t - FACT.winAt, PW / 2, TOP + 300, 'WIN!', '人の世界記録に勝った', { size: 190, until: T_END + 0.4 - FACT.winAt });
+    // ミッション（はじまり）
+    drMission(g, fade(t, 0.6, 5.4, 0.4), 330, 'MISSION', '人の世界記録 9.58秒より速い', '恐竜を育てろ！');
+    drawTitle(g, t, 0.6, 5.4, NAME, SUB);
+    drPopCaps(g, t, CAPS, 205);
+    // 終わり: タイトル画面のスマホ（「はじめる」を押す）と「あなたの牧場は、何秒？」
+    const fe = clamp((t - T_END) / 0.5, 0, 1);
+    if (fe > 0) {
+      g.shadowBlur = 0; g.globalAlpha = 0.8 * fe; g.fillStyle = '#0d0a07'; g.fillRect(0, 0, PW, PH); g.globalAlpha = 1;
+      drPhone(g, PW / 2, 790, 820, clamp((t - T_END - 0.4) / 0.5, 0, 1), SHOTS.title, { tilt: 0.03, tap: { x: 0.5, y: 0.477, u: (t - T_END - 2.6) / 0.6 } });
+      drPopCaps(g, t, [{ a: T_END + 0.1, b: SHORT_END + 0.3, main: 'あなたの牧場は、何秒？', size: 74, color: '#ffd27a' }], 200);
+      prep(g); g.globalAlpha = fe;
+      drawBlock(g, [{ s: NAME, size: 64, color: '#fff', bold: true }, { s: 'ブラウザですぐ遊べる（パソコン・スマホ）', size: 36, color: '#f2c79a', gap: 12 },
+        { s: 'おもな出どころ: Sellers & Manning（2007）、Hutchinson & Garcia（2002）', size: 24, color: '#aaa', gap: 22 }], 1405, 'bottom');
+      g.globalAlpha = 1; g.shadowBlur = 0;
+    }
+    drawIdentMini(g, t, 0.3); drSister(g, t, 0.3);
+    drawIdent(g, t, SHORT_END); drSisterClose(g, t, SHORT_END);
   },
   short: { iw: 1080, ih: 1920 },
 });
-drLoad();
+drLoad(); drShots(['ranch-selected', 'breed', 'eggs', 'kids', 'title']);
 </script>
 </body>
 </html>

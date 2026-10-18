@@ -13,118 +13,134 @@
 <script src="dino-race-common.js"></script>
 <script>
 'use strict';
-// 台本: 恐竜かけっこ牧場 ― 使い方と見どころ（横長の説明動画、150秒、案内役のライオンつき）
-// 上の帯に字幕（下は英語の CC にあける）、その下にかけっこ（ゲームの絵そのまま）。ボタンの札・カード・札は右上（右下はライオン）
+// 台本: 恐竜かけっこ牧場 ― あそびかたと見どころ（横長の説明動画、150秒＋締め 5秒、案内役のライオン＝あそびラボのオーバーオール）
+// v2（2026-10-19、ver. 1.3 で録りなおし）: 本物のゲーム画面（スマホの大きさで撮った out/dino-shots）を左に、かけっこはゲームの絵そのまま（足あと・判子つき）。
+// まなびラボと同じしし屋のチャンネルに「姉妹サイト あそびラボ」として出す。BGM は楽しげな romp（ライオンのしゃべりのじゃまにならない light）。
+// 上の帯に字幕（下は英語の CC にあける）、その下にかけっこ。右の札は x 900〜1500（右下はライオン）
+const GAME = new URLSearchParams(location.search).get('game') || 'out/game/dino-race/index.html';
 const END = 150, DUR = END + IDENT_CLOSE;
-const CW = 960, CH = 450, TOP = 180;   // かけっこの絵（css の大きさ。4倍で描く）と、置く高さ
-let SC = [], FACT = {};
-const X = 1250;
-const CH_ = {
-  breed: { x: X, y: 210, title: '牧場（2匹を選んで）', btns: ['かけ合わせる', 'かけっこ'], cols: 2 },
-  kid: { x: X, y: 210, title: '生まれた子', btns: ['走りを見る', '練習', '残す'], cols: 3 },
-  cup: { x: X, y: 210, title: '大会「人の世界記録をやぶれ」', btns: ['出場する'] },
-};
-const SHOW = [['breed', 28.5, 36, t => t >= 31 ? 0 : -1], ['kid', 52.5, 62.6, t => t >= 55 ? 1 : -1], ['cup', 104.5, 112, t => t >= 107 ? 0 : -1]];
-const B = (k, i) => btnRect(CH_[k], i);
-const CUR = [
-  { t: 30.2, ...B('breed', 0) }, { t: 31, ...B('breed', 0), click: true }, { t: 32.5, ...B('breed', 0), hide: true },
-  { t: 54.2, ...B('kid', 1) }, { t: 55, ...B('kid', 1), click: true }, { t: 56.5, ...B('kid', 1), hide: true },
-  { t: 106.2, ...B('cup', 0) }, { t: 107, ...B('cup', 0), click: true }, { t: 108.5, ...B('cup', 0), hide: true },
-];
+const CW = 960, CH = 450, TOP = 180;
+let SC = [];
+const FACT = {};
+const PX = 470, PY = 640, PHH = 780, X = 860, PW_ = 640;   // スマホの真ん中と高さ、右の札の左はしと幅
+const T_GO = 110.2;
 const CAPS = [
-  { a: 7.3, b: 17, main: '恐竜をかけ合わせて育て、100m のかけっこ', sub: '体の形（骨の比率・大きさ・筋肉）と走り方は、遺伝子で決まる',
-    en: ['Breed dinosaurs and race them over 100 m', 'Body shape (bone proportions, size, muscle) and running style are set by genes'] },
-  { a: 17.5, b: 27.6, main: '走るようすは、本物の物理の計算', sub: '骨を関節でつなぎ、筋肉の力で動かす。はじめの牧場には3匹',
-    en: ['The running is a real physics simulation', 'Bones linked by joints, moved by muscle force. The ranch starts with three'] },
-  { a: 28.4, b: 40, main: '2匹を選んで「かけ合わせる」と、子が3匹', sub: '体は両親のあいだ、走り方は片方の親から受けつぐ',
-    en: ['Pick two and "breed" them to get three offspring', 'The body falls between the parents; the running style comes from one parent'] },
-  { a: 40.4, b: 51.6, main: 'ラプトル × ティラノの子は、すぐ転ぶ', sub: '体が親のどちらともちがうので、走り方が合わない',
-    en: ['Velociraptor × T. rex offspring fall right away', 'Their bodies differ from both parents, so the inherited gait doesn\'t fit'] },
+  { a: 7.3, b: 17, main: '恐竜をかけ合わせて育て、100m のかけっこ', sub: '目標は、人の世界記録 9.58秒より速い恐竜',
+    en: ['Breed dinosaurs and race them over 100 m', 'The goal: a dinosaur faster than the human record of 9.58 s'] },
+  { a: 17.5, b: 27.6, main: '走るようすは、本物の物理の計算', sub: '骨を関節でつなぎ、筋肉の力で動かす。体の形と走り方は遺伝子で決まる',
+    en: ['The running is a real physics simulation', 'Bones linked by joints, moved by muscle force. Body shape and gait are set by genes'] },
+  { a: 28.4, b: 39.6, main: '牧場で2匹を選んで「かけ合わせる」', sub: '体は両親のあいだ。走り方はどちらの親から受けつぐか選べる',
+    en: ['On the ranch, pick two and tap "Breed"', 'The body falls between the parents. You choose which parent passes on the gait'] },
+  { a: 40.2, b: 45.8, main: 'たまごから子が3匹', sub: '記録と「10回中◯回ゴール」（転びにくさ）が出る',
+    en: ['Three young hatch from the eggs', 'Each shows its time and "finished n of 10" (how steady it is)'] },
+  { a: 46.2, b: 51.8, main: 'ラプトル × ティラノの子は、すぐ転ぶ', sub: '体が親のどちらともちがうので、走り方が合わない',
+    en: ['Velociraptor × T. rex young fall right away', 'Their bodies differ from both parents, so the inherited gait doesn\'t fit'] },
   { a: 52.4, b: 63, main: '転んだ子も「練習」で走れるようになる', sub: '体はそのままで、走り方を少しずつ変えて試し、よかったものを覚える',
-    en: ['Even a faller can learn by "practicing"', 'The body stays the same; it tries small changes to its gait and keeps what works'] },
+    en: ['Even a faller can learn by "training"', 'The body stays the same; it tries small changes to its gait and keeps what works'] },
   { a: 63.4, b: 79.6, main: '上から 練習なし／1回／2回／3回', sub: '6.5m で転倒 → 39.4m → 転ばずに 85m → 100m 33.67秒',
-    en: ['From the top: no practice / once / twice / three times', 'Falls at 6.5 m → 39.4 m → 85 m without falling → 100 m in 33.67 s'] },
+    en: ['From the top: no training / once / twice / three times', 'Falls at 6.5 m → 39.4 m → 85 m without falling → 100 m in 33.67 s'] },
   { a: 80.4, b: 91.6, main: '大きいほど、走るのはむずかしい', sub: '体を2倍にすると、重さは8倍、筋肉の力は4倍にしかならない',
     en: ['The bigger, the harder it is to run', 'Double the size: 8 times the weight, but only 4 times the muscle force'] },
-  { a: 92, b: 103.6, main: '', sub: '研究でも、ティラノサウルスは速く走れなかったと考えられている',
-    en: ['', 'Research also suggests Tyrannosaurus was not a fast runner'] },
-  { a: 104.4, b: 115, main: '大会のお題をクリアすると、メダル', sub: '「人の世界記録をやぶれ」: 100m 9.58秒より速く（旗と点線）',
-    en: ['Clear a challenge to win a medal', '"Beat the human world record": faster than 9.58 s over 100 m (flag and dotted line)'] },
-  { a: 115.4, b: 127.6, main: '', sub: 'メダル1つで、牧場が1匹分広がる。お題は10',
-    en: ['', 'Each medal makes the ranch one place bigger. There are 10 challenges'] },
-  { a: 128.4, b: 141.6, main: '結果には「足あとから推定した速さ」も', sub: '化石の足あとから恐竜の速さを見積もる式（Alexander 1976）とくらべられる',
-    en: ['Results also show a speed estimated from footprints', 'Compare it with the formula used to estimate dinosaur speeds from fossil tracks (Alexander 1976)'] },
+  { a: 92, b: 103.6, main: '記録帳で、体重と速さをくらべる', sub: '研究の推定（Sellers & Manning 2007）とも。ティラノは速く走れなかったと考えられている',
+    en: ['Compare weight and speed in the Records', 'Also against research estimates (Sellers & Manning 2007): T. rex probably wasn\'t a fast runner'] },
+  { a: 104.4, b: 109.6, main: '大会のお題をクリアして、メダル', sub: '初級・中級・上級の11のお題。メダル1つで牧場が1匹分広がる',
+    en: ['Clear challenges to win medals', '11 challenges in three tiers. Each medal makes the ranch one place bigger'] },
+  { a: 109.8, b: 120.6, main: '「人の世界記録をやぶれ」', sub: 'ラプトルどうしの子で出場（この走りは調子のよい日）。旗と点線が人の世界記録の速さ',
+    en: ['"Break the human record"', 'Entering a Velociraptor × Velociraptor young (a good day). The flag and dotted line run at world-record pace'] },
+  { a: 121, b: 128.6, main: '本番は、毎回すこし調子がちがう', sub: 'ゲームで出たこの回は 9.45秒（ふだん 8.83〜11.21秒）。それでも勝ってメダル！',
+    en: ['Race-day form varies a little every time', 'This in-game run took 9.45 s (usually 8.83–11.21 s). Still a win and a medal!'] },
+  { a: 129, b: 135.6, main: '結果には「足あとから推定した速さ」も', sub: '化石の足あとから恐竜の速さを見積もる式（Alexander 1976）とくらべられる',
+    en: ['Results also show a speed estimated from footprints', 'Compare it with the formula used on fossil trackways (Alexander 1976)'] },
+  { a: 136, b: 141.8, main: '育てた恐竜は「みんなの記録」へ', sub: '体重クラスごとに、ほかの牧場と速さをくらべられる',
+    en: ['Send your best to "Everyone\'s records"', 'Compare speeds with other ranches, class by body weight'] },
 ];
-// 数のはいる字幕（setup で計算してから決める）
-function fillCaps() {
-  CAPS[7].main = `ティラノ 時速${FACT.trexKmh}km、ラプトル 時速${FACT.raptorKmh}km`;
-  CAPS[7].en[0] = `T. rex ${FACT.trexKmh} km/h, Velociraptor ${FACT.raptorKmh} km/h`;
-  CAPS[9].main = `${FACT.fastT}秒。人の世界記録に勝った！`;
-  CAPS[9].en[0] = `${FACT.fastT} seconds. Faster than the human record!`;
-}
-// ---- 案内役のライオン ----
-const MUSIC = { style: 'journey', root: 146.83, stopAt: END, cues: [{ t: END, type: 'jingle' }] };
-const EXP = [[0, 'calm'], [7.3, 'smile'], [10, 'calm'], [17.7, 'think'], [21, 'calm'], [28.6, 'smile'], [32, 'calm'], [40.6, 'shock'], [43, 'sad'], [47, 'calm'],
-  [52.6, 'think'], [56, 'calm'], [63.6, 'think'], [70, 'wow'], [74, 'proud'], [78, 'calm'], [80.6, 'think'], [85, 'cold'], [89, 'calm'], [92.2, 'sad'], [96, 'calm'],
-  [104.6, 'smile'], [108, 'calm'], [113, 'wow'], [115.6, 'proud'], [120, 'smile'], [124, 'calm'], [128.6, 'think'], [133, 'calm'], [END - 7.6, 'smile']];
+const MUSIC = { style: 'romp', light: true, stopAt: END, cues: [{ t: END, type: 'jingle' }, { t: 1.0, type: 'pop' },
+  { t: 28, type: 'whoosh' }, { t: 31, type: 'pop' }, { t: 31.5, type: 'whoosh' }, { t: 37.2, type: 'pop' }, { t: 37.7, type: 'whoosh' }, { t: 43.5, type: 'whoosh' },
+  { t: 53, type: 'whoosh' }, { t: 55, type: 'pop' }, { t: 92, type: 'whoosh' }, { t: 104.2, type: 'whoosh' }, { t: 106.8, type: 'pop' }, { t: 107.2, type: 'whoosh' }, { t: 108.6, type: 'pop' },
+  { t: T_GO - 0.8, type: 'ready' }, { t: T_GO, type: 'go' }, { t: 121, type: 'whoosh' }, { t: 136, type: 'whoosh' }] };
+const EXP = [[0, 'calm'], [7.3, 'smile'], [10, 'calm'], [17.7, 'think'], [21, 'calm'], [28.6, 'smile'], [32, 'calm'], [40.4, 'wow'], [43, 'calm'], [46.4, 'shock'], [48.5, 'sad'], [51, 'calm'],
+  [52.6, 'think'], [56, 'calm'], [63.6, 'think'], [70, 'wow'], [74, 'proud'], [78, 'calm'], [80.6, 'think'], [85, 'cold'], [89, 'calm'], [92.2, 'think'], [97, 'calm'],
+  [104.6, 'smile'], [108, 'calm'], [110, 'think'], [119, 'wow'], [121.5, 'proud'], [125, 'smile'], [128, 'calm'], [129.2, 'think'], [133, 'calm'], [136.2, 'smile'], [140, 'calm'], [END - 7.6, 'smile']];
+// スマホの画面の出る時刻（[画面, 出る時刻, 押す所 {x, y, t}]）。区切り [a, b] ごとに出入りする
+const PHONES = [
+  { a: 28, b: 46, seq: [['ranch-selected', 28, { x: 0.645, y: 0.895, t: 30.4 }], ['breed', 31.5, { x: 0.5, y: 0.958, t: 36.6 }], ['eggs', 37.7], ['kids', 43.5]] },
+  { a: 53, b: 60, seq: [['kids', 53, { x: 0.5, y: 0.35, t: 54.4 }]] },
+  { a: 92, b: 103.6, seq: [['book-chart', 92]] },
+  { a: 104.2, b: 109.6, seq: [['cups-2', 104.2, { x: 0.33, y: 0.29, t: 106.2 }], ['pick', 107.2, { x: 0.5, y: 0.26, t: 108 }]] },
+  { a: 121, b: 128.6, seq: [['result', 121]] },
+  { a: 136, b: 142, seq: [['book', 136]] },
+];
 promoStart({
-  name: '恐竜かけっこ牧場（使い方）', out: 'dino-race-guide', src: '../../dino-race/index.html', iw: 1920, ih: 1080, dur: DUR, peek: 70,
+  name: '恐竜かけっこ牧場（あそびかた）', out: 'dino-race-guide', src: GAME, iw: 1920, ih: 1080, dur: DUR, peek: 70,
   inject: { dpr: DR.dpr, raf: true },
   music: MUSIC,
-  ready: w => !!LION.api && drReady(w),
+  ready: w => !!LION.api && drReady(w) && Object.keys(SHOTS).length > 0,
   setup(w) {
     drCanvas(w, CW, CH);
     const G = DR.G, st = id => drStarter(w, id);
     const T = st('trex'), RP = st('raptor'), CP = st('compy');
     SC = [
       { a: 0, b: 28, key: 'starters', lanes: [[T, 'ティラノサウルス'], [RP, 'ヴェロキラプトル'], [CP, 'コンプソグナトゥス']], from: 1.5 },
-      { a: 28, b: 52, key: 'kids', lanes: [[G.kids[0], 'ラプティ 1号'], [G.kids[1], 'ラプティ 2号'], [G.kids[2], 'ラプティ 3号']], from: -8 },
-      // 練習（3回目は 33.67秒でゴール。場面は 28秒なので 1.5倍で見せる）
+      { a: 28, b: 52, key: 'kids', lanes: [[G.kids[0], 'ラプティ 1号'], [G.kids[1], 'ラプティ 2号'], [G.kids[2], 'ラプティ 3号']], from: -17.5 },
       { a: 52, b: 80, key: 'practice', lanes: [[G.kids[0], 'ラプティ 1号（練習なし）'], [G.p1, '練習 1回'], [G.p2, '練習 2回'], [G.p3, '練習 3回']], speed: 1.45, from: -4 },
       { a: 80, b: 104, key: 'size', lanes: [[T, 'ティラノサウルス 8.3t'], [G.p3, 'ラプティ 1号 1.5t'], [RP, 'ヴェロキラプトル 16kg']], from: -0.5 },
-      { a: 104, b: 128, key: 'cup', lanes: [[G.fast, 'ラプトル 4号']], ghosts: ['human'], from: -4 },
-      { a: 128, b: 999, key: 'foot', lanes: [[G.fast, 'ラプトル 4号'], [RP, 'ヴェロキラプトル']], from: -0.5 },
+      { a: 104, b: 129, key: 'cup', lanes: [[G.fast, 'ラプトル 4号']], ghosts: ['human'], from: -(T_GO - 104) },
+      { a: 129, b: 999, key: 'foot', lanes: [[G.fast, 'ラプトル 4号'], [RP, 'ヴェロキラプトル']], from: -0.5 },
     ];
-    // 数（ゲームと同じ計算で）
     const df = drResult(w, G.fast), dt = drResult(w, T), dr = drResult(w, RP), a = drAlexander(df);
-    FACT = { fastT: df.finishT.toFixed(2), fastKmh: (360 / df.finishT).toFixed(1), trexKmh: (360 / dt.finishT).toFixed(1), raptorKmh: (360 / dr.finishT).toFixed(1),
-      footKmh: (a.v * 3.6).toFixed(1), stride: a.lambda.toFixed(2), hip: a.h.toFixed(2), p3M: drMass(drM(w, G.p3)) };
-    fillCaps();
-    // しゃべり（字幕が決まってから）
-    MUSIC.cues.push(...lionSetup({ caps: CAPS.map(c => ({ ...c, main: c.main || c.sub })), cur: CUR, exp: EXP, end: END, bye: END - 5.8 }));
+    Object.assign(FACT, { fastT: df.finishT.toFixed(2), fastKmh: (360 / df.finishT).toFixed(1), trexKmh: (360 / dt.finishT).toFixed(1), raptorKmh: (360 / dr.finishT).toFixed(1),
+      footKmh: (a.v * 3.6).toFixed(1), stride: a.lambda.toFixed(2), hip: a.h.toFixed(2), winAt: T_GO + df.finishT + 0.1, p3Goal: 52 + (drResult(w, G.p3).finishT + 4) / 1.45 });
+    MUSIC.cues.push({ t: FACT.winAt, type: 'stamp' }, { t: FACT.winAt + 0.25, type: 'fanfare' }, { t: FACT.p3Goal + 0.05, type: 'stamp' });
+    MUSIC.cues.push(...lionSetup({ caps: CAPS, cur: [], exp: EXP, end: END, bye: END - 5.8 }));
     return null;
   },
-  subs: () => guideSubs(END, '恐竜かけっこ牧場', 'Dino Dash Ranch', CAPS, 'Play in your browser (PC or phone). On-screen text is in Japanese for now'),
-  renderAt(t) { drRender(SC, t, CW, CH); },
+  subs: () => [
+    { a: 0.6, b: 6.6, ja: '恐竜かけっこ牧場\nあそびかたと見どころ（まなびラボの姉妹サイト「あそびラボ」）', en: 'Dino Sprint Ranch\nHow to play (from Asobi Lab, the sister site of Manabi Lab)' },
+    ...capSubs(CAPS),
+    { a: FACT.winAt, b: 120.6, ja: `${FACT.fastT}秒。人の世界記録に勝った！`, en: `${FACT.fastT} s. Faster than the human record!` },
+    { a: END - 7.8, b: END, ja: '恐竜かけっこ牧場\nブラウザですぐ遊べます（パソコン・スマホ／日本語・英語）', en: 'Dino Sprint Ranch\nPlay right in your browser (PC or phone, Japanese or English)' },
+  ],
+  renderAt(t) { drRender2(SC, t, CW, CH); },
   drawSource(g) {
     const R = RES;
     g.fillStyle = '#16120d'; g.fillRect(0, 0, PW * R, PH * R);
     g.drawImage(DR.cv, 0, TOP * R, PW * R, PW * R * CH / CW);
   },
-  overlay(g, t, w) {
-    const G = DR.G;
-    // 生まれた子のカード（ゲームのカードを写した札）
-    const kf = fade(t, 36.5, 51.6, 0.4);
-    if (kf > 0) {
-      const recs = ['6.5m で転んだ', '7.5m で転んだ', '4.0m で転んだ'];
-      G.kids.forEach((k, i) => drCard(g, 40 + i * 330, 210, 310, drPortrait(k, 'kid' + i), `ラプティ ${i + 1}号`, [drMass(drM(w, k)) + ' ・ 1代目', recs[i]], kf, [null, '#ff9b7a']));
+  overlay(g, t) {
+    // 右の札
+    drawPanel(g, X, 230, PW_, '体を2倍にすると（相似則）', ['重さ ×8（体積）', '筋肉の力 ×4（筋肉の太さ）', '→ 大きいほど、重さの割に力が足りない'], fade(t, 80.4, 91.6, 0.4));
+    drawPanel(g, X, 230, PW_, 'ラプトル 4号の結果', [`シミュレーション 時速 ${FACT.fastKmh}km`, `足あとから推定 時速 ${FACT.footKmh}km`, `歩幅 ${FACT.stride}m・腰の高さ ${FACT.hip}m`], fade(t, 129.4, 135.6, 0.4));
+    drawPanel(g, X, 230, PW_, 'みんなの記録', ['体重クラス5つ、それぞれ上位20', '出せるのは、10回中7回以上ゴールする子', '記録は見る人の端末でも計算しなおす'], fade(t, 136.4, 141.8, 0.4), '#ffd27a');
+    // スマホの画面（後ろのかけっこは暗く）
+    for (const P of PHONES) {
+      const f = fade(t, P.a, P.b, 0.35); if (f <= 0) continue;
+      g.shadowBlur = 0; g.globalAlpha = 0.6 * f; g.fillStyle = '#0d0a07'; g.fillRect(0, TOP, PW, PH - TOP); g.globalAlpha = 1;
+      let cur = 0; for (let i = 0; i < P.seq.length; i++) if (t >= P.seq[i][1]) cur = i;
+      const [name, at] = P.seq[cur], from = cur > 0 ? SHOTS[P.seq[cur - 1][0]] : null, tp = P.seq[cur][2];
+      drPhone(g, PX, PY, PHH, t < P.b - 0.35 ? clamp((t - P.a) / 0.5, 0, 1) : f, SHOTS[name],
+        { from, slide: cur > 0 ? (t - at) / 0.35 : 1, tilt: -0.015, tap: tp && { x: tp.x, y: tp.y, u: (t - tp.t) / 0.6 } });
     }
-    // 大きさと力
-    drawPanel(g, X, 210, 610, '体を2倍にすると（相似則）', ['重さ ×8（体積）', '筋肉の力 ×4（筋肉の太さ）', '→ 大きいほど、重さの割に力が足りない'], fade(t, 80.4, 103.6, 0.4));
-    // メダル
-    drawPanel(g, X, 210, 610, '大会の結果', [`メダル獲得！ 「人の世界記録をやぶれ」`, `ラプトル 4号 ${FACT.fastT}秒（人の世界記録 9.58秒）`, '牧場が1匹分広がった'], fade(t, 115.4, 127.6, 0.4), '#ffd27a');
-    // 足あとからの推定
-    drawPanel(g, X, 210, 610, 'ラプトル 4号の結果', [`シミュレーション 時速 ${FACT.fastKmh}km`, `足あとから推定 時速 ${FACT.footKmh}km`, `歩幅 ${FACT.stride}m・腰の高さ ${FACT.hip}m`], fade(t, 128.4, 141.6, 0.4));
-    for (const [k, a, b, on] of SHOW) drawChip(g, CH_[k], on(t), fade(t, a, b, 0.4));
-    drawCursor(g, CUR, t);
-    drawCaps(g, t, CAPS, true);
-    drawGuideChrome(g, t, END, '恐竜かけっこ牧場',
+    // よーい・ドン・WIN
+    if (t > T_GO - 0.8 && t < T_GO + 0.9) {
+      const go = t >= T_GO;
+      drBigStamp(g, go ? t - T_GO : t - T_GO + 0.8, PW / 2, 470, go ? 'ドン！' : 'よーい', '', { size: go ? 150 : 115, color: go ? '#ffd27a' : '#fff', rot: go ? -0.08 : 0, until: go ? 0.8 : 0.8 });
+    }
+    if (t < 121) drBigStamp(g, t - FACT.winAt, PW / 2, 470, 'WIN!', '人の世界記録に勝った', { size: 170, until: 121 - FACT.winAt });
+    drMission(g, fade(t, 1.0, 6.4, 0.4), 300, 'MISSION', '人の世界記録 9.58秒より速い恐竜を育てろ！');
+    drPopCaps(g, t, CAPS, 40, 'top');
+    // 決まった部分（題名・CC の案内・終わり・目印）
+    drawTitle(g, t, 0.6, 6.6, '恐竜かけっこ牧場', 'あそびかたと見どころ');
+    const fc = fade(t, 1.5, 6.6, 0.6);
+    if (fc > 0) { prep(g); g.globalAlpha = fc; g.textAlign = 'right'; txt(g, 'CC: English subtitles', PW - 50, PH - 40, 30, '#ddd', true); g.globalAlpha = 1; g.shadowBlur = 0; }
+    drawEnd(g, t, END - 7.8, '恐竜かけっこ牧場', 'ブラウザですぐ遊べます（パソコン・スマホ／日本語・英語）',
       'おもな出どころ: Sellers & Manning（2007）、Hutchinson & Garcia（2002）、Alexander（1976）、Yin ら（2007）SIMBICON');
     drawLion(g, t);
+    drawIdentMini(g, t, 0.3); drSister(g, t, 0.3);
+    drawIdent(g, t, END); drSisterClose(g, t, END);
   },
 });
-drLoad();
-lionOpen();   // 裏の iframe でライオンを開く（ready で待つ）
+drLoad(); drShots(['ranch-selected', 'breed', 'eggs', 'kids', 'book-chart', 'cups-2', 'pick', 'result', 'book']);
+lionOpen();   // 裏の iframe でライオンを開く（ready で待つ。服はあそびラボのオーバーオールが既定）
 </script>
 </body>
 </html>

@@ -133,8 +133,11 @@ async function makeAudio(dur, music = {}) {
   for (const c of music.cues || []) if (c.type === 'jingle') identJingle(ctx, jbus, c.t, c.kind);
   for (const c of music.cues || []) if (c.type === 'babble') babbleSound(ctx, jbus, c);   // 案内役のしゃべり（BGM の音量とは別）
   if (music.extra) await music.extra(ctx, voiceOut);   // 台本ごとの音（ピアノを弾く手のピアノの音など。BGM の音量とは別）
+  for (const c of music.cues || []) if (SFX_CUES[c.type]) SFX_CUES[c.type](ctx, jbus, c.t, noise);   // 効果音（あそびラボ。BGM の音量とは別）
   if (music.style === 'none') {
     // BGM なし（目印の音だけ）
+  } else if (music.style === 'romp') {
+    rompMusic(ctx, bus, music, dur, noise, isQuiet);
   } else if ((music.style || 'drone') === 'drone') {
     const root = music.root || 55;
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 0.7; lp.connect(bus);
@@ -198,6 +201,99 @@ async function makeAudio(dur, music = {}) {
   }
   return loudMix(await ctx.startRendering(), music.style !== 'none');
 }
+
+// ---- あそびラボの楽しげな BGM 'romp' と効果音（2026-10-19 ユーザー「BGM もたのしげなのがいいね」。あそびラボだけ。まなびラボの promo-audio.js にはない）----
+// 'romp': 128 BPM の弾むリズム（キック・手びょうし・ハイハット）＋はねるベース＋ピコピコの旋律（8小節をくり返す）。
+//   music.root は旋律のド（既定 261.6 Hz）。music.light: 説明動画用（旋律を小さく、16小節のうち後ろ8小節だけ。ライオンのしゃべりをじゃましない）
+//   music.quiet の間は旋律とドラムを止め、和音だけにする
+function rompMusic(ctx, bus, music, dur, noise, isQuiet) {
+  const root = music.root || 261.63, hz = s => root * Math.pow(2, s / 12), light = !!music.light;
+  const beat = 60 / 128, bar = beat * 4, e8 = beat / 2;
+  const CH = [0, -3, 5, 7, 0, 5, 7, 0];   // ド・ラ・ファ・ソ・ド・ファ・ソ・ド（小節ごとの和音の根音）
+  const MIN = new Set([1]);               // 2小節目はラの短和音
+  const MEL = [[0, 4, 7, 4, 9, 7, 4, null], [0, null, 9, 7, 4, null, 2, null], [5, 9, 12, 9, 14, 12, 9, null], [7, null, 11, 14, 12, 11, 7, null],
+    [0, 4, 7, 12, 11, 12, 7, null], [9, null, 5, 9, 12, null, 9, null], [11, null, 7, 11, 14, 12, 11, 7], [12, null, null, null, 7, null, 0, null]];
+  const mk = (type, f, t, len, v, out, pan = 0, attack = 0.005) => {
+    const o = ctx.createOscillator(); o.type = type; o.frequency.value = f;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + attack); g.gain.exponentialRampToValueAtTime(0.0005, t + len);
+    const p = ctx.createStereoPanner(); p.pan.value = pan; o.connect(g); g.connect(p); p.connect(out); o.start(t); o.stop(t + len + 0.05);
+  };
+  const noiseHit = (t, len, v, type, f, out) => {
+    const s = ctx.createBufferSource(); s.buffer = noise; const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f;
+    const g = ctx.createGain(); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0005, t + len);
+    s.connect(fl); fl.connect(g); g.connect(out); s.start(t, Math.random() * 1.5); s.stop(t + len + 0.02);
+  };
+  const lead = ctx.createBiquadFilter(); lead.type = 'lowpass'; lead.frequency.value = 3200; lead.connect(bus);
+  const bass = ctx.createBiquadFilter(); bass.type = 'lowpass'; bass.frequency.value = 700; bass.connect(bus);
+  const drums = ctx.createGain(); drums.gain.value = light ? 0.6 : 1; drums.connect(bus);
+  for (let k = 0, t = 0; t < dur; k++, t += bar) {
+    const i = k % 8, r = CH[i], quiet = isQuiet(t + bar / 2);
+    const chord = MIN.has(i) ? [r, r + 3, r + 7] : [r, r + 4, r + 7];
+    // 和音（短く刻む。2拍目と4拍目のうら）
+    for (const off of [1.5, 3.5]) for (const s of chord) mk('triangle', hz(s), t + off * beat, 0.22, 0.03, bus, 0.2);
+    if (quiet) { for (const s of chord) mk('sine', hz(s - 12), t, bar, 0.05, bus, 0, 0.3); continue; }
+    // ベース（8分で根音とオクターブをはねる）
+    for (let n = 0; n < 8; n++) mk('square', hz(r - 24 + (n % 2 ? 12 : 0)), t + n * e8, 0.18, 0.07, bass);
+    // ドラム: キック 1・3拍（4小節目は 4拍のうらも）、手びょうし 2・4拍、ハイハット 8分のうら
+    for (const b of [0, 2, ...(i % 4 === 3 ? [3.5] : [])]) {
+      const tb = t + b * beat, o = ctx.createOscillator(); o.frequency.setValueAtTime(150, tb); o.frequency.exponentialRampToValueAtTime(45, tb + 0.12);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.5, tb); g.gain.exponentialRampToValueAtTime(0.001, tb + 0.25);
+      o.connect(g); g.connect(drums); o.start(tb); o.stop(tb + 0.3);
+    }
+    for (const b of [1, 3]) noiseHit(t + b * beat, 0.14, 0.25, 'bandpass', 1500, drums);
+    for (let n = 1; n < 8; n += 2) noiseHit(t + n * e8, 0.05, 0.12, 'highpass', 7000, drums);
+    // 旋律（ピコピコ。説明動画は 16小節のうち後ろ 8小節だけ、小さく）
+    if (t < 2 || (light && Math.floor(k / 8) % 2 === 0)) continue;
+    MEL[i].forEach((s, n) => { if (s != null) mk('square', hz(s + 12), t + n * e8, 0.2, light ? 0.022 : 0.04, lead, n % 2 ? 0.25 : -0.25); });
+  }
+}
+// 効果音（music.cues の type）。どれもその場で合成する
+const SFX_CUES = {
+  pop(ctx, out, t) {   // 札が出る「ポン」
+    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(520, t); o.frequency.exponentialRampToValueAtTime(1100, t + 0.07);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.5, t + 0.005); g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.2);
+  },
+  whoosh(ctx, out, t, noise) {   // 画面がすべりこむ「シュッ」
+    const s = ctx.createBufferSource(); s.buffer = noise; const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.5;
+    f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(3500, t + 0.3);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.35, t + 0.12); g.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+    s.connect(f); f.connect(g); g.connect(out); s.start(t); s.stop(t + 0.4);
+  },
+  ready(ctx, out, t) {   // 「よーい」の短い音
+    const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = 660;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.18, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.2);
+  },
+  go(ctx, out, t, noise) {   // 「ドン」（スタートのピストル）＋高い音
+    const s = ctx.createBufferSource(); s.buffer = noise; const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 1200;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    s.connect(f); f.connect(g); g.connect(out); s.start(t); s.stop(t + 0.3);
+    const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = 1320;
+    const g2 = ctx.createGain(); g2.gain.setValueAtTime(0.18, t); g2.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    o.connect(g2); g2.connect(out); o.start(t); o.stop(t + 0.45);
+  },
+  stamp(ctx, out, t, noise) {   // 判子の「ドン」＋きらっ
+    const o = ctx.createOscillator(); o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.2);
+    const g = ctx.createGain(); g.gain.setValueAtTime(1.1, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.5);
+    const s = ctx.createBufferSource(); s.buffer = noise; const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1800;
+    const gn = ctx.createGain(); gn.gain.setValueAtTime(0.5, t); gn.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    s.connect(f); f.connect(gn); gn.connect(out); s.start(t); s.stop(t + 0.2);
+    [1568, 2093, 2637].forEach((fr, i) => { const q = ctx.createOscillator(); q.type = 'sine'; q.frequency.value = fr; const gq = ctx.createGain(), tq = t + 0.06 + i * 0.04;
+      gq.gain.setValueAtTime(0, tq); gq.gain.linearRampToValueAtTime(0.12, tq + 0.01); gq.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+      q.connect(gq); gq.connect(out); q.start(tq); q.stop(t + 1); });
+  },
+  fanfare(ctx, out, t) {   // 勝ったときの「パパパパーン」
+    for (const [f, d] of [[523.25, 0], [659.25, 0.11], [783.99, 0.22], [1046.5, 0.36]]) {
+      const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = f; const g = ctx.createGain(), len = d > 0.3 ? 0.9 : 0.12;
+      g.gain.setValueAtTime(0, t + d); g.gain.linearRampToValueAtTime(0.12, t + d + 0.01); g.gain.setValueAtTime(0.12, t + d + len * 0.6); g.gain.exponentialRampToValueAtTime(0.001, t + d + len);
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3500; o.connect(g); g.connect(lp); lp.connect(out); o.start(t + d); o.stop(t + d + len + 0.05);
+    }
+    for (const f of [523.25, 659.25, 783.99]) { const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = f; const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t + 0.36); g.gain.linearRampToValueAtTime(0.1, t + 0.4); g.gain.exponentialRampToValueAtTime(0.001, t + 1.5); o.connect(g); g.connect(out); o.start(t + 0.36); o.stop(t + 1.6); }
+  },
+};
 
 // ---- 音量をそろえる（2026-10-12 ユーザー「音量をあわせて」。RULES 8.6）----
 // 大きさは ITU-R BS.1770（YouTube などと同じ LUFS）。BGM の種類（drone・journey）で音の大きさがちがい、journey が 14 dB ほど小さかったので、

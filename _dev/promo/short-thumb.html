@@ -69,7 +69,7 @@ document.getElementById('kicker').textContent = c.kicker;
 const big = document.getElementById('big');
 for (const k of ['s', 'f']) { const e = document.createElement('span'); e.className = k; e.textContent = c.big; big.appendChild(e); }
 document.getElementById('sub').textContent = c.sub;
-document.getElementById('name').textContent = wide ? c.name + '　使い方と見どころ' : c.name;
+document.getElementById('name').textContent = wide ? c.name + '　' + (c.wname || '使い方と見どころ') : c.name;
 // 大きな言葉は横幅に合わせて文字の大きさを決める（最大 260px）
 let fs = wide ? 150 : 220; big.style.fontSize = fs + 'px';
 while (big.offsetWidth > (wide ? 540 : 940) && fs > 80) { fs -= 4; big.style.fontSize = fs + 'px'; }

@@ -1,0 +1,34 @@
+{
+  "_todo": "TODO publishAt はユーザーの GO のあと、サプライズ投稿の日を決めてから（20:00〜20:15 はさける）。2026-10-19 に ver. 1.3 で録りなおした説明動画（まなびラボの姉妹サイトとして）。済んだらこの行を消す",
+  "file": "_dev/promo/out/dino-race-guide.mp4",
+  "thumbnail": "_dev/promo/thumbs/dino-race-guide.jpg",
+  "privacy": "private",
+  "captions": {
+    "en": "_dev/promo/out/dino-race-guide.en.srt"
+  },
+  "title": "恐竜かけっこ牧場 ― 恐竜を育てて人の世界記録に挑む（あそびかた）",
+  "description": "恐竜をかけ合わせて育て、物理の計算で本当に走らせる 100m のかけっこ「恐竜かけっこ牧場」のあそびかたと見どころ。骨を関節でつなぎ、筋肉の力で動かす走りは、体の形と走り方の遺伝子しだい。かけ合わせた子は転びやすいけれど、練習で走れるようになる。体が大きいほど走りにくい「相似則」、研究の推定とのくらべ、大会のお題とメダル、足あとから推定した速さ、ほかの牧場とくらべる「みんなの記録」まで。しし屋 まなびラボの姉妹サイト「あそびラボ」のブラウザゲームです。\n\nゲーム: https://sishiya.github.io/asobi-lab/dino-race/\n\n0:00 はじめに\n0:28 かけ合わせ\n0:52 練習\n1:20 大きさと速さ\n1:44 大会\n2:09 足あとからの推定\n2:16 みんなの記録\n\nしし屋 あそびラボ（ほかのゲーム）: https://sishiya.github.io/asobi-lab/\nしし屋 まなびラボ（学べるアプリ）: https://sishiya.github.io/manabi-lab/\n\nおもな出どころ: Sellers & Manning (2007), Hutchinson & Garcia (2002), Alexander (1976), Yin et al. (2007) SIMBICON\n\n音楽: プログラムで合成したオリジナルの音です。英語の字幕（CC）があります。\n\n#恐竜 #ブラウザゲーム #あそびラボ",
+  "tags": [
+    "恐竜かけっこ牧場",
+    "恐竜",
+    "ブラウザゲーム",
+    "育成ゲーム",
+    "遺伝的アルゴリズム",
+    "物理シミュレーション",
+    "相似則",
+    "ティラノサウルス",
+    "ヴェロキラプトル",
+    "あそびラボ",
+    "まなびラボ",
+    "しし屋",
+    "Dino Sprint Ranch",
+    "dinosaur",
+    "browser game"
+  ],
+  "localizations": {
+    "en": {
+      "title": "Dino Sprint Ranch — Raise a Dinosaur to Beat the Human World Record (How to Play)",
+      "description": "How to play \"Dino Sprint Ranch\": breed dinosaurs and race them over 100 m with real physics. Bones linked by joints and moved by muscle force run according to genes for body shape and gait. Hybrids fall easily, but training teaches them to run. Also: why bigger bodies run worse (scaling), comparisons with research estimates, cups and medals, speeds estimated from footprints, and \"Everyone's records\" to compare with other ranches. A browser game on Shishiya Asobi Lab, the sister site of Manabi Lab.\n\nGame (Japanese / English): https://sishiya.github.io/asobi-lab/dino-race/\n\n0:00 Intro\n0:28 Breeding\n0:52 Training\n1:20 Size and speed\n1:44 Cups\n2:09 Speed from footprints\n2:16 Everyone's records\n\nShishiya Asobi Lab (more games): https://sishiya.github.io/asobi-lab/\nShishiya Manabi Lab (learning apps): https://sishiya.github.io/manabi-lab/\n\nMain sources: Sellers & Manning (2007), Hutchinson & Garcia (2002), Alexander (1976), Yin et al. (2007) SIMBICON\n\nMusic: original sounds synthesized by code. English subtitles (CC) available.\n\n#Dinosaur #BrowserGame"
+    }
+  }
+}
