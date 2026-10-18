@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>みちいし 見くらべ</title>
+<style>
+  :root { --bg: #0d0c0b; --ink: #d9d2c4; --dim: #8a8478; --line: #2a2722; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, sans-serif; }
+  header { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  header h1 { font-size: 15px; margin: 0 12px 0 0; font-weight: 600; }
+  header label { color: var(--dim); }
+  button, select { background: #1b1916; color: var(--ink); border: 1px solid #3a362f; border-radius: 6px; padding: 4px 10px; font: inherit; }
+  main { display: flex; flex-wrap: wrap; gap: 24px; padding: 16px; }
+  figure { margin: 0; }
+  figcaption { color: var(--dim); font-size: 12px; margin-top: 6px; max-width: 360px; }
+  .panel { width: 360px; height: 460px; background: #000; display: block; }
+  .gray .panel { filter: grayscale(1); }
+  #strip { padding: 0 16px 24px; display: flex; gap: 8px; overflow-x: auto; }
+  #strip canvas { width: 180px; height: 230px; flex: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>みちいし 見くらべ（原寸・幅360px）</h1>
+  <label>部屋 <select id="level"><option>r3</option><option>r3a</option><option>r4</option><option>r2</option><option>r1</option></select></label>
+  <label>手 <button id="prev">◀</button> <span id="stepNo">0</span> <button id="next">▶</button></label>
+  <label><input type="checkbox" id="gray"> 白黒</label>
+  <label><input type="checkbox" id="bright"> 明るく見る</label>
+  <button id="stripBtn">こま割り（いまの手から6手）</button>
+</header>
+<main id="panels"></main>
+<div id="strip"></div>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<script type="module" src="look.js"></script>
+</body>
+</html>

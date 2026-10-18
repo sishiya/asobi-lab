@@ -1,0 +1,79 @@
+{
+ "name": "試し1: 止まったI字3で溝を渡る（敵なし）",
+ "floor": [
+  "#####",
+  "#####",
+  ".....",
+  ".....",
+  ".....",
+  "#####",
+  "#####",
+  "#####"
+ ],
+ "beacons": [
+  {
+   "x": 2,
+   "y": 0,
+   "r": 0,
+   "goal": true
+  }
+ ],
+ "player": [
+  1,
+  6
+ ],
+ "rows": [
+  [
+   [
+    4,
+    5
+   ],
+   [
+    4,
+    6
+   ],
+   [
+    4,
+    7
+   ]
+  ]
+ ],
+ "centipedes": [],
+ "rules": {
+  "vibration": false,
+  "deadEnd": "stop",
+  "walls": false,
+  "cutLive": false
+ },
+ "intended": [
+  "mN",
+  "mE",
+  "mE",
+  "cE",
+  "mW",
+  "pN1",
+  "mN",
+  "mN",
+  "mN",
+  "mN",
+  "mN"
+ ],
+ "shiftStarts": [
+  [
+   0,
+   6
+  ],
+  [
+   2,
+   6
+  ],
+  [
+   1,
+   7
+  ]
+ ],
+ "target": {
+  "shortest": 11,
+  "slack": 4
+ }
+}
