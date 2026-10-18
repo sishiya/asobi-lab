@@ -7,6 +7,9 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23d9480f'/><rect x='10' y='22' width='44' height='24' rx='12' fill='%23fff'/><path d='M22 28v12M16 34h12' stroke='%23d9480f' stroke-width='4' stroke-linecap='round'/><circle cx='41' cy='31' r='3' fill='%23d9480f'/><circle cx='47' cy='37' r='3' fill='%23d9480f'/></svg>">
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="description" content="ブラウザで遊べる小さなゲームのシリーズ。Claude と一緒に作っています。">
+<!-- feed（tools/feed.mjs が作る。手で直さない） -->
+<link rel="alternate" type="application/atom+xml" title="あそびラボ" href="https://sishiya.github.io/asobi-lab/feed.xml"><link rel="alternate" type="application/atom+xml" title="Asobi Lab (English)" href="https://sishiya.github.io/asobi-lab/feed-en.xml">
+<!-- /feed -->
 <script>
 // 言語（ja／en）。URL の ?lang= → 前に選んだもの（localStorage 'manabi-lang'。まなびラボ・ゲームと共通）→ ブラウザの言語（まなびラボの I18N.md と同じ）。
 // 文字がちらつかないよう、本文より先に <html lang> を決める（CSS が [lang] で片方を隠す）
@@ -156,10 +159,12 @@ h2+.grid{margin-top:0}
 
   <p class="note" lang="ja">ソースコードと開発メモ: <a href="https://github.com/sishiya/asobi-lab">github.com/sishiya/asobi-lab</a><br>
   不具合やご意見は <a href="https://github.com/sishiya/asobi-lab/issues">GitHub の Issues</a> へ（GitHub のアカウントが必要です）<br>
+  新しいゲームや更新は <a href="feed.xml">RSS（Atom）</a> でも届きます（RSS リーダーに登録）<br>
   姉妹サイト: 学習用アプリの <a href="https://sishiya.github.io/manabi-lab/">まなびラボ</a><br>
   作りかけや試作のゲームは <a href="archive.html">保管庫</a> にしまってあります</p>
   <p class="note" lang="en">Source code and development notes (in Japanese): <a href="https://github.com/sishiya/asobi-lab">github.com/sishiya/asobi-lab</a><br>
   Found a bug or have feedback? Please use <a href="https://github.com/sishiya/asobi-lab/issues">GitHub Issues</a> (a GitHub account is required).<br>
+  Get new and updated games by <a href="feed-en.xml">RSS (Atom)</a> in your feed reader.<br>
   Sister site: learning apps at <a href="https://sishiya.github.io/manabi-lab/?lang=en">Manabi Lab</a><br>
   Unfinished games and prototypes are kept in the <a href="archive.html">archive</a> (Japanese only).</p>
   <div id="analytics">

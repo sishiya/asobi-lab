@@ -13,6 +13,7 @@
 | `resistance/` | 退治するほど手ごわくなる — 10夜で台所の虫を全滅させる。生き残りの子は退治のしかたに強く進化する。タイトル・つづきから・音つき（保管庫に掲載。まなびラボから移した） |
 
 - **公開中**: https://sishiya.github.io/asobi-lab/ （GitHub Pages。push で更新）。作りかけ・試作は保管庫（`archive.html`、入口の下の注記から）
+- **新着のお知らせ（RSS／Atom）**: https://sishiya.github.io/asobi-lab/feed.xml （英語は `feed-en.xml`）。入口のゲームの公開と更新が届きます。`node tools/feed.mjs` が入口の `GAMES` から作ります。
 - 各ゲームの `index.html` が最新版、`launcher.html` から過去の版（`versions/`）。仕組みや確認のしかたは各フォルダの `DEVNOTES.md`、企画は `PLAN.md`。
 - サムネイルは `thumbs/`。静止画 `<game>.jpg` と、マウスを乗せる（スマホはまんなかの1枚）と動く `<game>.mp4`（4秒・音なし）。どちらも `tools/make-motion-thumbs.ps1` で撮る（場面は `tools/thumb.html`、再生は `assets/motion-thumbs.js`）。動画のないゲームの静止画は `tools/make-thumbs.ps1`。
 

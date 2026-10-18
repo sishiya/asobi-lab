@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="ja">
+  <title>あそびラボ</title>
+  <subtitle>ゲームの公開と更新</subtitle>
+  <link href="https://sishiya.github.io/asobi-lab/"/>
+  <link rel="self" href="https://sishiya.github.io/asobi-lab/feed.xml"/>
+  <id>https://sishiya.github.io/asobi-lab/feed.xml</id>
+  <updated>2026-10-19T00:00:00+09:00</updated>
+  <author><name>しし屋</name></author>
+  <entry>
+    <title>恐竜かけっこ牧場</title>
+    <link href="https://sishiya.github.io/asobi-lab/dino-race/"/>
+    <id>https://sishiya.github.io/asobi-lab/dino-race/</id>
+    <published>2026-10-17T00:00:00+09:00</published>
+    <updated>2026-10-19T00:00:00+09:00</updated>
+    <summary>恐竜をかけ合わせて育て、物理の計算で本当に走らせて 100m のかけっこ。体の形と走り方は遺伝子で決まり、走り方は片方の親から丸ごと受けつぐ。体が大きくなるほど重さの割に力が足りなくなる「相似則」も本物どおり。速いけど転びやすい子か、少し遅いけど安定した子か。大会でメダルを集めて、研究の推定の速さに挑もう。</summary>
+  </entry>
+  <entry>
+    <title>ぺらぺら世界の歴史係</title>
+    <link href="https://sishiya.github.io/asobi-lab/flat-history/"/>
+    <id>https://sishiya.github.io/asobi-lab/flat-history/</id>
+    <published>2026-10-16T00:00:00+09:00</published>
+    <updated>2026-10-18T00:00:00+09:00</updated>
+    <summary>1秒ずつのぺらぺらな世界が、ページのように並んでいる。前へ歩けば未来、うしろは昔。住人にはさわれない。置けるのは形だけ。形を置くと、その世界には断面だけが現れて、歴史が書きかわる。住人を、巣へ。</summary>
+  </entry>
+  <entry>
+    <title>果ての滝の箱庭</title>
+    <link href="https://sishiya.github.io/asobi-lab/edge-falls/"/>
+    <id>https://sishiya.github.io/asobi-lab/edge-falls/</id>
+    <published>2026-10-13T00:00:00+09:00</published>
+    <updated>2026-10-15T00:00:00+09:00</updated>
+    <summary>深淵に浮かぶ平らな大地。川は世界の果てから滝になって落ちていく。岩と土だけの大地に泉をわかせ、土を動かし、草と生き物を放して、水と命がめぐる世界をつくる。何も生まれず、何も消えない。1年に1つずつ新しいものが来る十の年。太陽を止めれば真下は焼け、月は潮を寄せる。生き物は遺伝子で体の形を変えて進化し、去った体は土にかえり、命は光になって深淵をめぐる。十の年のあとには、ヒトが来る。</summary>
+  </entry>
+</feed>

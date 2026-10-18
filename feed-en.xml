@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+  <title>Asobi Lab</title>
+  <subtitle>New and updated games</subtitle>
+  <link href="https://sishiya.github.io/asobi-lab/?lang=en"/>
+  <link rel="self" href="https://sishiya.github.io/asobi-lab/feed-en.xml"/>
+  <id>https://sishiya.github.io/asobi-lab/feed-en.xml</id>
+  <updated>2026-10-19T00:00:00+09:00</updated>
+  <author><name>Shishiya</name></author>
+  <entry>
+    <title>Dino Sprint Ranch</title>
+    <link href="https://sishiya.github.io/asobi-lab/dino-race/?lang=en"/>
+    <id>https://sishiya.github.io/asobi-lab/dino-race/?lang=en</id>
+    <published>2026-10-17T00:00:00+09:00</published>
+    <updated>2026-10-19T00:00:00+09:00</updated>
+    <summary>Breed dinosaurs and race them 100m with real physics. Body shape and gait come from genes, and each hatchling inherits its whole gait from one parent. Just like real animals, the bigger the body, the less strength it has to spare. Keep the fast but wobbly runner, or the slower, steadier one? Win medals at the cups and chase the top speeds estimated by researchers.</summary>
+  </entry>
+  <entry>
+    <title>Keeper of the Flat World</title>
+    <link href="https://sishiya.github.io/asobi-lab/flat-history/?lang=en"/>
+    <id>https://sishiya.github.io/asobi-lab/flat-history/?lang=en</id>
+    <published>2026-10-16T00:00:00+09:00</published>
+    <updated>2026-10-18T00:00:00+09:00</updated>
+    <summary>A flat world, one second per page, lined up like a book. Walk forward into the future, back into the past. You can’t touch the residents — you can only place shapes. Only their cross-sections appear in the flat world, and history rewrites itself. Get the resident home.</summary>
+  </entry>
+  <entry>
+    <title>Edge Falls Garden</title>
+    <link href="https://sishiya.github.io/asobi-lab/edge-falls/?lang=en"/>
+    <id>https://sishiya.github.io/asobi-lab/edge-falls/?lang=en</id>
+    <published>2026-10-13T00:00:00+09:00</published>
+    <updated>2026-10-15T00:00:00+09:00</updated>
+    <summary>A flat land floating over the Abyss, where rivers fall from the edge of the world. Make springs, move soil, and release grass and animals on bare rock and soil to build a world where water and life go around. Nothing is made and nothing is lost. Something new arrives each of the Ten Years. Stop the Sun and the land beneath it scorches; the Moon pulls the tides. Animals change shape as they evolve through their genes, bodies return to the soil, and lives go round through the Abyss as light. After the Ten Years, humans arrive.</summary>
+  </entry>
+</feed>
