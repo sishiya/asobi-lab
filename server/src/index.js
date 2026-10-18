@@ -31,7 +31,7 @@ export default {
       const r = await stub.board(ip, url.searchParams.get('farm') || '');
       return json(r, r.error ? 429 : 200, cors);
     }
-    const kind = {'/dino-race/submit': 'submit', '/dino-race/rename': 'rename'}[url.pathname];
+    const kind = {'/dino-race/submit': 'submit', '/dino-race/rename': 'rename', '/dino-race/withdraw': 'withdraw'}[url.pathname];
     if (req.method === 'POST' && kind) {
       const text = await req.text();
       if (text.length > MAX_BODY) return json({error: 'size'}, 413, cors);
@@ -128,6 +128,15 @@ export class Board extends DurableObject {
     this.sql.exec('DELETE FROM rec WHERE cls = ? AND rowid NOT IN (SELECT rowid FROM rec WHERE cls = ? ORDER BY t, at LIMIT ?)', cls, cls, KEEP);
     this.top = null;
     return {ok: true, cls, M, mine: this.mine(b.farm)};
+  }
+
+  // 取り下げ（その牧場の、そのクラスの行を消す）
+  async withdraw(ip, b) {
+    if (this.busy(ip, 'submit')) return {error: 'busy'};
+    if (!b || !isFarm(b.farm) || !CLASSES.some(([c]) => c === b.cls)) return {error: 'shape'};
+    this.sql.exec('DELETE FROM rec WHERE farm = ? AND cls = ?', b.farm, b.cls);
+    this.top = null;
+    return {ok: true, mine: this.mine(b.farm)};
   }
 
   // 牧場の名前だけ変える（その牧場の行ぜんぶ）

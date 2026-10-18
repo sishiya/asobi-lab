@@ -1,7 +1,7 @@
 // 牧場: 裏の計算（Worker）、走る練習、カードの絵、牧場のカードと選択、生まれた子、かけ合わせ。
 
 // ---------- 裏の計算（Worker） ----------
-const worker = new Worker('js/worker.js?v=13');
+const worker = new Worker('js/worker.js?v=14');
 const waiting = new Map();
 let reqId = 1;
 worker.onmessage = e => {
@@ -19,7 +19,7 @@ function measure(list, done) { // 記録としっかり度をはかる（sim.js 
 // 走る練習: 体はそのままで、走り方だけを小さな群れで PRACTICE.gens 世代育て、よくなったら入れかえる。
 // おまかせの進化とぶつからないように別の Worker で、1匹ずつ順番に
 const PRACTICE = {gens: 6, size: 10};
-const practiceWorker = new Worker('js/worker.js?v=13');
+const practiceWorker = new Worker('js/worker.js?v=14');
 const practiceQueue = [];
 let practicing = null;
 function practice(x) {
@@ -183,7 +183,7 @@ $('nurseryBox').addEventListener('click', async e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.act === 'toRanch') { setTab('ranch'); return; }
   if (b.dataset.act === 'releaseAll') {
-    if (kids.some(x => x.practiced) && !await ask(TX('練習した子もいます。のこりを逃がしますか？', 'Some of them have been trained. Release the rest?'), {ok: TX('逃がす', 'Release')})) return;
+    if (kids.some(x => x.practiced) && !await ask(TX('練習した子もいます。のこりを逃がしますか？', 'Some of them have been trained. Release the rest?'), {ok: TX('逃がす', 'Release'), danger: true})) return;
     kids = []; save(); renderKids(); toast(TX('のこりの子を逃がしました', 'Released the rest')); setTab('ranch'); return;
   }
   const x = kids.find(y => y.id === b.closest('.kid').dataset.id); if (!x) return;

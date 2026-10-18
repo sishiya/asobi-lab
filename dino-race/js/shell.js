@@ -6,13 +6,15 @@ const SKIP_TITLE = 'asobi-lab/dino-race/skip-title'; // やり直し・読み込
 
 // ---------- 確認・入力（ブラウザの confirm／prompt の代わり） ----------
 // ask('…') → true/false。ask('…', {input: '今の名前'}) → 入力した文字（やめたら null）
-function ask(msg, {ok = TX('はい', 'OK'), cancel = TX('やめる', 'Cancel'), input = null, max = 12} = {}) {
+// danger: 消す・もどせないとき。はじめの選択を「やめる」に、実行のボタンはふつうの見た目に（Enter や2回押しで消えないように。v013）
+function ask(msg, {ok = TX('はい', 'OK'), cancel = TX('やめる', 'Cancel'), input = null, max = 12, danger = false} = {}) {
   const d = $('ask'), inp = $('askInput');
   $('askMsg').textContent = msg; $('askOk').textContent = ok; $('askNo').textContent = cancel;
+  $('askOk').classList.toggle('primary', !danger);
   inp.hidden = input == null; inp.value = input ?? ''; inp.maxLength = max;
   d.returnValue = '';
   d.showModal();
-  if (input != null) { inp.focus(); inp.select(); } else $('askOk').focus();
+  if (input != null) { inp.focus(); inp.select(); } else (danger ? $('askNo') : $('askOk')).focus();
   return new Promise(res => d.addEventListener('close', () => {
     const yes = d.returnValue === 'ok';
     res(input == null ? yes : yes ? inp.value.trim().slice(0, max) || null : null);
@@ -69,7 +71,7 @@ function closeTitle() {
 $('titleBtns').addEventListener('click', async e => {
   const b = e.target.closest('[data-t]'); if (!b) return;
   if (b.dataset.t === 'go') closeTitle();
-  if (b.dataset.t === 'new' && await ask(TX('はじめからやり直しますか？ 牧場・メダル・記録が消えます。', 'Start a new game? Your ranch, medals and records will be erased.'), {ok: TX('やり直す', 'Start over')})) resetAll();
+  if (b.dataset.t === 'new' && await ask(TX('はじめからやり直しますか？ 牧場・メダル・記録が消えます。', 'Start a new game? Your ranch, medals and records will be erased.'), {ok: TX('やり直す', 'Start over'), danger: true})) resetAll();
 });
 
 // ---------- 言語の切りかえ（タイトル画面の JP／EN と、メニューの設定） ----------
@@ -115,7 +117,7 @@ async function importSave(file) {
   const list = d && d.app === 'dino-race' && Array.isArray(d.ranch) ? d.ranch.map(cleanDino) : null;
   const kidList = d && Array.isArray(d.kids) ? d.kids.map(cleanDino) : [];
   if (!list || !list.length || list.some(x => !x) || kidList.some(x => !x)) { toast(TX('このファイルは読み込めませんでした（恐竜かけっこ牧場の書き出したファイルを選んでください）', 'This file could not be imported (choose a file exported from Dino Sprint Ranch).'), 5000); return; }
-  if (!await ask(TX(`「${file.name}」を読み込みますか？ いまの牧場・メダル・記録は、ファイルの中身に置きかわります。`, `Import “${file.name}”? Your current ranch, medals and records will be replaced by the file’s contents.`), {ok: TX('読み込む', 'Import')})) return;
+  if (!await ask(TX(`「${file.name}」を読み込みますか？ いまの牧場・メダル・記録は、ファイルの中身に置きかわります。`, `Import “${file.name}”? Your current ranch, medals and records will be replaced by the file’s contents.`), {ok: TX('読み込む', 'Import'), danger: true})) return;
   const p = d.prog && typeof d.prog === 'object' ? d.prog : {};
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({ranch: list, kids: kidList, serial: Math.max(1, d.serial | 0)}));
@@ -158,7 +160,7 @@ function openMenu() {
   $('chkSound').onchange = e => { SFX.on = e.target.checked; renderSoundBtn(); if (SFX.on) SFX.play('done'); };
   $('btnExport').onclick = exportSave;
   $('btnImport').onclick = () => $('importFile').click();
-  $('btnReset').onclick = async () => { if (await ask(TX('はじめからやり直しますか？ 牧場・メダル・記録が消えます。', 'Start a new game? Your ranch, medals and records will be erased.'), {ok: TX('やり直す', 'Start over')})) resetAll(); };
+  $('btnReset').onclick = async () => { if (await ask(TX('はじめからやり直しますか？ 牧場・メダル・記録が消えます。', 'Start a new game? Your ranch, medals and records will be erased.'), {ok: TX('やり直す', 'Start over'), danger: true})) resetAll(); };
   if (done) $('btnEnding').onclick = showEnding;
   $('btnMenuHelp').onclick = openHelp;
   bindLangBtns($('menuLang'));

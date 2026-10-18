@@ -168,6 +168,7 @@ function onlineHTML() {
   const empty = c && !rows.length ? `<p class="note">${TX('このクラスにはまだだれもいません。一番乗りのチャンス！', 'Nobody in this class yet — be the first!')}</p>` : '';
   return `<div class="ol-chips" role="group" aria-label="${TX('体重クラス', 'Weight class')}">${chips}</div>
     ${status}${empty}<ol class="ol-list">${list}</ol>${meLine}
+    ${mine ? `<p class="ol-out"><button type="button" class="link ol-link" data-ol="withdraw">${TX('このクラスから取り下げる', 'Withdraw from this class')}</button></p>` : ''}
     <div class="btn-row"><button type="button" class="primary" data-ol="send">${TX('このクラスに出す', 'Enter this class')}</button></div>
     <p class="note">${TX(`あなたの牧場: ${esc(farmName(online.fname))}`, `Your ranch: ${esc(farmName(online.fname))}`)} <button type="button" class="link ol-link" data-ol="farm">${TX('名前を変える', 'Rename')}</button><br>
     ${TX('行を押すと、その恐竜の走りをこの画面で計算して見られます。', 'Tap a row to watch that dinosaur run, computed on your device.')}
@@ -180,6 +181,7 @@ function onlineBind() {
   box.querySelector('[data-ol=send]').onclick = () => openSendPick(olCls);
   box.querySelector('[data-ol=about]').onclick = openOnlineAbout;
   box.querySelector('[data-ol=farm]').onclick = openFarmName;
+  const wd = box.querySelector('[data-ol=withdraw]'); if (wd) wd.onclick = () => withdrawCls(olCls);
   const re = box.querySelector('[data-ol=retry]'); if (re) re.onclick = loadBoard;
   if (online.cache) checkRows(online.cache.classes[olCls] || []);
   // 開いたとき読みこむ。前に読んだ表が1分より古ければ読み直す（失敗したときは「もう一度」を待つ）
@@ -204,7 +206,7 @@ function openSendPick(cls) {
     .sort((a, b) => !!sendBlock(a) - !!sendBlock(b) || a.rec.finishT - b.rec.finishT);
   const name = CLASSES.find(k => k.id === cls).name, sent = online.sent[cls];
   const items = inCls.map(x => { const why = sendBlock(x); return `<button type="button" class="ol-pick" data-id="${esc(x.id)}"${why ? ' disabled' : ''}><b>${esc(x.name)}</b> ${fmtT(x.rec.finishT)} <small>${x.rec.rb ? x.rec.rb.ok + '/10' : ''}${sent && sent.id === x.id ? TX(' ・出しています', ' · entered') : ''}${why ? '<br>' + esc(why) : ''}</small></button>`; }).join('');
-  openSheet(TX(`${name} に出す`, `Enter ${name}`), `<div class="about-body">
+  openSheet(TX(`「${name}」に出す`, `Enter ${name}`), `<div class="about-body">
     ${items ? `<div class="ol-picks">${items}</div>` : `<p>${TX('このクラスの恐竜は牧場にいません。', 'You have no dinosaurs in this class.')}</p>`}
     <p class="ol-msg" aria-live="polite"></p>
     <p class="note">${TX(`出せるのは、牧場で生まれて 10回中${STEADY_MIN}回以上ゴールする子です。1つのクラスに1匹まで（出し直すと入れかわります）。`, `You can enter dinosaurs born on your ranch that finish at least ${STEADY_MIN} of 10 runs. One per class (entering again replaces it).`)}</p></div>`, 'online');
@@ -235,7 +237,7 @@ async function doSend(x, btn) {
   }
   online.agreed = true; online.sent[r.cls] = {id: x.id, t: x.rec.finishT}; saveOnline();
   const m = r.mine[r.cls];
-  toast(TX(`${x.name} を出しました: ${CLASSES.find(k => k.id === r.cls).name} で ${m.rank}位`, `Entered ${x.name}: #${m.rank} in ${CLASSES.find(k => k.id === r.cls).name}`), 4200);
+  toast(TX(`${x.name} を出しました: 「${CLASSES.find(k => k.id === r.cls).name}」で ${m.rank}位`, `Entered ${x.name}: #${m.rank} in ${CLASSES.find(k => k.id === r.cls).name}`), 4200);
   SFX.play('done');
   closeSheet();
   olCls = cls; olState = 'idle';
@@ -255,6 +257,17 @@ function confirmFirstSend(x) {
   bindFarmPicker(body, saveOnline);
   body.querySelector('[data-ol=yes]').onclick = e => doSend(x, e.currentTarget);
   body.querySelector('[data-ol=no]').onclick = closeSheet;
+}
+
+// 取り下げ: そのクラスの自分の記録を消す（あとでまた出せる）
+async function withdrawCls(cls) {
+  const name = CLASSES.find(k => k.id === cls).name;
+  if (!await ask(TX(`「${name}」のあなたの記録を取り下げますか？（あとでまた出せます）`, `Withdraw your entry from ${name}? (You can enter again later.)`), {ok: TX('取り下げる', 'Withdraw'), danger: true})) return;
+  const r = await api('withdraw', {farm: online.farm, cls});
+  if (r.error) { toast(errText(r.error) === TX('送れませんでした', 'Couldn’t send') ? TX('取り下げられませんでした', 'Couldn’t withdraw') : errText(r.error), 4200); return; }
+  delete online.sent[cls]; saveOnline();
+  toast(TX(`「${name}」から取り下げました`, `Withdrew from ${name}`));
+  olState = 'idle'; renderBook();
 }
 
 // 牧場の名前を変える。もう出していれば、サーバーの自分の行もすぐにそろえる

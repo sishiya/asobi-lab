@@ -73,7 +73,7 @@ function renderDetail(x) {
       const nm = await ask(TX('新しい名前（12文字まで）', 'New name (up to 12 characters)'), {input: x.name, ok: TX('決める', 'OK')});
       if (nm) { x.name = nm; save(); renderRanch(); if (sheetDino === x) renderDetail(x); }
     }
-    if (act === 'release' && await ask(TX(`${x.name} を逃がしますか？（もどせません）`, `Release ${x.name}? (This can’t be undone.)`), {ok: TX('逃がす', 'Release')})) {
+    if (act === 'release' && await ask(TX(`${x.name} を逃がしますか？（もどせません）`, `Release ${x.name}? (This can’t be undone.)`), {ok: TX('逃がす', 'Release'), danger: true})) {
       ranch = ranch.filter(y => y !== x); save(); closeSheet(); renderRanch(); renderKids(); toast(TX(`${x.name} を逃がしました`, `Released ${x.name}`));
     }
   };
