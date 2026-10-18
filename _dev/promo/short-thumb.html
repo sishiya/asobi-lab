@@ -49,13 +49,23 @@
   body.wide #big::after { width: 80px; margin-top: 20px; }
   body.wide #sub { margin-top: 20px; font-size: 32px; }
   body.wide #name { left: 0; right: auto; width: 600px; bottom: 44px; font-size: 20px; }
+  /* あそびラボの札（2026-10-19 ユーザー「人目であそびラボっぽいとわかる」「とおめでもゲーム系だとわかりやすい」）: 右上に、入口のファビコンと同じ
+     オレンジの角丸＋白いゲームのコントローラーを大きく、下に「あそびラボ」。左上はチャンネル（しし屋のライオン）だけにする */
+  #asobi { position: absolute; right: 48px; top: 150px;   /* ショートの棚では右上のすみに YouTube の「⋮」が重なるので少し下げる */ display: flex; flex-direction: column; align-items: center; gap: 10px;
+    filter: drop-shadow(0 6px 18px rgba(0,0,0,0.55)); }
+  #asobi svg { width: 200px; height: 200px; display: block; }
+  #asobi b { font-size: 46px; font-weight: 800; letter-spacing: 0.06em; color: #fff; background: #d9480f; border-radius: 999px; padding: 6px 26px 8px; }
+  body.wide #asobi { right: 30px; top: 26px; gap: 6px; }
+  body.wide #asobi svg { width: 112px; height: 112px; }
+  body.wide #asobi b { font-size: 26px; padding: 4px 18px 6px; }
 </style>
 </head>
 <body>
 <img id="bg2" alt=""><img id="bg" alt="">
 <div id="shade"></div>
 <div id="panel"></div>
-<div id="brand"><img src="../sns-icon/a-lion-glasses.png" alt="">しし屋 あそびラボ</div>
+<div id="asobi"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#d9480f"/><rect x="10" y="22" width="44" height="24" rx="12" fill="#fff"/><path d="M22 28v12M16 34h12" stroke="#d9480f" stroke-width="4" stroke-linecap="round"/><circle cx="41" cy="31" r="3" fill="#d9480f"/><circle cx="47" cy="37" r="3" fill="#d9480f"/></svg><b>あそびラボ</b></div>
+<div id="brand"><img src="../sns-icon/a-lion-glasses.png" alt="">しし屋</div>
 <div id="text"><div id="kicker"></div><div id="big"></div><div id="sub"></div></div>
 <div id="name"></div>
 <script>
