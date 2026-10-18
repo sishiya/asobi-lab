@@ -145,6 +145,12 @@ function updateSide(s) {
 const TALLY_KEY = 'asobi-lab/edge-falls/tally';
 let tallyOn = true; try { tallyOn = localStorage.getItem(TALLY_KEY) !== '0'; } catch (e) { /* なし */ }
 function setTally(v) { tallyOn = v; try { localStorage.setItem(TALLY_KEY, v ? '1' : '0'); } catch (e) { /* なし */ } updateTally(lastStats); }
+// 回す向きの逆転（v070。2026-10-18 ユーザー「カメラ回転の上下と左右をそれぞれ逆転させるオプション」）: 設定の「左右の回転」「上下の回転」。
+//   マウス・指でなぞる・2本指でひねる・矢印キーに効く（見る用のボタンは絵の矢印どおりのまま）。localStorage に覚える
+const INVERT_KEY = 'asobi-lab/edge-falls/invert';
+let invert = { x: false, y: false }; try { Object.assign(invert, JSON.parse(localStorage.getItem(INVERT_KEY) || '{}')); } catch (e) { /* なし */ }
+function setInvert(axis, v) { invert[axis] = v; try { localStorage.setItem(INVERT_KEY, JSON.stringify(invert)); } catch (e) { /* なし */ } }
+const invX = () => invert.x ? -1 : 1, invY = () => invert.y ? -1 : 1;
 const TALLY = [   // [種類, ちょうどの下, ちょうどの上, 棒いっぱいの数]
   ['grass', 15, 65, 80], ['deer', 10, 35, 45], ['wolf', 3, 10, 16], ['fish', 15, 60, 90], ['bird', 3, 10, 14], ['human', 4, 12, 14]];
 function updateTally(s) {

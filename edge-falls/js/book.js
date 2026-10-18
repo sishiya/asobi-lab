@@ -223,9 +223,10 @@ function remakeFree() {
 // 設定（v016。2026-10-13 ユーザー「設定メニューを追加して」「メニューには文字フォント切り替えは必要ない。設定画面に移して」）
 //   音楽・効果音・文字・背景（v017 で観察帳のてびきから移した）。言語は v020 でタイトルの右上だけに（遊んでいるとちゅうで読み直すと、
 //   ページを離れるときに書きとめるのが走るので）。押すとその場で切りかわる。back があれば「もどる」でそこへ（メニュー）。
-//   いちばん下に「ファイル」（ほかの端末へ持っていく。v067 でセーブの札からここへ）
+//   回す向きの逆転（左右・上下。v070）。いちばん下に「ファイル」（ほかの端末へ持っていく。v067 でセーブの札からここへ）
 function openSettings(back, focus) {
   const on = v => v ? TX('オン', 'On') : TX('オフ', 'Off'), again = k => () => openSettings(back, k);
+  const rev = v => v ? TX('逆', 'Inverted') : TX('ふつう', 'Normal');
   const bi = BACK_CHOICES.findIndex(([k]) => k === backName);
   showPanel(`<p class="mtitle">${TX('設定', 'Settings')}</p>`, [
     { label: TX('音楽', 'Music'), vol: 'bgm' },   // 音の大きさは、光の数（0〜5）。その場で変わり、札は作り直さない（v023）
@@ -234,8 +235,10 @@ function openSettings(back, focus) {
     { label: TX('文字　', 'Font: ') + (fontName === 'dot' ? TX('ドット', 'Pixel') : TX('明朝', 'Serif')), fn: () => { setFont(fontName === 'dot' ? 'serif' : 'dot'); again(3)(); } },
     { label: TX('背景　', 'Background: ') + (bi >= 0 ? BACK_CHOICES[bi][1] : TX('ほか', 'Other')), fn: () => { setBack(BACK_CHOICES[(bi + 1) % BACK_CHOICES.length][0]); again(4)(); } },
     { label: TX('数の印　', 'Population marks: ') + on(tallyOn), fn: () => { setTally(!tallyOn); again(5)(); } },
-    { label: TX('ボクセル（試験）　', 'Voxels (test): ') + VOX_NAME[VOXSMOOTH], fn: () => { setVoxSmooth(nextVox()); again(6)(); } },
-    ...(G.started ? [{ label: TX('ファイル', 'File'), fn: () => openFilePanel(() => openSettings(back, 7)) }] : []),
+    { label: TX('左右の回転　', 'Turn left/right: ') + rev(invert.x), fn: () => { setInvert('x', !invert.x); again(6)(); } },   // v070
+    { label: TX('上下の回転　', 'Tilt up/down: ') + rev(invert.y), fn: () => { setInvert('y', !invert.y); again(7)(); } },
+    { label: TX('ボクセル（試験）　', 'Voxels (test): ') + VOX_NAME[VOXSMOOTH], fn: () => { setVoxSmooth(nextVox()); again(8)(); } },
+    ...(G.started ? [{ label: TX('ファイル', 'File'), fn: () => openFilePanel(() => openSettings(back, 9)) }] : []),
     { label: back ? TX('もどる', 'Back') : TX('とじる', 'Close'), main: true, fn: () => { if (back) back(); } },
   ]);
   $('panel').querySelectorAll('.btns .tbtn').forEach((el, n) => { if (n < 2) volRow(el, n ? 'sfx' : 'bgm', n ? TX('効果音', 'Sound effects') : TX('音楽', 'Music')); });

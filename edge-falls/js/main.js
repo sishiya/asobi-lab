@@ -184,7 +184,7 @@ cv.addEventListener('pointermove', e => {
       panBy(n.x - pinch.x, n.y - pinch.y);
       V.zoom = Math.max(0.6, Math.min(3, V.zoom * n.d / pinch.d));
       let da = n.a - pinch.a; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
-      V.yaw += da;                                   // 2本指でひねると回る（スマホ。手に持っていても回せる）。v031 で向きを逆に（2026-10-13 ユーザー。マウス・キー・見る用のボタンはそのまま）
+      V.yaw += da * invX();                          // 2本指でひねると回る（スマホ。手に持っていても回せる）。v031 で向きを逆に（2026-10-13 ユーザー。マウス・キー・見る用のボタンはそのまま）
       layout(V.cw, V.ch); G.did.rotate = 1; lastInput = performance.now();
       noteGesture('zoom', Math.abs(Math.log(n.d / pinch.d))); noteGesture('twist', Math.abs(da));   // 見かたの練習（view.js）
       pinch = n; return;
@@ -195,8 +195,8 @@ cv.addEventListener('pointermove', e => {
     ptr.moved += Math.abs(dx) + Math.abs(dy); ptr.x = p.x; ptr.y = p.y;
     if (ptr.mode === 'view') {
       if (ptr.moved > 12) G.follow = null;
-      V.yaw -= dx * 0.008;                                            // 手前の地面が手の動きについてくる向き（2026-10-12 ユーザー「逆かも」）
-      V.tilt = Math.max(0.32, Math.min(0.92, V.tilt + dy * 0.002));   // 下へ引くと真上から見る向きへ（2026-10-12 ユーザー「上下も逆かも」）
+      V.yaw -= dx * 0.008 * invX();                                         // 手前の地面が手の動きについてくる向き（2026-10-12 ユーザー「逆かも」）
+      V.tilt = Math.max(0.32, Math.min(0.92, V.tilt + dy * 0.002 * invY()));   // 下へ引くと真上から見る向きへ（2026-10-12 ユーザー「上下も逆かも」）
       layout(V.cw, V.ch);
       if (ptr.moved > 30) G.did.rotate = 1;
     }
@@ -247,10 +247,10 @@ function moveByKeys(dt) {
   const has = k => held.has(k);
   const pan = 480 * dt * Math.max(0.6, V.zoom), rot = 1.6 * dt, tl = 0.5 * dt;   // 寄っているほど速く（2026-10-13 ユーザー）
   if (has('a') || has('d') || has('w') || has('s')) { V.panX = (V.panX || 0) + (has('a') ? pan : 0) - (has('d') ? pan : 0); V.panY = (V.panY || 0) + (has('w') ? pan : 0) - (has('s') ? pan : 0); }
-  if (has('ArrowLeft')) V.yaw += rot;
-  if (has('ArrowRight')) V.yaw -= rot;
-  if (has('ArrowUp')) V.tilt = Math.max(0.32, V.tilt - tl);
-  if (has('ArrowDown')) V.tilt = Math.min(0.92, V.tilt + tl);
+  if (has('ArrowLeft')) V.yaw += rot * invX();     // 設定の「左右の回転」「上下の回転」で逆に（v070）
+  if (has('ArrowRight')) V.yaw -= rot * invX();
+  if (has('ArrowUp')) V.tilt = Math.max(0.32, Math.min(0.92, V.tilt - tl * invY()));
+  if (has('ArrowDown')) V.tilt = Math.max(0.32, Math.min(0.92, V.tilt + tl * invY()));
   G.did.rotate = 1;
   layout(V.cw, V.ch);
 }
