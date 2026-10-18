@@ -6,7 +6,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { cleanGenome, massOf, classOf, CLASSES, LINES } from './dino.js';
 
 const PHYS = ['sim1'];           // 物理の版（sim.js や planck を変えてタイムが変わったら足す。版ごとに別の表）
-const FARM_WORDS = [40, 30];      // 牧場の名前の言葉の数（dino-race/js/online.js の FARM_A・FARM_B）
+const FARM_WORDS = [62, 54];      // 牧場の名前の言葉の数（dino-race/js/online.js の FARM_A・FARM_B）
 const TOP = 20, KEEP = 300;      // 見せる数・クラスごとに残す数
 const MAX_BODY = 4096;
 const LIMIT = {submit: [12, 600e3], read: [60, 60e3]}; // [回数, ミリ秒] 1つの IP あたり

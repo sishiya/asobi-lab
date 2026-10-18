@@ -22,12 +22,20 @@ const FARM_A = [['ひだまり', 'Sunny'], ['そよかぜ', 'Breezy'], ['あさ�
   // v010 の2回目で足した（16〜）
   ['つきよ', 'Moonlit'], ['あさつゆ', 'Dewy'], ['こもれび', 'Dappled'], ['ほたる', 'Firefly'], ['やまびこ', 'Echo'], ['くるみ', 'Walnut'], ['まつぼっくり', 'Pinecone'], ['さんご', 'Coral'],
   ['ひすい', 'Jade'], ['たんぽぽ', 'Dandelion'], ['ひまわり', 'Sunflower'], ['もみじ', 'Maple'], ['さくら', 'Blossom'], ['ソテツ', 'Cycad'], ['イチョウ', 'Ginkgo'], ['トクサ', 'Horsetail'],
-  ['あけぼの', 'Daybreak'], ['ゆうなぎ', 'Calm'], ['ながれぼし', 'Comet'], ['すいれん', 'Lotus'], ['しずく', 'Droplet'], ['かざぐるま', 'Pinwheel'], ['ゆきどけ', 'Snowmelt'], ['オーロラ', 'Aurora']];
+  ['あけぼの', 'Daybreak'], ['ゆうなぎ', 'Calm'], ['ながれぼし', 'Comet'], ['すいれん', 'Lotus'], ['しずく', 'Droplet'], ['かざぐるま', 'Pinwheel'], ['ゆきどけ', 'Snowmelt'], ['オーロラ', 'Aurora'],
+  // 頭の文字がそろうように足した（40〜。2026-10-18 ユーザー「あいうえお順にならべつつすべての文字がならぶように。できれば各1個以上」）
+  ['うぐいす', 'Warbler'], ['エメラルド', 'Emerald'], ['きのこ', 'Mushroom'], ['けやき', 'Zelkova'], ['セコイア', 'Sequoia'], ['ちょうちょ', 'Butterfly'], ['てんとうむし', 'Ladybug'], ['ぬくもり', 'Cozy'],
+  ['ねこじゃらし', 'Foxtail'], ['のいちご', 'Wildberry'], ['はちみつ', 'Honey'], ['ふたば', 'Sprout'], ['ヘゴ', 'Treefern'], ['みかづき', 'Crescent'], ['むらさき', 'Violet'], ['めだか', 'Minnow'],
+  ['よつば', 'Clover'], ['ラベンダー', 'Lavender'], ['りんご', 'Apple'], ['るり', 'Lapis'], ['レモン', 'Lemon'], ['ロウバイ', 'Wintersweet']];
 const FARM_B = [['おか', 'Hill'], ['たに', 'Valley'], ['はら', 'Meadow'], ['もり', 'Wood'], ['かわら', 'Riverside'], ['みさき', 'Cape'], ['だいち', 'Plateau'], ['いりえ', 'Cove'],
   // v010 の2回目で足した（8〜）
   ['みずうみ', 'Lake'], ['ぬま', 'Marsh'], ['しま', 'Island'], ['はま', 'Shore'], ['さわ', 'Brook'], ['たき', 'Falls'], ['こみち', 'Lane'], ['せせらぎ', 'Creek'],
   ['さきゅう', 'Dune'], ['がけ', 'Cliff'], ['ほらあな', 'Cave'], ['くさはら', 'Grassland'], ['ふもと', 'Foothill'], ['わん', 'Bay'], ['うみべ', 'Seaside'], ['いけ', 'Pond'],
-  ['こだち', 'Grove'], ['かわぐち', 'Rivermouth'], ['やまあい', 'Glen'], ['とうげ', 'Pass'], ['いわば', 'Crag'], ['こうげん', 'Highland']];
+  ['こだち', 'Grove'], ['かわぐち', 'Rivermouth'], ['やまあい', 'Glen'], ['とうげ', 'Pass'], ['いわば', 'Crag'], ['こうげん', 'Highland'],
+  // 頭の文字がそろうように足した（30〜。「る」は自然な場所の言葉がないので入れていない）
+  ['あさせ', 'Shallows'], ['えんがん', 'Coast'], ['きし', 'Banks'], ['けいこく', 'Gorge'], ['すなち', 'Sands'], ['そうげん', 'Prairie'], ['ちへいせん', 'Horizon'], ['つつみ', 'Levee'],
+  ['なぎさ', 'Tideline'], ['にわ', 'Garden'], ['ねぐら', 'Roost'], ['のやま', 'Wilds'], ['ひろば', 'Commons'], ['へいげん', 'Plains'], ['まつばやし', 'Pines'], ['むら', 'Village'],
+  ['めいろ', 'Maze'], ['ゆきやま', 'Snowcap'], ['よしはら', 'Reedbed'], ['らくえん', 'Haven'], ['りく', 'Land'], ['れんざん', 'Range'], ['ろじ', 'Alley'], ['てんぼうだい', 'Lookout']];
 const farmName = f => TX(`${FARM_A[f[0]][0]}の${FARM_B[f[1]][0]}牧場`, `${FARM_A[f[0]][1]} ${FARM_B[f[1]][1]} Ranch`);
 
 let online = {farm: null, fname: null, agreed: false, sent: {}, cache: null};
@@ -37,10 +45,19 @@ function loadOnline() {
   if (!Array.isArray(online.fname) || !(online.fname[0] in FARM_A) || !(online.fname[1] in FARM_B)) rerollFarm();
 }
 function saveOnline() { try { localStorage.setItem(ONLINE_KEY, JSON.stringify(online)); } catch (e) { /* 保存できなくても遊べる */ } }
-// 牧場の名前を選ぶ（2つの一覧。並びは見る人の言語の五十音・ABC 順、値は番号）
+// 牧場の名前を選ぶ（2つの一覧。値は番号）。日本語はあいうえお順で「あ行・か行…」のまとまりに（カタカナはひらがなとして、濁音は清音の行に）、英語は ABC 順
+const kanaKey = w => w.normalize('NFD').replace(/[゙゚]/g, '').replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).replace(/ー/g, '');
+const GYO = ['あいうえお', 'かきくけこ', 'さしすせそ', 'たちつてと', 'なにぬねの', 'はひふへほ', 'まみむめも', 'やゆよ', 'らりるれろ', 'わ'];
 function farmPickerHTML() {
-  const opts = (list, cur) => list.map((w, i) => [TX(w[0], w[1]), i]).sort((a, b) => a[0].localeCompare(b[0], LANG))
-    .map(([w, i]) => `<option value="${i}"${i === cur ? ' selected' : ''}>${esc(w)}</option>`).join('');
+  const opt = (w, i, cur) => `<option value="${i}"${i === cur ? ' selected' : ''}>${esc(w)}</option>`;
+  const opts = (list, cur) => {
+    if (LANG === 'en') return list.map((w, i) => [w[1], i]).sort((a, b) => a[0].localeCompare(b[0], 'en')).map(([w, i]) => opt(w, i, cur)).join('');
+    const items = list.map((w, i) => [w[0], i, kanaKey(w[0])]).sort((a, b) => a[2].localeCompare(b[2], 'ja'));
+    return GYO.map(g => {
+      const inG = items.filter(x => g.includes(x[2][0]));
+      return inG.length ? `<optgroup label="${g[0]}${TX('行', '')}">${inG.map(([w, i]) => opt(w, i, cur)).join('')}</optgroup>` : '';
+    }).join('');
+  };
   return `<div class="ol-farm">
     <select data-farm="0" aria-label="${TX('牧場の名前（はじめの言葉）', 'Ranch name (first word)')}">${opts(FARM_A, online.fname[0])}</select>
     ${TX('<span>の</span>', '')}
