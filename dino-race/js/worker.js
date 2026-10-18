@@ -1,11 +1,13 @@
 // 裏で計算する: 記録の測定（evaluate）と、おまかせの進化（evolve）。画面が固まらないように。
-importScripts('https://cdn.jsdelivr.net/npm/planck@1.5.0/dist/planck.min.js', 'genome.js?v=8', 'sim.js?v=8', 'ga.js?v=8');
+importScripts('https://cdn.jsdelivr.net/npm/planck@1.5.0/dist/planck.min.js', 'genome.js?v=11', 'sim.js?v=11', 'ga.js?v=11');
 
 let job = 0;
 onmessage = e => {
   const m = e.data;
   if (m.type === 'evaluate') {
     postMessage({type: 'evaluated', id: m.id, res: measureRobust(m.genomes)});
+  } else if (m.type === 'check') { // みんなの記録の確かめ（v010）: いつもの走りを1回ずつ
+    postMessage({type: 'evaluated', id: m.id, res: evaluate(m.genomes)});
   } else if (m.type === 'evolve') {
     const my = ++job;
     const P = makePop(m.seeds, m.opts);

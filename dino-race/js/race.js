@@ -188,11 +188,12 @@ function renderBook() {
     <p class="note">${TX('ゾウとダチョウは全力の速さから計算した目安です（100m を同じ速さで走るとして）。', 'Elephant and ostrich times are rough guides worked out from their top speeds (as if they held that speed for the full 100m).')}</p>`,
   };
   $('bookSeg').innerHTML = BOOK_PAGES.map(([k, name]) => `<button type="button" role="tab" data-page="${k}" aria-selected="${k === bookPage}">${name}</button>`).join('');
-  $('book').innerHTML = `<div class="book">${pages[bookPage]}</div>`;
+  $('book').innerHTML = `<div class="book">${bookPage === 'online' ? onlineHTML() : pages[bookPage]}</div>`;
   if (bookPage === 'speed') drawBookChart();
+  if (bookPage === 'online') onlineBind();
 }
-// 記録帳は3ページ（v005）: まとめ・体重と速さ（図と研究の推定）・本物とくらべる
-const BOOK_PAGES = [['sum', TX('まとめ', 'Summary')], ['speed', TX('体重と速さ', 'Weight & speed')], ['real', TX('本物とくらべる', 'Real animals')]];
+// 記録帳は3ページ（v005）: まとめ・体重と速さ（図と研究の推定）・本物とくらべる。v010 でサーバーがあれば4ページ目「みんな」（online.js が足す。375px で折り返さないようにラベルをちぢめた）
+const BOOK_PAGES = [['sum', TX('まとめ', 'Summary')], ['speed', TX('体重と速さ', 'Scaling')], ['real', TX('本物', 'Real')]];
 let bookPage = 'sum';
 $('bookSeg').addEventListener('click', e => { const b = e.target.closest('[data-page]'); if (b) { bookPage = b.dataset.page; renderBook(); $('screens').scrollTop = 0; } });
 

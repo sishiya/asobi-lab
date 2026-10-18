@@ -1,0 +1,23 @@
+# あそびラボのオンラインの部分（server/README.md）。無料プランのまま使う（超えたらその日は止まるだけ）。
+# 秘密の値はここに書かない（このファイルは公開される）。
+name = "asobi-lab-online"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+# 送ってよいページの出どころ（CORS）。localhost はローカルで試すとき
+[vars]
+ALLOW = "https://sishiya.github.io,http://localhost:8780,http://127.0.0.1:8780"
+
+[[durable_objects.bindings]]
+name = "BOARD"
+class_name = "Board"
+
+# 無料プランは SQLite の Durable Object だけ使える
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Board"]
+
+# ログは残さない（IP などを書かないため）
+[observability]
+enabled = false

@@ -1,0 +1,12 @@
+{
+  "name": "asobi-lab-online",
+  "private": true,
+  "description": "あそびラボのオンラインの部分（いまは恐竜かけっこ牧場のみんなの記録）。Cloudflare Workers ＋ Durable Objects",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "deploy": "wrangler deploy",
+    "test": "node test/check.mjs"
+  },
+  "devDependencies": { "wrangler": "4.145.0" }
+}

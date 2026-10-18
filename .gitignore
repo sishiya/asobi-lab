@@ -7,6 +7,8 @@
 
 # secrets
 .env
+.dev.vars
+.dev.vars.*
 .env.*
 *.pem
 *.key
@@ -40,3 +42,6 @@ _dev/lineup/
 _dev/motion/
 # 見た目の採点に使った絵と動画（大きいので公開しない。ローカルだけ）
 _dev/blender/review/
+
+# Cloudflare（server/）: wrangler dev のローカルの表とキャッシュ
+.wrangler/

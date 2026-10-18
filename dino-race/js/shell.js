@@ -1,7 +1,7 @@
 // 外まわり: 確認・名前の入力（ask）、タイトル画面、メニュー（あそびかた・音・データ・このゲームについて・クレジット）、
 // セーブの書き出し・読み込み、全大会を制覇したときのエンディング、動かせないときやエラーのおしらせ。
 
-const VERSION = 'ver. 1.2';
+const VERSION = 'ver. 1.3';
 const SKIP_TITLE = 'asobi-lab/dino-race/skip-title'; // やり直し・読み込みで読み直したときはタイトルを出さない（sessionStorage）
 
 // ---------- 確認・入力（ブラウザの confirm／prompt の代わり） ----------

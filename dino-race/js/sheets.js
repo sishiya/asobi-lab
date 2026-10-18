@@ -54,9 +54,12 @@ function renderDetail(x) {
       <button type="button" data-d="watch"${x.rec ? '' : ' disabled'}>${TX('走りを見る', 'Watch run')}</button>
       <button type="button" data-d="practice"${busy ? ' disabled' : ''}>${busy ? practiceLabel(x) : TX('練習させる', 'Train')}</button>
       <button type="button" data-d="evolve"${evolving ? ' disabled' : ''}>${evo ? TX('おまかせで進化中', 'Auto-evolving') : TX('おまかせで進化', 'Auto-evolve')}</button>
+      ${ONLINE_URL && ranch.includes(x) ? `<button type="button" data-d="online"${sendBlock(x) ? ' disabled' : ''}>${TX('みんなの記録に出す', 'Enter the rankings')}</button>` : ''}
       <button type="button" data-d="rename">${TX('名前を変える', 'Rename')}</button>
       <button type="button" data-d="release" class="quiet"${ranch.length <= 1 ? ' disabled' : ''}>${TX('逃がす', 'Release')}</button>
     </div>
+    ${ONLINE_URL && ranch.includes(x) && sendBlock(x) ? `<p class="hint">${TX('みんなの記録: ', 'Rankings: ')}${esc(sendBlock(x))}</p>` : ''}
+    <p class="ol-msg" aria-live="polite"></p>
     <p class="hint">${TX('練習: 体はそのままで走り方を数秒〜数十秒かけて練習（よくなったら覚える。体が変わらないので、伸びには限りがある）。おまかせ: この恐竜をもとに群れを育て、いちばん速い子を連れて帰る（数分）。', 'Train: practise the gait for a few seconds to a minute with the body unchanged (it keeps any improvement; since the body stays the same, gains are limited). Auto-evolve: raise a herd from this dinosaur and bring back the fastest one (a few minutes).')}</p>`;
   paintPortraits($('sheetBody'), [x]);
   $('sheetBody').querySelector('.btn-row').onclick = async e => {
@@ -65,6 +68,7 @@ function renderDetail(x) {
     if (act === 'watch') watchRun(x);
     if (act === 'practice') practice(x);
     if (act === 'evolve') openEvolve(x);
+    if (act === 'online') sendDino(x, b);
     if (act === 'rename') {
       const nm = await ask(TX('新しい名前（12文字まで）', 'New name (up to 12 characters)'), {input: x.name, ok: TX('決める', 'OK')});
       if (nm) { x.name = nm; save(); renderRanch(); if (sheetDino === x) renderDetail(x); }
