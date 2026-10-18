@@ -76,6 +76,9 @@ const q = new URLSearchParams(location.search);
 const app = q.get('app') || 'evolution', wide = q.has('wide');
 if (wide) { document.documentElement.classList.add('wide'); document.body.classList.add('wide'); }
 const c = SHORT_THUMBS[app];
+// 札の形（2026-10-19 見くらべ）: 'pill' = 左上「しし屋」・右上にアイコン＋「あそびラボ」、'icon' = 左上「しし屋 あそびラボ」（まなびラボと同じ形）・右上はアイコンだけ
+const badge = q.get('badge') || window.ASOBI_BADGE || 'pill';
+if (badge === 'icon') { document.querySelector('#asobi b').remove(); document.getElementById('brand').lastChild.textContent = 'しし屋 あそびラボ'; }
 const root = document.documentElement.style;
 root.setProperty('--c1', c.c1); root.setProperty('--c2', c.c2); root.setProperty('--glow', c.c2 + '40');
 document.getElementById('kicker').textContent = c.kicker;
