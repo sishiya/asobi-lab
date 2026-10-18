@@ -51,13 +51,16 @@
   body.wide #name { left: 0; right: auto; width: 600px; bottom: 44px; font-size: 20px; }
   /* あそびラボの札（2026-10-19 ユーザー「人目であそびラボっぽいとわかる」「とおめでもゲーム系だとわかりやすい」）: 右上に、入口のファビコンと同じ
      オレンジの角丸＋白いゲームのコントローラーを大きく、下に「あそびラボ」。左上はチャンネル（しし屋のライオン）だけにする */
-  #asobi { position: absolute; right: 48px; top: 150px;   /* ショートの棚では右上のすみに YouTube の「⋮」が重なるので少し下げる */ display: flex; flex-direction: column; align-items: center; gap: 10px;
+  /* 大きさと位置は横長と同じ割合（アイコンの幅に対して右の余白 0.27・上の余白 0.25・字 0.23。横長の上はユーザーの指示で 2px 下げて 28px）。2026-10-19 ユーザー「もうすこし右上に、横長と似た感じに」 */
+  #asobi { position: absolute; right: 60px; top: 58px; display: flex; flex-direction: column; align-items: center; gap: 12px;
     filter: drop-shadow(0 6px 18px rgba(0,0,0,0.55)); }
-  #asobi svg { width: 200px; height: 200px; display: block; }
-  #asobi b { font-size: 46px; font-weight: 800; letter-spacing: 0.06em; color: #fff; background: #d9480f; border-radius: 999px; padding: 6px 26px 8px; }
-  body.wide #asobi { right: 30px; top: 26px; gap: 6px; }
+  #asobi svg { width: 230px; height: 230px; display: block; }
+  /* 字は目で見てまんなかに（Noto Sans JP の「あそびラボ」は、line-height 1 だとインクが 0.05em 下に寄る → 下の余白を 0.14em 多くして、
+     インクのまんなかを箱のまんなかより 0.02em 上に。右は字間 0.06em が余るので、そのぶん右の余白を小さく） */
+  #asobi b { font-size: 53px; font-weight: 800; letter-spacing: 0.06em; line-height: 1; color: #fff; background: #d9480f; border-radius: 999px; padding: 0.08em 0.54em 0.22em 0.6em; }
+  body.wide #asobi { right: 30px; top: 28px; gap: 6px; }
   body.wide #asobi svg { width: 112px; height: 112px; }
-  body.wide #asobi b { font-size: 26px; padding: 4px 18px 6px; }
+  body.wide #asobi b { font-size: 26px; }
 </style>
 </head>
 <body>
