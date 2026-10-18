@@ -6,7 +6,7 @@
 const ONLINE_URL = (() => {
   if (/\/versions\//.test(location.pathname)) return null;   // 過去の版からは送らない
   const h = location.hostname;
-  if (h === 'sishiya.github.io') return null;                 // 公開の送り先（Cloudflare に出したら https://… を書く）
+  if (h === 'sishiya.github.io') return 'https://asobi-lab-online.sishiya.workers.dev'; // 公開の送り先（../server。2026-10-19 に出した）
   if (h === 'localhost' || h === '127.0.0.1') return 'http://127.0.0.1:8787'; // ローカルで試すとき（server で npm run dev）
   return null;
 })();

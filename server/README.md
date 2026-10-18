@@ -25,6 +25,7 @@ npm run dev        # http://127.0.0.1:8787 。ゲームは localhost:8780 で開
 ローカルの表は `server/.wrangler/` にたまる（消せばまっさら）。
 
 ## 公開する（はじめての1回はユーザーの手が要る）
+**2026-10-19 に出した**: `https://asobi-lab-online.sishiya.workers.dev`（workers.dev の名前は `sishiya`）。直したら `cd server` → `npm test` → `npx.cmd wrangler deploy`（PowerShell では `npx` の ps1 が止められるので `.cmd`）。
 1. **Cloudflare のアカウント**を作る（無料。メールで登録。カードは要らない）。**2段階認証を入れる**。
 2. この PC で `cd server` → `npx wrangler login`（ブラウザで許可する。鍵はユーザーのホームフォルダにしまわれ、リポジトリには入らない）。
 3. `npm run deploy` → 出てきた `https://asobi-lab-online.<名前>.workers.dev` を `../dino-race/js/online.js` の `ONLINE_URL`（`sishiya.github.io` の行）に書く → 公開前チェック → commit・push。
