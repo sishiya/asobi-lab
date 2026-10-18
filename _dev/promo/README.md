@@ -30,7 +30,7 @@
   `powershell -NoProfile -ExecutionPolicy Bypass -File _dev/tools/record-promo.ps1 -Script dino-race -Short`
   `powershell -NoProfile -ExecutionPolicy Bypass -File _dev/tools/record-promo.ps1 -Script dino-race-guide`
 - サムネイル: `short-thumbs.js` の `dino-race`（ゴールの線をこえるラプトル 4号に「9.58秒 より速い恐竜を育てろ！」）。説明動画の名前は `wname`「あそびかたと見どころ」。
-- YouTube の下書き: `dino-race-short.upload.json`・`dino-race-guide.upload.json`（説明欄に「しし屋 まなびラボの姉妹サイト」とまなびラボへのリンク。上げる日はまだ。`_todo` の行）。
+- YouTube の下書き: `dino-race-short.upload.json`・`dino-race-guide.upload.json`（説明欄に「しし屋 まなびラボの姉妹サイト」とまなびラボへのリンク）。**予約 2026-10-23（木）説明動画 19:00・ショート 19:05**（ユーザーが決めた。12本の締めの日の空き枠、20:00〜20:15 はさけた）。上げるのはユーザーの GO のあと。
 
 ## 果ての滝の箱庭（2026-10-13）
 **ネタバレ厳禁**（`../../RULES.md` 8章）: ショート・説明動画・サムネイルにエンディングと世界がくずれる演出を出さない。終わりは第十の年「めぐる世界」までで、できた世界を回して見せる。ダイジェストは確認用なのでクリアまで録る（エンディングの演出がない版でも、十の年を通ったら止まる）。

@@ -1,8 +1,8 @@
 {
-  "_todo": "TODO publishAt はユーザーの GO のあと、サプライズ投稿の日を決めてから（説明動画の少しあと。20:00〜20:15 はさける）。2026-10-19 に ver. 1.3 で録りなおしたショート（予告編の形、まなびラボの姉妹サイトとして）。済んだらこの行を消す",
   "file": "_dev/promo/out/dino-race-short.mp4",
   "thumbnail": "_dev/promo/thumbs/dino-race-short.jpg",
   "privacy": "private",
+  "publishAt": "2026-10-23T19:05:00+09:00",
   "captions": {
     "en": "_dev/promo/out/dino-race-short.en.srt"
   },
