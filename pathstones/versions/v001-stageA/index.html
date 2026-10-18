@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%2318161a'/><rect x='10' y='34' width='14' height='14' fill='%238c8375' stroke='%23111' stroke-width='2'/><rect x='26' y='34' width='14' height='14' fill='%238c8375' stroke='%23111' stroke-width='2'/><rect x='26' y='18' width='14' height='14' fill='%238c8375' stroke='%23111' stroke-width='2'/><rect x='22' y='38' width='4' height='6' fill='%23c49a45'/><rect x='30' y='30' width='6' height='4' fill='%23c49a45'/><circle cx='50' cy='16' r='7' fill='%23ffb048'/></svg>">
+<title>みちいし（試作）</title>
+<meta name="description" content="闇の中だけ歩く岩の積み木「みちいし」を誘って道の形を描かせ、頭石を落とし、形のまま持って奈落に橋をかける。灯りの子が灯台へ火種を運ぶターン制パズル。">
+<link rel="stylesheet" href="css/style.css?v=1">
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <div id="room">部屋 1</div>
+    <div id="moves" aria-label="手数">0手</div>
+    <div class="ver">ver. 0.1 試作</div>
+    <button id="menuBtn" class="icon" aria-label="メニュー">≡</button>
+  </header>
+  <main id="stage">
+    <canvas id="board" aria-label="盤"></canvas>
+    <div id="toast" aria-live="polite"></div>
+  </main>
+  <nav id="band" aria-label="道具">
+    <button id="undoBtn" class="tool" aria-label="もどす"><span class="glyph">↶</span><span class="lbl">もどす</span></button>
+    <button id="cutBtn" class="tool" aria-label="切る"><span class="glyph">✂</span><span class="lbl">切る</span></button>
+    <button id="heldBtn" class="tool held" aria-label="持っている形"><canvas id="heldCv" width="88" height="88"></canvas></button>
+    <button id="placeBtn" class="tool" aria-label="置く"><span class="glyph" id="placeGlyph">▣</span><span class="lbl" id="placeLbl">置く</span></button>
+    <button id="waitBtn" class="tool" aria-label="待つ"><span class="glyph">⏸</span><span class="lbl">待つ</span></button>
+  </nav>
+  <div id="menu" hidden>
+    <div class="sheet">
+      <h2>みちいし <small>ver. 0.1（試作・v001）</small></h2>
+      <p class="keys">動く: タップ／WASD・矢印（いつも上が北）　切る: X＋方向　置く: E＋方向、Tab で端、Enter で決める　待つ: Space　もどす: Z　やり直し: R</p>
+      <div class="rooms" id="roomList"></div>
+      <label class="row"><input type="checkbox" id="brightChk"> 明るく見る</label>
+      <button id="closeMenu">とじる</button>
+    </div>
+  </div>
+</div>
+<script type="module" src="js/main.js?v=1"></script>
+</body>
+</html>

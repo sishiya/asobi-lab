@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>みちいし 過去の版</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%234f7a2a'/><circle cx='36' cy='36' r='15' fill='none' stroke='%23fff6dc' stroke-width='4'/><path d='M36 36a6 6 0 1 1 6-6' fill='none' stroke='%23fff6dc' stroke-width='4' stroke-linecap='round'/><path d='M14 50h34M20 46l-6-20M26 46l-2-22' stroke='%23fff6dc' stroke-width='4' stroke-linecap='round'/></svg>">
+<style>
+/* 節目の版をカードで新しい順に（いちばん上が最新＝index.html）。下の表には全版（versions に残さない版は Git のリンク）。決まりは ../RULES.md 3章 */
+:root{--bg:#f3eedf;--ink:#24281e;--muted:#6a6a58;--line:#d8d0b8;--card:#fbf8ef;--accent:#4f7a2a;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#151812;--ink:#e9e6d6;--muted:#a3a08a;--line:#34382b;--card:#1d2118;--accent:#9cc861}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;line-height:1.7}
+main{max-width:760px;margin:0 auto;padding:40px 16px 64px}
+h1{font-size:24px;margin:0 0 4px}
+.lead{color:var(--muted);margin:0 0 24px;font-size:14px}
+.cards{display:flex;flex-direction:column;gap:12px}
+.card{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:10px;text-decoration:none;color:inherit}
+.card:hover{border-color:var(--accent)}
+.card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ver{font-variant-numeric:tabular-nums;color:var(--accent);font-weight:700;font-size:14px;padding-top:2px}
+.card b{font-size:16px}
+.card p{margin:2px 0 0;font-size:13px;color:var(--muted)}
+.date{grid-column:2;font-size:12px;color:var(--muted)}
+.note{margin-top:32px;font-size:13px;color:var(--muted)}
+.note a{color:var(--accent)}
+h2{font-size:13px;color:var(--muted);margin:32px 0 8px;font-weight:700;letter-spacing:.08em}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{padding:8px 6px;border-top:1px solid var(--line);vertical-align:top}
+td:first-child{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+td a{color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+  <h1>みちいし 過去の版</h1>
+  <p class="lead">節目ごとに残した版です。いちばん上が最新です。下の表には、すべての版があります。</p>
+  <div class="cards">
+    <a class="card" href="index.html"><span class="ver">最新</span><span><b>いまの版</b><p>開発中の最新版。</p></span></a>
+    <a class="card" href="versions/v001-stageA/index.html"><span class="ver">v001</span><span><b>はじめの試作（段階A）</b><p>5部屋（切る・持つ・置く／印のマスを切って頭石を落とす／2つ先を切って曲げる／L字を描かせる／石垣で2匹目を曲げる）。印と2手先の予告、火が消えると1手前へ、もどす・やり直し、タップとキー。音なし。</p></span><span class="date">2026-10-19</span></a>
+  </div>
+  <h2>すべての版</h2>
+  <table>
+    <tr><td>v001-stageA</td><td><a href="versions/v001-stageA/index.html">はじめの試作（段階A）</a></td></tr>
+  </table>
+  <p class="note"><a href="index.html">ゲームへ</a> ・ <a href="../archive.html">あそびラボの保管庫へ</a></p>
+</main>
+</body>
+</html>

@@ -40,7 +40,7 @@ function layout() {
   const st = $('stage').getBoundingClientRect();
   const bs = boardSize(cur);
   const land = matchMedia('(orientation: landscape) and (max-height: 520px)').matches;
-  scale = Math.min(44 / S, (st.width - 16) / bs.w, (st.height - (land ? 12 : 32)) / bs.h); // 上下に余白（横持ちは帯を左右へ寄せて高さを空ける）
+  scale = Math.min(document.body.classList.contains('thumb') ? 9 : 44 / S, (st.width - 16) / bs.w, (st.height - (land ? 12 : 32)) / bs.h); // 上下に余白（横持ちは帯を左右へ寄せて高さを空ける）
   dpr = Math.min(3, window.devicePixelRatio || 1);
   board.style.width = `${Math.floor(bs.w * scale)}px`; board.style.height = `${Math.floor(bs.h * scale)}px`;
   board.width = Math.floor(bs.w * scale * dpr); board.height = Math.floor(bs.h * scale * dpr);
@@ -261,7 +261,9 @@ async function autoplay() {
   toast(out.join(' / '));
 }
 
-const startAt = Math.max(0, ROOMS.indexOf(q.get('room') || 'r1'));
+// ?thumb: 保管庫のサムネイル（tools/thumb.html が 640×360 で撮る）。帯を隠し、山場の部屋3のはじめを大きく
+if (q.has('thumb')) document.body.classList.add('thumb');
+const startAt = Math.max(0, ROOMS.indexOf(q.get('room') || (q.has('thumb') ? 'r3' : 'r1')));
 startRoom(startAt).then(() => { if (q.get('autoplay')) autoplay(); });
 
 // 確かめ用（検証・UX のブラウザでの確かめに使う。ゲームの動きには関係しない）

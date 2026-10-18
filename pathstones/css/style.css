@@ -48,3 +48,7 @@ button.icon { width: 44px; height: 44px; font-size: 22px; }
   #heldBtn { grid-column: 3; grid-row: 2; } #placeBtn { grid-column: 3; grid-row: 3; } #waitBtn { grid-column: 3; grid-row: 4; }
   #stage { grid-column: 2; grid-row: 1; }
 }
+/* ?thumb（保管庫のサムネイル）: 帯を隠して盤だけ */
+body.thumb #top, body.thumb #band, body.thumb #toast { display: none; }
+body.thumb #app { grid-template-rows: 1fr; grid-template-columns: 1fr; max-width: none; }
+body.thumb #stage { grid-row: 1; grid-column: 1; }
