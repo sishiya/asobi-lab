@@ -8,7 +8,7 @@
 <title>みちいし（試作）</title>
 <meta name="description" content="暗い野に提灯が点々。灯りの中だけ見える跡を読み、自分の尾を置いてわなにして、積み木のムカデにかける。かかったムカデは止まり、奪った節で消えた提灯をともすと、ムカデの通り道が描きかわる。">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/game.css?v=3">
+<link rel="stylesheet" href="css/game.css?v=4">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 </head>
 <body>
@@ -18,8 +18,7 @@
 <button id="menuBtn" aria-label="止めてメニュー">≡</button>
 <button id="trapBtn" aria-label="わなを置く（自分の最後尾の節）"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 30 A18 18 0 0 1 42 30" fill="none" stroke="#ece6d8" stroke-width="4" stroke-linecap="round"/><path d="M11 30 l3 -6 l3 6 l3 -7 l3 7 l3 -7 l3 7 l3 -6 l3 6" fill="none" stroke="#ece6d8" stroke-width="2.5" stroke-linejoin="round"/><rect x="17" y="32" width="14" height="10" rx="2" fill="#ddd6c6" stroke="#050505" stroke-width="1.5"/><rect x="23" y="32" width="2.4" height="10" fill="#3c5f8c"/></svg></button>
 <div id="dots" class="hud" aria-hidden="true"></div>
-<div id="toLamp" class="hud" aria-hidden="true" hidden></div>
-<div id="overlay" hidden><div class="won"><h1>夜明け</h1><button id="again" class="btn">もう一度</button></div></div>
+<div id="overlay" hidden><div class="won"><h1>夜明け</h1><div class="row"><button id="next" class="btn">つぎへ</button><button id="again" class="btn sub">もう一度</button></div></div></div>
 <div id="menu" hidden>
   <div class="sheet">
     <h2>みちいし<small id="ver"></small></h2>
@@ -27,8 +26,9 @@
     <label><input type="checkbox" id="soundChk"> 音</label>
     <button id="resume" class="btn">つづける</button>
     <button id="restart" class="btn sub">はじめから</button>
+    <div id="stages" class="stages"></div>
   </div>
 </div>
-<script type="module" src="js/game.js?v=3"></script>
+<script type="module" src="js/game.js?v=4"></script>
 </body>
 </html>

@@ -13,7 +13,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { RULE, makeState, step, enemyBody, meBody, hashState, inSafe } from './sim.js';
 import { Sound } from './sound.js';
 
-const VERSION = 'ver. 0.3（試作・v003）';
+const VERSION = 'ver. 0.4（試作・v004）';
 const qs = new URLSearchParams(location.search);
 const C = {
   bg: '#0b0b0b', fog: '#0b0b0b',
@@ -440,20 +440,24 @@ function readInput() {
 
 // ---------- 画面のふち ----------
 const firesEl = document.getElementById('fires');
-const dotsEl = document.getElementById('dots'), toLamp = document.getElementById('toLamp');
+const dotsEl = document.getElementById('dots');
+const lampMarks = [];
 for (let i = 0; i < RULE.me.max; i++) { const b = document.createElement('b'); const a = Math.PI * (0.62 + 1.26 * i / (RULE.me.max - 1)); b.style.left = (42 + Math.cos(a) * 50) + 'px'; b.style.top = (42 + Math.sin(a) * 50) + 'px'; dotsEl.appendChild(b); }
 let spotted = false;
 function drawHud() {
   const f = S.me.fire;
   dotsEl.querySelectorAll('b').forEach((el, k) => el.classList.toggle('off', k >= S.me.n));
   // 消えた提灯が画面の外なら、画面のふちに印
-  const off = S.lamps.find(l => !l.lit);
-  if (off && intro <= 0) {
+  const offs = S.lamps.filter(l => !l.lit);
+  while (lampMarks.length < offs.length) { const m = document.createElement('div'); m.className = 'toLamp hud'; document.body.appendChild(m); lampMarks.push(m); }
+  lampMarks.forEach((m, i) => {
+    const off = offs[i];
+    if (!off || intro > 0) { m.hidden = true; return; }
     const p = P3(off.x, off.y, 1).project(camera);
     const inside = Math.abs(p.x) < 0.95 && Math.abs(p.y) < 0.92 && p.z < 1;
-    toLamp.hidden = inside;
-    if (!inside) { let x = p.x, y = p.y; if (p.z > 1) { x = -x; y = -y; } const k = 0.88 / Math.max(Math.abs(x), Math.abs(y)); toLamp.style.left = ((x * k + 1) / 2 * innerWidth) + 'px'; toLamp.style.top = ((1 - y * k) / 2 * innerHeight) + 'px'; }
-  } else toLamp.hidden = true;
+    m.hidden = inside;
+    if (!inside) { let x = p.x, y = p.y; if (p.z > 1) { x = -x; y = -y; } const k = 0.88 / Math.max(Math.abs(x), Math.abs(y)); m.style.left = ((x * k + 1) / 2 * innerWidth) + 'px'; m.style.top = ((1 - y * k) / 2 * innerHeight) + 'px'; }
+  });
   firesEl.querySelectorAll('i').forEach((el, k) => el.classList.toggle('off', k >= f));
   trapBtn.classList.toggle('off', S.me.n <= 0);
 }
@@ -578,17 +582,27 @@ function frame(t) {
 }
 
 // ---------- はじめる ----------
-const lvName = qs.get('level') || 'field1';
-fetch(`levels/${lvName}.json?v=3`).then(r => r.json()).then(lv => {
-  level = lv;
-  build();
-  placeCamera(0, true);
-  requestAnimationFrame(t => { last = t; frame(t); });
-});
+const STAGES = [['field1', 'はじめの野'], ['stage1', 'ふたつの群れの野']];
+let lvName = qs.get('level') || 'field1', started = false;
+function loadLevel(name) {
+  lvName = name;
+  return fetch(`levels/${name}.json?v=4`).then(r => r.json()).then(lv => {
+    level = lv;
+    build();
+    placeCamera(0, true);
+    nextBtn.hidden = !level.next;
+    if (!started) { started = true; requestAnimationFrame(t => { last = t; frame(t); }); }
+  });
+}
+const nextBtn = document.getElementById('next');
+nextBtn.addEventListener('click', () => { if (level.next) { const u = new URL(location.href); u.searchParams.set('level', level.next); history.replaceState(null, '', u); loadLevel(level.next); } });
+const stageList = document.getElementById('stages');
+for (const [id, name] of STAGES) { const b = document.createElement('button'); b.className = 'btn sub'; b.textContent = name; b.addEventListener('click', () => { togglePause(false); const u = new URL(location.href); u.searchParams.set('level', id); history.replaceState(null, '', u); loadLevel(id); }); stageList.appendChild(b); }
+loadLevel(lvName);
 
 // デバッグ・検証用の窓（RULES の流儀。検証の道具が読む）
 window.__ps = {
-  get state() { return S; }, RULE, hash: () => hashState(S),
+  get state() { return S; }, RULE, hash: () => hashState(S), load: name => loadLevel(name),
   step: (n = 1, inp = {}) => { for (let i = 0; i < n; i++) { step(S, inp); onEvents(S.events); } syncAll(0); },
   pause: v => togglePause(v), restart: () => build(), freeze: v => { ui.frozen = v; },
   // 台本の入力で n 刻み進める（見た目の動きも合わせる）

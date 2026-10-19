@@ -42,5 +42,7 @@
       "y": 18.0,
       "glow": true
     }
-  ]
+  ],
+  "next": "stage1",
+  "title": "はじめの野"
 }

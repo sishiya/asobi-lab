@@ -25,7 +25,7 @@ export const RULE = {
   trap: { arm: 0.6, r: 0.9, avoidPath: 1.2, side: 1.8 }, // 置くところ（置いてから効くまで）を前照灯の扇で見られたわなだけ、よける。外側へ 1.8 ふくらむ（第4回。案a をユーザー「罠は前に置きたい」で変えた）
   pickR: 1.0,
   postR: 1.0,            // 提灯の柱のまわり（自分は入れない）
-  light: { every: 0.3 },                 // 消えた提灯の輪で 0.3秒に1節ずつ積む（あと○が0になると止まる）
+  light: { every: 0.3, still: 0.4, keep: 1 }, // 消えた提灯の輪で、0.4秒止まると 0.3秒に1節ずつ積む（通りがかりには積まない）。最後の1節は残す（わなの分）
   lose: { fire: 3, rest: 3.0 },          // つかまりすぎ＝手提灯の火3つ。かまれると1つ消え、ともった輪に3秒いると1つ戻る。0で最初から（第3回）
   maxTraps: 3,                           // 4つ目を置くと、いちばん古いわなが積み木にもどる
   rescueEvery: 5.0,
@@ -78,6 +78,12 @@ export function buildPath(lamps, r = RULE.orbitR) {
   for (let i = 1; i <= out.length; i++) { const a = out[i - 1], b = out[i % out.length]; len.push(len[i - 1] + hyp(b.x - a.x, b.y - a.y)); }
   return { pts: out, len, total: len[out.length] };
 }
+export function buildPaths(lamps) {
+  const out = {};
+  for (const g of new Set(lamps.map(l => l.g ?? 0))) out[g] = buildPath(lamps.filter(l => (l.g ?? 0) === g));
+  return out;
+}
+const pathOf = (s, e) => s.paths[e.g ?? 0] || s.path;
 export function pathAt(path, s) {
   s = ((s % path.total) + path.total) % path.total;
   let lo = 0, hi = path.pts.length;
@@ -125,23 +131,26 @@ function straightTrail(x, y, h, n, gap = RULE.gap) {
 
 // ---------- はじめの状態 ----------
 export function makeState(level) {
-  const lamps = level.lamps.map((l, i) => ({ id: i, x: l.x, y: l.y, lit: !!l.lit, need: l.need || 0, have: 0 }));
-  const path = buildPath(lamps);
+  // 灯りの群れ（g）ごとに外まわりの道。ムカデは自分の群れ（e.g）の道を回る。消えた提灯をともすと、その群れの道だけ描きかわる
+  const lamps = level.lamps.map((l, i) => ({ id: i, x: l.x, y: l.y, lit: !!l.lit, need: l.need || 0, have: 0, g: l.g ?? 0 }));
+  const paths = buildPaths(lamps);
+  const path = paths[0];
   const enemies = level.enemies.map((e, i) => {
-    const near = pathNearest(path, e.x, e.y);
-    const at = pathAt(path, near.s);
+    const pth = paths[e.g ?? 0];
+    const near = pathNearest(pth, e.x, e.y);
+    const at = pathAt(pth, near.s);
     return {
       id: i, x: at.x, y: at.y, h: at.h, s: near.s, n: e.n,
       mode: 'patrol', t: 0, blind: 0,
       trail: straightTrail(at.x, at.y, at.h, e.n + 2),
-      walk: 0, home: { x: e.x, y: e.y },
+      walk: 0, home: { x: e.x, y: e.y }, g: e.g ?? 0, n0: e.n,
     };
   });
   const me = level.me;
   return {
     tick: 0, time: 0,
     field: level.field || RULE.field,
-    lamps, path, pathVer: 0,
+    lamps, path, paths, pathVer: 0,
     enemies,
     me: { x: me.x, y: me.y, h: me.h ?? Math.PI / 2, n: me.n ?? RULE.me.start, trail: straightTrail(me.x, me.y, me.h ?? Math.PI / 2, (me.n ?? RULE.me.start) + 2), inv: 0, kx: 0, ky: 0, fire: RULE.lose.fire, rest: 0, walk: 0, lightT: 0, rescueT: 0 },
     loose: (level.blocks || []).map((b, i) => ({ id: 'L' + i, x: b.x, y: b.y, h: b.h || 0, glow: !!b.glow, t: 99 })),
@@ -181,6 +190,7 @@ export function step(s, input = {}) {
 
   // --- 自分 ---
   const il = hyp(input.dx || 0, input.dy || 0);
+  me.still = il > 0.01 ? 0 : (me.still || 0) + dt;
   if (il > 0.01) {
     const want = Math.atan2(input.dy, input.dx);
     const dh = wrap(want - me.h);
@@ -214,9 +224,9 @@ export function step(s, input = {}) {
   // --- 消えた提灯に積む ---
   for (const l of s.lamps) {
     if (l.lit) continue;
-    if (hyp(l.x - me.x, l.y - me.y) < RULE.safeR) {
+    if (hyp(l.x - me.x, l.y - me.y) < RULE.safeR && me.still >= RULE.light.still) {
       me.lightT += dt;
-      if (me.lightT >= RULE.light.every && me.n > 0 && l.have < l.need) {
+      if (me.lightT >= RULE.light.every && me.n > RULE.light.keep && l.have < l.need) {
         me.lightT = 0; me.n--; l.have++;
         s.events.push({ type: 'stack', lamp: l.id, have: l.have, need: l.need });
         if (l.have >= l.need) { l.lit = true; relight(s, l); s.events.push({ type: 'lit', lamp: l.id }); }
@@ -266,8 +276,8 @@ export function step(s, input = {}) {
     if (hyp(b.x - me.x, b.y - me.y) < RULE.pickR) { s.loose.splice(i, 1); me.n++; s.events.push({ type: 'pick', x: b.x, y: b.y, n: me.n }); }
   }
 
-  // --- 救いの積み木: 体1節以下で、野に拾える積み木がないとき、近いともった輪の内側に1つ出す（2節になるまで5秒ごと） ---
-  if (me.n <= 1 && !s.loose.length) {
+  // --- 救いの積み木: 体が0節で、野に拾える積み木も置いたわなもないとき、近いともった輪の内側に1つだけ出す（かまれたあとの立て直し。くり返し集めて灯すことはできない） ---
+  if (me.n === 0 && !s.loose.length && !s.traps.length) {
     me.rescueT += dt;
     if (me.rescueT >= RULE.rescueEvery) {
       me.rescueT = 0;
@@ -282,9 +292,11 @@ export function step(s, input = {}) {
 
 // 野のはし（右のはし、もとのムカデの高さ）から新しいムカデが入ってきて、通り道へ戻る
 function spawnEnemy(s, old) {
-  const y = clamp(old.home?.y ?? s.field.h * 0.8, 1, s.field.h - 1), x = s.field.w - 0.5, h = Math.PI;
-  const n = RULE.enemy.respawnN;
-  const e = { id: s.nextEnemy++, x, y, h, s: 0, n, mode: 'return', t: 0, blind: 2, trail: straightTrail(x, y, h, n + 2), walk: 0, home: old.home };
+  const f = s.field, hx = old.home?.x ?? f.w, hy = old.home?.y ?? f.h * 0.8;
+  const c = [[0.5, hy, 0, hx], [f.w - 0.5, hy, Math.PI, f.w - hx], [hx, 0.5, Math.PI / 2, hy], [hx, f.h - 0.5, -Math.PI / 2, f.h - hy]].sort((a, b) => a[3] - b[3])[0];
+  const x = clamp(c[0], 0.5, f.w - 0.5), y = clamp(c[1], 0.5, f.h - 0.5), h = c[2];
+  const n = old.n0 ?? RULE.enemy.respawnN;
+  const e = { id: s.nextEnemy++, x, y, h, s: 0, n, mode: 'return', t: 0, blind: 2, trail: straightTrail(x, y, h, n + 2), walk: 0, home: old.home, g: old.g, n0: old.n0 };
   s.enemies.push(e);
   s.events.push({ type: 'spawn', enemy: e.id });
 }
@@ -308,7 +320,7 @@ function stepEnemy(s, e, dt) {
   }
   if (e.mode === 'patrol') {
     e.s += E.speed * dt;
-    const at = pathAt(s.path, e.s);
+    const at = pathAt(pathOf(s, e), e.s);
     e.x = at.x; e.y = at.y; e.h = at.h; e.walk += E.speed * dt;
     // 前照灯の扇で気づく（自分の頭か体の節。灯りの輪の中にいれば気づかない）
     if (e.blind <= 0 && seesMe(s, e)) { e.mode = 'windup'; e.t = 0; e.wh = e.h; s.events.push({ type: 'spot', enemy: e.id }); }
@@ -316,13 +328,13 @@ function stepEnemy(s, e, dt) {
       // 扇に入った、通り道の上のわなをよける（頭が過ぎたあとに置かれたわなは見えない＝待ちぶせは頭のうしろだけ）
       for (const t of s.traps) {
         if (t.done || !t.seen || !sees(e, t.x, t.y)) continue;
-        const near = pathNearest(s.path, t.x, t.y);
+        const near = pathNearest(pathOf(s, e), t.x, t.y);
         if (near.d > RULE.trap.avoidPath) continue;
-        const at = pathAt(s.path, near.s);
+        const at = pathAt(pathOf(s, e), near.s);
         // 時計回りに回るとき、外側は進む向きの左。わなの位置から外へ（わなが道の外寄りでも、ふくらみが近くを通らないように）
         const ox = Math.sin(at.h), oy = -Math.cos(at.h);
         const w1 = { x: t.x + ox * RULE.trap.side, y: t.y + oy * RULE.trap.side };
-        const back = pathAt(s.path, near.s + 2.5);
+        const back = pathAt(pathOf(s, e), near.s + 2.5);
         e.mode = 'detour'; e.t = 0; e.wp = [w1, { x: back.x, y: back.y }];
         s.events.push({ type: 'avoid', enemy: e.id, trap: t.id });
         break;
@@ -351,11 +363,12 @@ function stepEnemy(s, e, dt) {
     if (!l || hyp(l.x - e.x, l.y - e.y) >= RULE.orbitR - 0.05) { e.exit = false; e.mode = 'return'; e.t = 0; }
     else { e.h = Math.atan2(e.y - l.y, e.x - l.x); e.x += Math.cos(e.h) * E.speed * dt; e.y += Math.sin(e.h) * E.speed * dt; e.walk += E.speed * dt; }
   } else if (e.mode === 'return') {
-    const near = pathNearest(s.path, e.x, e.y);
+    const near = pathNearest(pathOf(s, e), e.x, e.y);
     // 道の少し先をめざして戻る
-    const tgt = pathAt(s.path, near.s + 1.5);
+    const tgt = pathAt(pathOf(s, e), near.s + 1.5);
     steer(s, e, tgt.x, tgt.y, E.speed, dt);
-    if (near.d < 0.15) { e.mode = 'patrol'; e.s = near.s; }
+    // 道の近く（0.3以内）まで来たら道に乗る（輪の押し出しで 0.2 から近づけない所があるため。検証が見つけた）
+    if (near.d < 0.3) { e.mode = 'patrol'; e.s = near.s; }
   }
   pushTrail(e.trail, e.x, e.y, (e.n + 2) * RULE.gap);
 }
@@ -391,9 +404,10 @@ function bite(s, e) {
 
 // 提灯がともったら、まとまりの外まわりを作り直す。見回り中のムカデは新しい道へ戻る
 function relight(s, lit) {
-  s.path = buildPath(s.lamps); s.pathVer++;
+  s.paths[lit.g] = buildPath(s.lamps.filter(l => l.g === lit.g)); s.path = s.paths[0] || s.path; s.pathVer++;
   for (const e of s.enemies) {
     if (e.mode === 'down') continue;
+    if (e.g !== lit.g && hyp(lit.x - e.x, lit.y - e.y) >= RULE.orbitR - 0.05) continue; // ほかの群れのムカデは、新しい輪の中にいるときだけ
     // 新しい輪の中にいたら、1秒すくんでから外へまっすぐ出る（そのあいだは気づかない）
     // 判定は、いまともった灯りだけ（ほかの輪のふちを回っているムカデが、誤差で「中」にならないように。検証が見つけた）
     const inside = hyp(lit.x - e.x, lit.y - e.y) < RULE.orbitR - 0.05;

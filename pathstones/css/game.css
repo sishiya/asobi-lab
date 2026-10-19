@@ -48,4 +48,7 @@ html, body { margin: 0; height: 100%; background: #0b0b0b; overflow: hidden; fon
 #trapBtn.pulse { animation: pulse .9s ease-out 2; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,192,104,.8); } 100% { box-shadow: 0 0 0 18px rgba(255,192,104,0); } }
 /* 消えた提灯が画面の外にあるとき、ふちに小さな印 */
-#toLamp { width: 24px; height: 30px; margin: -15px 0 0 -12px; border-radius: 45% 45% 40% 40%; background: #6a5a48; border: 2px solid #b8ae9a; box-shadow: 0 0 8px rgba(0,0,0,.6); }
+.toLamp { width: 24px; height: 30px; margin: -15px 0 0 -12px; border-radius: 45% 45% 40% 40%; background: #6a5a48; border: 2px solid #b8ae9a; box-shadow: 0 0 8px rgba(0,0,0,.6); }
+#overlay .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+#menu .stages { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #3a3630; padding-top: 12px; }
+.toLamp[hidden] { display: none; }
