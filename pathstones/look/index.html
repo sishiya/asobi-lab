@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>ムカデのルック見くらべ</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; color: #e8e2d6; touch-action: none; user-select: none; }
+  #stage canvas { display: block; }
+  .hud { position: fixed; pointer-events: none; }
+  #pname { top: 14px; left: 16px; font-size: 14px; letter-spacing: .08em; opacity: .75; }
+  #blocks { top: 12px; right: 16px; display: flex; align-items: center; gap: 8px; font-size: 22px; font-weight: 700; }
+  #blocks i { width: 18px; height: 14px; border-radius: 3px; background: #b8ab96; box-shadow: inset 0 -3px 0 rgba(0,0,0,.35); }
+  #pick { bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; pointer-events: auto; background: rgba(0,0,0,.45); padding: 5px; border-radius: 12px; }
+  #pick button { min-width: 40px; padding: 0 6px; height: 36px; border: 0; border-radius: 8px; background: transparent; color: #cfc6b6; font-size: 15px; font-weight: 700; cursor: pointer; }
+  #pick button.on { background: #e8e2d6; color: #111; }
+  #trapBtn { position: fixed; right: 18px; bottom: 18px; width: 76px; height: 76px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); background: rgba(160,40,30,.75); color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; }
+  #hint { bottom: 72px; left: 50%; transform: translateX(-50%); font-size: 13px; opacity: .7; transition: opacity 1s; white-space: nowrap; }
+  #hint.off { opacity: 0; }
+  #flash { inset: 0; background: radial-gradient(transparent 40%, rgba(200,30,20,.5)); opacity: 0; }
+  #flash.go { animation: fl .6s ease-out; }
+  @keyframes fl { from { opacity: 1; } to { opacity: 0; } }
+  @media (max-width: 600px) { #hint { font-size: 12px; } }
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+<div id="stage"></div>
+<div id="flash" class="hud"></div>
+<div id="pname" class="hud"></div>
+<div id="blocks" class="hud"><i></i><span id="count">0</span></div>
+<div id="hint" class="hud">WASD・タップで歩く　スペースでわな</div>
+<div id="pick" class="hud"><button data-p="D">D</button><button data-p="D1">D1</button><button data-p="D2">D2</button><button data-p="D3">D3</button><button data-p="D4">D4</button><button data-p="D5">D5</button><button data-p="D6">D6</button></div>
+<button id="trapBtn">わな</button>
+<script type="module" src="./look.js"></script>
+</body>
+</html>

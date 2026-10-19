@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>ルックの見くらべ</title>
+<style>
+  :root { --bg: #0c0b0a; --fg: #e8e2d6; --sub: #9a9284; --line: #2a2723; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; }
+  main { max-width: 1400px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: .06em; }
+  p.lead { color: var(--sub); margin: 0 0 20px; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr)); gap: 16px; }
+  a.card { display: block; color: inherit; text-decoration: none; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #000; }
+  a.card:hover { border-color: #6a6256; }
+  a.card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+  .cap { display: flex; gap: 12px; align-items: baseline; padding: 10px 14px; background: #141210; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+  h2 { font-size: 15px; color: var(--sub); font-weight: 600; margin: 28px 0 10px; }
+  .cap b { font-size: 18px; }
+  .cap span { color: var(--sub); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ムカデのルック　見くらべ</h1>
+  <p class="lead">見た目は D「墨と提灯」の D5「操縦席を作りこむ」に決定（2026-10-19）。</p>
+  <p class="lead">同じ世界・同じ動きで、見た目だけを変えています。絵を押すと遊べます（WASD・タップで歩く／スペースでわな／ホイールで寄る・引く／数字キーで切りかえ）。</p>
+  <h2>3回目　D を土台に振る（左: 引き　右: 寄り）</h2>
+  <div class="grid">
+    <a class="card" href="./?p=D"><div class="pair"><img src="shots/D.png" alt="D 引き"><img src="shots/D-near.png" alt="D 寄り"></div><div class="cap"><b>D（土台）</b><span>1回目の D そのまま。くらべる元</span></div></a>
+    <a class="card" href="./?p=D1"><div class="pair"><img src="shots/D1.png" alt="D1 引き"><img src="shots/D1-near.png" alt="D1 寄り"></div><div class="cap"><b>D1　ふちどり太め</b><span>ふちどりを約2倍</span></div></a>
+    <a class="card" href="./?p=D2"><div class="pair"><img src="shots/D2.png" alt="D2 引き"><img src="shots/D2-near.png" alt="D2 寄り"></div><div class="cap"><b>D2　ふちどり細め</b><span>ふちどりを半分。写実に近づく</span></div></a>
+    <a class="card" href="./?p=D3"><div class="pair"><img src="shots/D3.png" alt="D3 引き"><img src="shots/D3-near.png" alt="D3 寄り"></div><div class="cap"><b>D3　白と朱のしま</b><span>体節を白と朱で交互に。切る場所を数えやすい</span></div></a>
+    <a class="card" href="./?p=D4"><div class="pair"><img src="shots/D4.png" alt="D4 引き"><img src="shots/D4-near.png" alt="D4 寄り"></div><div class="cap"><b>D4　頭から色が移る</b><span>頭のそばは朱、尾へ白く。どこが頭側かすぐわかる</span></div></a>
+    <a class="card" href="./?p=D5"><div class="pair"><img src="shots/D5.png" alt="D5 引き"><img src="shots/D5-near.png" alt="D5 寄り"></div><div class="cap"><b>D5　操縦席を作りこむ</b><span>ガラスの丸屋根・真鍮のふち・前照灯（向きが地面に出る）・旗</span></div></a>
+    <a class="card" href="./?p=D6"><div class="pair"><img src="shots/D6.png" alt="D6 引き"><img src="shots/D6-near.png" alt="D6 寄り"></div><div class="cap"><b>D6　くみあわせ</b><span>D4＋D5＋ふちどりやや太め＋頭の隈取り</span></div></a>
+  </div>
+  <h2>2回目　A の世界に、D の読みやすさを</h2>
+  <div class="grid">
+    <a class="card" href="./?p=E"><img src="shots/E.png" alt="E"><div class="cap"><b>E　洞窟＋墨の登場物</b><span>世界は A。ムカデ・小人・わなだけ D（アニメ調の陰影・ふちどり・白い積み木）</span></div></a>
+    <a class="card" href="./?p=F"><img src="shots/F.png" alt="F"><div class="cap"><b>F　洞窟＋ふちどり</b><span>世界は A。登場物は写実のまま、明るい石とふちどりだけ</span></div></a>
+    <a class="card" href="./?p=G"><img src="shots/G.png" alt="G"><div class="cap"><b>G　F＋暗がり少し明るく</b><span>灯りの外も目をこらせば形が見え、跡が少し濃い</span></div></a>
+  </div>
+  <h2>1回目</h2>
+  <div class="grid">
+    <a class="card" href="./?p=A"><img src="shots/A.png" alt="A 洞窟とカンテラ"><div class="cap"><b>A　洞窟とカンテラ</b><span>石のブロック・鉄のカンテラ・苔。写実より</span></div></a>
+    <a class="card" href="./?p=B"><img src="shots/B.png" alt="B 夜のジオラマ"><div class="cap"><b>B　夜のジオラマ</b><span>木の床に色つきの積み木・ろうそく・ぼかし（ミニチュア）</span></div></a>
+    <a class="card" href="./?p=C"><img src="shots/C.png" alt="C 光る菌の森"><div class="cap"><b>C　光る菌の森</b><span>灯りは光るキノコ。黒曜石のブロック、いちばん見えづらい</span></div></a>
+    <a class="card" href="./?p=D"><img src="shots/D.png" alt="D 墨と提灯"><div class="cap"><b>D　墨と提灯</b><span>アニメ調の陰影とふちどり。白い積み木と赤い頭がはっきり</span></div></a>
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,51 @@
+/* みちいし 段階A（v002）。字は少なく、よく使うものは近く大きく（RULES 4章） */
+html, body { margin: 0; height: 100%; background: #0b0b0b; overflow: hidden; font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; color: #ece6d8; touch-action: none; user-select: none; -webkit-user-select: none; }
+#stage canvas { display: block; }
+.hud { position: fixed; pointer-events: none; }
+
+/* 手提灯の火3つ（左上） */
+#fires { top: max(14px, env(safe-area-inset-top)); left: 16px; display: flex; gap: 8px; }
+#fires i { width: 20px; height: 28px; border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%; background: radial-gradient(circle at 50% 65%, #fff1c8 0 25%, #ffb24a 45%, #c8641e 80%); box-shadow: 0 0 10px rgba(255, 170, 70, .55); transition: opacity .3s, transform .3s; }
+#fires i.off { opacity: .18; transform: scale(.8); box-shadow: none; background: #6a5a48; }
+
+/* メニュー（右上） */
+#menuBtn { position: fixed; top: max(10px, env(safe-area-inset-top)); right: 16px; width: 44px; height: 44px; border-radius: 10px; border: 0; background: rgba(0,0,0,.35); color: #ece6d8; font-size: 22px; cursor: pointer; }
+
+/* わな（右下。いちばん押す物なので親指の位置に大きく） */
+#trapBtn { position: fixed; right: max(18px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); width: 84px; height: 84px; border-radius: 50%; border: 2px solid rgba(236, 230, 216, .5); background: rgba(47, 74, 110, .85); cursor: pointer; display: grid; place-items: center; padding: 0; transition: opacity .2s; }
+#trapBtn svg { width: 46px; height: 46px; }
+#trapBtn.off { opacity: .3; }
+#trapBtn:active { transform: scale(.95); }
+
+#flash { inset: 0; background: radial-gradient(transparent 45%, rgba(214, 74, 46, .45)); opacity: 0; }
+#flash.go { animation: fl .6s ease-out; }
+@keyframes fl { from { opacity: 1; } to { opacity: 0; } }
+
+/* 負け（暗くなる）・夜明け */
+#overlay { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; }
+#overlay.lost { background: rgba(0,0,0,.85); transition: background 1.2s; }
+#overlay.won { pointer-events: auto; background: radial-gradient(rgba(255, 210, 150, .0), rgba(30, 20, 10, .35)); }
+#overlay .won { display: none; text-align: center; }
+#overlay.won .won { display: block; animation: rise 1s ease-out; }
+#overlay h1 { font-size: 30px; letter-spacing: .3em; margin: 0 0 18px; font-weight: 600; text-shadow: 0 2px 12px rgba(0,0,0,.6); }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+.btn { min-width: 160px; height: 48px; padding: 0 20px; border-radius: 24px; border: 0; background: #ece6d8; color: #1a1a1a; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.btn.sub { background: transparent; color: #ece6d8; border: 1px solid rgba(236,230,216,.45); }
+
+#menu { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: grid; place-items: center; }
+#menu[hidden] { display: none; }
+#menu .sheet { width: min(340px, calc(100vw - 32px)); background: #1a1816; border: 1px solid #3a3630; border-radius: 14px; padding: 22px 20px; display: flex; flex-direction: column; gap: 12px; }
+#menu h2 { margin: 0; font-size: 18px; }
+#menu h2 small { display: block; font-size: 12px; color: #9a9284; font-weight: 400; margin-top: 4px; }
+#menu .keys { font-size: 12px; color: #9a9284; margin: 0; line-height: 1.7; }
+#menu label { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+#menu input { width: 20px; height: 20px; }
+
+/* わなのボタンのふち: 自分の節の数（最大14）。押すと1つ減る */
+#dots { right: max(18px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); width: 84px; height: 84px; }
+#dots b { position: absolute; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: #ece6d8; box-shadow: 0 0 0 1px #050505; }
+#dots b.off { background: transparent; box-shadow: 0 0 0 1px rgba(236,230,216,.25); }
+#trapBtn.pulse { animation: pulse .9s ease-out 2; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,192,104,.8); } 100% { box-shadow: 0 0 0 18px rgba(255,192,104,0); } }
+/* 消えた提灯が画面の外にあるとき、ふちに小さな印 */
+#toLamp { width: 24px; height: 30px; margin: -15px 0 0 -12px; border-radius: 45% 45% 40% 40%; background: #6a5a48; border: 2px solid #b8ae9a; box-shadow: 0 0 8px rgba(0,0,0,.6); }

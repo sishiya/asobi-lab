@@ -3,41 +3,32 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%2318161a'/><rect x='10' y='34' width='14' height='14' fill='%238c8375' stroke='%23111' stroke-width='2'/><rect x='26' y='34' width='14' height='14' fill='%238c8375' stroke='%23111' stroke-width='2'/><rect x='26' y='18' width='14' height='14' fill='%238c8375' stroke='%23111' stroke-width='2'/><rect x='22' y='38' width='4' height='6' fill='%23c49a45'/><rect x='30' y='30' width='6' height='4' fill='%23c49a45'/><circle cx='50' cy='16' r='7' fill='%23ffb048'/></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%23161514'/><circle cx='46' cy='18' r='9' fill='%23ffb070'/><rect x='6' y='36' width='12' height='12' rx='2' fill='%23ddd6c6' stroke='%23050505' stroke-width='2'/><rect x='19' y='36' width='12' height='12' rx='2' fill='%23ddd6c6' stroke='%23050505' stroke-width='2'/><rect x='32' y='34' width='16' height='16' rx='5' fill='%232f4a6e' stroke='%23050505' stroke-width='2'/><circle cx='40' cy='42' r='4' fill='%23ffc068'/></svg>">
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <title>みちいし（試作）</title>
-<meta name="description" content="闇の中だけ歩く岩の積み木「みちいし」を誘って道の形を描かせ、頭石を落とし、形のまま持って奈落に橋をかける。灯りの子が灯台へ火種を運ぶターン制パズル。">
-<link rel="stylesheet" href="css/style.css?v=1">
+<meta name="description" content="暗い野に提灯が点々。灯りの中だけ見える跡を読み、自分の尾を置いてわなにして、積み木のムカデをちょん切る。奪った節で消えた提灯をともすと、ムカデの通り道が描きかわる。">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="css/game.css?v=2">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 </head>
 <body>
-<div id="app">
-  <header id="top">
-    <div id="room">部屋 1</div>
-    <div id="moves" aria-label="手数">0手</div>
-    <div class="ver">ver. 0.1 試作</div>
-    <button id="menuBtn" class="icon" aria-label="メニュー">≡</button>
-  </header>
-  <main id="stage">
-    <canvas id="board" aria-label="盤"></canvas>
-    <div id="toast" aria-live="polite"></div>
-  </main>
-  <nav id="band" aria-label="道具">
-    <button id="undoBtn" class="tool" aria-label="もどす"><span class="glyph">↶</span><span class="lbl">もどす</span></button>
-    <button id="cutBtn" class="tool" aria-label="切る"><span class="glyph">✂</span><span class="lbl">切る</span></button>
-    <button id="heldBtn" class="tool held" aria-label="持っている形"><canvas id="heldCv" width="88" height="88"></canvas></button>
-    <button id="placeBtn" class="tool" aria-label="置く"><span class="glyph" id="placeGlyph">▣</span><span class="lbl" id="placeLbl">置く</span></button>
-    <button id="waitBtn" class="tool" aria-label="待つ"><span class="glyph">⏸</span><span class="lbl">待つ</span></button>
-  </nav>
-  <div id="menu" hidden>
-    <div class="sheet">
-      <h2>みちいし <small>ver. 0.1（試作・v001）</small></h2>
-      <p class="keys">動く: タップ／WASD・矢印（いつも上が北）　切る: X＋方向　置く: E＋方向、Tab で端、Enter で決める　待つ: Space　もどす: Z　やり直し: R</p>
-      <div class="rooms" id="roomList"></div>
-      <label class="row"><input type="checkbox" id="brightChk"> 明るく見る</label>
-      <button id="closeMenu">とじる</button>
-    </div>
+<div id="stage"></div>
+<div id="flash" class="hud"></div>
+<div id="fires" class="hud" aria-label="手提灯の火"><i></i><i></i><i></i></div>
+<button id="menuBtn" aria-label="止めてメニュー">≡</button>
+<button id="trapBtn" aria-label="わなを置く（自分の最後尾の節）"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 30 A18 18 0 0 1 42 30" fill="none" stroke="#ece6d8" stroke-width="4" stroke-linecap="round"/><path d="M11 30 l3 -6 l3 6 l3 -7 l3 7 l3 -7 l3 7 l3 -6 l3 6" fill="none" stroke="#ece6d8" stroke-width="2.5" stroke-linejoin="round"/><rect x="17" y="32" width="14" height="10" rx="2" fill="#ddd6c6" stroke="#050505" stroke-width="1.5"/><rect x="23" y="32" width="2.4" height="10" fill="#3c5f8c"/></svg></button>
+<div id="dots" class="hud" aria-hidden="true"></div>
+<div id="toLamp" class="hud" aria-hidden="true" hidden></div>
+<div id="overlay" hidden><div class="won"><h1>夜明け</h1><button id="again" class="btn">もう一度</button></div></div>
+<div id="menu" hidden>
+  <div class="sheet">
+    <h2>みちいし<small id="ver"></small></h2>
+    <p class="keys">押した所へ進む（なぞれる）／WASD・矢印<br>わな: 右下の丸／スペース　止める: Esc</p>
+    <label><input type="checkbox" id="soundChk"> 音</label>
+    <button id="resume" class="btn">つづける</button>
+    <button id="restart" class="btn sub">はじめから</button>
   </div>
 </div>
-<script type="module" src="js/main.js?v=1"></script>
+<script type="module" src="js/game.js?v=2"></script>
 </body>
 </html>

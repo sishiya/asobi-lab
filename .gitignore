@@ -45,3 +45,6 @@ _dev/blender/review/
 
 # Cloudflare（server/）: wrangler dev のローカルの表とキャッシュ
 .wrangler/
+
+# みちいしの見た目の見くらべの絵（look/compare.html が読む。大きい PNG なのでローカルだけ）
+pathstones/look/shots/
