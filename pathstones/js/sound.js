@@ -32,6 +32,7 @@ export const Sound = {
   trap() { this._knock(260, 0.08, 0.35); this._knock(520, 0.05, 0.2, 'square', 0.04); }, // ピンを抜く「かちり」
   cut() { this._knock(1400, 0.18, 0.5, 'square'); this._noise(0.12, 0.25, 3000, 0.02); }, // 拍子木「カン」＋紙を裂く
   spot() { this._knock(1800, 0.03, 0.25, 'square'); this._knock(90, 0.35, 0.5, 'sine', 0.05); }, // 「カチ」＋太鼓
+  down() { [0, -3, -7].forEach((k, i) => this._knock(300 * Math.pow(2, k / 12), 0.3, 0.3, 'triangle', 0.15 + i * 0.12)); }, // からくりが止まる「ころん、ころん」
   bite() { this._knock(150, 0.25, 0.5, 'sine'); },
   stack(k) { this._knock(330 * Math.pow(2, k / 12), 0.12, 0.4, 'triangle'); },
   lit() { [0, 4, 7, 12].forEach((s, i) => this._knock(392 * Math.pow(2, s / 12), 0.6, 0.3, 'sine', i * 0.09)); },

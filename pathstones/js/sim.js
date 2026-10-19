@@ -17,10 +17,12 @@ export const RULE = {
     windup: 0.9,                         // 気づいてから追い出すまでの「ため」
     stun: 1.0, blind: 3.0,               // かんだあと、ひるむ・気づかない時間
     biteR: 0.85,
+    respawn: 15.0,                       // 機能停止してから、殻が消えて新しいムカデが来るまで
+    respawnN: 8,
     giveUp: 9.0,                         // 追いつけないまま長く追わない（見回りへ戻る）
   },
   me: { speed: 3.4, turn: 7.0, start: 3, max: 14, inv: 2.0, knock: 5.0 },
-  trap: { arm: 0.6, r: 0.9 },
+  trap: { arm: 0.6, r: 0.9, avoidPath: 1.2, side: 1.8 }, // 置くところ（置いてから効くまで）を前照灯の扇で見られたわなだけ、よける。外側へ 1.8 ふくらむ（第4回。案a をユーザー「罠は前に置きたい」で変えた）
   pickR: 1.0,
   postR: 1.0,            // 提灯の柱のまわり（自分は入れない）
   light: { every: 0.3 },                 // 消えた提灯の輪で 0.3秒に1節ずつ積む（あと○が0になると止まる）
@@ -132,7 +134,7 @@ export function makeState(level) {
       id: i, x: at.x, y: at.y, h: at.h, s: near.s, n: e.n,
       mode: 'patrol', t: 0, blind: 0,
       trail: straightTrail(at.x, at.y, at.h, e.n + 2),
-      walk: 0,
+      walk: 0, home: { x: e.x, y: e.y },
     };
   });
   const me = level.me;
@@ -146,7 +148,7 @@ export function makeState(level) {
     traps: [],
     events: [],
     won: false, lost: false,
-    nextId: 1,
+    nextId: 1, nextEnemy: level.enemies.length,
   };
 }
 
@@ -224,26 +226,31 @@ export function step(s, input = {}) {
   if (s.lamps.every(l => l.lit)) { s.won = true; s.events.push({ type: 'won' }); }
 
   // --- ムカデ ---
-  for (const e of s.enemies) stepEnemy(s, e, dt);
+  for (const e of s.enemies.slice()) stepEnemy(s, e, dt);
+  s.enemies = s.enemies.filter(e => !e.dead);
 
   // --- わな ---
   for (const t of s.traps) {
     if (t.done) continue;
+    if (!t.seen && t.t < RULE.trap.arm && s.enemies.some(e => e.blind <= 0 && e.mode !== 'stun' && sees(e, t.x, t.y))) { t.seen = true; s.events.push({ type: 'seenTrap', trap: t.id }); }
     t.t += dt;
     if (t.t < RULE.trap.arm) continue;
     for (const e of s.enemies) {
-      if (t.done || e.n < 2) continue;
+      if (t.done || e.n < 1 || e.mode === 'down') continue;
       const body = enemyBody(e);
-      // 頭と1節目のあいだ（首）は段階Aでは切らない＝頭も1節目もまたぐ。2節目から先が踏むと、そこで切れる
-      for (let k = 1; k < body.length; k++) {
+      // 頭はまたぐ。体の節が踏むと、わなが閉じて、ムカデは機能停止する（2026-10-19 ユーザー「罠にかかった敵は機能停止してほしい」）。
+      // 体の節はすべて拾える積み木に。頭は止まった殻として残り、操縦士は旗をふって闇のはしへ帰る
+      for (let k = 0; k < body.length; k++) {
         if (hyp(body[k].x - t.x, body[k].y - t.y) < RULE.trap.r) {
-          const cut = body.slice(k);
-          e.n = k;
-          for (const b of cut) s.loose.push({ id: 'L' + s.nextId++, x: b.x, y: b.y, h: b.h, t: 0 });
+          for (const b of body) s.loose.push({ id: 'L' + s.nextId++, x: b.x, y: b.y, h: b.h, t: 0 });
           // わなに使った節も拾えるブロックにもどる
           s.loose.push({ id: 'L' + s.nextId++, x: t.x, y: t.y, h: t.h, t: 0 });
+          const got = e.n;
+          e.n = 0; e.mode = 'down'; e.t = 0;
+          e.pilot = { x: e.x, y: e.y, h: e.h };
           t.done = true;
-          s.events.push({ type: 'cut', enemy: e.id, at: k, got: cut.length, x: t.x, y: t.y });
+          s.events.push({ type: 'cut', enemy: e.id, at: k, got, x: t.x, y: t.y });
+          s.events.push({ type: 'down', enemy: e.id });
           break;
         }
       }
@@ -273,18 +280,59 @@ export function step(s, input = {}) {
   return s;
 }
 
+// 野のはし（右のはし、もとのムカデの高さ）から新しいムカデが入ってきて、通り道へ戻る
+function spawnEnemy(s, old) {
+  const y = clamp(old.home?.y ?? s.field.h * 0.8, 1, s.field.h - 1), x = s.field.w - 0.5, h = Math.PI;
+  const n = RULE.enemy.respawnN;
+  const e = { id: s.nextEnemy++, x, y, h, s: 0, n, mode: 'return', t: 0, blind: 2, trail: straightTrail(x, y, h, n + 2), walk: 0, home: old.home };
+  s.enemies.push(e);
+  s.events.push({ type: 'spawn', enemy: e.id });
+}
 function stepEnemy(s, e, dt) {
   const E = RULE.enemy, me = s.me;
   e.t += dt;
   if (e.blind > 0) e.blind -= dt;
   const meSafe = inSafe(s, me.x, me.y);
 
+  if (e.mode === 'down') {
+    if (e.pilot) {
+      // いちばん近い野のはしへ歩いて帰る
+      const p = e.pilot, f = s.field;
+      const cands = [[0, p.y, p.x], [f.w, p.y, f.w - p.x], [p.x, 0, p.y], [p.x, f.h, f.h - p.y]].sort((a, b) => a[2] - b[2]);
+      const tx = cands[0][0], ty = cands[0][1];
+      p.h = Math.atan2(ty - p.y, tx - p.x); p.x += Math.cos(p.h) * 1.6 * dt; p.y += Math.sin(p.h) * 1.6 * dt;
+      if (hyp(tx - p.x, ty - p.y) < 0.3) e.pilot = null;
+    }
+    if (e.t >= RULE.enemy.respawn) { e.dead = true; spawnEnemy(s, e); }
+    return;
+  }
   if (e.mode === 'patrol') {
     e.s += E.speed * dt;
     const at = pathAt(s.path, e.s);
     e.x = at.x; e.y = at.y; e.h = at.h; e.walk += E.speed * dt;
     // 前照灯の扇で気づく（自分の頭か体の節。灯りの輪の中にいれば気づかない）
     if (e.blind <= 0 && seesMe(s, e)) { e.mode = 'windup'; e.t = 0; e.wh = e.h; s.events.push({ type: 'spot', enemy: e.id }); }
+    else {
+      // 扇に入った、通り道の上のわなをよける（頭が過ぎたあとに置かれたわなは見えない＝待ちぶせは頭のうしろだけ）
+      for (const t of s.traps) {
+        if (t.done || !t.seen || !sees(e, t.x, t.y)) continue;
+        const near = pathNearest(s.path, t.x, t.y);
+        if (near.d > RULE.trap.avoidPath) continue;
+        const at = pathAt(s.path, near.s);
+        // 時計回りに回るとき、外側は進む向きの左。わなの位置から外へ（わなが道の外寄りでも、ふくらみが近くを通らないように）
+        const ox = Math.sin(at.h), oy = -Math.cos(at.h);
+        const w1 = { x: t.x + ox * RULE.trap.side, y: t.y + oy * RULE.trap.side };
+        const back = pathAt(s.path, near.s + 2.5);
+        e.mode = 'detour'; e.t = 0; e.wp = [w1, { x: back.x, y: back.y }];
+        s.events.push({ type: 'avoid', enemy: e.id, trap: t.id });
+        break;
+      }
+    }
+  } else if (e.mode === 'detour') {
+    const w = e.wp[0];
+    steer(s, e, w.x, w.y, E.speed, dt);
+    if (hyp(w.x - e.x, w.y - e.y) < 0.4) { e.wp.shift(); if (!e.wp.length) { e.mode = 'return'; e.t = 0; } }
+    if (e.t > 8) { e.mode = 'return'; e.t = 0; }
   } else if (e.mode === 'windup') {
     // その場で止まって、前照灯をこちらへ向ける。扇に入りつづけているあいだだけ「ため」がたまる
     const want = Math.atan2(me.y - e.y, me.x - e.x);
@@ -345,6 +393,7 @@ function bite(s, e) {
 function relight(s, lit) {
   s.path = buildPath(s.lamps); s.pathVer++;
   for (const e of s.enemies) {
+    if (e.mode === 'down') continue;
     // 新しい輪の中にいたら、1秒すくんでから外へまっすぐ出る（そのあいだは気づかない）
     // 判定は、いまともった灯りだけ（ほかの輪のふちを回っているムカデが、誤差で「中」にならないように。検証が見つけた）
     const inside = hyp(lit.x - e.x, lit.y - e.y) < RULE.orbitR - 0.05;

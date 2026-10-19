@@ -13,7 +13,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { RULE, makeState, step, enemyBody, meBody, hashState, inSafe } from './sim.js';
 import { Sound } from './sound.js';
 
-const VERSION = 'ver. 0.2（試作・v002）';
+const VERSION = 'ver. 0.3（試作・v003）';
 const qs = new URLSearchParams(location.search);
 const C = {
   bg: '#0b0b0b', fog: '#0b0b0b',
@@ -76,7 +76,7 @@ const P3 = (x, y, h = 0) => new THREE.Vector3(x, h, y); // 決まりの (x,y) �
 
 // ---------- 状態 ----------
 let level = null, S = null;
-const view = { lamps: [], enemies: [], me: null, meNodes: [], loose: new Map(), traps: new Map() };
+const view = { lamps: [], enemies: new Map(), me: null, meNodes: [], loose: new Map(), traps: new Map() };
 
 // ---------- 提灯 ----------
 function makeLamp(l) {
@@ -267,21 +267,39 @@ function confetti(x, y, n = 10, color = '#efe8da') {
   }
 }
 
+// ---------- 機能停止したムカデ: 前照灯が消え、頭は少し傾いて止まり、操縦士が旗をふって帰る ----------
+function syncDown(e, V, dt) {
+  const h = V.head, u = h.userData;
+  V.nodes.forEach(n => scene.remove(n)); V.nodes = [];
+  u.beam.intensity = 0; u.lamps.forEach(b => b.material.color.set('#2a2622'));
+  u.b.rotation.z += (0.12 - u.b.rotation.z) * Math.min(1, dt * 4);
+  u.legs.forEach((l, j) => { l.rotation.z = 0; l.rotation.x = (j ? 1 : -1) * 1.45; });
+  u.pilot.visible = false;
+  if (e.pilot) {
+    if (!V.pilot) { V.pilot = makePilot('enemy'); V.pilot.scale.setScalar(1.6); const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.6, 5), mat('#111')); pole.position.set(-0.05, 0.55, 0.12); V.pilot.add(pole); const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.12), new THREE.MeshToonMaterial({ color: '#f0ece0', gradientMap: gradient, side: THREE.DoubleSide })); flag.position.set(-0.16, 0.78, 0.12); V.pilot.add(flag); V.pilot.userData.flag = flag; scene.add(V.pilot); }
+    V.pilot.position.copy(P3(e.pilot.x, e.pilot.y, Math.abs(Math.sin(now * 10)) * 0.06)); V.pilot.rotation.y = -e.pilot.h; V.pilot.userData.flag.rotation.y = Math.sin(now * 12) * 0.6;
+  } else if (V.pilot) { scene.remove(V.pilot); V.pilot = null; }
+  // 新しいムカデが来る少し前から、殻がうすれて沈む
+  const left = RULE.enemy.respawn - e.t;
+  if (left < 1.5) { const k = Math.max(0, left / 1.5); h.scale.setScalar(1.15 * (0.4 + 0.6 * k)); h.position.y = -(1 - k) * 0.4; }
+}
+function dropEnemyView(V) { scene.remove(V.head); scene.remove(V.head.userData.beam); scene.remove(V.head.userData.beam.target); V.nodes.forEach(n => scene.remove(n)); if (V.pilot) scene.remove(V.pilot); }
+
 // ---------- 組み立て・やり直し ----------
 function clearScene() {
   for (const L of view.lamps) { scene.remove(L.g); scene.remove(L.light); }
-  for (const e of view.enemies) { scene.remove(e.head); scene.remove(e.head.userData.beam); scene.remove(e.head.userData.beam.target); e.nodes.forEach(n => scene.remove(n)); }
+  for (const V of view.enemies.values()) dropEnemyView(V);
   if (view.me) { scene.remove(view.me); scene.remove(view.me.userData.light); scene.remove(view.me.userData.halo); }
   view.meNodes.forEach(n => scene.remove(n));
   for (const g of view.loose.values()) scene.remove(g);
   for (const t of view.traps.values()) scene.remove(t.g);
-  view.lamps = []; view.enemies = []; view.meNodes = []; view.loose.clear(); view.traps.clear();
+  view.lamps = []; view.enemies = new Map(); view.meNodes = []; view.loose.clear(); view.traps.clear();
 }
 function build() {
   clearScene();
   S = makeState(level);
   view.lamps = S.lamps.map(makeLamp);
-  view.enemies = S.enemies.map(e => ({ head: makeEnemyHead(), nodes: [], markAcc: 0, side: 1, lastWalk: 0 }));
+  view.enemies = new Map();
   view.me = makeMyHead();
   trailBirth.fill(-999);
   // 跡がはじめから少しあるように（見回りの道の上に）
@@ -315,8 +333,13 @@ function syncAll(dt, first = false) {
     }
   });
   // ムカデ
+  const alive = new Set();
   S.enemies.forEach((e, i) => {
-    const V = view.enemies[i], h = V.head, u = h.userData;
+    alive.add(e.id);
+    let V = view.enemies.get(e.id);
+    if (!V) { V = { head: makeEnemyHead(), nodes: [], markAcc: 0, side: 1, lastWalk: e.walk, pilot: null, fade: 1 }; view.enemies.set(e.id, V); }
+    const h = V.head, u = h.userData;
+    if (e.mode === 'down') { syncDown(e, V, dt); return; }
     h.position.copy(P3(e.x, e.y)); h.rotation.y = -e.h;
     const body = enemyBody(e);
     syncNodes(V.nodes, body, false);
@@ -336,6 +359,7 @@ function syncAll(dt, first = false) {
     const dw = e.walk - V.lastWalk; V.lastWalk = e.walk; V.markAcc += dw;
     if (V.markAcc > 0.3) { V.markAcc = 0; V.side = -V.side; const px = -Math.sin(e.h), py = Math.cos(e.h); dropMark(e.x + px * 0.55 * V.side, e.y + py * 0.55 * V.side, e.h, now, e.walk); }
   });
+  for (const [id, V] of view.enemies) if (!alive.has(id)) { dropEnemyView(V); view.enemies.delete(id); }
   // 自分
   const me = S.me, H = view.me, mu = H.userData;
   H.position.copy(P3(me.x, me.y)); H.rotation.y = -me.h;
@@ -509,6 +533,7 @@ function onEvents(evs) {
     if (ev.type === 'pick') Sound.pick(ev.n);
     else if (ev.type === 'trap') Sound.trap();
     else if (ev.type === 'cut') { Sound.cut(); confetti(ev.x, ev.y, 12); }
+    else if (ev.type === 'down') { const e = S.enemies.find(x => x.id === ev.enemy); if (e) confetti(e.x, e.y, 8, '#f0ece0'); Sound.down(); }
     else if (ev.type === 'spot') { Sound.spot(); if (!spotted) { spotted = true; trapBtn.classList.add('pulse'); } }
     else if (ev.type === 'bite') { Sound.bite(); flash(); }
     else if (ev.type === 'stack') Sound.stack(ev.have);
@@ -554,7 +579,7 @@ function frame(t) {
 
 // ---------- はじめる ----------
 const lvName = qs.get('level') || 'field1';
-fetch(`levels/${lvName}.json?v=2`).then(r => r.json()).then(lv => {
+fetch(`levels/${lvName}.json?v=3`).then(r => r.json()).then(lv => {
   level = lv;
   build();
   placeCamera(0, true);

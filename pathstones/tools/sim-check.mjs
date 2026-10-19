@@ -39,7 +39,7 @@ console.log('台本:', r.log.join(' / '));
 // 置く時刻のずれ
 let ok = 0, tot = 0;
 for (let d = 0; d <= 30; d += 1) { const x = script(d); tot++; if (x.log.some(l => l.includes('cut'))) ok++; }
-console.log('置く時刻を 0〜30秒おくらせて切れた割合', ok + '/' + tot);
+console.log('置く時刻を 0〜30秒おくらせて切れた割合（目の前で置くと見破られる）', ok + '/' + tot);
 
 // 4) わなの幅: 通り道（下の直線 y=18）から横にずらした所に、いろいろな時刻にわなを置く（自分は灯りの中で待つ）
 const rows = [];
