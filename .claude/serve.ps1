@@ -22,7 +22,15 @@ while ($l.IsListening) {
       $c.Response.Close(); continue
     }
     $path = [IO.Path]::GetFullPath((Join-Path $root $rel))
-    if (Test-Path $path -PathType Container) { $path = Join-Path $path 'index.html' }
+    if (Test-Path $path -PathType Container) {
+      # folder without the trailing slash: redirect, or the page's relative css/js paths point one level up (blank page)
+      if ($rel -ne '' -and -not $rel.EndsWith('/')) {
+        $c.Response.StatusCode = 301
+        $c.Response.RedirectLocation = $c.Request.Url.AbsolutePath + '/' + $c.Request.Url.Query
+        $c.Response.Close(); continue
+      }
+      $path = Join-Path $path 'index.html'
+    }
     # serve only files inside the project folder, and never the private word list
     $inside = $path.StartsWith($root + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)
     if ($inside -and ([IO.Path]::GetFileName($path) -ne '.private-words.txt') -and (Test-Path $path -PathType Leaf)) {
