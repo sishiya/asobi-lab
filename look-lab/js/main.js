@@ -4,9 +4,9 @@ import { buildScene } from './scene.js';
 import { LOOKS } from './looks.js';
 
 const canvas = document.getElementById('view');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
-renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));   // 軽くするため細かさは 1.5 倍まで
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 const world = buildScene();
 // ライト（光の当たる所では群れが体をつなぎとめられない。見本は「魚」）。マウスの所を照らす。さわらないと勝手にぐるぐる
 const torch = new THREE.SpotLight(0xfff4dc, 0, 40, 0.32, 0.55, 0.6); torch.castShadow = false; world.scene.add(torch, torch.target);
@@ -20,7 +20,8 @@ function updateTorch(t) {
   if (ray.ray.intersectPlane(plane, hit)) { torch.target.position.copy(hit); torch.position.set(hit.x - 2, 12, hit.z + 4); }
 }
 const ctx = { renderer, scene: world.scene, camera: world.camera, walker: world.walker, ground: world.ground, sun: world.sun };
-for (const L of LOOKS) L.init?.(ctx);
+// ルックは選んだときに準備する（はじめに全部用意すると重い）
+function ensure(L) { if (L._ok) return; L.init?.(ctx); L._ok = true; const dpr = renderer.getPixelRatio(); L.resize?.(innerWidth * dpr, innerHeight * dpr, dpr); }
 
 // ボタン
 const bar = document.getElementById('looks'), note = document.getElementById('note');
@@ -33,7 +34,7 @@ LOOKS.forEach((L, i) => {
   row.appendChild(b);
 });
 function pick(i) {
-  cur = i;
+  ensure(LOOKS[i]); cur = i;
   bar.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.i === i));
   note.textContent = LOOKS[i].note;
   document.body.dataset.look = i;
@@ -62,7 +63,7 @@ function onResize() {
   const w = innerWidth, h = innerHeight, dpr = renderer.getPixelRatio();
   renderer.setSize(w, h, false);
   world.camera.aspect = w / h; world.camera.updateProjectionMatrix();
-  for (const L of LOOKS) L.resize?.(w * dpr, h * dpr, dpr);
+  for (const L of LOOKS) if (L._ok) L.resize?.(w * dpr, h * dpr, dpr);
 }
 addEventListener('resize', onResize); onResize();
 

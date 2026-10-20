@@ -1,9 +1,20 @@
 // ルックの実験室: どの案でも同じ景色（昼の野原・歩く人・羊・風車・木・鳥）。動く物が多いのは、ルックのちがいが動きで出るから。
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 export const height = (x, z) => 0.6 * Math.sin(x * 0.13) * Math.cos(z * 0.11) + 0.3 * Math.sin(x * 0.31 + z * 0.23);
 const lam = (c) => new THREE.MeshLambertMaterial({ color: c });
+// 軽くするため、いくつもの部品を1つの形にまとめる（色は頂点の色で）。part(形, 色, 位置, 回転, 大きさ)
+const vcol = new THREE.MeshLambertMaterial({ vertexColors: true });
+function part(geo, hex, pos = [0, 0, 0], rot = [0, 0, 0], scl = [1, 1, 1]) {
+  let g = geo.index ? geo.toNonIndexed() : geo; g.deleteAttribute('uv');
+  g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(...pos), new THREE.Quaternion().setFromEuler(new THREE.Euler(...rot)), new THREE.Vector3(...scl)));
+  const c = new THREE.Color(hex), n = g.attributes.position.count, a = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) a.set([c.r, c.g, c.b], i * 3);
+  g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g;
+}
+const merged = (parts) => new THREE.Mesh(mergeGeometries(parts), vcol);
 
 export function buildScene() {
   const R = rng(1021);
@@ -16,7 +27,7 @@ export function buildScene() {
   const sun = new THREE.DirectionalLight(0xfff1d8, 2.2);
   sun.position.set(12, 20, 8); sun.castShadow = true;
   Object.assign(sun.shadow.camera, { left: -25, right: 25, top: 25, bottom: -25, near: 1, far: 60 });
-  sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.03;
+  sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.03;
   scene.add(sun, sun.target);
 
   // 地面（草地と、黄土色の小道）
@@ -32,45 +43,35 @@ export function buildScene() {
 
   const shadowAll = (o) => o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
 
-  // 木（丸い葉）
-  const trees = [];
+  // 木（丸い葉）。幹はぜんぶで1つ、葉は1本ごとに1つ（ゆれるので）
+  const trees = [], trunks = [];
   for (let i = 0; i < 34; i++) {
     const x = (R() - 0.5) * 56, z = (R() - 0.5) * 56;
     if (Math.abs(z - 3 * Math.sin(x * 0.12)) < 2.5 || Math.hypot(x - 6, z + 6) < 5) continue;
-    const g = new THREE.Group(), s = 0.7 + R() * 0.8;
-    g.position.set(x, height(x, z), z); g.scale.setScalar(s);
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.22, 1.6, 7), lam(0x7a5236)); trunk.position.y = 0.8; g.add(trunk);
-    const crown = new THREE.Group(); crown.position.y = 1.6; g.add(crown);
-    for (let k = 0; k < 3; k++) {
-      const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.9 - k * 0.15, 1), lam(k ? 0x4f8a3a : 0x3f7a32));
-      b.position.set((R() - 0.5) * 0.8, 0.5 + k * 0.45, (R() - 0.5) * 0.8); crown.add(b);
-    }
-    shadowAll(g); scene.add(g); trees.push({ crown, ph: R() * 6 });
+    const s = 0.7 + R() * 0.8, y = height(x, z);
+    trunks.push(part(new THREE.CylinderGeometry(0.15 * s, 0.22 * s, 1.6 * s, 7), 0x7a5236, [x, y + 0.8 * s, z]));
+    const blobs = [];
+    for (let k = 0; k < 3; k++) blobs.push(part(new THREE.IcosahedronGeometry(0.9 - k * 0.15, 1), k ? 0x4f8a3a : 0x3f7a32, [(R() - 0.5) * 0.8, 0.5 + k * 0.45, (R() - 0.5) * 0.8]));
+    const crown = merged(blobs); crown.position.set(x, y + 1.6 * s, z); crown.scale.setScalar(s);
+    crown.castShadow = crown.receiveShadow = true; scene.add(crown); trees.push({ crown, ph: R() * 6 });
   }
+  const trunkMesh = merged(trunks); trunkMesh.castShadow = trunkMesh.receiveShadow = true; scene.add(trunkMesh);
 
   // 小屋と風車
-  const hut = new THREE.Group(); hut.position.set(6, height(6, -6), -6);
-  const wall = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.6, 2), lam(0xf0e6d2)); wall.position.y = 0.8; hut.add(wall);
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(2.0, 1.3, 4), lam(0xb8453a)); roof.position.y = 2.25; roof.rotation.y = Math.PI / 4; hut.add(roof);
-  shadowAll(hut); scene.add(hut);
+  const hut = merged([part(new THREE.BoxGeometry(2.4, 1.6, 2), 0xf0e6d2, [0, 0.8, 0]), part(new THREE.ConeGeometry(2.0, 1.3, 4), 0xb8453a, [0, 2.25, 0], [0, Math.PI / 4, 0])]);
+  hut.position.set(6, height(6, -6), -6); shadowAll(hut); scene.add(hut);
   const mill = new THREE.Group(); mill.position.set(-7, height(-7, -8), -8);
-  const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.9, 4.5, 10), lam(0xe8dcc4)); tower.position.y = 2.25; mill.add(tower);
-  const cap = new THREE.Mesh(new THREE.ConeGeometry(0.75, 0.9, 10), lam(0x6b4a3a)); cap.position.y = 4.9; mill.add(cap);
-  const hub = new THREE.Group(); hub.position.set(0, 4.3, 0.7); mill.add(hub);
-  for (let k = 0; k < 4; k++) {
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.35, 2.6, 0.05), lam(0xf6f0e4)); arm.position.y = 1.4;
-    const a = new THREE.Group(); a.rotation.z = k * Math.PI / 2; a.add(arm); hub.add(a);
-  }
+  mill.add(merged([part(new THREE.CylinderGeometry(0.5, 0.9, 4.5, 10), 0xe8dcc4, [0, 2.25, 0]), part(new THREE.ConeGeometry(0.75, 0.9, 10), 0x6b4a3a, [0, 4.9, 0])]));
+  const arms = []; for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2; arms.push(part(new THREE.BoxGeometry(0.35, 2.6, 0.05), 0xf6f0e4, [-Math.sin(a) * 1.4, Math.cos(a) * 1.4, 0], [0, 0, a])); }
+  const hub = merged(arms); hub.position.set(0, 4.3, 0.7); mill.add(hub);
   shadowAll(mill); scene.add(mill);
 
   // 羊
   const sheep = [];
+  const sheepG = mergeGeometries([part(new THREE.SphereGeometry(0.45, 12, 8), 0xf4f1ea, [0, 0.55, 0], [0, 0, 0], [1.3, 0.9, 0.9]), part(new THREE.SphereGeometry(0.2, 10, 8), 0x2a2522, [0.6, 0.65, 0]),
+    ...[[0.3, 0.2], [0.3, -0.2], [-0.3, 0.2], [-0.3, -0.2]].map(([lx, lz]) => part(new THREE.CylinderGeometry(0.05, 0.05, 0.35), 0x2a2522, [lx, 0.17, lz]))]);
   for (let i = 0; i < 10; i++) {
-    const g = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 8), lam(0xf4f1ea)); body.scale.set(1.3, 0.9, 0.9); body.position.y = 0.55; g.add(body);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), lam(0x2a2522)); head.position.set(0.6, 0.65, 0); g.add(head);
-    for (const [lx, lz] of [[0.3, 0.2], [0.3, -0.2], [-0.3, 0.2], [-0.3, -0.2]]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.35), lam(0x2a2522)); l.position.set(lx, 0.17, lz); g.add(l); }
-    shadowAll(g); scene.add(g);
+    const g = new THREE.Mesh(sheepG, vcol); g.castShadow = g.receiveShadow = true; scene.add(g);
     sheep.push({ g, x: (R() - 0.5) * 20 - 4, z: (R() - 0.5) * 14 + 6, dir: R() * 6, t: R() * 5 });
   }
 

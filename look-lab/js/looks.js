@@ -33,7 +33,7 @@ export const raw = {
 // 1. 時差: 人から遠いほど、少し前の時間の絵
 export const lag = {
   ja: '時差', note: '自分から遠いほど、少し前の時間が映る（画面のはしで2秒前）。動く物は遠くでのび、歩くと世界がしなる',
-  N: 48,
+  N: 32,
   init(ctx) {
     this.hist = new THREE.WebGLArrayRenderTarget(4, 4, this.N);
     Object.assign(this.hist.texture, { type: THREE.HalfFloatType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
@@ -51,11 +51,11 @@ export const lag = {
         gl_FragColor = vec4(toS(c), 1.0);
       }`, { tHist: { value: this.hist.texture }, uHead: { value: 0 }, uN: { value: this.N }, uFill: { value: 0 }, uAspect: { value: 1 }, uC: { value: new THREE.Vector2() } });
   },
-  resize(w, h) { const s = Math.min(1, 900 / Math.max(w, h)); this.hist.setSize(Math.round(w * s), Math.round(h * s), this.N); this.p.m.uniforms.uAspect.value = w / h; this.filled = 0; },
+  resize(w, h) { const s = Math.min(1, 640 / Math.max(w, h)); this.hist.setSize(Math.round(w * s), Math.round(h * s), this.N); this.p.m.uniforms.uAspect.value = w / h; this.filled = 0; },
   render(ctx, t, dt) {
     const { renderer } = ctx;
     this.acc = (this.acc || 0) + dt;
-    if (this.acc >= 1 / 24 || !this.filled) { this.acc = Math.min(this.acc - 1 / 24, 1 / 24); this.head = (this.head + 1) % this.N; this.filled = Math.min(this.N - 1, this.filled + 1); }
+    if (this.acc >= 1 / 16 || !this.filled) { this.acc = Math.min(this.acc - 1 / 16, 1 / 16); this.head = (this.head + 1) % this.N; this.filled = Math.min(this.N - 1, this.filled + 1); }
     renderer.setRenderTarget(this.hist, this.head); renderer.clear(); renderer.render(ctx.scene, ctx.camera);
     const u = this.p.m.uniforms; u.uHead.value = this.head; u.uFill.value = this.filled; u.uC.value.copy(walkerUv(ctx));
     this.p.run(renderer, null);

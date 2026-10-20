@@ -59,7 +59,7 @@ export const ants = {
   ja: 'アリ', note: 'アリが墨をつけて歩く。暗い所ほど墨を多く落とすので、景色が墨絵になる。においの道もたどる',
   init(ctx) {
     this.scn = sceneRT(); this.ta = linRT(); this.tb = linRT();
-    this.A = agents(192, () => [rnd(), rnd(), rnd() * 6.283, 0.55 + rnd() * 0.45]);   // w＝墨の濃さ（1匹ずつ）
+    this.A = agents(160, () => [rnd(), rnd(), rnd() * 6.283, 0.55 + rnd() * 0.45]);   // w＝墨の濃さ（1匹ずつ）
     this.stepP = pass(`
       uniform sampler2D tP, tScene, tTrail; uniform float uT, uDt, uAspect; varying vec2 vUv;
       float sense(vec2 x){ return (1.0 - exp(-texture2D(tTrail, x).r * 1.5)) * 0.5 + dark(toS(texture2D(tScene, x).rgb)) * 3.0; }
@@ -131,7 +131,7 @@ export const ants = {
       }`, { tP: { value: null }, uSize: { value: 9 } });
   },
   resize(w, h, dpr) {
-    const s = Math.min(1, 720 / Math.max(w, h)); this.scn.setSize(Math.round(w * s), Math.round(h * s));
+    const s = Math.min(1, 560 / Math.max(w, h)); this.scn.setSize(Math.round(w * s), Math.round(h * s));
     const tw = Math.round(w * s), th = Math.round(h * s); this.ta.setSize(tw, th); this.tb.setSize(tw, th);
     this.decay.m.uniforms.uTx.value.set(1 / tw, 1 / th); this.bg.m.uniforms.uTx.value.set(1 / tw, 1 / th);
     this.stepP.m.uniforms.uAspect.value = w / h; this.draw.m.uniforms.uSize.value = sizeFor(w, h, dpr, 9);
