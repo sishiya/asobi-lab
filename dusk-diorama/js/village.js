@@ -21,11 +21,13 @@ export function buildVillage(root, isl, TX) {
     rock: texMat('#5e5a52', TX.rock, 2, { flatShading: true }), brick: texMat('#ffffff', TX.rock, 2, { roughness: 0.92 }), dark: new THREE.MeshStandardMaterial({ color: '#050404', roughness: 1 }),
     win: new THREE.MeshStandardMaterial({ color: '#0d0907', roughness: 0.6 }),
   };
+  // ふちの外にはみ出した物は、まん中へ少し寄せた所の塊に乗せる（まん中の塊にまわすと、岩のまわりに浮いて残った）
+  const cid = (x, z) => { for (let k = 1; k > 0.3; k -= 0.03) { const id = chunkIdAt(x * k, z * k); if (id >= 0) return id; } return 0; };
   // 物を塊に乗せる。足もと（中心とまわり）にかかる塊を覚え、どれかが落ちたらいっしょに落ちる
   const onChunk = chunks.map(() => []);
   function place(obj, x, z, r = 0) {
-    const ids = new Set([x, z].length && [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]].map(([dx, dz]) => chunkIdAt(x + dx, z + dz)).filter(i => i >= 0));
-    const id = chunkIdAt(x, z); const c = chunks[id >= 0 ? id : 0];
+    const ids = new Set([[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]].map(([dx, dz]) => cid(x + dx, z + dz)));
+    const c = chunks[cid(x, z)];
     c.group.add(obj); obj.userData.chunks = ids;
     for (const i of ids) onChunk[i].push(obj);
     return c;
@@ -37,8 +39,8 @@ export function buildVillage(root, isl, TX) {
   }
   // 塊ごとにまとめて描く（草・れんが・岩など、数の多い物）
   const inst = new Map(), merged = new Map();
-  function addInst(key, geo, mat, m, color, x, z) { const id = Math.max(0, chunkIdAt(x, z)); const k = key + '|' + id; if (!inst.has(k)) inst.set(k, { geo, mat, id, list: [] }); inst.get(k).list.push([m.clone(), color && color.clone()]); }
-  function addMerged(key, mat, geo, x, z) { const id = Math.max(0, chunkIdAt(x, z)); const k = key + '|' + id; if (!merged.has(k)) merged.set(k, { mat, id, list: [] }); merged.get(k).list.push(geo.index ? geo.toNonIndexed() : geo); }
+  function addInst(key, geo, mat, m, color, x, z) { const id = cid(x, z); const k = key + '|' + id; if (!inst.has(k)) inst.set(k, { geo, mat, id, list: [] }); inst.get(k).list.push([m.clone(), color && color.clone()]); }
+  function addMerged(key, mat, geo, x, z) { const id = cid(x, z); const k = key + '|' + id; if (!merged.has(k)) merged.set(k, { mat, id, list: [] }); merged.get(k).list.push(geo.index ? geo.toNonIndexed() : geo); }
 
   // ── 小屋: 戸・よろい戸・屋根をはがしてくべられる。家そのものに火はつけない ──
   const houses = [];

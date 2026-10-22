@@ -27,7 +27,8 @@ export function patchDark(mat) {
       float dd = length(vWp.xz - uFire.xz), dk = smoothstep(uR, uR + 0.9, dd) * uDark;
       float lum = dot(gl_FragColor.rgb, vec3(.3, .59, .11));
       gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(lum) * vec3(.62, .48, .45), dk * .85) * (1.0 - dk * .6);
-      float onTop = step(uFire.y - 1.6, vWp.y);
+      vec3 fn = normalize(cross(dFdx(vWp), dFdy(vWp)));
+      float onTop = step(uFire.y - 1.6, vWp.y) * smoothstep(.6, .85, abs(fn.y)); // 上を向いた面だけ（岩の壁に光のすじを出さない）
       gl_FragColor.rgb += vec3(1., .42, .12) * exp(-pow((dd - uR - .1) * 8.0, 2.0)) * .08 * uDark * onTop;
     }
     #include <fog_fragment>`);

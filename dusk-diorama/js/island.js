@@ -60,7 +60,7 @@ export function buildIsland(root, TX) {
     if (i === NR - 1) c.rim = true;
   }
   const topMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, map: TX.ground, bumpMap: TX.ground, bumpScale: 1.5 });
-  const sideMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true, map: TX.rock, bumpMap: TX.rock, bumpScale: 2.5 });
+  const sideMat = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, vertexColors: true, roughness: 1, flatShading: true, map: TX.rock, bumpMap: TX.rock, bumpScale: 2.5 });
   const cc = new THREE.Color();
   for (const c of chunks) {
     if (!c.quads.length) continue;

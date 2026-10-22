@@ -133,12 +133,13 @@ function showToast(s) { const el = $('toast'); el.textContent = s; el.classList.
 function hud() {
   $('bar').style.transform = `scaleX(${Math.min(1, st.t / RULE.night)})`;
   const hint = $('hint');
-  if (!st.burnedAny && st.phase === 'play' && !carry) {
-    const b = nearestBurnable(); if (b) { const p = centerOf(b.obj).project(camera); hint.hidden = false; hint.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`; hint.style.top = `${(-p.y * 0.5 + 0.5) * innerHeight - 30}px`; glint.visible = true; glint.position.copy(centerOf(b.obj)).add(new THREE.Vector3(0, 0.15, 0)); }
+  // 目じるしの光は、遊んでいるあいだだけ（どの物にも重ねて描くので、呑まれたあとに残すと岩の向こうに透けて見えた）
+  let gl = null;
+  if (st.phase === 'play' && !carry) {
+    if (!st.burnedAny) { const b = nearestBurnable(); if (b) { gl = b; const p = centerOf(b.obj).project(camera); hint.hidden = false; hint.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`; hint.style.top = `${(-p.y * 0.5 + 0.5) * innerHeight - 30}px`; } else hint.hidden = true; }
+    else { hint.hidden = true; if (hover) gl = hover; }
   } else hint.hidden = true;
-  if (carry) { glint.visible = false; }
-  else if (hover && st.burnedAny) { glint.visible = true; glint.position.copy(centerOf(hover.obj)).add(new THREE.Vector3(0, 0.12, 0)); }
-  else if (st.burnedAny) glint.visible = false;
+  glint.visible = !!gl; if (gl) glint.position.copy(centerOf(gl.obj)).add(new THREE.Vector3(0, 0.14, 0));
   const tag = $('tag');
   if (carry) { tag.hidden = false; const p = carry.b.obj.position.clone().project(camera); tag.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`; tag.style.top = `${(-p.y * 0.5 + 0.5) * innerHeight - 40}px`; tag.textContent = `${carry.b.name}　${'▮'.repeat(Math.max(1, Math.round(carry.b.fuel / 4)))}`; }
   else if (hover && st.phase === 'play') { tag.hidden = false; const p = centerOf(hover.obj).project(camera); tag.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`; tag.style.top = `${(-p.y * 0.5 + 0.5) * innerHeight - 34}px`; tag.textContent = `${hover.name}　${'▮'.repeat(Math.max(1, Math.round(hover.fuel / 4)))}`; }
@@ -159,7 +160,7 @@ function showResult(won) {
     rows = [['島の広さ', `${Math.round(area * 100)}%`], ['屋根のある家', `${roofed} / ${V.houses.length}`], ['礼拝堂', V.chapel.g.userData.fallen ? '落ちた' : '残った'], ['墓', `${graves} / ${V.graves.length}`], ['木', `${trees} / ${V.trees.length}`]];
   } else rows = [['もちこたえた', `${Math.round(st.tEnd)} / ${RULE.night} 秒`], ['くべたもの', `${V.burnables.filter(b => b.burned).length}`]];
   $('resTitle').textContent = won ? '夜が明けた' : '島は夜に呑まれた';
-  $('resLead').textContent = won ? '残ったものに、朝の色がもどる。' : '火が消え、闇が島を崩した。';
+  $('resLead').textContent = won ? '残ったものに、朝の色がもどる。' : '火の番の岩だけが、おき火を抱いて漂っている。';
   $('resRows').innerHTML = rows.map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
   $('resRows').style.gridTemplateColumns = `repeat(${rows.length}, 1fr)`;
 }
@@ -185,8 +186,12 @@ function frame(now) {
   } else if (st.phase === 'lost') {
     let standing = 0;
     for (const c of isl.chunks) if (!c.fixed && !c.fallen) { standing++; c.s -= dt * (0.15 + Math.random() * 0.4); if (c.s <= 0) fall(c); }
-    if (!standing && !C0.fallen) { st.lastT = (st.lastT || 0) + dt; if (st.lastT > 1.2) fall(C0); } // 最後に、火のある塊も
-    if (C0.fallen && C0.group.position.y < -14 && $('result').hidden && !st.shown) { st.shown = true; showResult(false); $('result').hidden = false; }
+    // 火の番の岩（まん中の塊）だけは呑まれない。おき火を抱いて、ゆっくり漂う（PLAN.md 2.6章）
+    if (!standing) { st.lastT = (st.lastT || 0) + dt; if (st.lastT > 2.5 && !st.shown) { st.shown = true; showResult(false); $('result').hidden = false; } }
+  }
+  if (st.phase === 'lost' && !isl.chunks.some(c => !c.fixed && !c.fallen)) {
+    st.drift = (st.drift || 0) + dt; const k = Math.min(1, st.drift / 4);
+    C0.group.position.set(0, (Math.sin(st.drift * 0.5) * 0.18 - 0.2) * k, 0); C0.group.rotation.set(Math.sin(st.drift * 0.31) * 0.03 * k, Math.sin(st.drift * 0.2) * 0.05, Math.cos(st.drift * 0.27) * 0.03 * k);
   }
   const Rt = st.phase === 'lost' ? RULE.emberR : lightRadius(st.F);
   st.shownR += (Rt + fx.flare * 0.4 - st.shownR) * Math.min(1, dt * 3);
@@ -196,6 +201,7 @@ function frame(now) {
   // ふるえる塊・落ちる塊
   for (const c of isl.chunks) {
     if (c.fallen) { if (c.group.visible) { c.fall.v += 7 * dt; c.group.position.y -= c.fall.v * dt; c.group.rotateOnWorldAxis(c.fall.ax, c.fall.w * dt); if (c.group.position.y < -45) c.group.visible = false; } continue; }
+    if (c.fixed && st.drift) continue; // 漂う火の番の岩は上で動かしている
     const k = c.s < 0.45 ? (1 - c.s / 0.45) : 0, sh = shake.find(s => s.c === c);
     const amp = k * 0.025 + (sh ? sh.t * 0.05 : 0);
     c.group.position.set((Math.random() - .5) * amp, (Math.random() - .5) * amp * 0.5, (Math.random() - .5) * amp);
