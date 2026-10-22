@@ -81,6 +81,15 @@ foreach ($f in $files) {
     if ($extra.Count) { [void]$hits.Add("$rel : mp4 に付加情報がある（$($extra -join ', ')）") }
     continue
   }
+  if ($ext -eq '.ogg') {
+    # 音（Stable Audio で作り ffmpeg で書き出す。dusk-diorama/audio）: 作者・題・コメントなどの付加情報がないか（ffprobe）。中身は耳で確かめる
+    $probe = Get-Command ffprobe -ErrorAction SilentlyContinue
+    if (-not $probe) { [void]$hits.Add("$rel : ffprobe がなく付加情報を調べられない（目で確認）"); continue }
+    $tags = & $probe.Source -v error -show_entries 'format_tags:stream_tags' -of 'default=nw=1' $f
+    $extra = @($tags | Where-Object { $_ -and $_ -notmatch '^TAG:(encoder|ENCODER)=' })
+    if ($extra.Count) { [void]$hits.Add("$rel : ogg に付加情報がある（$($extra -join ', ')）") }
+    continue
+  }
   if ($ext -eq '.glb') {
     # 3D の形（tools/blender/*.py で書き出す）: 先頭の JSON に作者・著作権・付加情報（extras）・PC のパスがないか。形そのものは目で確かめる
     $bytes = [IO.File]::ReadAllBytes($f)

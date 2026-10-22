@@ -1,0 +1,46 @@
+/* 区割り（RULES 4章）: まん中＝島（ふさがない）、上のまん中＝夜明けまで、右上＝音（めったに使わない）、案内は物のそば */
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#0b0404;color:#efe6d6;font-family:'Shippori Mincho B1',serif;touch-action:none;-webkit-user-select:none;user-select:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:default}
+canvas.carry{cursor:grabbing}
+.night{position:fixed;top:24px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;pointer-events:none}
+.night .track{display:block;width:min(42vw,280px);height:4px;border-radius:2px;background:rgba(255,230,210,.18);overflow:hidden}
+#bar{display:block;height:100%;width:100%;background:linear-gradient(90deg,#c0461c,#ffb070);transform-origin:left;transform:scaleX(0)}
+.moon,.sun{width:14px;height:14px;border-radius:50%}
+.moon{background:#050101;box-shadow:0 0 0 2px #ff6a2a,0 0 10px #ff5a1f}
+.sun{background:#ffd29a;box-shadow:0 0 10px #ffb070}
+.hint,.tag{position:fixed;transform:translate(-50%,-100%);margin:0;padding:6px 12px;border-radius:999px;background:rgba(14,8,6,.72);border:1px solid rgba(255,190,130,.35);font-size:15px;white-space:nowrap;pointer-events:none}
+.tag{font-size:13px;letter-spacing:.05em;color:#ffd9b8}
+.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,10px);margin:0;padding:8px 16px;border-radius:12px;background:rgba(14,8,6,.6);font-size:14px;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.card{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(420px,calc(100vw - 32px));padding:28px 28px 24px;border-radius:18px;background:rgba(16,8,6,.78);backdrop-filter:blur(8px);border:1px solid rgba(255,190,130,.2);text-align:center}
+.card[hidden]{display:none}
+.card h1,.card h2{margin:0 0 12px;font-weight:800;letter-spacing:.08em}
+.card h1{font-size:30px}.card h2{font-size:26px}
+.card p{margin:0 0 20px;line-height:1.9;font-size:15px;opacity:.9}
+.card .small{margin:16px 0 0;font-size:12px;opacity:.6}
+.btn{min-height:48px;padding:10px 32px;border-radius:999px;border:0;background:#e8823a;color:#1a0d06;font:800 17px 'Shippori Mincho B1',serif;cursor:pointer;box-shadow:0 0 24px rgba(255,120,40,.35)}
+.btn:hover{background:#ff9a52}
+.card p{word-break:auto-phrase}
+/* 結果は下に小さく（島の夜明けを見せる） */
+.card.result{top:auto;bottom:16px;transform:translateX(-50%);width:min(560px,calc(100vw - 32px));padding:16px 18px}
+.card.result h2{font-size:22px;margin:0 0 4px}.card.result p{margin:0 0 12px;font-size:14px}
+.rows{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:0 0 14px}
+.rows div{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border-radius:10px;background:rgba(255,230,210,.07);font-size:12px}
+.rows b{font-size:16px}
+.rows b{font-weight:800;color:#ffd29a}
+@media (max-width:420px){.rows{grid-template-columns:repeat(3,1fr)}}
+@media (max-height:420px){.card.result p{display:none}.card.result h2{font-size:18px;margin-bottom:8px}.card{padding:14px 18px}.card h1{font-size:22px;margin-bottom:6px}.card p{margin-bottom:10px;line-height:1.6;font-size:13px}.card .small{margin-top:8px}}
+/* 音の板（右上） */
+.snd-btn{position:fixed;top:16px;right:16px;min-height:44px;padding:10px 16px;border-radius:999px;border:1px solid rgba(255,240,220,.12);background:rgba(8,8,12,.55);backdrop-filter:blur(6px);color:#efe6d6;font:700 15px 'Shippori Mincho B1',serif;cursor:pointer;z-index:3}
+.snd-btn[aria-expanded=true]{background:#efe6d6;color:#1a1410}
+.snd-pane{position:fixed;top:72px;right:16px;width:340px;max-width:calc(100vw - 32px);background:rgba(10,8,8,.86);backdrop-filter:blur(8px);border:1px solid rgba(255,240,220,.14);border-radius:14px;padding:12px;display:grid;gap:12px;z-index:3}
+.snd-pane[hidden]{display:none}
+.snd-row{display:grid;grid-template-columns:96px 1fr;grid-template-rows:auto auto;gap:6px 10px;align-items:center}
+.snd-on{grid-row:span 2;min-height:44px;border-radius:10px;border:1px solid rgba(255,240,220,.25);background:transparent;color:#efe6d6;font:700 14px 'Shippori Mincho B1',serif;cursor:pointer}
+.snd-on[aria-pressed=true]{background:#e8823a;border-color:#e8823a;color:#1a0d06}
+.snd-on::after{content:' OFF';font-size:11px;opacity:.7}.snd-on[aria-pressed=true]::after{content:' ON'}
+.snd-row select{min-height:36px;border-radius:8px;background:#1d1714;color:#efe6d6;border:1px solid rgba(255,240,220,.2);font:14px 'Shippori Mincho B1',serif;padding:0 6px}
+.snd-one{font-size:13px;opacity:.75}
+.snd-row input{width:100%;accent-color:#e8823a}
+@media (max-width:560px){.night{top:76px}.card{padding:22px 18px 18px}.card h1{font-size:26px}}

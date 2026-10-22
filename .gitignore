@@ -48,3 +48,6 @@ _dev/blender/review/
 
 # みちいしの見た目の見くらべの絵（look/compare.html が読む。大きい PNG なのでローカルだけ）
 pathstones/look/shots/
+
+# 夜明けまでの島: 見くらべのページ（ルック3案・音の板）は手元だけ
+dusk-diorama/look/
