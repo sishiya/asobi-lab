@@ -56,7 +56,8 @@ export function buildVillage(root, isl, TX) {
       for (const s of [-1, 1]) { const dx = w / 4, dy = h * 0.5, L = Math.hypot(dx, dy); g.add(mesh(B(0.04, L, 0.03), T, s * (w / 2 - dx / 2), y0 + dy / 2, zz, 0, 0, Math.atan2(s * dx, dy))); }
     }
     for (const xx of [sd, -sd]) { g.add(mesh(B(0.035, 0.05, d + 0.04), T, xx, y0 + h - 0.02, 0)); g.add(mesh(B(0.035, h, 0.045), T, xx, y0 + h / 2, 0)); }
-    g.add(mesh(B(0.16, 0.5, 0.16), M.stone, w * 0.28, h + 0.5, -d * 0.15)); g.add(mesh(B(0.22, 0.05, 0.22), M.stone, w * 0.28, h + 0.77, -d * 0.15));
+    // 煙突: 横の壁の外に、地面から立つ石積み（屋根に乗せると、屋根をはがしたとき浮いて見えた）
+    { const ch = h + y0 + 0.95, cx = -(w / 2 + 0.1); g.add(mesh(B(0.2, ch, 0.24), M.stone, cx, ch / 2, -d * 0.15)); g.add(mesh(B(0.26, 0.05, 0.3), M.stone, cx, ch + 0.02, -d * 0.15)); }
     g.position.set(x, H(x, z) - 0.04, z); g.rotation.set(0, ry, (R() - .5) * 0.06); g.scale.setScalar(sc);
     const house = { name: '家', g, parts: [], roof: null, x, z };
     place(g, x, z, 0.6 * sc);
@@ -185,7 +186,7 @@ export function buildVillage(root, isl, TX) {
   // ── たき火の台（石の輪と丸太）。火そのものは fx.js ──
   { const fy = H(FIRE.x, FIRE.z), R = rng(41);
     for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; place(mesh(planarUV(lumpyRock(0.08 + R() * 0.03, i, vnoise), 3), M.rock, FIRE.x + Math.cos(a) * 0.34, fy + 0.03, FIRE.z + Math.sin(a) * 0.34), FIRE.x, FIRE.z); }
-    KEEP.push({ x: FIRE.x, z: FIRE.z, r: 0.6 });
+    KEEP.push({ x: FIRE.x, z: FIRE.z, r: 1.05 }); // 火のまわりは踏み固めた土（火トカゲが見えるように）
     for (const a of [2.2, 4.1]) { const x = FIRE.x + Math.cos(a) * 0.85, z = FIRE.z + Math.sin(a) * 0.85, l = mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.6, 9), M.bark, x, H(x, z) + 0.06, z, 0, -a, Math.PI / 2); place(l, x, z); burnable(l, '丸太のいす', 8, 'beam'); KEEP.push({ x, z, r: 0.35 }); }
   }
 
@@ -211,9 +212,9 @@ export function buildVillage(root, isl, TX) {
     };
     barrel(-2.75, 1.55, false); barrel(-2.55, 1.75, true); barrel(3.35, -0.55, false);
     for (const [x, z, s] of [[-2.85, 1.25, 0.2], [3.55, -0.4, 0.18], [3.45, -0.2, 0.14]]) { const m = mesh(B(s, s, s, 2.5), M.wood, x, H(x, z) + s / 2, z, 0, R(), (R() - .5) * 0.1); place(m, x, z); burnable(m, '木箱', 5, 'dry'); }
-    { const g = new THREE.Group(); g.position.set(2.45, H(2.45, 1.3), 1.3); g.rotation.y = 0.6;
+    { const wx = FIRE.x - 0.15, wz = FIRE.z + 0.78, g = new THREE.Group(); g.position.set(wx, H(wx, wz), wz); g.rotation.y = 0.6;
       for (let i = 0; i < 7; i++) { const r = i < 4 ? 0 : 1; g.add(mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.4, 7), M.bark, (i % 4 - 1.5) * 0.09 + r * 0.045, 0.04 + r * 0.075, 0, Math.PI / 2)); }
-      place(g, 2.45, 1.3); burnable(g, '薪', 12, 'beam'); }
+      place(g, wx, wz); burnable(g, '薪', 12, 'beam'); }
     { const x = -1.9, z = 2.6, g = new THREE.Group(); g.position.set(x, H(x, z), z); g.rotation.y = 0.9;
       const add = (geo, mat, lx, ly, lz, rx = 0, ry = 0, rz = 0) => g.add(mesh(geo, mat, lx, ly, lz, rx, ry, rz));
       add(B(0.7, 0.04, 0.4), M.wood, 0, 0.2, 0, 0, 0, -0.22); add(B(0.7, 0.12, 0.03), M.wood, 0, 0.27, 0.19, 0, 0, -0.22); add(B(0.7, 0.12, 0.03), M.wood, 0, 0.27, -0.19, 0, 0, -0.22);
@@ -258,5 +259,15 @@ export function buildVillage(root, isl, TX) {
   for (const { geo, mat, id, list } of inst.values()) { const im = new THREE.InstancedMesh(geo, mat, list.length); list.forEach(([m, c], i) => { im.setMatrixAt(i, m); if (c) im.setColorAt(i, c); }); im.castShadow = mat === M.brick; im.receiveShadow = true; if (mat === grassMat) im.userData.nopick = true; chunks[id].group.add(im); }
   for (const { mat, id, list } of merged.values()) { const m = new THREE.Mesh(mergeGeometries(list), mat); m.castShadow = m.receiveShadow = true; chunks[id].group.add(m); }
 
-  return { burnables, houses, chapel, graves, trees, keepers, onChunk, M, water };
+  // 流木: くっついたかけらに乗ってくる燃料（白っぽく乾いた、ねじれた木）
+  const driftMat = texMat('#8a7d6c', TX.bark, 2);
+  function addDriftwood(c, fuel) {
+    const R = rng(c.id * 31 + burnables.length), a = R() * 6.28, x = c.cx + Math.cos(a) * c.rad * 0.25, z = c.cz + Math.sin(a) * c.rad * 0.25, g = new THREE.Group();
+    g.position.set(x, H(x, z) + 0.05, z); g.rotation.y = R() * 6;
+    const main = new THREE.CylinderGeometry(0.035, 0.055, 0.7, 7, 4), p = main.attributes.position; for (let j = 0; j < p.count; j++) p.setX(j, p.getX(j) + Math.sin(p.getY(j) * 6) * 0.02); main.computeVertexNormals();
+    g.add(mesh(main, driftMat, 0, 0, 0, 0, 0, Math.PI / 2)); g.add(mesh(new THREE.CylinderGeometry(0.012, 0.025, 0.25, 5), driftMat, 0.12, 0.05, 0.06, 0.6, 0, Math.PI / 2 - 0.7));
+    c.group.add(g); g.userData.chunks = new Set([c.id]); onChunk[c.id].push(g);
+    return burnable(g, '流木', fuel, 'dry');
+  }
+  return { burnables, houses, chapel, graves, trees, keepers, onChunk, M, water, addDriftwood, driftMat };
 }

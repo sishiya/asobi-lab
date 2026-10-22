@@ -1,12 +1,13 @@
 // 夜明けまでの島（段階A）: つまんで火にくべる。輪の外の島は崩れて落ちる。夜明けに何が残ったか
 import * as THREE from 'three';
 import { rng, H, FIRE } from './util.js';
-import { RULE, BURN, lightRadius, stepFire, stepChunk } from './rules.js';
+import { RULE, BURN, lightRadius, stepFire, stepChunk, darkness } from './rules.js';
 import { textures } from './tex.js';
 import { buildIsland, chunkIdAt } from './island.js';
 import { buildVillage } from './village.js';
 import { makeRenderer, patchDark, DARK } from './render.js';
 import { makeFx } from './fx.js';
+import { makeSalamander } from './creature.js';
 import { mountAudioPanel, startAudio, sfx, tickAudio } from './audio.js';
 
 const $ = id => document.getElementById(id);
@@ -17,7 +18,8 @@ const isl = buildIsland(scene, TX);
 const V = buildVillage(scene, isl, TX);
 const fx = makeFx(scene);
 const C0 = isl.chunks.find(c => c.fixed);
-for (const o of fx.fireParts) C0.group.attach(o); // たき火はまん中の塊の上（呑まれたら、いっしょに落ちる）
+for (const o of fx.fireParts) C0.group.attach(o); // たき火は火の番の岩（まん中の塊）の上
+const sal = makeSalamander(C0.group); // 火の番の火トカゲ
 scene.traverse(o => { if (o.isMesh || o.isInstancedMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach(patchDark); });
 mountAudioPanel();
 const fireY = H(FIRE.x, FIRE.z);
@@ -26,7 +28,7 @@ for (const c of isl.chunks) c.dist = Math.max(0, Math.hypot(c.cx - FIRE.x, c.cz 
 const totalArea = isl.chunks.reduce((s, c) => s + c.quads.length, 0);
 
 // ── 状態 ──
-const st = { t: 0, F: RULE.fuel0, burning: [], out: 0, phase: 'title', shownR: lightRadius(RULE.fuel0), dawnK: 0, burnedAny: false };
+const st = { night: 1, t: 0, F: RULE.fuel0, burning: [], out: 0, phase: 'title', shownR: lightRadius(RULE.fuel0), dawnK: 0, burnedAny: false, returns: [] };
 let carry = null, hover = null;
 const loose = []; // 島の外へ落とした物
 
@@ -131,7 +133,7 @@ function fall(c) {
 let toastT = 0;
 function showToast(s) { const el = $('toast'); el.textContent = s; el.classList.add('on'); toastT = 1.6; }
 function hud() {
-  $('bar').style.transform = `scaleX(${Math.min(1, st.t / RULE.night)})`;
+  $('bar').style.transform = `scaleX(${Math.min(1, st.t / RULE.night)})`; $('nightNo').textContent = `第${st.night}夜`;
   const hint = $('hint');
   // 目じるしの光は、遊んでいるあいだだけ（どの物にも重ねて描くので、呑まれたあとに残すと岩の向こうに透けて見えた）
   let gl = null;
@@ -148,7 +150,8 @@ function hud() {
 
 function result(won) {
   st.phase = won ? 'dawn' : 'lost';
-  if (won) { showResult(true); setTimeout(() => { $('result').hidden = false; }, 3500); }
+  $('next').textContent = won ? '次の夜へ' : '岩から出直す';
+  if (won) { showResult(true); st.resTimer = setTimeout(() => { $('result').hidden = false; }, 3500); }
   // 呑まれたときは、島が崩れきってから（まん中の塊も最後に落ちる）出す
 }
 function showResult(won) {
@@ -159,7 +162,7 @@ function showResult(won) {
     const graves = V.graves.filter(g => !g.g.userData.fallen).length, trees = V.trees.filter(t => !t.burned && !t.lost).length;
     rows = [['島の広さ', `${Math.round(area * 100)}%`], ['屋根のある家', `${roofed} / ${V.houses.length}`], ['礼拝堂', V.chapel.g.userData.fallen ? '落ちた' : '残った'], ['墓', `${graves} / ${V.graves.length}`], ['木', `${trees} / ${V.trees.length}`]];
   } else rows = [['もちこたえた', `${Math.round(st.tEnd)} / ${RULE.night} 秒`], ['くべたもの', `${V.burnables.filter(b => b.burned).length}`]];
-  $('resTitle').textContent = won ? '夜が明けた' : '島は夜に呑まれた';
+  $('resTitle').textContent = won ? `第${st.night}夜が明けた` : `第${st.night}夜、島は夜に呑まれた`;
   $('resLead').textContent = won ? '残ったものに、朝の色がもどる。' : '火の番の岩だけが、おき火を抱いて漂っている。';
   $('resRows').innerHTML = rows.map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
   $('resRows').style.gridTemplateColumns = `repeat(${rows.length}, 1fr)`;
@@ -167,10 +170,63 @@ function showResult(won) {
 
 // ── 確かめ用: ?speed=8 で時間を速く、?auto=1 でタイトルを飛ばす（音なし） ──
 const QS = new URLSearchParams(location.search), SPEED = Math.min(20, +QS.get('speed') || 1);
-if (QS.get('auto')) { $('title').hidden = true; st.phase = 'play'; }
+if (QS.get('auto')) { $('title').hidden = true; startNight(+QS.get('night') || 1); }
 // ── はじめる ──
-$('start').addEventListener('click', () => { $('title').hidden = true; st.phase = 'play'; startAudio(); });
+$('start').addEventListener('click', () => { $('title').hidden = true; startNight(1); startAudio(); });
 $('again').addEventListener('click', () => location.reload());
+$('next').addEventListener('click', () => startNight(st.night + 1));
+
+// ── 次の夜（光で拾う。PLAN.md 2.7章）: 落ちたかけらが闇を漂って浮かび、光の輪がとどけば元の場所にくっつく ──
+function startNight(n) {
+  Object.assign(st, { night: n, t: 0, F: RULE.fuel0, burning: [], out: 0, phase: 'play', dawnK: 0, shown: false, lastT: 0, drift: 0, tEnd: 0 });
+  C0.group.position.set(0, 0, 0); C0.group.rotation.set(0, 0, 0);
+  clearTimeout(st.resTimer); $('result').hidden = true; R3.setDawn(0); // 前の夜の結果が遅れて出ないように
+  // 浮かんでくる時刻（はじめの12秒は崩れを見せるので、そのあと）
+  st.returns = Array.from({ length: n > 1 ? RULE.returns : 0 }, (_, i) => 12 + (i + Math.random() * 0.8) * (RULE.night - 40) / RULE.returns);
+  showToast(`第${n}夜`);
+}
+function exposedOf(c) { return c.rim || [...c.neighbors].some(n => isl.all[n].fallen); }
+// 浮かばせるかけら: 島のとなり（立っている塊と接する落ちた塊）から
+function surface() {
+  const cand = isl.chunks.filter(c => c.fallen && !c.drift && [...c.neighbors].some(n => !isl.all[n].fallen));
+  if (!cand.length) return;
+  cand.sort((a, b) => a.dist - b.dist + (Math.random() - 0.5) * 2.5);
+  const c = cand[0];
+  c.drift = { age: 0, mode: 'up', out: new THREE.Vector3(c.cx, 0, c.cz).normalize(), seed: Math.random() * 9 };
+  c.group.visible = true; c.group.quaternion.identity();
+}
+function dock(c) {
+  c.fallen = false; c.fall = null; c.drift = null; c.s = 0.7;
+  c.group.position.set(0, 0, 0); c.group.quaternion.identity();
+  c.group.traverse(o => { if (o.userData.fallen) o.userData.fallen = false; });
+  for (const b of V.burnables) if (b.lost && !b.burned) { let p = b.obj; while (p && p !== c.group) p = p.parent; if (p) b.lost = false; }
+  c.exposed = exposedOf(c); for (const n of c.neighbors) isl.all[n].exposed = exposedOf(isl.all[n]);
+  const w = V.addDriftwood(c, RULE.driftwood); w.obj.traverse(o => { if (o.isMesh) patchDark(o.material); });
+  fx.crumbs(c.cx, c.topY, c.cz, 25, c.rad); sfx('sfx-crumble2', 0.35, 1.4);
+  showToast('かけらが島にもどった');
+}
+function stepDrift(dt, R) {
+  for (const c of isl.chunks) {
+    const d = c.drift; if (!d) continue;
+    d.age += dt;
+    const bob = Math.sin(d.age * 1.3 + d.seed) * 0.12, tilt = Math.sin(d.age * 0.7 + d.seed) * 0.05;
+    if (d.mode === 'up') {
+      const k = Math.min(1, d.age / 4), away = 1.4 + 0.4 * Math.sin(d.age * 0.4 + d.seed);
+      c.group.position.set(d.out.x * away, -7 + 6.2 * (1 - (1 - k) ** 3) + bob, d.out.z * away);
+      c.group.rotation.set(tilt, Math.sin(d.age * 0.2 + d.seed) * 0.1, tilt * 0.7);
+      const near = [...c.neighbors].some(n => !isl.all[n].fallen);
+      if (k >= 1 && near && darkness(c.dist, R) < RULE.dockDark) { d.mode = 'dock'; d.age = 0; d.from = c.group.position.clone(); }
+      else if (d.age > RULE.driftLife) { d.mode = 'down'; d.age = 0; }
+    } else if (d.mode === 'dock') {
+      const k = Math.min(1, d.age / 1.6), e = k * k * (3 - 2 * k);
+      c.group.position.copy(d.from).multiplyScalar(1 - e); c.group.rotation.set(tilt * (1 - e), 0, 0);
+      if (k >= 1) dock(c);
+    } else {
+      c.group.position.y -= dt * (1 + d.age * 3);
+      if (c.group.position.y < -40) { c.group.visible = false; c.drift = null; }
+    }
+  }
+}
 
 // ── 毎こま ──
 let last = performance.now();
@@ -180,7 +236,9 @@ function frame(now) {
     st.t += dt;
     stepFire(st, dt);
     const R = lightRadius(st.F);
-    for (const c of isl.chunks) { if (stepChunk(c, R, dt)) fall(c); }
+    for (const c of isl.chunks) { if (!c.drift && stepChunk(c, R, dt)) fall(c); }
+    while (st.returns.length && st.t >= st.returns[0]) { st.returns.shift(); surface(); }
+    stepDrift(dt, R);
     if (st.out > RULE.emberGrace) { st.tEnd = st.t; result(false); }
     else if (st.t >= RULE.night) result(true);
   } else if (st.phase === 'lost') {
@@ -200,6 +258,7 @@ function frame(now) {
   R3.grade.uniforms.flash.value *= Math.exp(-dt * 4);
   // ふるえる塊・落ちる塊
   for (const c of isl.chunks) {
+    if (c.drift) continue;
     if (c.fallen) { if (c.group.visible) { c.fall.v += 7 * dt; c.group.position.y -= c.fall.v * dt; c.group.rotateOnWorldAxis(c.fall.ax, c.fall.w * dt); if (c.group.position.y < -45) c.group.visible = false; } continue; }
     if (c.fixed && st.drift) continue; // 漂う火の番の岩は上で動かしている
     const k = c.s < 0.45 ? (1 - c.s / 0.45) : 0, sh = shake.find(s => s.c === c);
@@ -219,10 +278,11 @@ function frame(now) {
   idle += dt; if (idle > 6 && !pointers.size && st.phase !== 'play') view.az += dt * 0.04;
   const smokeK = st.burning.reduce((s, b) => s + b.smoke * (b.left / b.total), 0);
   fx.update(now / 1000, dt, { F: st.phase === 'lost' ? 0 : st.F, smokeK: Math.min(1, smokeK), camera, out: st.out });
+  sal.update(now / 1000, dt, { F: st.phase === 'lost' ? 0 : st.F, flare: fx.flare, lost: st.phase === 'lost' });
   tickAudio({ fire: st.F > 0 ? 0.35 + 0.65 * Math.sqrt(st.F / RULE.fuelMax) : 0.15, walk: carry ? 1 : 0 });
   hud();
   R3.render(now / 1000);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__game = { st, isl, V, view, RULE, camera, fx, burn, fall }; // 確かめ用（tools/ と手で）
+window.__game = { st, isl, V, view, RULE, camera, fx, burn, fall, FIRE, chunkIdAt, startNight, sal }; // 確かめ用（tools/ と手で）

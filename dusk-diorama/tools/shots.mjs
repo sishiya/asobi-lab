@@ -14,7 +14,7 @@ try {
     await page.screenshot({ path: path.join(dir, `dusk-title-${w}x${h}.png`) });
     await page.goto(`${server.origin}/dusk-diorama/?auto=1&speed=8`); await page.waitForFunction(() => window.__game, null, { timeout: 60000 });
     const run = until => page.evaluate(async until => {
-      const G = window.__game, dist = b => { const p = b.obj.getWorldPosition(new b.obj.position.constructor()); return Math.hypot(p.x - 1.75, p.z - 0.75); };
+      const G = window.__game, dist = b => { const p = b.obj.getWorldPosition(new b.obj.position.constructor()); return Math.hypot(p.x - G.FIRE.x, p.z - G.FIRE.z); };
       while (G.st.phase === 'play' && G.st.t < until) { await new Promise(r => setTimeout(r, 30)); const pend = G.st.burning.reduce((s, b) => s + b.left, 0); if (G.st.F + pend < 24) { const c = G.V.burnables.filter(b => !b.burned && !b.lost && !b.house).sort((a, b) => dist(a) - dist(b))[0]; if (c) G.burn(c); } }
     }, until);
     await run(60); await page.screenshot({ path: path.join(dir, `dusk-mid-${w}x${h}.png`) });

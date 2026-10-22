@@ -20,7 +20,7 @@ try {
     await page.waitForFunction(() => window.__game, null, { timeout: 60000 });
     const out = await page.evaluate(async ({ pickSrc, target }) => {
       const G = window.__game, pick = eval(pickSrc), log = [];
-      const dist = b => { const p = b.obj.getWorldPosition(new b.obj.position.constructor()); return Math.hypot(p.x - 1.75, p.z - 0.75); };
+      const dist = b => { const p = b.obj.getWorldPosition(new b.obj.position.constructor()); return Math.hypot(p.x - G.FIRE.x, p.z - G.FIRE.z); };
       let lastLog = -10;
       while (G.st.phase === 'play') {
         await new Promise(r => setTimeout(r, 30));

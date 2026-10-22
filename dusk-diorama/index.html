@@ -7,28 +7,28 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23200806'/><path d='M14 40 Q32 30 50 40 L44 50 L32 58 L20 50Z' fill='%23574233'/><path d='M32 16 C38 24 40 30 32 38 C24 30 26 24 32 16Z' fill='%23ff8a3a'/></svg>">
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=3">
+<link rel="stylesheet" href="css/style.css?v=5">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 </head>
 <body>
 <canvas id="c"></canvas>
 <!-- 上のまん中: 夜明けまで -->
-<div class="night" aria-label="夜明けまで"><span class="moon"></span><span class="track"><span id="bar"></span></span><span class="sun"></span></div>
+<div class="night" aria-label="夜明けまで"><span id="nightNo" class="nightno">第1夜</span><span class="moon"></span><span class="track"><span id="bar"></span></span><span class="sun"></span></div>
 <p id="hint" class="hint" hidden>燃えるものを つまんで 火へ</p>
 <p id="tag" class="tag" hidden></p>
 <p id="toast" class="toast"></p>
 <section id="title" class="card title">
   <h1>夜明けまでの島</h1>
-  <p>火の光がとどかない所から、島は闇に崩れていく。<br>燃えるものをつまんで、火にくべよう。<br>ただし、くべたものは もどらない。</p>
+  <p>火の光がとどかない所から、島は闇に崩れていく。<br>燃えるものをつまんで、火にくべよう。<br>ただし、くべたものは もどらない。<br>闇を漂うかけらも、光がとどけば島にもどる。</p>
   <button id="start" class="btn">はじめる</button>
-  <p class="small">ドラッグで島を回す・ホイールで寄る　ver. 0.1（試作）</p>
+  <p class="small">ドラッグで島を回す・ホイールで寄る　ver. 0.2（試作）</p>
 </section>
 <section id="result" class="card result" hidden>
   <h2 id="resTitle"></h2>
   <p id="resLead"></p>
   <div id="resRows" class="rows"></div>
-  <button id="again" class="btn">もう一度</button>
+  <div class="btns"><button id="next" class="btn">次の夜へ</button><button id="again" class="btn sub">はじめから</button></div>
 </section>
-<script type="module" src="js/game.js?v=3"></script>
+<script type="module" src="js/game.js?v=5"></script>
 </body>
 </html>

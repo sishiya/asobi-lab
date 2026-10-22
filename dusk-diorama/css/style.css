@@ -7,6 +7,9 @@ canvas.carry{cursor:grabbing}
 .night .track{display:block;width:min(42vw,280px);height:4px;border-radius:2px;background:rgba(255,230,210,.18);overflow:hidden}
 #bar{display:block;height:100%;width:100%;background:linear-gradient(90deg,#c0461c,#ffb070);transform-origin:left;transform:scaleX(0)}
 .moon,.sun{width:14px;height:14px;border-radius:50%}
+.nightno{white-space:nowrap;font-size:14px;font-weight:800;letter-spacing:.1em;color:#ffd9b8;margin-right:2px}
+.btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btn.sub{background:transparent;color:#efe6d6;border:1px solid rgba(255,190,130,.4);box-shadow:none}
 .moon{background:#050101;box-shadow:0 0 0 2px #ff6a2a,0 0 10px #ff5a1f}
 .sun{background:#ffd29a;box-shadow:0 0 10px #ffb070}
 .hint,.tag{position:fixed;transform:translate(-50%,-100%);margin:0;padding:6px 12px;border-radius:999px;background:rgba(14,8,6,.72);border:1px solid rgba(255,190,130,.35);font-size:15px;white-space:nowrap;pointer-events:none}

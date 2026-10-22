@@ -15,7 +15,7 @@ export const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 export const PATH = [[0.4, 6.0], [0.7, 4.0], [-0.1, 2.1], [0.2, 0.3], [-0.6, -1.4], [-1.0, -2.3]];
 export const POND = { x: 3.4, z: 2.4, r: 1.2 };
-export const FIRE = { x: 1.75, z: 0.75 };
+export const FIRE = { x: 1.0, z: 0.45 }; // 火の番の岩（まん中の塊）にすっぽり入るように、島のまん中寄りに（はじめ 1.75, 0.75 では岩のふちからはみ出した）
 export const HILL = { x: -0.9, z: -3.3 };
 
 function segDist(px, pz, ax, az, bx, bz) {

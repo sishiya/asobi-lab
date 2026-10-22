@@ -10,6 +10,9 @@ try {
   await page.goto(`${server.origin}/dusk-diorama/?auto=1&speed=20`); await page.waitForFunction(() => window.__game, null, { timeout: 60000 });
   // 上の面の三角形が上を向いているか（裏返った塊の数）
   const flipped = await page.evaluate(() => window.__game.isl.chunks.filter(c => { const g = c.group.children[0].geometry, p = g.attributes.position.array, ix = g.index.array; let s = 0; for (let k = 0; k < ix.length; k += 3) { const a = ix[k] * 3, b = ix[k + 1] * 3, d = ix[k + 2] * 3; const ux = p[b] - p[a], uz = p[b + 2] - p[a + 2], vx = p[d] - p[a], vz = p[d + 2] - p[a + 2]; s += uz * vx - ux * vz; } return s < 0; }).map(c => c.id));
+  // 火と、まわりの石・丸太・薪が火の番の岩に乗っているか（岩のふちまでの近さ）
+  const fireIn = await page.evaluate(() => { const G = window.__game, C0 = G.isl.chunks.find(c => c.fixed); let worst = 1e9; for (let a = 0; a < 6.28; a += 0.1) for (let r = 0; r <= 1.0; r += 0.05) { const x = G.FIRE.x + Math.cos(a) * r, z = G.FIRE.z + Math.sin(a) * r; if (G.chunkIdAt(x, z) !== C0.id) { worst = Math.min(worst, r); } } return worst; });
+  console.log('火から岩のふちまで（1.0 より遠ければ 1e9）:', fireIn);
   await page.waitForFunction(() => window.__game.st.phase === 'lost', null, { timeout: 300000 });
   await page.waitForFunction(() => !document.getElementById('result').hidden, null, { timeout: 300000 });
   const left = await page.evaluate(() => {
