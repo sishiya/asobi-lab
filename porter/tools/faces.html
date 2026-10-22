@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>勇者の顔の見くらべ（確かめ用）</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>body{margin:0;background:#e9dcc3;font-family:'Zen Maru Gothic',sans-serif}canvas{display:block}</style>
+</head>
+<body>
+<!-- 顔の窓が、体のようすごとに見分けられるかを並べて見る。?t=秒 で表情の時刻（あくび・まばたき）を変えられる -->
+<canvas id="c"></canvas>
+<script type="module">
+import * as Art from '../js/art.js';
+import { freshHero } from '../js/model.js';
+const cv = document.getElementById('c'), g = cv.getContext('2d');
+const D = devicePixelRatio || 1, W = 760, H = 560;
+cv.width = W * D; cv.height = H * D; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+g.scale(D, D); Art.A.S = D;
+const t = +(new URLSearchParams(location.search).get('t') || 5.5);
+const rows = [
+  ['ふつう', {}], ['おなか', { sick: true }], ['寝不足', { sleep: 3.5 }], ['のどがかわく', { thirst: 0.85 }],
+  ['手のやけど', { burn: 0.7 }], ['魔力切れ', { sugar: 0.1 }], ['靴ずれ', { blister: 0.6 }], ['つかれ', { fatigue: 0.8, thirst: 0.4 }],
+];
+rows.forEach(([name, s], i) => {
+  const x = 95 + (i % 4) * 190, y = 130 + Math.floor(i / 4) * 270;
+  Art.portrait(g, x, y, 80, { ...freshHero(), ...s }, t);
+  g.fillStyle = '#2b2118'; g.font = '700 18px "Zen Maru Gothic"'; g.textAlign = 'center'; g.fillText(name, x, y + 115);
+});
+</script>
+</body>
+</html>
