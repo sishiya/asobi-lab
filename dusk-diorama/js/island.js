@@ -79,8 +79,9 @@ export function buildIsland(root, TX) {
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute(colr, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
     // 三角形の向きが上を向くように（法線は地形から与えているので、面の向きだけ）
-    { const a = new THREE.Vector3(pos[idx[0] * 3], pos[idx[0] * 3 + 1], pos[idx[0] * 3 + 2]), b = new THREE.Vector3(pos[idx[1] * 3], pos[idx[1] * 3 + 1], pos[idx[1] * 3 + 2]), d = new THREE.Vector3(pos[idx[2] * 3], pos[idx[2] * 3 + 1], pos[idx[2] * 3 + 2]);
-      if (b.sub(a).cross(d.sub(a)).y < 0) { const ar = g.index.array; for (let k = 0; k < ar.length; k += 3) { const t2 = ar[k + 1]; ar[k + 1] = ar[k + 2]; ar[k + 2] = t2; } } }
+    // 全部の三角形で足して決める（まん中の塊は最初の三角形がつぶれていて、1つだけでは向きを読みちがえた）
+    { let sy = 0; for (let k = 0; k < idx.length; k += 3) { const A = idx[k] * 3, B2 = idx[k + 1] * 3, C2 = idx[k + 2] * 3, ux = pos[B2] - pos[A], uz = pos[B2 + 2] - pos[A + 2], vx = pos[C2] - pos[A], vz = pos[C2 + 2] - pos[A + 2]; sy += uz * vx - ux * vz; }
+      if (sy < 0) { const ar = g.index.array; for (let k = 0; k < ar.length; k += 3) { const t2 = ar[k + 1]; ar[k + 1] = ar[k + 2]; ar[k + 2] = t2; } } }
     const top = new THREE.Mesh(g, topMat); top.receiveShadow = true; c.group.add(top);
     // 横と下: ふちの辺ごとに壁 → 中段 → 下の先へ
     const depth = c.fixed ? 8.6 : 1.3 + 7.4 * Math.pow(1 - c.tc, 1.4), avgY = c.quads.reduce((s, [i, j]) => s + P[vid(i, j)].y, 0) / c.quads.length;

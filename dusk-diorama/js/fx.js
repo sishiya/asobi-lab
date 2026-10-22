@@ -97,5 +97,5 @@ export function makeFx(root) {
   function burst(power) { flare = Math.min(1.6, flare + power); for (let i = 0; i < 30 * power; i++) spawn(embers, d => { d.x = FIRE.x; d.z = FIRE.z; d.y = fy + 0.3; const a = Math.random() * 6.28, s = 0.5 + Math.random() * 1.5; d.vx = Math.cos(a) * s; d.vz = Math.sin(a) * s; d.vy = 1.5 + Math.random() * 2.5; d.max = d.life = 1 + Math.random() * 1.5; d.s = 0.04 + Math.random() * 0.05; d.ph = Math.random() * 9; }); }
   // 土がこぼれる（ふるえている塊・落ちる塊）
   function crumbs(x, y, z, n, spread = 0.6) { for (let i = 0; i < n; i++) spawn(dust, d => { d.x = x + (Math.random() - .5) * spread; d.z = z + (Math.random() - .5) * spread; d.y = y; d.vx = (Math.random() - .5) * 0.6; d.vz = (Math.random() - .5) * 0.6; d.vy = Math.random() * 0.8; d.max = d.life = 1.5 + Math.random() * 1.5; d.s = 0.03 + Math.random() * 0.07; }); }
-  return { update, burst, crumbs, get flare() { return flare; } };
+  return { update, burst, crumbs, fireParts: [coal, ...logs, light, ...flames], get flare() { return flare; } };
 }

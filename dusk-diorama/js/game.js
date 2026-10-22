@@ -16,6 +16,8 @@ const TX = textures(rng);
 const isl = buildIsland(scene, TX);
 const V = buildVillage(scene, isl, TX);
 const fx = makeFx(scene);
+const C0 = isl.chunks.find(c => c.fixed);
+for (const o of fx.fireParts) C0.group.attach(o); // たき火はまん中の塊の上（呑まれたら、いっしょに落ちる）
 scene.traverse(o => { if (o.isMesh || o.isInstancedMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach(patchDark); });
 mountAudioPanel();
 const fireY = H(FIRE.x, FIRE.z);
@@ -145,14 +147,21 @@ function hud() {
 
 function result(won) {
   st.phase = won ? 'dawn' : 'lost';
-  const area = isl.chunks.filter(c => !c.fallen).reduce((s, c) => s + c.quads.length, 0) / totalArea;
-  const houses = V.houses.filter(h => !h.g.userData.fallen), roofed = houses.filter(h => !h.roofless).length;
-  const graves = V.graves.filter(g => !g.g.userData.fallen).length, trees = V.trees.filter(t => !t.burned && !t.lost).length;
-  const rows = [['島の広さ', `${Math.round(area * 100)}%`], ['屋根のある家', `${roofed} / ${V.houses.length}`], ['礼拝堂', V.chapel.g.userData.fallen ? '落ちた' : '残った'], ['墓', `${graves} / ${V.graves.length}`], ['木', `${trees} / ${V.trees.length}`]];
+  if (won) { showResult(true); setTimeout(() => { $('result').hidden = false; }, 3500); }
+  // 呑まれたときは、島が崩れきってから（まん中の塊も最後に落ちる）出す
+}
+function showResult(won) {
+  let rows;
+  if (won) {
+    const area = isl.chunks.filter(c => !c.fallen).reduce((s, c) => s + c.quads.length, 0) / totalArea;
+    const roofed = V.houses.filter(h => !h.g.userData.fallen && !h.roofless).length;
+    const graves = V.graves.filter(g => !g.g.userData.fallen).length, trees = V.trees.filter(t => !t.burned && !t.lost).length;
+    rows = [['島の広さ', `${Math.round(area * 100)}%`], ['屋根のある家', `${roofed} / ${V.houses.length}`], ['礼拝堂', V.chapel.g.userData.fallen ? '落ちた' : '残った'], ['墓', `${graves} / ${V.graves.length}`], ['木', `${trees} / ${V.trees.length}`]];
+  } else rows = [['もちこたえた', `${Math.round(st.tEnd)} / ${RULE.night} 秒`], ['くべたもの', `${V.burnables.filter(b => b.burned).length}`]];
   $('resTitle').textContent = won ? '夜が明けた' : '島は夜に呑まれた';
   $('resLead').textContent = won ? '残ったものに、朝の色がもどる。' : '火が消え、闇が島を崩した。';
   $('resRows').innerHTML = rows.map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
-  setTimeout(() => { $('result').hidden = false; }, won ? 3500 : 4000);
+  $('resRows').style.gridTemplateColumns = `repeat(${rows.length}, 1fr)`;
 }
 
 // ── 確かめ用: ?speed=8 で時間を速く、?auto=1 でタイトルを飛ばす（音なし） ──
@@ -171,9 +180,14 @@ function frame(now) {
     stepFire(st, dt);
     const R = lightRadius(st.F);
     for (const c of isl.chunks) { if (stepChunk(c, R, dt)) fall(c); }
-    if (st.out > RULE.emberGrace) { for (const c of isl.chunks) c.s -= dt * 0.6 * Math.random(); result(false); }
+    if (st.out > RULE.emberGrace) { st.tEnd = st.t; result(false); }
     else if (st.t >= RULE.night) result(true);
-  } else if (st.phase === 'lost') { for (const c of isl.chunks) if (!c.fixed && !c.fallen) { c.s -= dt * (0.15 + Math.random() * 0.4); if (c.s <= 0) fall(c); } }
+  } else if (st.phase === 'lost') {
+    let standing = 0;
+    for (const c of isl.chunks) if (!c.fixed && !c.fallen) { standing++; c.s -= dt * (0.15 + Math.random() * 0.4); if (c.s <= 0) fall(c); }
+    if (!standing && !C0.fallen) { st.lastT = (st.lastT || 0) + dt; if (st.lastT > 1.2) fall(C0); } // 最後に、火のある塊も
+    if (C0.fallen && C0.group.position.y < -14 && $('result').hidden && !st.shown) { st.shown = true; showResult(false); $('result').hidden = false; }
+  }
   const Rt = st.phase === 'lost' ? RULE.emberR : lightRadius(st.F);
   st.shownR += (Rt + fx.flare * 0.4 - st.shownR) * Math.min(1, dt * 3);
   if (st.phase === 'dawn') st.dawnK = Math.min(1, st.dawnK + dt / 4);
