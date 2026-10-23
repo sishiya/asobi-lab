@@ -60,10 +60,11 @@ function nearestBurnable() { let best = null, bd = 1e9; for (const b of V.burnab
 // ── 入力: 燃える物を押せばつまむ、ほかは島を回す ──
 const cv = $('c'), ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), pointers = new Map();
 let rotating = false, idle = 0;
-function pickAt(e) {
+function pickAt(e, near = true) {
   ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
   const hits = ray.intersectObjects(scene.children, true);
   for (const h of hits) { const id = h.object.userData.bid; if (id === undefined) { if (h.object.isMesh && !h.object.userData.nopick && !h.object.material.transparent && h.object.visible) break; continue; } const b = V.burnables[id]; if (!b.burned && !b.lost) return b; }
+  if (!near) return null;
   // 当たらなくても、押した所の近く（指の太さ 40px）にあればつまむ
   let best = null, bd = 40;
   for (const b of V.burnables) { if (b.burned || b.lost || b.carried) continue; const p = centerOf(b.obj).project(camera); if (p.z > 1) continue; const d = Math.hypot((p.x * 0.5 + 0.5) * innerWidth - e.clientX, (-p.y * 0.5 + 0.5) * innerHeight - e.clientY); if (d < bd) { bd = d; best = b; } }
@@ -80,7 +81,7 @@ cv.addEventListener('pointerdown', e => {
   if (st.phase !== 'play') return;
   cv.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY }); idle = 0;
   // 炎をつまむ = 火種を分ける（炎の芯の 44px）
-  if (pointers.size === 1 && !carry && nearFlame(e)) {
+  if (pointers.size === 1 && !carry && !pickAt(e, false) && nearFlame(e)) { // 燃える物をじかに押したときは、炎より物
     if (st.F < RULE.emberMin) { fx.crumbs(FIRE.x, fireY + 0.3, FIRE.z, 6, 0.3); sfx('sfx-pick', 0.3, 0.6); return; } // 小さい火は分けられない（すくむ）
     st.F -= RULE.emberCost; carry = { ember: true, p: groundAt(e) }; L.ember.visible = true; st.tookEmber = true;
     sfx('sfx-flare2', 0.35, 1.5); cv.classList.add('carry'); return;
@@ -189,7 +190,8 @@ function hud() {
   }
   glint.visible = !!gp; if (gp) glint.position.copy(gp);
   const tag = $('tag');
-  if (carry) { tag.hidden = false; const p = carry.b.obj.position.clone().project(camera); tag.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`; tag.style.top = `${(-p.y * 0.5 + 0.5) * innerHeight - 40}px`; tag.textContent = `${carry.b.name}　${'▮'.repeat(Math.max(1, Math.round(carry.b.fuel / 4)))}`; }
+  if (carry && carry.ember) tag.hidden = true; // 火種には名札はない（ここで止まって画面が固まっていた）
+  else if (carry) { tag.hidden = false; const p = carry.b.obj.position.clone().project(camera); tag.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`; tag.style.top = `${(-p.y * 0.5 + 0.5) * innerHeight - 40}px`; tag.textContent = `${carry.b.name}　${'▮'.repeat(Math.max(1, Math.round(carry.b.fuel / 4)))}`; }
   else if (hover && st.phase === 'play') { tag.hidden = false; const p = centerOf(hover.obj).project(camera); tag.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`; tag.style.top = `${(-p.y * 0.5 + 0.5) * innerHeight - 34}px`; tag.textContent = `${hover.name}　${'▮'.repeat(Math.max(1, Math.round(hover.fuel / 4)))}`; }
   else tag.hidden = true;
 }
@@ -310,6 +312,10 @@ function stepDrift(dt, R) {
 // ── 毎こま ──
 let last = performance.now();
 function frame(now) {
+  try { step(now); } catch (err) { if (!frame.warned) { frame.warned = true; console.error(err); } } // 1こま失敗しても、画面は止めない
+  requestAnimationFrame(frame);
+}
+function step(now) {
   const dt = Math.min(0.05, (now - last) / 1000) * SPEED; last = now;
   if (st.phase === 'play') {
     st.t += dt;
@@ -370,7 +376,6 @@ function frame(now) {
   tickAudio({ fire: st.F > 0 ? 0.35 + 0.65 * Math.sqrt(st.F / RULE.fuelMax) : 0.15, walk: carry ? 1 : 0 });
   hud();
   R3.render(now / 1000);
-  requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 window.__game = { st, isl, V, view, RULE, camera, fx, burn, fall, FIRE, chunkIdAt, startNight, sal, L, emberTo: s => { if (st.F < RULE.emberMin) return false; st.F -= RULE.emberCost; st.tookEmber = true; dropEmber({ x: s.x, z: s.z }); return s.life > 0; } }; // 確かめ用（tools/ と手で）
