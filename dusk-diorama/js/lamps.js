@@ -1,11 +1,11 @@
-// 灯を置く遊び（PLAN.md 2.9章）: 島に最初からある冷えた台（かがり台・軒のランタン掛け）に、たき火から分けた火種を置くと、約40秒ともる
+// 灯を置く遊び（PLAN.md 2.9章）: 島に最初からある冷えた台（かがり台・軒のランタン掛け）に、たき火から分けた火種を置くと、約70秒ともる
 // 灯はつぎ足しなし。置けるのは光のとどく台だけ。台の乗った塊が落ちると、灯ごと落ちる
 import * as THREE from 'three';
 import { H } from './util.js';
 import { chunkIdAt } from './island.js';
 import { LAMPS } from './render.js';
 
-export const LAMP = { life: 40, flicker: 5, brazier: 1.9, lantern: 1.3 };
+export const LAMP = { life: 70, flicker: 5, brazier: 1.9, lantern: 1.3 }; // life: v014 で 40 から（置き直しの手数を減らす。DEVNOTES）
 
 function softTex() { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,230,180,1)'); gr.addColorStop(0.25, 'rgba(255,150,60,.6)'); gr.addColorStop(1, 'rgba(255,100,30,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); }
 
