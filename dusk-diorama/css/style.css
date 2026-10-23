@@ -7,6 +7,12 @@ canvas.carry{cursor:grabbing}
 .night .track{display:block;width:min(42vw,280px);height:4px;border-radius:2px;background:rgba(255,230,210,.18);overflow:hidden}
 #bar{display:block;height:100%;width:100%;background:linear-gradient(90deg,#c0461c,#ffb070);transform-origin:left;transform:scaleX(0)}
 .moon,.sun{width:14px;height:14px;border-radius:50%}
+/* 五つの玉: すんだ夜は灯の色、今夜は大きく脈打つ、まだの夜はうすく（第N夜の字のかわり） */
+.orbs{display:flex;align-items:center;gap:6px;margin-right:4px}
+.orbs i{display:block;width:7px;height:7px;border-radius:50%;background:rgba(255,230,210,.16);transition:all .6s}
+.orbs i.done{background:#ffb070;box-shadow:0 0 6px #ff8a3a}
+.orbs i.now{width:11px;height:11px;background:#ff8a3a;box-shadow:0 0 10px #ff6a2a;animation:orb 2.4s ease-in-out infinite}
+@keyframes orb{50%{box-shadow:0 0 16px #ff8a3a}}
 .nightno{white-space:nowrap;font-size:14px;font-weight:800;letter-spacing:.1em;color:#ffd9b8;margin-right:2px}
 .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 .btn.sub{background:transparent;color:#efe6d6;border:1px solid rgba(255,190,130,.4);box-shadow:none}

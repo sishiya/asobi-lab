@@ -37,6 +37,43 @@ const shore = (() => {
   g.position.set(0, -46, -100); g.visible = false; scene.add(g); return g;
 })();
 scene.traverse(o => { if (o.isMesh || o.isInstancedMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach(patchDark); });
+// 闇に沈めない物（遠くの灯台と次の空）は、このあとで足す
+// 行く先の灯台（PLAN.md 2.9章）: 前の地平線の光の点。夜ごとに近く大きく、第4夜から光が回り、第5夜は岸の上に立つ
+const AHEAD = { x: -Math.sin(0.85), z: -Math.cos(0.85) }; // 行く先の方角（はじめのカメラの向こう、礼拝堂の塔に重ならないよう少し左）
+const softTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.2, 'rgba(255,255,255,.5)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
+const beacon = new THREE.Sprite(new THREE.SpriteMaterial({ map: softTex, color: '#ffe6b8', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); scene.add(beacon);
+// 回る光の筋（第4夜から）: 灯台から横へのびる細い板
+const beamTex = (() => { const c = document.createElement('canvas'); c.width = 256; c.height = 32; const x = c.getContext('2d'), gx = x.createLinearGradient(0, 0, 256, 0); gx.addColorStop(0, 'rgba(255,255,255,1)'); gx.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gx; x.fillRect(0, 0, 256, 32); const gy = x.createLinearGradient(0, 0, 0, 32); gy.addColorStop(0, 'rgba(0,0,0,1)'); gy.addColorStop(0.5, 'rgba(0,0,0,0)'); gy.addColorStop(1, 'rgba(0,0,0,1)'); x.globalCompositeOperation = 'destination-out'; x.fillStyle = gy; x.fillRect(0, 0, 256, 32); return new THREE.CanvasTexture(c); })(); // 根もとが明るく、先へ消える
+const beamMat = new THREE.MeshBasicMaterial({ map: beamTex, color: '#ffe0a8', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, side: THREE.DoubleSide });
+const beam = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).translate(0.5, 0, 0), beamMat); scene.add(beam);
+// 夜の切れ目に見える、次の空（雨の幕・岩の柱・霧の壁・白い灰）。島はそこへ入っていく
+const nextSky = (() => {
+  const g = new THREE.Group(); g.position.set(AHEAD.x * 95, -44, AHEAD.z * 95); g.rotation.y = 0.85; scene.add(g);
+  const streak = (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 256; const x = c.getContext('2d'); for (let i = 0; i < 90; i++) { x.strokeStyle = `rgba(200,200,210,${0.1 + Math.random() * 0.25})`; x.lineWidth = 1; const px = Math.random() * 128; x.beginPath(); x.moveTo(px, 0); x.lineTo(px - 6, 256); x.stroke(); } const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(5, 2); return t; })(); // 細かい筋に
+  const mask = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, '#fff'); gr.addColorStop(0.55, '#888'); gr.addColorStop(1, '#000'); x.fillStyle = gr; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })(); // ふちをぼかす（四角い幕に見えないように）
+  const mk = (map, color, blend) => new THREE.MeshBasicMaterial({ map, alphaMap: mask, color, transparent: true, opacity: 0, depthWrite: false, fog: false, blending: blend || THREE.NormalBlending, side: THREE.DoubleSide });
+  const rain = new THREE.Mesh(new THREE.PlaneGeometry(90, 50), mk(streak, '#9a9aa8')); g.add(rain);
+  const fog = new THREE.Mesh(new THREE.PlaneGeometry(110, 40), mk(softTex, '#d8c8bc')); fog.scale.set(1, 0.6, 1); g.add(fog);
+  const snow = new THREE.Mesh(new THREE.PlaneGeometry(90, 50), mk(streak, '#ffffff', THREE.AdditiveBlending)); snow.rotation.z = 0.6; g.add(snow);
+  const rockM = new THREE.MeshBasicMaterial({ color: '#3a221c', transparent: true, opacity: 0, fog: true }), pillars = new THREE.Group(); pillars.scale.setScalar(0.45); pillars.position.set(0, -6, -40); g.add(pillars); // 遠くの岩の柱（霧にかすむ）
+  for (let i = 0; i < 7; i++) { const h = 30 + Math.random() * 30, p = new THREE.Mesh(new THREE.CylinderGeometry(1.5 + Math.random() * 2, 3 + Math.random() * 3, h, 6), rockM); p.position.set((i - 3) * 11 + Math.random() * 4, h / 2 - 30, (Math.random() - 0.5) * 8); pillars.add(p); }
+  const by = { rain: [rain.material], wind: [rockM], fog: [fog.material], snow: [snow.material] };
+  return { g, set(id, k) { for (const [key, ms] of Object.entries(by)) for (const m of ms) m.opacity = key === id ? k * (key === 'wind' ? 0.55 : key === 'snow' ? 0.3 : 0.4) : 0; } };
+})();
+function stepBeacon(now) {
+  const n = st.night, last = n >= NIGHTS;
+  if (last && shore.visible) { const p = new THREE.Vector3(0, 9, -6); shore.localToWorld(p); beacon.position.copy(p); } // 岸の崖の上
+  else { const d = 150 - n * 14; beacon.position.set(AHEAD.x * d, -0.42 * d, AHEAD.z * d); } /* はじめのカメラで、画面の上の方に見える高さ */
+  const turn = n >= 4 ? now / 1000 * 0.9 : 0, toCam = Math.atan2(beacon.position.z, -beacon.position.x), flash = n >= 4 ? Math.max(0, Math.cos(turn - toCam)) ** 6 : 0; // こちらを向くと、ぱっと明るい
+  beacon.scale.setScalar((0.6 + n * 0.3) * (1 + flash * 1.2) * (0.92 + 0.08 * Math.sin(now / 300)));
+  beacon.material.opacity = (0.55 + 0.45 * flash) * (1 - st.dawnK * 0.5);
+  // 光の筋: 第4夜は遠くで回り、第5夜は夜の終わりに島をとらえる
+  beam.visible = n >= 4; if (!beam.visible) return;
+  const toIsl = Math.atan2(beacon.position.z, -beacon.position.x), catchK = last ? Math.min(1, Math.max(0, (st.t / RULE.night - 0.75) / 0.2)) : 0;
+  const dA = Math.atan2(Math.sin(toIsl - turn), Math.cos(toIsl - turn)), a = turn + dA * catchK, len = beacon.position.length() * 1.05;
+  beam.position.copy(beacon.position); beam.rotation.set(0, 0, 0); beam.rotateY(a); beam.rotateX(Math.PI / 2); beam.rotateZ(0); beam.scale.set(len * (0.6 + 0.4 * catchK), 0.8 + catchK * 2, 1);
+  beamMat.opacity = (0.03 + 0.06 * flash + 0.12 * catchK) * (1 - st.dawnK);
+}
 mountAudioPanel();
 const fireY = H(FIRE.x, FIRE.z);
 DARK.uFire.value.set(FIRE.x, fireY, FIRE.z);
@@ -260,7 +297,7 @@ let toastT = 0;
 function showToast(s) { return; // 字は出さない（PLAN.md 2.9章）。残しておくのは、あとで試すため
  const el = $('toast'); el.textContent = s; el.classList.add('on'); toastT = 1.6; }
 function hud() {
-  $('bar').style.transform = `scaleX(${Math.min(1, st.t / RULE.night)})`; $('nightNo').textContent = `第${st.night}夜`;
+  $('bar').style.transform = `scaleX(${Math.min(1, st.t / RULE.night)})`; if (st.orbN !== st.night + st.phase) { st.orbN = st.night + st.phase; const o = $('orbs'); o.setAttribute('aria-label', `第${st.night}夜`); [...o.children].forEach((e, i) => { e.className = i + 1 < st.night || (i + 1 === st.night && st.phase === 'dawn') ? 'done' : i + 1 === st.night ? 'now' : ''; }); }
   const hint = $('hint'); hint.hidden = true; // 字の案内はなし。目じるしの光と、火トカゲのしぐさで促す（PLAN.md 2.9章）
   // 目立たせるのは1つ: 手本のあと → 火から少し離れた柵 →（1つくべたら）炎の芯 →（火種を持ったら）ともせる台
   for (const s2 of L.stands) s2.hint = !!(carry && carry.ember && L.canLight(s2, fireLight()));
@@ -300,8 +337,8 @@ function showResult(won) {
     rows = [['島の広さ', `${Math.round(area * 100)}%`], ['屋根のある家', `${roofed} / ${V.houses.length}`], ['礼拝堂', V.chapel.g.userData.fallen ? '落ちた' : '残った'], ['墓', `${graves} / ${V.graves.length}`], ['木', `${trees} / ${V.trees.length}`]];
   } else rows = [['もちこたえた', `${Math.round(st.tEnd)} / ${RULE.night} 秒`], ['くべたもの', `${V.burnables.filter(b => b.burned).length}`]];
   const last = won && st.night >= NIGHTS;
-  $('resTitle').textContent = last ? '夜明けの岸に着いた' : won ? `第${st.night}夜が明けた` : `第${st.night}夜、島は夜に呑まれた`;
-  $('resLead').textContent = last ? ending() : won ? '残ったものに、朝の色がもどる。' : '火の番の岩だけが、おき火を抱いて漂っている。';
+  $('resTitle').textContent = last ? '夜明けの岸に着いた' : won ? `第${st.night}夜を越えた` : `第${st.night}夜、島は夜に呑まれた`;
+  $('resLead').textContent = last ? ending() : won ? '月食が、少しだけゆるむ。灯台が近づいた。' : '火の番の岩だけが、おき火を抱いて漂っている。';
   $('resRows').innerHTML = rows.map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
   $('resRows').style.gridTemplateColumns = `repeat(${rows.length}, 1fr)`;
 }
@@ -441,7 +478,9 @@ function step(now) {
   const Rt = st.phase === 'lost' ? RULE.emberR : lightRadius(st.F) * (st.W.rMul || 1);
   DARK.uFire.value.lerp(st.phase === 'play' ? ringC : new THREE.Vector3(FIRE.x, fireY, FIRE.z), Math.min(1, dt * 2));
   st.shownR += (Rt + fx.flare * 0.4 - st.shownR) * Math.min(1, dt * 3);
-  if (st.phase === 'dawn') st.dawnK = Math.min(1, st.dawnK + dt / 4);
+  if (st.phase === 'dawn') st.dawnK = Math.min(st.night >= NIGHTS ? 1 : 0.35, st.dawnK + dt / 4); // 夜の切れ目は、月食が少しゆるむだけ。本当の夜明けは岸に着いたとき
+  nextSky.set(st.phase === 'dawn' && st.night < NIGHTS ? WEATHER[st.night].id : '', Math.min(1, st.dawnK / 0.35));
+  stepBeacon(now);
   DARK.uR.value = st.shownR; DARK.uDark.value = 1 - st.dawnK; R3.setDawn(st.dawnK);
   R3.grade.uniforms.flash.value *= Math.exp(-dt * 4);
   // ふるえる塊・落ちる塊
