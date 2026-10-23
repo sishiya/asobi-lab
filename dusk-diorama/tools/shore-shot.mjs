@@ -14,6 +14,6 @@ try {
   await page.waitForFunction(() => window.__game.st.arrive >= 1, null, { timeout: 300000 }).catch(async () => console.log('着かない', errors, await page.evaluate(() => JSON.stringify({ p: window.__game.st.phase, a: window.__game.st.arrive, n: window.__game.st.night, dk: window.__game.st.dawnK })))); await page.waitForTimeout(2000);
   await page.evaluate(() => { document.getElementById('result').hidden = true; }); await shot('2-arrive');
   await page.evaluate(() => { const G = window.__game; G.view.zoom = 0.6; G.view.az = 0.85; G.view.el = 0.3; G.view.target.set(-Math.sin(0.85) * 11, 0.5, -Math.cos(0.85) * 11); }); await page.waitForTimeout(2500); await shot('3-close');
-  await page.evaluate(() => { const G = window.__game; G.view.zoom = 1.5; G.view.az = 0.85 + 1.3; G.view.el = 0.25; G.view.target.set(-Math.sin(0.85) * 8, 0, -Math.cos(0.85) * 8); }); await page.waitForTimeout(2500); await shot('4-wide');
+  for (const [i, az, el] of [[4, 0.85 + 1.3, 0.25], [5, 0.85 - 1.3, 0.3], [6, 0.85, 0.7], [7, 0.85 + 2.6, 0.4]]) { await page.evaluate(([az, el]) => { const G = window.__game; G.view.zoom = 1.5; G.view.az = az; G.view.el = el; G.view.target.set(-Math.sin(0.85) * 8, 0, -Math.cos(0.85) * 8); }, [az, el]); await page.waitForTimeout(2500); await shot(i + '-angle'); }
   console.log(errors.length ? 'エラー: ' + errors.join(' / ') : 'エラーなし'); console.log(dir);
 } finally { await browser.close(); server.close(); }

@@ -72,8 +72,9 @@ function stepBoat(now) {
 // 岸の置き場所: k = 夜の進み（0〜1）、a = 着く動き（0〜1。夜明けの数秒で桟橋の先が島のふちへ）
 const ARRIVE = 6.2 + PIER_LEN + coast(0); // 桟橋の先が、島のふち（半径 約6.2）に着く
 function placeShore(k, a) {
-  const e = a * a * (3 - 2 * a), d = (130 - 55 * k) * (1 - e) + ARRIVE * e, y = (-34 + 22 * k) * (1 - e) + (-0.15) * e;
-  shore.position.set(AHEAD.x * d, y, AHEAD.z * d); shore.rotation.y = Math.atan2(-AHEAD.x, -AHEAD.z); // 海岸（+z）を島に向ける
+  // 夜のあいだは小さく遠い影（大きいまま遠くに置くと、霧で黒い壁になって空をふさいだ。日食より手前にも出た）。着くときに原寸へ
+  const e = a * a * (3 - 2 * a), dN = 110 - 30 * k, d = dN * (1 - e) + ARRIVE * e, y = -0.4 * dN * (1 - e) + (-0.15) * e;
+  shore.position.set(AHEAD.x * d, y, AHEAD.z * d); shore.scale.setScalar((0.3 + 0.25 * k) * (1 - e) + e); SHORE.fade(e); shore.rotation.y = Math.atan2(-AHEAD.x, -AHEAD.z); // 海岸（+z）を島に向ける
 }
 function stepBeacon(now) {
   const n = st.night, last = n >= NIGHTS;

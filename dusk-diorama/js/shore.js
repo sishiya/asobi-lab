@@ -16,7 +16,22 @@ export const PIER_LEN = 7; // 桟橋の先（島のふちが着く所）は z = 
 // 海岸線: 桟橋の所（x=0）は少し入り江、灯台の岬（x=-11）は前へ出る
 export function coast(x) { return 0.9 * Math.sin(x * 0.27 + 1) + 0.6 * (vnoise(x * 0.45 + 9, 3) - 0.5) * 2 + 3.2 * Math.exp(-((x + 11) ** 2) / 10) - 1.2 * Math.exp(-(x * x) / 14); }
 // 上の面の高さ（うしろへゆるく上がる丘）
-export function topY(x, z) { return (fbm(x * 0.12 + 4, z * 0.12 + 2) - 0.5) * 1.4 + Math.max(0, -z - 6) * 0.12 + 1.6 * Math.exp(-((x + 11) ** 2 + (z - 0.5) ** 2) / 8); }
+function baseY(x, z) { return (fbm(x * 0.12 + 4, z * 0.12 + 2) - 0.5) * 1.4 + Math.max(0, -z - 6) * 0.12 + 1.6 * Math.exp(-((x + 11) ** 2 + (z - 0.5) ** 2) / 8); }
+
+// 横とうしろのふちは、でこぼこに下がって崖へ（上から見て四角い板に見えないように）
+export function topY(x, z) { const e = Math.min(x + 32, 32 - x, z + 34) + (vnoise(x * 0.18 + 7, z * 0.18) - 0.5) * 5; return baseY(x, z) - 9 * (1 - Math.min(1, Math.max(0, e / 6)) ** 2); }
+
+// 崖の下のほうを消す（夜のあいだ、遠くの岸は霧で黒くなり、深い崖が空をふさぐ四角い壁に見えた）。uFade = 1 で元の厚い崖
+const FADE = { value: 1 };
+function fadeBottom(mat) {
+  mat.transparent = true; mat.userData.dark = true; // 闇の色づけ（patchDark）とは組み合わせない。遠くの岸は霧で十分暗い
+  mat.onBeforeCompile = sh => {
+    sh.uniforms.uFade = FADE;
+    sh.vertexShader = 'varying float vLy;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vLy = position.y;');
+    sh.fragmentShader = 'uniform float uFade; varying float vLy;\n' + sh.fragmentShader.replace('#include <fog_fragment>', '#include <fog_fragment>\n gl_FragColor.a *= mix(smoothstep(-16., -1.5, vLy), 1., uFade);');
+  };
+  mat.customProgramCacheKey = () => 'shore-fade';
+}
 
 export function makeShore(TX) {
   const g = new THREE.Group(), R = rng(501);
@@ -48,7 +63,8 @@ export function makeShore(TX) {
   { const nx = 128, ny = 36, pos = [], idx = [];
     for (let j = 0; j <= ny; j++) for (let i = 0; i <= nx; i++) {
       const x = -32 + 64 * i / nx, t = j / ny, y = topY(x, coast(x)) - 0.15 - t * 46, strata = Math.sin(y * 1.7 + vnoise(x * 0.2, y * 0.1) * 3) * 0.25;
-      const out = (vnoise(x * 0.5 + 3, y * 0.25) - 0.5) * 1.6 + strata + t * 6 + (j === 0 ? 0 : 0.2); // 下へ行くほど前へ張り出す（裾が広い）
+      const end = Math.min(1, (32 - Math.abs(x)) / 4); // 両はしは横の崖とぴったり合わせる（角にすき間があって空が透けた）
+      const out = ((vnoise(x * 0.5 + 3, y * 0.25) - 0.5) * 1.6 + strata + t * 6 + (j === 0 ? 0 : 0.2)) * end; // 下へ行くほど前へ張り出す（裾が広い）
       pos.push(x, y, coast(x) + out - (j === 0 ? 0 : 0.15));
     }
     for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const a = j * (nx + 1) + i, b = a + 1, d = a + nx + 1, e = d + 1; idx.push(a, b, d, b, e, d); }
@@ -56,12 +72,12 @@ export function makeShore(TX) {
     const cl = new THREE.Mesh(geo, M.cliff); cl.receiveShadow = true; g.add(cl);
     // 横とうしろの崖も閉じる（大地の厚み。どの向きから見ても、薄い板に見えないように）
     const wall = pts => { const n = pts.length - 1, ny2 = 24, P = [], I = [];
-      for (let j = 0; j <= ny2; j++) for (let i = 0; i <= n; i++) { const [x, z] = pts[i], [ax, az] = pts[Math.max(0, i - 1)], [bx, bz] = pts[Math.min(n, i + 1)], tx = bx - ax, tz = bz - az, L = Math.hypot(tx, tz) || 1, nx = tz / L, nz = -tx / L, t = j / ny2, y = topY(x, z) - 0.1 - t * 46, o = (vnoise(x * 0.5 + z * 0.3, y * 0.25) - 0.5) * 1.4 + t * 5; P.push(x + nx * o, y, z + nz * o); }
+      for (let j = 0; j <= ny2; j++) for (let i = 0; i <= n; i++) { const [x, z] = pts[i], [ax, az] = pts[Math.max(0, i - 1)], [bx, bz] = pts[Math.min(n, i + 1)], tx = bx - ax, tz = bz - az, L = Math.hypot(tx, tz) || 1, nx = tz / L, nz = -tx / L, t = j / ny2, y = topY(x, z) - 0.1 - t * 46, o = ((vnoise(x * 0.5 + z * 0.3, y * 0.25) - 0.5) * 1.4 + t * 5) * Math.min(1, i / 4, (n - i) / 4); P.push(x + nx * o, y, z + nz * o); }
       for (let j = 0; j < ny2; j++) for (let i = 0; i < n; i++) { const a = j * (n + 1) + i, b = a + 1, d = a + n + 1, e = d + 1; I.push(a, b, d, b, e, d); }
       let w = new THREE.BufferGeometry(); w.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); w.setIndex(I); w = w.toNonIndexed(); w.computeVertexNormals(); planarUV(w, 0.5); const m = new THREE.Mesh(w, M.cliff); m.receiveShadow = true; g.add(m); };
     const side = x => Array.from({ length: 25 }, (_, i) => [x, -34 + (coast(x) + 34) * i / 24]);
     // 中身: 崖の壁のすき間から空がのぞかないよう、奥に暗い岩のかたまり
-    { const core = new THREE.Mesh(new THREE.BoxGeometry(62, 46, 30), new THREE.MeshStandardMaterial({ color: '#1e1814', roughness: 1 })); core.position.set(0, -23.5, -18); g.add(core); }
+    { const coreM = new THREE.MeshStandardMaterial({ color: '#1e1814', roughness: 1 }); fadeBottom(coreM); const cg = new THREE.BoxGeometry(62, 46, 30, 1, 12, 1); cg.translate(0, -23.5, -18); g.add(new THREE.Mesh(cg, coreM)); } // 消すのは頂点の高さで見るので、位置はジオメトリに
     wall(side(-32).reverse()); wall(side(32)); wall(Array.from({ length: 41 }, (_, i) => [32 - 64 * i / 40, -34]));
     // 崖のふちの落ちかけた岩
     const rocks = []; for (let i = 0; i < 70; i++) { const x = -30 + R() * 60, z = coast(x) - R() * 1.2, s = 0.15 + R() * 0.5, r = lumpyRock(s, i, vnoise); r.translate(x, topY(x, z) + s * 0.2, z); rocks.push(r); }
@@ -139,6 +155,12 @@ export function makeShore(TX) {
   const puffs = []; g.updateMatrixWorld(true);
   for (const [k, at] of chimneys.entries()) { if (k % 2) continue; const p0 = g.worldToLocal(at()); for (let i = 0; i < 8; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, color: '#8a8078', transparent: true, depthWrite: false })); s.userData = { p0, life: i / 8 * 5 }; g.add(s); puffs.push(s); } }
 
+  fadeBottom(M.cliff);
+  // 夜のあいだの遠い岸は、大地を出さず、灯台と港の灯の点だけ（大きさは画面で一定の小さな点）
+  const dots = [], dotTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d'), gr = x.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,220,160,1)'); gr.addColorStop(0.4, 'rgba(255,170,80,.5)'); gr.addColorStop(1, 'rgba(255,140,60,0)'); x.fillStyle = gr; x.fillRect(0, 0, 32, 32); return new THREE.CanvasTexture(c); })();
+  g.updateMatrixWorld(true); g.traverse(o => { if (o.isMesh && o.material === glow && R() < 0.6) { const p = g.worldToLocal(o.getWorldPosition(new THREE.Vector3())); const d = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex, sizeAttenuation: false, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); d.scale.setScalar(0.007 + R() * 0.005); d.position.copy(p); d.userData.ph = R() * 6; dots.push(d); } });
+  for (const d of dots) g.add(d);
+  const land = []; g.traverse(o => { if ((o.isMesh || o.isInstancedMesh) && o.material !== glow && o.material !== glass) land.push(o); });
   g.userData.lamp = lampAt; g.userData.M = M;
-  return { group: g, lamp: lampAt, update(t, dt) { for (const s of puffs) { const u = s.userData; u.life = (u.life + dt) % 5; const k = u.life / 5; s.position.set(u.p0.x + k * 0.8 + Math.sin(t * 0.5 + k * 4) * 0.1, u.p0.y + k * 2.4, u.p0.z - k * 0.3); s.scale.setScalar(0.25 + k * 1.2); s.material.opacity = Math.sin(k * Math.PI) * 0.3; } boat.position.y += Math.sin(t * 0.9) * 0.0008; boat.rotation.z = Math.sin(t * 0.6) * 0.02; } };
+  return { group: g, lamp: lampAt, dots, fade(v) { FADE.value = v; for (const o of land) o.visible = v > 0.02; for (const d of dots) d.material.opacity = 1 - Math.min(1, v * 3); }, update(t, dt) { for (const s of puffs) { const u = s.userData; u.life = (u.life + dt) % 5; const k = u.life / 5; s.position.set(u.p0.x + k * 0.8 + Math.sin(t * 0.5 + k * 4) * 0.1, u.p0.y + k * 2.4, u.p0.z - k * 0.3); s.scale.setScalar(0.25 + k * 1.2); s.material.opacity = Math.sin(k * Math.PI) * 0.3; } boat.position.y += Math.sin(t * 0.9) * 0.0008; boat.rotation.z = Math.sin(t * 0.6) * 0.02; } };
 }
