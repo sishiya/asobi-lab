@@ -197,6 +197,8 @@ const QS = new URLSearchParams(location.search), SPEED = Math.min(20, +QS.get('s
 if (QS.get('auto')) { $('title').hidden = true; startNight(+QS.get('night') || 1); }
 // ── はじめる ──
 $('start').addEventListener('click', () => { $('title').hidden = true; startNight(1); startAudio(); });
+// テスト用: タイトルから好きな夜をはじめる（島はまるごと、その夜の流木つき）
+for (const b of document.querySelectorAll('.pick button')) b.addEventListener('click', () => { $('title').hidden = true; startNight(+b.dataset.n); startAudio(); });
 $('again').addEventListener('click', () => location.reload());
 $('next').addEventListener('click', () => startNight(Math.min(NIGHTS, st.night + 1)));
 // 岸に着いたときの言葉（持って着いた物で変わる）

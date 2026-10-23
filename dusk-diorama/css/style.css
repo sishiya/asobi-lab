@@ -28,6 +28,11 @@ canvas.carry{cursor:grabbing}
 .card .small{margin:16px 0 0;font-size:12px;opacity:.6}
 .btn{min-height:48px;padding:10px 32px;border-radius:999px;border:0;background:#e8823a;color:#1a0d06;font:800 17px 'Shippori Mincho B1',serif;cursor:pointer;box-shadow:0 0 24px rgba(255,120,40,.35)}
 .btn:hover{background:#ff9a52}
+/* テスト用の夜えらび（タイトルの下に小さく） */
+.pick{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,190,130,.15);font-size:12px;opacity:.75}
+.pick span{margin-right:4px}
+.pick button{min-width:36px;min-height:36px;border-radius:8px;border:1px solid rgba(255,190,130,.35);background:transparent;color:#efe6d6;font:700 14px 'Shippori Mincho B1',serif;cursor:pointer}
+.pick button:hover{background:rgba(255,190,130,.15)}
 .card p{word-break:auto-phrase}
 /* 結果は下に小さく（島の夜明けを見せる） */
 .card.result{top:auto;bottom:16px;transform:translateX(-50%);width:min(560px,calc(100vw - 32px));padding:16px 18px}
