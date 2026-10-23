@@ -8,6 +8,7 @@ import { buildVillage } from './village.js';
 import { makeRenderer, patchDark, DARK } from './render.js';
 import { makeFx } from './fx.js';
 import { makeSalamander } from './creature.js';
+import { makeLamps } from './lamps.js';
 import { mountAudioPanel, startAudio, sfx, tickAudio } from './audio.js';
 
 const $ = id => document.getElementById(id);
@@ -20,6 +21,7 @@ const fx = makeFx(scene);
 const C0 = isl.chunks.find(c => c.fixed);
 for (const o of fx.fireParts) C0.group.attach(o); // たき火は火の番の岩（まん中の塊）の上
 const sal = makeSalamander(C0.group); // 火の番の火トカゲ
+const L = makeLamps(scene, isl, V); // 台と灯（PLAN.md 2.9章）
 // 夜明けの岸（第5夜に、遠くの闇から近づいてくる黒い崖。うしろに朝の光）
 const shore = (() => {
   const g = new THREE.Group(), m = new THREE.MeshStandardMaterial({ color: '#2a1a14', roughness: 1, flatShading: true, fog: true });
@@ -68,7 +70,8 @@ function pickAt(e) {
   return best;
 }
 function groundAt(e) {
-  ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
+  const lift = e.pointerType === 'touch' ? 55 : 0; // 指で隠れないよう、指の少し上に
+  ndc.set(e.clientX / innerWidth * 2 - 1, -((e.clientY - lift) / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
   const p = new THREE.Vector3(); ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -fireY), p);
   for (let i = 0; i < 3; i++) { const y = H(p.x, p.z); ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -y), p); } // 地面の高さに合わせて2〜3回やり直す
   return p;
@@ -76,6 +79,12 @@ function groundAt(e) {
 cv.addEventListener('pointerdown', e => {
   if (st.phase !== 'play') return;
   cv.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY }); idle = 0;
+  // 炎をつまむ = 火種を分ける（炎の芯の 44px）
+  if (pointers.size === 1 && !carry && nearFlame(e)) {
+    if (st.F < RULE.emberMin) { fx.crumbs(FIRE.x, fireY + 0.3, FIRE.z, 6, 0.3); sfx('sfx-pick', 0.3, 0.6); return; } // 小さい火は分けられない（すくむ）
+    st.F -= RULE.emberCost; carry = { ember: true, p: groundAt(e) }; L.ember.visible = true; st.tookEmber = true;
+    sfx('sfx-flare2', 0.35, 1.5); cv.classList.add('carry'); return;
+  }
   const b = pointers.size === 1 ? pickAt(e) : null;
   if (b) {
     carry = { b, home: b.obj.parent, p: groundAt(e) }; b.carried = true;
@@ -98,6 +107,7 @@ function release(e) {
   if (pointers.size) return;
   rotating = false; cv.classList.remove('carry');
   if (!carry) return;
+  if (carry.ember) { dropEmber(carry.p); carry = null; return; }
   const { b, p } = carry; carry = null; b.carried = false;
   if (st.phase !== 'play') { putDown(b, p); return; }
   if (Math.hypot(p.x - FIRE.x, p.z - FIRE.z) < RULE.dropR) burn(b);
@@ -128,6 +138,16 @@ function burn(b) {
   showToast(wet ? `しけた${b.name}は、くすぶる` : `${b.name}をくべた`);
 }
 const sinking = [], shake = [];
+function nearFlame(e) { const p = new THREE.Vector3(FIRE.x, fireY + 0.35, FIRE.z).project(camera); return Math.hypot((p.x * 0.5 + 0.5) * innerWidth - e.clientX, (-p.y * 0.5 + 0.5) * innerHeight - e.clientY) < 44; }
+function fireLight() { return { x: ringC.x || FIRE.x, z: ringC.z || FIRE.z, r: lightRadius(st.F) * (st.W.rMul || 1) }; }
+function standNear(p) { let best = null, bd = 0.75; for (const s of L.stands) { const d = Math.hypot(p.x - s.x, p.z - s.z); if (d < bd) { bd = d; best = s; } } return best; }
+function dropEmber(p) {
+  L.ember.visible = false; L.emberLight.intensity = 0; cv.classList.remove('carry');
+  const s = standNear(p);
+  if (s && L.canLight(s, fireLight())) { L.ignite(s); st.litAny = true; sfx('sfx-flare', 0.4, 1.3); fx.crumbs(s.x, H(s.x, s.z) + 0.7, s.z, 6, 0.2); return; }
+  if (Math.hypot(p.x - FIRE.x, p.z - FIRE.z) < RULE.dropR) { st.F += RULE.emberCost; return; } // 火にもどす
+  fx.crumbs(p.x, H(p.x, p.z) + 0.2, p.z, 5, 0.2); // 闇の中で消える
+}
 // 屋根の下の物（雨でぬれない）: 屋根のある家の部品と、そのそばの物
 function underRoof(b) {
   if (b.house) return !b.house.roofless || b === b.house.roof;
@@ -153,17 +173,21 @@ function fall(c) {
 
 // ── 画面 ──
 let toastT = 0;
-function showToast(s) { const el = $('toast'); el.textContent = s; el.classList.add('on'); toastT = 1.6; }
+function showToast(s) { return; // 字は出さない（PLAN.md 2.9章）。残しておくのは、あとで試すため
+ const el = $('toast'); el.textContent = s; el.classList.add('on'); toastT = 1.6; }
 function hud() {
   $('bar').style.transform = `scaleX(${Math.min(1, st.t / RULE.night)})`; $('nightNo').textContent = `第${st.night}夜`;
-  const hint = $('hint');
-  // 目じるしの光は、遊んでいるあいだだけ（どの物にも重ねて描くので、呑まれたあとに残すと岩の向こうに透けて見えた）
-  let gl = null;
-  if (st.phase === 'play' && !carry) {
-    if (!st.burnedAny) { const b = nearestBurnable(); if (b) { gl = b; const p = centerOf(b.obj).project(camera); hint.hidden = false; hint.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`; hint.style.top = `${(-p.y * 0.5 + 0.5) * innerHeight - 30}px`; } else hint.hidden = true; }
-    else { hint.hidden = true; if (hover) gl = hover; }
-  } else hint.hidden = true;
-  glint.visible = !!gl; if (gl) glint.position.copy(centerOf(gl.obj)).add(new THREE.Vector3(0, 0.14, 0));
+  const hint = $('hint'); hint.hidden = true; // 字の案内はなし。目じるしの光と、火トカゲのしぐさで促す（PLAN.md 2.9章）
+  // 目立たせるのは1つ: 手本のあと → 火から少し離れた柵 →（1つくべたら）炎の芯 →（火種を持ったら）ともせる台
+  for (const s2 of L.stands) s2.hint = !!(carry && carry.ember && L.canLight(s2, fireLight()));
+  let gp = null;
+  if (st.phase === 'play' && st.demoDone) {
+    if (carry && carry.ember) { let best = null, bd = 1e9; for (const s2 of L.stands) if (L.canLight(s2, fireLight())) { const d = Math.hypot(s2.x - carry.p.x, s2.z - carry.p.z); if (d < bd) { bd = d; best = s2; } } if (best && !st.litAny) gp = best.fl.getWorldPosition(new THREE.Vector3()); }
+    else if (!carry && !st.burnedAny) { const b = nearestBurnable(); if (b) gp = centerOf(b.obj).add(new THREE.Vector3(0, 0.14, 0)); }
+    else if (!carry && !st.tookEmber) gp = new THREE.Vector3(FIRE.x, fireY + 0.9, FIRE.z);
+    else if (!carry && hover) gp = centerOf(hover.obj).add(new THREE.Vector3(0, 0.14, 0));
+  }
+  glint.visible = !!gp; if (gp) glint.position.copy(gp);
   const tag = $('tag');
   if (carry) { tag.hidden = false; const p = carry.b.obj.position.clone().project(camera); tag.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`; tag.style.top = `${(-p.y * 0.5 + 0.5) * innerHeight - 40}px`; tag.textContent = `${carry.b.name}　${'▮'.repeat(Math.max(1, Math.round(carry.b.fuel / 4)))}`; }
   else if (hover && st.phase === 'play') { tag.hidden = false; const p = centerOf(hover.obj).project(camera); tag.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`; tag.style.top = `${(-p.y * 0.5 + 0.5) * innerHeight - 34}px`; tag.textContent = `${hover.name}　${'▮'.repeat(Math.max(1, Math.round(hover.fuel / 4)))}`; }
@@ -194,7 +218,7 @@ function showResult(won) {
 
 // ── 確かめ用: ?speed=8 で時間を速く、?auto=1 でタイトルを飛ばす（音なし） ──
 const QS = new URLSearchParams(location.search), SPEED = Math.min(20, +QS.get('speed') || 1);
-if (QS.get('auto')) { $('title').hidden = true; startNight(+QS.get('night') || 1); }
+if (QS.get('auto')) { $('title').hidden = true; setTimeout(() => startNight(+QS.get('night') || 1)); } // ファイルの下の方（手本など）の準備のあとで
 // ── はじめる ──
 $('start').addEventListener('click', () => { $('title').hidden = true; startNight(1); startAudio(); });
 // テスト用: タイトルから好きな夜をはじめる（島はまるごと、その夜の流木つき）
@@ -216,8 +240,10 @@ function startNight(n) {
   Object.assign(st, { W, night: n, t: 0, F: RULE.fuel0, burning: [], out: 0, phase: 'play', dawnK: 0, shown: false, lastT: 0, drift: 0, tEnd: 0, burnMul: W.burnMul || 1, windAng: Math.random() * Math.PI * 2 });
   R3.setWeather({ fog: W.id === 'fog' ? 1 : 0, rain: W.wet ? 1 : 0 });
   shore.visible = n >= NIGHTS; shore.position.set(0, -60, -115); shore.scale.setScalar(0.75);
-  const wx = $('wx'); wx.innerHTML = `<b>第${n}夜　${W.name}</b><span>${W.line}</span>`; wx.classList.add('on'); clearTimeout(st.wxT); st.wxT = setTimeout(() => wx.classList.remove('on'), 6500);
+  const wx = $('wx'); wx.innerHTML = `<b>${W.name}</b>`; // 説明の文は出さない（起きたことで知らせる） wx.classList.add('on'); clearTimeout(st.wxT); st.wxT = setTimeout(() => wx.classList.remove('on'), 6500);
   C0.group.position.set(0, 0, 0); C0.group.rotation.set(0, 0, 0);
+  if (n === 1 && !st.demoDone) startDemo(); else st.demoDone = true;
+  for (const s2 of L.stands) s2.life = 0;
   clearTimeout(st.resTimer); $('result').hidden = true; R3.setDawn(0); // 前の夜の結果が遅れて出ないように
   // 浮かんでくる時刻（はじめの12秒は崩れを見せるので、そのあと）
   // 流れ着いた流木（立っている塊に。岩だけなら岩に）
@@ -226,6 +252,17 @@ function startNight(n) {
   // 浮かぶかけらの数: 島が小さいほど多い（岩だけからでも巻き返せるように）
   const fallenN = isl.chunks.filter(c => c.fallen).length, nRet = n > 1 ? Math.round((RULE.returns + fallenN * RULE.catchUp) * (W.returnsMul || 1)) : 0;
   st.returns = Array.from({ length: nRet }, (_, i) => 10 + (i + Math.random() * 0.8) * (RULE.night - 30) / Math.max(1, nRet));
+}
+// 火トカゲの手本: 小枝をくわえて火へ引きずる（はじめの夜に一度だけ。字のかわり）
+let demo = null;
+const twig = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 0.32, 5), V.M.bark); twig.rotation.z = Math.PI / 2; twig.visible = false; C0.group.add(twig); patchDark(V.M.bark);
+function startDemo() { const a = sal.ang + 0.9; demo = { t: 0, phase: 'walk', a }; twig.visible = true; twig.position.set(FIRE.x + Math.cos(a) * 0.95, H(FIRE.x + Math.cos(a) * 0.95, FIRE.z + Math.sin(a) * 0.95) + 0.02, FIRE.z + Math.sin(a) * 0.95); sal.ctl.rOv = 0.95; sal.goTo(a); }
+function stepDemo(dt) {
+  if (!demo) return; demo.t += dt;
+  if (demo.phase === 'walk' && Math.abs(sal.ang - demo.a) < 0.05) { demo.phase = 'drag'; demo.t = 0; sal.ctl.rOv = 0.3; sal.ctl.walk = true; }
+  if (demo.phase === 'drag') { const h = sal.head(); twig.position.set(h.x, h.y - 0.01, h.z); if (demo.t > 1.8) { twig.visible = false; fx.burst(0.4); st.F += 2; sfx('sfx-flare2', 0.3, 1.2); demo.phase = 'back'; demo.t = 0; sal.ctl.rOv = null; sal.ctl.walk = false; } }
+  if (demo.phase === 'back' && demo.t > 1) { demo = null; st.demoDone = true; }
+  if (demo && demo.t > 9) { twig.visible = false; sal.ctl.rOv = null; sal.ctl.walk = false; demo = null; st.demoDone = true; } // 念のため
 }
 function exposedOf(c) { return c.rim || [...c.neighbors].some(n => isl.all[n].fallen); }
 // 浮かばせるかけら: 島のとなり（立っている塊と接する落ちた塊）から
@@ -257,7 +294,7 @@ function stepDrift(dt, R) {
       c.group.position.set(d.out.x * away, -7 + 6.2 * (1 - (1 - k) ** 3) + bob, d.out.z * away);
       c.group.rotation.set(tilt, Math.sin(d.age * 0.2 + d.seed) * 0.1, tilt * 0.7);
       const near = [...c.neighbors].some(n => !isl.all[n].fallen);
-      if (k >= 1 && near && darkness(c.dist, R) < RULE.dockDark) { d.mode = 'dock'; d.age = 0; d.from = c.group.position.clone(); }
+      if (k >= 1 && near && Math.min(darkness(c.dist, R), darkness(L.shelter(c), 0)) < RULE.dockDark) { d.mode = 'dock'; d.age = 0; d.from = c.group.position.clone(); }
       else if (d.age > RULE.driftLife) { d.mode = 'down'; d.age = 0; }
     } else if (d.mode === 'dock') {
       const k = Math.min(1, d.age / 1.6), e = k * k * (3 - 2 * k);
@@ -280,7 +317,7 @@ function frame(now) {
     const R = lightRadius(st.F) * (st.W.rMul || 1), w = windVec();
     ringC.set(FIRE.x + w.x * (w.s || 0) * R / RULE.rMax, fireY, FIRE.z + w.z * (w.s || 0) * R / RULE.rMax);
     for (const c of isl.chunks) c.dist = Math.max(0, Math.hypot(c.cx - ringC.x, c.cz - ringC.z) - 0.45 * c.rad);
-    for (const c of isl.chunks) { if (!c.drift && stepChunk(c, R, dt)) fall(c); }
+    for (const c of isl.chunks) { if (!c.drift && stepChunk(c, R, dt, Math.min(darkness(c.dist, R), darkness(L.shelter(c), 0)))) fall(c); }
     if (shore.visible) { const k = st.t / RULE.night; const dd = 115 - 30 * k; shore.position.set(-Math.sin(0.55) * dd, -52 + 24 * k, -Math.cos(0.55) * dd); shore.rotation.y = 0.55; /* 遠くの闇から、だんだん近づく */ }
     while (st.returns.length && st.t >= st.returns[0]) { st.returns.shift(); surface(); }
     stepDrift(dt, R);
@@ -314,9 +351,10 @@ function frame(now) {
   }
   for (const s of shake) s.t -= dt; for (let i = shake.length - 1; i >= 0; i--) if (shake[i].t <= 0) shake.splice(i, 1);
   // 運んでいる物は指の下の少し上に、ゆれながら
-  if (carry) { const b = carry.b; carry.lift = Math.min(1, carry.lift + dt * 6); const tgt = new THREE.Vector3(carry.p.x, H(carry.p.x, carry.p.z) + 0.15 + 0.45 * carry.lift, carry.p.z).add(carry.off); b.obj.position.lerp(tgt, Math.min(1, dt * 14)); b.obj.rotation.z = Math.sin(st.t * 5) * 0.05; }
-  const near = carry ? Math.hypot(carry.p.x - FIRE.x, carry.p.z - FIRE.z) < RULE.dropR : false;
-  dropRing.material.opacity = carry ? (near ? 0.9 : 0.35 + 0.15 * Math.sin(now / 200)) : 0; dropRing.scale.setScalar(near ? 1.08 : 1);
+  if (carry && carry.ember) { const q = carry.p; L.ember.position.set(q.x, H(q.x, q.z) + 0.55, q.z); L.ember.scale.setScalar(0.3 + 0.05 * Math.sin(now / 90)); L.ember.material.opacity = 1; L.emberLight.position.copy(L.ember.position); L.emberLight.intensity = 3; }
+  else if (carry) { const b = carry.b; carry.lift = Math.min(1, carry.lift + dt * 6); const tgt = new THREE.Vector3(carry.p.x, H(carry.p.x, carry.p.z) + 0.15 + 0.45 * carry.lift, carry.p.z).add(carry.off); b.obj.position.lerp(tgt, Math.min(1, dt * 14)); b.obj.rotation.z = Math.sin(st.t * 5) * 0.05; }
+  const near = carry && !carry.ember ? Math.hypot(carry.p.x - FIRE.x, carry.p.z - FIRE.z) < RULE.dropR : false;
+  dropRing.material.opacity = carry && !carry.ember ? (near ? 0.9 : 0.35 + 0.15 * Math.sin(now / 200)) : 0; dropRing.scale.setScalar(near ? 1.08 : 1);
   for (let i = sinking.length - 1; i >= 0; i--) { const s = sinking[i]; s.t += dt * 2.5; s.obj.position.lerp(new THREE.Vector3(FIRE.x, fireY + 0.1, FIRE.z), Math.min(1, dt * 8)); s.obj.scale.multiplyScalar(Math.max(0.2, 1 - dt * 3)); if (s.t >= 1) { s.obj.removeFromParent(); sinking.splice(i, 1); } }
   for (const l of loose) { l.v += 7 * dt; l.obj.position.y -= l.v * dt; if (l.obj.position.y < -40) l.obj.visible = false; }
   if (glint.visible) { const p = 0.5 + 0.5 * Math.sin(now / 260); glint.scale.setScalar(0.35 + 0.25 * p); glint.material.opacity = 0.5 + 0.5 * p; }
@@ -326,6 +364,8 @@ function frame(now) {
   const wv = windVec();
   fx.update(now / 1000, dt, { F: st.phase === 'lost' ? 0 : st.F, smokeK: Math.min(1, smokeK), camera, out: st.out, wind: { x: wv.x * (wv.s || 0) * 0.6, z: wv.z * (wv.s || 0) * 0.6 }, rainK: st.W.wet && st.phase === 'play' ? 1 : 0, ashK: st.W.id === 'snow' ? 2.2 : 1 });
   if (shore.visible) shore.userData.glow.material.opacity = 0.15 + 0.6 * st.dawnK;
+  L.update(now / 1000, st.phase === 'play' ? dt : 0, DARK.uLamp.value);
+  stepDemo(dt);
   sal.update(now / 1000, dt, { F: st.phase === 'lost' ? 0 : st.F, flare: fx.flare, lost: st.phase === 'lost' });
   tickAudio({ fire: st.F > 0 ? 0.35 + 0.65 * Math.sqrt(st.F / RULE.fuelMax) : 0.15, walk: carry ? 1 : 0 });
   hud();
@@ -333,4 +373,4 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__game = { st, isl, V, view, RULE, camera, fx, burn, fall, FIRE, chunkIdAt, startNight, sal }; // 確かめ用（tools/ と手で）
+window.__game = { st, isl, V, view, RULE, camera, fx, burn, fall, FIRE, chunkIdAt, startNight, sal, L, emberTo: s => { if (st.F < RULE.emberMin) return false; st.F -= RULE.emberCost; st.tookEmber = true; dropEmber({ x: s.x, z: s.z }); return s.life > 0; } }; // 確かめ用（tools/ と手で）

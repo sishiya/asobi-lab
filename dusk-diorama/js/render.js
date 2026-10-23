@@ -10,7 +10,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 const NIGHT = { sky: ['#0e0304', '#5c160a', '#0b0404'], glow: '#ff5a1f', glowAmt: 0.7, hemi: ['#a04828', '#1a0c08', 1.4], key: ['#ff7a42', 2.8], fog: '#2a0f09', exposure: 1.3, sat: [0.55, 1.15], lift: '#2a0806', liftAmt: 0.06, vig: 0.5 };
 const DAWN = { sky: ['#1f2a46', '#b8714a', '#140f12'], glow: '#ffc890', glowAmt: 0.35, hemi: ['#7d8db3', '#2e2219', 1.1], key: ['#ffd2a8', 2.2], fog: '#2c2226', exposure: 1.0, sat: [0.95, 1.15], lift: '#0c1020', liftAmt: 0.02, vig: 0.38 };
 
-export const DARK = { uFire: { value: new THREE.Vector3() }, uR: { value: 3 }, uDark: { value: 1 } };
+export const LAMPS = 8; // 灯（かがり台・ランタン）の数の上限
+export const DARK = { uFire: { value: new THREE.Vector3() }, uR: { value: 3 }, uDark: { value: 1 }, uLamp: { value: Array.from({ length: LAMPS }, () => new THREE.Vector4(0, 0, 0, 0)) } }; // uLamp: x, z, 半径, ついているか
 // 輪の外は色を抜いて暗く。輪のふちに、ほのかな火の色のすじ（島の上の面だけ）
 export function patchDark(mat) {
   if (mat.userData.dark || !mat.isMeshStandardMaterial) return;
@@ -23,8 +24,10 @@ export function patchDark(mat) {
         wpp = instanceMatrix * wpp;
       #endif
       vWp = (modelMatrix * wpp).xyz;`);
-    sh.fragmentShader = 'uniform vec3 uFire; uniform float uR; uniform float uDark; varying vec3 vWp;\n' + sh.fragmentShader.replace('#include <fog_fragment>', `{
-      float dd = length(vWp.xz - uFire.xz), dk = smoothstep(uR, uR + 0.9, dd) * uDark;
+    sh.fragmentShader = `uniform vec3 uFire; uniform float uR; uniform float uDark; uniform vec4 uLamp[${LAMPS}]; varying vec3 vWp;\n` + sh.fragmentShader.replace('#include <fog_fragment>', `{
+      float dd = length(vWp.xz - uFire.xz), dk = smoothstep(uR, uR + 0.9, dd);
+      for (int i = 0; i < ${LAMPS}; i++) { if (uLamp[i].w > 0.0) dk = min(dk, smoothstep(uLamp[i].z, uLamp[i].z + 0.7, length(vWp.xz - uLamp[i].xy))); }
+      dk *= uDark;
       float lum = dot(gl_FragColor.rgb, vec3(.3, .59, .11));
       gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(lum) * vec3(.62, .48, .45), dk * .85) * (1.0 - dk * .6);
       vec3 fn = normalize(cross(dFdx(vWp), dFdy(vWp)));
@@ -106,11 +109,11 @@ export function makeRenderer(canvas) {
   setDawn(0);
 
   let W = 0, Hh = 0;
-  const view = { az: 0.55, el: 0.5, zoom: 1, base: 30, target: new THREE.Vector3(0, -0.6, 0) };
+  const view = { az: 0.55, el: 0.5, zoom: 0.8, base: 30, target: new THREE.Vector3(0, -0.6, 0) };
   function resize() {
     W = innerWidth; Hh = innerHeight; const asp = W / Hh;
     renderer.setSize(W, Hh, false); composer.setSize(W, Hh); composer.setPixelRatio(DPR);
-    camera.aspect = asp; camera.updateProjectionMatrix(); view.base = Math.max(30, 24 / asp);
+    camera.aspect = asp; camera.updateProjectionMatrix(); view.base = Math.max(30, 21 / asp); view.target.y = asp < 0.8 ? 0.4 : -0.6; // たての画面は寄せて、島を下へ
     tiltH.uniforms.dir.value.set(1 / W, 0); tiltV.uniforms.dir.value.set(0, 1 / Hh); grade.uniforms.aspect.value = asp;
     const k = view.base - 30, fk = wx.fog; scene.fog.near = (18 + k) * (1 - 0.45 * fk); scene.fog.far = (56 + k) * (1 - 0.35 * fk);
   }

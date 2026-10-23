@@ -16,10 +16,12 @@ export const RULE = {
   // 次の夜（光で拾う。PLAN.md 2.7章）: 2夜目から、落ちたかけらが闇を漂って浮かんでくる
   returns: 7,                    // ひと晩に浮かんでくるかけらの数（＋落ちている塊の数×catchUp）
   catchUp: 0.2,
+  emberCost: 4,                  // 火種を分けると、たき火の燃料がこれだけ減る
+  emberMin: 10,                  // たき火がこれより小さいと、火種は分けられない（炎がすくむ）
   driftLife: 24,                 // 浮かんでいる秒数（そのあいだに光がとどかなければ、また沈む）
   dockDark: 0.45,                // かけらの場所の暗さがこれより小さく、島のとなりなら、くっつく
   driftwood: 10,                 // くっついたかけらに乗ってくる流木の燃料
-  washUp: [0, 10, 10, 12, 14],   // 夜のはじめに島に流れ着く流木の数（夜ごと）。燃やせる物が一夜で尽きないように
+  washUp: [0, 4, 4, 5, 6],         // 夜のはじめに島に流れ着く流木の数（夜ごと）。燃やせる物が一夜で尽きないように
   washFuel: 8,
 };
 // 五つの夜の空（PLAN.md 2.8章）。一夜に新しい決まりが1つずつ
@@ -50,9 +52,8 @@ export function stepFire(st, dt) {
   st.out = st.F <= 0 && !st.burning.length ? st.out + dt : 0;
 }
 // 塊の1こま: chunk = { s, exposed, dist, root, fixed, fallen }
-export function stepChunk(c, R, dt) {
+export function stepChunk(c, R, dt, d = darkness(c.dist, R)) { // d: 灯もふくめた暗さ（いちばん守ってくれる光で）
   if (c.fixed || c.fallen) return false;
-  const d = darkness(c.dist, R);
   if (c.exposed && d > 0) c.s -= RULE.crumble * d * (c.root ? RULE.rootHold : 1) * dt;
   else if (d === 0) c.s = Math.min(1, c.s + RULE.recover * dt);
   if (c.s <= 0) { c.fallen = true; return true; }

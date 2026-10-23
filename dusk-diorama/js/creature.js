@@ -26,17 +26,18 @@ export function makeSalamander(parent) {
   const P = Array.from({ length: N }, () => new THREE.Vector3());
   const st = { ang: 0.9, target: 0.9, walk: 0, step: 0, look: 0, curl: 0, next: 4 };
   const v = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  const ctl = { rOv: null, hold: false }; // 手本の場面で外から動かす（半径の上書き・止まらない）
   function update(t, dt, { F, flare, lost }) {
     // いる場所: 火のまわりの輪の上。ときどき少し歩いて場所をかえる
     st.next -= dt;
-    if (st.next <= 0 && !lost) { st.target = 0.3 + Math.random() * 1.2; /* 火の手前（カメラのはじめの向き）がわ。丸太のいす（2.2・4.1）をよける */ st.next = 6 + Math.random() * 7; }
-    const d = st.target - st.ang, moving = Math.abs(d) > 0.02;
+    if (st.next <= 0 && !lost && ctl.rOv === null) { st.target = 0.3 + Math.random() * 1.2; /* 火の手前（カメラのはじめの向き）がわ。丸太のいす（2.2・4.1）をよける */ st.next = 6 + Math.random() * 7; }
+    const d = st.target - st.ang, moving = Math.abs(d) > 0.02 || ctl.walk;
     st.walk += ((moving ? 1 : 0) - st.walk) * Math.min(1, dt * 4);
     st.ang += Math.sign(d) * Math.min(Math.abs(d), dt * 0.35);
     st.step += dt * (2 + 7 * st.walk);
     st.look += ((flare > 0.2 ? 1 : 0) - st.look) * Math.min(1, dt * 3);
     st.curl += ((F < 6 || lost ? 1 : 0) - st.curl) * Math.min(1, dt * 1.2);
-    const r = 0.66 - 0.16 * st.curl; // 火が小さいと、火に寄る
+    st.r = st.r ?? 0.66; st.r += ((ctl.rOv ?? (0.66 - 0.16 * st.curl)) - st.r) * Math.min(1, dt * 1.6); const r = st.r; // 火が小さいと、火に寄る
     const hx = FIRE.x + Math.cos(st.ang) * r, hz = FIRE.z + Math.sin(st.ang) * r;
     // 体の向き: 歩くときは輪にそって、止まると火のほうを向く
     const toFire = Math.atan2(FIRE.z - hz, FIRE.x - hx), along = st.ang + Math.sign(d || 1) * Math.PI / 2;
@@ -66,5 +67,5 @@ export function makeSalamander(parent) {
       for (const [m, a, b] of [[L.a, sh, knee], [L.b, knee, foot]]) { m.position.copy(a).lerp(b, 0.5); m.scale.set(1, a.distanceTo(b), 1); m.quaternion.setFromUnitVectors(up, v.subVectors(b, a).normalize()); }
     }
   }
-  return { group: g, update, materials: [skin, spot, eye] };
+  return { group: g, update, materials: [skin, spot, eye], ctl, goTo: a => { st.target = a; st.next = 99; }, head: () => P[0], get ang() { return st.ang; } };
 }
