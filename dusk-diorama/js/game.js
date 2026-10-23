@@ -60,6 +60,21 @@ const nextSky = (() => {
   const by = { rain: [rain.material], wind: [rockM], fog: [fog.material], snow: [snow.material] };
   return { g, set(id, k) { for (const [key, ms] of Object.entries(by)) for (const m of ms) m.opacity = key === id ? k * (key === 'wind' ? 0.55 : key === 'snow' ? 0.3 : 0.4) : 0; } };
 })();
+// 先を行く舟島（第1夜だけ）: 村人をのせた小さな浮き島が、灯をともして行く先へ遠ざかる
+const leadBoat = (() => {
+  const g = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color: '#1a0e0b', fog: true });
+  const rock = new THREE.Mesh(new THREE.ConeGeometry(2.2, 4.5, 6), m); rock.rotation.x = Math.PI; rock.position.y = -2.25; g.add(rock);
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(2.3, 2.2, 0.4, 7), m); g.add(top);
+  for (const [x, z, s] of [[-0.6, 0.2, 1], [0.7, -0.3, 0.8]]) { const h = new THREE.Mesh(new THREE.BoxGeometry(0.9 * s, 0.7 * s, 0.7 * s), m); h.position.set(x, 0.55 * s, z); g.add(h); const rf = new THREE.Mesh(new THREE.ConeGeometry(0.75 * s, 0.6 * s, 4), m); rf.position.set(x, 1.2 * s, z); rf.rotation.y = Math.PI / 4; g.add(rf); }
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: softTex, color: '#ffb060', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); glow.position.set(0.1, 1, 0.6); glow.scale.setScalar(2.2); g.add(glow);
+  g.visible = false; scene.add(g); return { g, glow };
+})();
+function stepBoat(now) {
+  const on = st.night === 1 && st.phase !== 'title'; leadBoat.g.visible = on; if (!on) return;
+  const k = Math.min(1, st.t / RULE.night), d = 45 + 50 * k; // 夜のあいだに、少しずつ先へ
+  leadBoat.g.position.set(AHEAD.x * d + Math.sin(now / 3000) * 0.5, -0.32 * d + Math.sin(now / 1700) * 0.4, AHEAD.z * d);
+  leadBoat.glow.material.opacity = 0.75 + 0.25 * Math.sin(now / 400) * Math.sin(now / 170);
+}
 function stepBeacon(now) {
   const n = st.night, last = n >= NIGHTS;
   if (last && shore.visible) { const p = new THREE.Vector3(0, 9, -6); shore.localToWorld(p); beacon.position.copy(p); } // 岸の崖の上
@@ -480,7 +495,7 @@ function step(now) {
   st.shownR += (Rt + fx.flare * 0.4 - st.shownR) * Math.min(1, dt * 3);
   if (st.phase === 'dawn') st.dawnK = Math.min(st.night >= NIGHTS ? 1 : 0.35, st.dawnK + dt / 4); // 夜の切れ目は、月食が少しゆるむだけ。本当の夜明けは岸に着いたとき
   nextSky.set(st.phase === 'dawn' && st.night < NIGHTS ? WEATHER[st.night].id : '', Math.min(1, st.dawnK / 0.35));
-  stepBeacon(now);
+  stepBeacon(now); stepBoat(now);
   DARK.uR.value = st.shownR; DARK.uDark.value = 1 - st.dawnK; R3.setDawn(st.dawnK);
   R3.grade.uniforms.flash.value *= Math.exp(-dt * 4);
   // ふるえる塊・落ちる塊

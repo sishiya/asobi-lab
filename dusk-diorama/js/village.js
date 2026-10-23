@@ -2,7 +2,7 @@
 // どの物も、下の塊に乗せる（塊が落ちると、いっしょに落ちる）
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { rng, hash, vnoise, fbm, H, PATH, POND, FIRE, HILL, pathDist, pathPoint, rimRadius } from './util.js';
+import { rng, hash, vnoise, fbm, H, PATH, POND, FIRE, HILL, pathDist, pathPoint, rimRadius, polarT } from './util.js';
 import { chunkIdAt, hangRoots } from './island.js';
 import { planarUV, texMat, lumpyRock, bladeGeo, roofTiles, chapelDetail } from './tex.js';
 
@@ -142,7 +142,7 @@ export function buildVillage(root, isl, TX) {
   // ── れんがの石垣とこわれた塔（燃やせない）。塔からつき出た梁はくべられる ──
   {
     const BR = { w: 0.3, h: 0.15, d: 0.2 }, geo = planarUV(new THREE.BoxGeometry(BR.w, BR.h, BR.d), 3), R = rng(5), c = new THREE.Color();
-    const add = (x, y, z, ry, rx = 0, rz = 0) => { c.set('#57534c').lerp(new THREE.Color('#3c3b33'), R() * 0.3); if (R() < 0.15) c.lerp(new THREE.Color('#2f3a24'), 0.6);
+    const add = (x, y, z, ry, rx = 0, rz = 0) => { if (polarT(x, z) > 0.96) return; /* ふちの外に出るれんがは置かない（宙に浮いて見えた） */ c.set('#57534c').lerp(new THREE.Color('#3c3b33'), R() * 0.3); if (R() < 0.15) c.lerp(new THREE.Color('#2f3a24'), 0.6);
       addInst('brick', geo, M.brick, M4(x, y, z, rx + (R() - .5) * 0.06, ry + (R() - .5) * 0.06, rz + (R() - .5) * 0.06), c, x, z); };
     const arc = (cx, cz, Rr, a0, a1, rows, seed) => { const n = Math.floor(Rr * (a1 - a0) / (BR.w + 0.01));
       for (let col = 0; col < n; col++) { const top = Math.floor(rows * (0.15 + 0.85 * Math.pow(vnoise(col * 0.28 + seed, seed * 1.7), 1.4)));
@@ -225,6 +225,27 @@ export function buildVillage(root, isl, TX) {
     for (const u of [0.12, 0.42, 0.7]) { const p = pathPoint(u), side = u === 0.42 ? -1 : 1, x = p.x + side * 0.45, z = p.z + 0.05, g = new THREE.Group(); g.position.set(x, H(x, z), z);
       g.add(mesh(B(0.05, 0.85, 0.05), M.timber, 0, 0.42, 0)); g.add(mesh(B(0.28, 0.04, 0.04), M.timber, -side * 0.12, 0.83, 0)); g.add(mesh(B(0.1, 0.13, 0.1), M.iron, -side * 0.22, 0.72, 0));
       place(g, x, z); burnable(g, '灯の柱', 3, 'dry'); KEEP.push({ x, z, r: 0.15 }); }
+  }
+
+  // ── 村人のあと（PLAN.md 2.9章。人は出さない）: 村人は先に別の舟島で岸へ渡った ──
+  // 戸口に置いていった荷物（包みと小さな箱）。くべられる
+  { const R = rng(71), cloth = texMat('#6b5a48', TX.bark, 3, { roughness: 1 });
+    for (const h of houses) {
+      h.g.updateMatrixWorld(true); const p = h.g.localToWorld(new THREE.Vector3(0.08, 0, 0.75)), x = p.x, z = p.z, g = new THREE.Group(); g.position.set(x, H(x, z), z); g.rotation.y = R() * 6;
+      const sack = mesh(new THREE.SphereGeometry(0.11, 9, 7), cloth, 0, 0.08, 0); sack.scale.set(1, 0.75, 0.85); g.add(sack); g.add(mesh(new THREE.CylinderGeometry(0.025, 0.04, 0.06, 6), cloth, 0, 0.17, 0)); // 口をしばった包み
+      g.add(mesh(B(0.16, 0.1, 0.11), M.wood, 0.17, 0.05, 0.04, 0, 0.4, 0)); g.add(mesh(B(0.17, 0.02, 0.12), M.iron, 0.17, 0.1, 0.04, 0, 0.4, 0));
+      place(g, x, z, 0.15); burnable(g, '荷物', 3, 'dry'); KEEP.push({ x, z, r: 0.3 });
+    }
+  }
+  // 切れたもやい綱: 行く先がわ（はじめのカメラの向こう、少し左）のふちの杭から、ちぎれた綱が奈落へ垂れる
+  { const a = Math.atan2(-Math.cos(0.85), -Math.sin(0.85)) + 0.25, r = rimRadius(a) * 0.9, x = Math.cos(a) * r, z = Math.sin(a) * r, y = H(x, z), g = new THREE.Group(); g.position.set(x, y, z);
+    const rope = texMat('#7a6248', TX.bark, 4, { roughness: 1 });
+    g.add(mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.55, 7), M.timber, 0, 0.2, 0, 0.08, 0, -0.1));
+    const o = new THREE.Vector3(Math.cos(a), 0, Math.sin(a)), d = rimRadius(a) - r + 0.25;
+    const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0.36, 0), o.clone().multiplyScalar(d * 0.5).setY(0.1), o.clone().multiplyScalar(d).setY(-0.15), o.clone().multiplyScalar(d + 0.1).setY(-0.8), o.clone().multiplyScalar(d + 0.05).setY(-1.3)]);
+    g.add(mesh(new THREE.TubeGeometry(curve, 24, 0.018, 5), rope)); g.add(mesh(new THREE.TorusGeometry(0.06, 0.016, 5, 10), rope, 0, 0.34, 0, Math.PI / 2, 0, 0)); // 杭に巻いた輪
+    const end = curve.getPoint(1); for (let k = 0; k < 4; k++) g.add(mesh(new THREE.CylinderGeometry(0.003, 0.005, 0.12, 3), rope, end.x + (k - 1.5) * 0.008, end.y - 0.05, end.z, 0, 0, (k - 1.5) * 0.25)); // ほつれた端
+    place(g, x, z); KEEP.push({ x, z, r: 0.35 });
   }
 
   // ── 踏み石・岩・草・光るきのこ（塊ごとにまとめる） ──
