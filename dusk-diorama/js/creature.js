@@ -68,6 +68,7 @@ export function makeSalamander(parent) {
   const st = { ang: 0.3, target: 0.3, walk: 0, step: 0, look: 0, peek: 0, curl: 0, next: 4, run: 2, halt: 0, go: 1, headYaw: 0, puff: 0 };
   const v = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
   const ctl = { rOv: null, hold: false, goal: null, curl: false, peek: null }; // 外から動かす: 手本の半径の上書き・止まらない・goal＝闇へ歩いていく先（{x, z}）・curl＝丸くなる・peek＝見上げる手の位置（{x, z}。つまむ前・運ぶあいだ）
+  const gy = (x, z) => ctl.ground ? ctl.ground(x, z) : H(x, z); // 地面の高さ（崖の場面では、岸と桟橋の上も歩く）
   function update(t, dt, { F, flare, lost }) {
     // いる場所: 火のまわりの輪の上。ときどき少し歩いて場所をかえる
     st.next -= dt;
@@ -113,7 +114,7 @@ export function makeSalamander(parent) {
       }
       const wave = Math.sin(st.step - i * 0.75) * (0.006 + 0.03 * st.walk) * (0.4 + u) * (1 - st.curl), wx = x - Math.sin(a) * wave, wz = z + Math.cos(a) * wave;
       const breath = 1 + 0.04 * Math.sin(t * (1.6 - st.curl * 0.6)) * (i > 1 && i < 6 ? 1 : 0);
-      P[i].set(wx, H(wx, wz) + RADIUS[i] * 0.72 + (i === 0 ? 0.012 * K + lift + st.curl * 0.015 * K : 0) + (i === 1 ? lift * 0.45 : 0), wz);
+      P[i].set(wx, gy(wx, wz) + RADIUS[i] * 0.72 + (i === 0 ? 0.012 * K + lift + st.curl * 0.015 * K : 0) + (i === 1 ? lift * 0.45 : 0), wz);
       segs[i].position.copy(P[i]); segs[i].scale.set(RADIUS[i] * 1.25 * breath, RADIUS[i] * 0.78 * breath * (i === 0 ? 1 + 0.06 * st.puff : 1), RADIUS[i] * breath);
     }
     for (let i = 0; i < N; i++) { const a = P[Math.max(0, i - 1)], b = P[Math.min(N - 1, i + 1)]; v.subVectors(a, b); segs[i].rotation.set(0, Math.atan2(-v.z, v.x), Math.atan2(v.y, Math.hypot(v.x, v.z))); }
@@ -129,7 +130,7 @@ export function makeSalamander(parent) {
       const swing = Math.sin(st.step + L.ph) * 0.034 * K * st.walk, fwdx = Math.cos(q), fwdz = -Math.sin(q), tuck = 1 - 0.45 * st.curl; // 丸まると足をたたむ
       const sh = new THREE.Vector3(p.x + ox * RADIUS[L.i] * 0.8, p.y, p.z + oz * RADIUS[L.i] * 0.8);
       const raise = L.i === 2 && L.s === -peekSide ? 0.02 * K * st.peek : 0;
-      const fx2 = sh.x + ox * 0.045 * K * tuck + fwdx * swing, fz2 = sh.z + oz * 0.045 * K * tuck + fwdz * swing, foot = new THREE.Vector3(fx2, H(fx2, fz2) + 0.004 + Math.max(0, Math.cos(st.step + L.ph)) * 0.012 * K * st.walk * st.go + raise, fz2);
+      const fx2 = sh.x + ox * 0.045 * K * tuck + fwdx * swing, fz2 = sh.z + oz * 0.045 * K * tuck + fwdz * swing, foot = new THREE.Vector3(fx2, gy(fx2, fz2) + 0.004 + Math.max(0, Math.cos(st.step + L.ph)) * 0.012 * K * st.walk * st.go + raise, fz2);
       const knee = sh.clone().lerp(foot, 0.5).add(new THREE.Vector3(ox * 0.012 * K, 0.022 * K, oz * 0.012 * K));
       for (const [m, a, b] of [[L.a, sh, knee], [L.b, knee, foot]]) { m.position.copy(a).lerp(b, 0.5); m.scale.set(1, a.distanceTo(b), 1); m.quaternion.setFromUnitVectors(up, v.subVectors(b, a).normalize()); }
       L.h.position.set(foot.x + fwdx * 0.006 * K, foot.y - 0.001, foot.z + fwdz * 0.006 * K); L.h.rotation.set(0, q, 0);
@@ -137,7 +138,7 @@ export function makeSalamander(parent) {
     { // 影: 頭から尾のつけ根（8節め）までの長さ、体の幅の 1.8 倍。丸まると丸く
       let cx = 0, cz = 0; for (let i = 0; i < 9; i++) { cx += P[i].x / 9; cz += P[i].z / 9; }
       const dx = P[0].x - P[7].x, dz = P[0].z - P[7].z, len = Math.hypot(dx, dz) + 0.1 * K, wid = RADIUS[4] * 2 * 1.8;
-      shade.position.set(cx, H(cx, cz) + 0.008, cz); shade.rotation.set(-Math.PI / 2, Math.atan2(-dz, dx), 0, 'YXZ'); shade.scale.set(Math.max(len * 1.25, wid), Math.max(wid * 1.15, len * 0.7 * st.curl), 1);
+      shade.position.set(cx, gy(cx, cz) + 0.008, cz); shade.rotation.set(-Math.PI / 2, Math.atan2(-dz, dx), 0, 'YXZ'); shade.scale.set(Math.max(len * 1.25, wid), Math.max(wid * 1.15, len * 0.7 * st.curl), 1);
     }
     // ふちの光: たき火の場所（世界の座標）。火が小さいほど弱く
     RIM.uFireW.value.set(FIRE.x, H(FIRE.x, FIRE.z) + 0.15, FIRE.z); g.localToWorld(RIM.uFireW.value); RIM.uRim.value = 0.6 * Math.min(1, 0.35 + F / 20);

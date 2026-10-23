@@ -33,7 +33,7 @@ export const WEATHER = [
   { id: 'ash', name: '灰の夜', line: '燃えるものを火にくべて、夜明けまで火を守れ' },
   { id: 'rain', name: '雨の夜', line: '外の薪はしけて、くすぶる。屋根の下の物はぬれない', burnMul: 1.15, wet: true },
   { id: 'wind', name: '風の夜', line: '光の輪が風下へずれる。夜のなかばで風が向きを変える', wind: 1.5 },
-  { id: 'fog', name: '霧の夜', line: '光の輪がせまい。かけらが近くまで多く漂ってくる', rMul: 0.78, returnsMul: 2, near: 0.5 },
+  { id: 'fog', name: '霧の夜', line: '光の輪がせまい。かけらが近くまで多く漂ってくる', rMul: 0.86, returnsMul: 1.4, near: 0.5 }, // v018: rMul 0.78・returnsMul 2 から（輪がせまく、灯と火トカゲの手数が1分に10回と忙しすぎた）
   { id: 'snow', name: '灰の雪の夜', line: '灰が火に積もって、火がすぐ弱る。夜が明けたら岸に着く', burnMul: 1.45 },
 ];
 export const NIGHTS = WEATHER.length;

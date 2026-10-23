@@ -45,6 +45,7 @@ export function makeShore(TX) {
   // 窓・灯台の灯は闇に沈めない（夜のうちから「先に着いた人の灯」が見える）
   const glow = new THREE.MeshBasicMaterial({ color: '#ffb35c', fog: false }); glow.userData.dark = true;
   const glass = new THREE.MeshBasicMaterial({ color: '#ffe2a8', fog: false }); glass.userData.dark = true;
+  const lhGlass = new THREE.MeshBasicMaterial({ color: '#ffe2a8', fog: false }); lhGlass.userData.dark = true; // 灯台の灯室（崖の場面では消えていて、火トカゲが火を分けるとともる）
 
   // ── 上の面: 格子を海岸線まで寄せる ──
   { const nx = 84, nz = 48, x0 = -32, x1 = 32, z0 = -34, pos = [], col = [], idx = [], c = new THREE.Color();
@@ -121,7 +122,7 @@ export function makeShore(TX) {
     t.add(mesh(new THREE.CylinderGeometry(0.95, 0.95, 0.12, 16), M.iron, 0, 6.75, 0)); // 回廊
     for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; t.add(mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.35, 4), M.iron, Math.cos(a) * 0.92, 6.95, Math.sin(a) * 0.92)); }
     t.add(mesh(new THREE.TorusGeometry(0.92, 0.015, 4, 24), M.iron, 0, 7.12, 0, Math.PI / 2, 0, 0));
-    t.add(mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.75, 12), glass, 0, 7.2, 0)); // 灯室
+    t.add(mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.75, 12), lhGlass, 0, 7.2, 0)); // 灯室
     for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; t.add(mesh(B(0.04, 0.8, 0.04), M.iron, Math.cos(a) * 0.5, 7.2, Math.sin(a) * 0.5)); }
     t.add(mesh(new THREE.ConeGeometry(0.62, 0.7, 12), M.iron, 0, 7.92, 0)); t.add(mesh(new THREE.SphereGeometry(0.08, 8, 6), M.iron, 0, 8.3, 0));
     lampAt.set(x, y + 7.1, z);
@@ -138,8 +139,8 @@ export function makeShore(TX) {
       const br = B(0.08, Math.hypot(1.8, 2.4), 0.08, 2.5); br.rotateX(Math.atan2(1.8, 2.4)); br.translate(s * 0.62, y - 1.5, z - 0.9); posts.push(br.toNonIndexed()); }
     for (const s of [-1, 1]) { const bo = new THREE.CylinderGeometry(0.08, 0.1, 0.3, 8); bo.translate(s * 0.55, y + 0.15, z1 - 0.2); posts.push(planarUV(bo.toNonIndexed(), 2)); } // もやい杭
     const pm = new THREE.Mesh(mergeGeometries(planks), M.wood), qm = new THREE.Mesh(mergeGeometries(posts), M.timber); pm.castShadow = pm.receiveShadow = qm.castShadow = true; g.add(pm, qm);
-    // 桟橋の先の灯（島を迎える）
-    const lp = new THREE.Group(); lp.position.set(0.6, y, z1 - 0.5); g.add(lp); lp.add(mesh(B(0.06, 1.0, 0.06), M.timber, 0, 0.5, 0)); lp.add(mesh(B(0.3, 0.04, 0.04), M.timber, -0.12, 0.98, 0)); lp.add(mesh(B(0.11, 0.14, 0.11), glass, -0.25, 0.86, 0)); }
+    // 桟橋の先の灯は、崖の場面の台（lamps.js の cliff）に
+  }
 
   // ── 先に着いた舟島（村人をのせてきた小さな浮き島）: 桟橋のわきに、綱でつないである ──
   const boat = new THREE.Group();
@@ -155,6 +156,24 @@ export function makeShore(TX) {
   const puffs = []; g.updateMatrixWorld(true);
   for (const [k, at] of chimneys.entries()) { if (k % 2) continue; const p0 = g.worldToLocal(at()); for (let i = 0; i < 8; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, color: '#8a8078', transparent: true, depthWrite: false })); s.userData = { p0, life: i / 8 * 5 }; g.add(s); puffs.push(s); } }
 
+  // ── 灯台の崖（PLAN.md 2.11）: 桟橋の先から岬の灯台の下まで、冷えた台を置く場所。5つめの前に割れ目、7つめは風の通り道 ──
+  const yp = topY(0, coast(0)) - 0.05, z1 = coast(0) + PIER_LEN;
+  const path = [[0.45, z1 - 0.6, 'pier'], [-0.45, z1 - 3.3, 'pier'], [0.45, 0.8, 'pier'], [-1.2, -1.9], [-3.6, -2.4], [-7.6, -1.2, 'gully'], [-9.0, -0.9, 'windy'], [-9.4, 0.6, 'last']]
+    .map(([x, z, tag]) => ({ x, z, y: tag === 'pier' ? yp : topY(x, z), pier: tag === 'pier', afterGully: tag === 'gully', windy: tag === 'windy', last: tag === 'last' }));
+  const gully = { x: -5.6, z: -1.8 };
+  { const Rg = rng(88), pts = [];
+    for (let i = 0; i <= 10; i++) pts.push([-0.45 - Rg() * 0.2, -1.7 + i * 0.34]); for (let i = 10; i >= 0; i--) pts.push([0.45 + Rg() * 0.2, -1.7 + i * 0.34]);
+    const sh = new THREE.Shape(); sh.moveTo(...pts[0]); for (const p of pts.slice(1)) sh.lineTo(...p);
+    const crack = new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshBasicMaterial({ color: '#020101' })); crack.rotation.x = -Math.PI / 2; crack.position.set(gully.x, topY(gully.x, gully.z) + 0.06, gully.z); g.add(crack); // 道を横切る裂け目
+    const lips = []; for (let i = 0; i < 14; i++) { const s = (i % 2 ? 1 : -1), zz = gully.z - 1.6 + (i >> 1) * 0.5, xx = gully.x + s * (0.6 + Rg() * 0.2), r = lumpyRock(0.12 + Rg() * 0.12, 300 + i, vnoise); r.translate(xx, topY(xx, zz) + 0.04, zz); lips.push(r); }
+    const lm = new THREE.Mesh(mergeGeometries(lips), M.rock); lm.castShadow = lm.receiveShadow = true; g.add(lm); }
+  // 残した家の数だけ、岸の空き地に新しい家（結末の分かれ。はじめは隠しておく）
+  const homes = [];
+  for (const [x, z, ry] of [[-2.4, -5.6, 0.4], [0.4, -6.8, -0.2], [-4.8, -6.4, 0.1]]) {
+    const h = new THREE.Group(), y = topY(x, z); h.position.set(x, y - 0.05, z); h.rotation.y = ry; h.visible = false; g.add(h); homes.push(h);
+    h.add(mesh(B(1.2, 0.16, 1.0), M.stone, 0, 0.02, 0)); h.add(mesh(B(1.1, 0.8, 0.9), M.plaster, 0, 0.48, 0)); h.add(mesh(prism(1.4, 0.65, 1.2), M.tile, 0, 0.88, 0));
+    h.add(mesh(B(0.24, 0.42, 0.03), M.wood, -0.25, 0.29, 0.47)); h.add(mesh(new THREE.PlaneGeometry(0.18, 0.2), glow, 0.25, 0.5, 0.455));
+  }
   fadeBottom(M.cliff);
   // 夜のあいだの遠い岸は、大地を出さず、灯台と港の灯の点だけ（大きさは画面で一定の小さな点）
   const dots = [], dotTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d'), gr = x.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,220,160,1)'); gr.addColorStop(0.4, 'rgba(255,170,80,.5)'); gr.addColorStop(1, 'rgba(255,140,60,0)'); x.fillStyle = gr; x.fillRect(0, 0, 32, 32); return new THREE.CanvasTexture(c); })();
@@ -162,5 +181,13 @@ export function makeShore(TX) {
   for (const d of dots) g.add(d);
   const land = []; g.traverse(o => { if ((o.isMesh || o.isInstancedMesh) && o.material !== glow && o.material !== glass) land.push(o); });
   g.userData.lamp = lampAt; g.userData.M = M;
-  return { group: g, lamp: lampAt, dots, fade(v) { FADE.value = v; for (const o of land) o.visible = v > 0.02; for (const d of dots) d.material.opacity = 1 - Math.min(1, v * 3); }, update(t, dt) { for (const s of puffs) { const u = s.userData; u.life = (u.life + dt) % 5; const k = u.life / 5; s.position.set(u.p0.x + k * 0.8 + Math.sin(t * 0.5 + k * 4) * 0.1, u.p0.y + k * 2.4, u.p0.z - k * 0.3); s.scale.setScalar(0.25 + k * 1.2); s.material.opacity = Math.sin(k * Math.PI) * 0.3; } boat.position.y += Math.sin(t * 0.9) * 0.0008; boat.rotation.z = Math.sin(t * 0.6) * 0.02; } };
+  // 灯台へのぼる火（火トカゲが分けた火が、塔をのぼって灯室へ）
+  const riser = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, color: '#ffb060', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); riser.visible = false; g.add(riser);
+  const towerFoot = new THREE.Vector3(-11, topY(-11, 1.2) + 0.5, 1.2);
+  const shoreGround = (lx, lz) => { if (Math.abs(lx) < 0.75 && lz > coast(0) - 0.9 && lz < z1 + 0.05) return yp; if (lz <= coast(lx) && Math.abs(lx) < 31 && lz > -33) return topY(lx, lz); return null; };
+  return { group: g, lamp: lampAt, path, gully, towerFoot, groundAt: shoreGround,
+    setLighthouse(k) { lhGlass.color.set('#2a1a12').lerp(new THREE.Color('#ffe2a8'), k); },
+    showHomes(n) { homes.forEach((h, i) => { h.visible = i < n; }); },
+    rise(k) { riser.visible = k >= 0 && k < 1; if (!riser.visible) return; riser.position.copy(towerFoot).lerp(lampAt, k); riser.scale.setScalar(0.5 + 0.3 * Math.sin(k * 30)); riser.material.opacity = 0.9; },
+    dots, fade(v) { FADE.value = v; for (const o of land) o.visible = v > 0.02; for (const d of dots) d.material.opacity = 1 - Math.min(1, v * 3); }, update(t, dt) { for (const s of puffs) { const u = s.userData; u.life = (u.life + dt) % 5; const k = u.life / 5; s.position.set(u.p0.x + k * 0.8 + Math.sin(t * 0.5 + k * 4) * 0.1, u.p0.y + k * 2.4, u.p0.z - k * 0.3); s.scale.setScalar(0.25 + k * 1.2); s.material.opacity = Math.sin(k * Math.PI) * 0.3; } boat.position.y += Math.sin(t * 0.9) * 0.0008; boat.rotation.z = Math.sin(t * 0.6) * 0.02; } };
 }
