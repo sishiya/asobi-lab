@@ -262,7 +262,7 @@ export function buildVillage(root, isl, TX) {
   // 流木: くっついたかけらに乗ってくる燃料（白っぽく乾いた、ねじれた木）
   const driftMat = texMat('#8a7d6c', TX.bark, 2);
   function addDriftwood(c, fuel) {
-    const R = rng(c.id * 31 + burnables.length), a = R() * 6.28, x = c.cx + Math.cos(a) * c.rad * 0.25, z = c.cz + Math.sin(a) * c.rad * 0.25, g = new THREE.Group();
+    const R = rng(c.id * 31 + burnables.length), a = R() * 6.28, d = c.rad * (0.15 + 0.45 * R()), x = c.cx + Math.cos(a) * d, z = c.cz + Math.sin(a) * d, g = new THREE.Group();
     g.position.set(x, H(x, z) + 0.05, z); g.rotation.y = R() * 6;
     const main = new THREE.CylinderGeometry(0.035, 0.055, 0.7, 7, 4), p = main.attributes.position; for (let j = 0; j < p.count; j++) p.setX(j, p.getX(j) + Math.sin(p.getY(j) * 6) * 0.02); main.computeVertexNormals();
     g.add(mesh(main, driftMat, 0, 0, 0, 0, 0, Math.PI / 2)); g.add(mesh(new THREE.CylinderGeometry(0.012, 0.025, 0.25, 5), driftMat, 0.12, 0.05, 0.06, 0.6, 0, Math.PI / 2 - 0.7));

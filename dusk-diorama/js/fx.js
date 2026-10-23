@@ -25,6 +25,7 @@ function particles(n, opt) {
   return { p, n, pos: g.attributes.position, size: g.attributes.aSize, col: g.attributes.aCol, data: Array.from({ length: n }, () => ({ life: 0, max: 1, x: 0, y: -99, z: 0, vx: 0, vy: 0, vz: 0, s: 0.05 })) };
 }
 
+const ZERO = { x: 0, z: 0 };
 export function makeFx(root) {
   const fy = H(FIRE.x, FIRE.z), dot = softDot();
   // 炎: 2枚の板（いつもカメラに向く向きを y で回す）
@@ -58,17 +59,22 @@ export function makeFx(root) {
   const smokeTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
   const smoke = particles(70, { add: false, tex: smokeTex, order: 3 });
   for (const P of [embers, ash, dust, smoke]) root.add(P.p);
+  // 雨: 落ちる線
+  const RN = 900, rainPos = new Float32Array(RN * 6), rainData = Array.from({ length: RN }, () => ({ x: (Math.random() - .5) * 22, y: Math.random() * 16 - 4, z: (Math.random() - .5) * 22, v: 9 + Math.random() * 4 }));
+  const rainGeo = new THREE.BufferGeometry(); rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+  const rain = new THREE.LineSegments(rainGeo, new THREE.LineBasicMaterial({ color: '#c9b8b0', transparent: true, opacity: 0, depthWrite: false, fog: false }));
+  rain.frustumCulled = false; root.add(rain);
   for (const d of ash.data) { d.x = (Math.random() - .5) * 20; d.y = Math.random() * 14 - 3; d.z = (Math.random() - .5) * 20; d.s = 0.03 + Math.random() * 0.05; d.ph = Math.random() * 9; d.sp = 0.2 + Math.random() * 0.3; }
 
   let flare = 0, emberAcc = 0, smokeAcc = 0, ri = 0;
   const spawn = (P, f) => { for (let k = 0; k < P.n; k++) { ri = (ri + 1) % P.n; const d = P.data[ri]; if (d.life <= 0) { f(d); return d; } } };
 
   // 毎こま。F = 燃料、smokeK = 生木などのけむり（0〜1）、camYaw = カメラの向き
-  function update(t, dt, { F, smokeK, camera, out }) {
+  function update(t, dt, { F, smokeK, camera, out, wind = ZERO, rainK = 0, ashK = 1 }) {
     const k = Math.sqrt(Math.min(1, F / 40)) + flare * 0.6, alive = F > 0;
     flare = Math.max(0, flare - dt * 0.8);
-    const yaw = Math.atan2(camera.position.x - FIRE.x, camera.position.z - FIRE.z);
-    flames.forEach((m, i) => { const hgt = 0.45 + 1.7 * k, wid = 0.32 + 0.55 * k; m.scale.set(wid * (1 - i * 0.3), hgt * (1 - i * 0.25), 1); m.position.set(FIRE.x, fy + 0.08 + m.scale.y / 2, FIRE.z); m.rotation.set(0, yaw + i * 0.9, 0); m.material.uniforms.t.value = t; m.material.uniforms.power.value = alive ? 1 : 0; m.visible = alive; });
+    const yaw = Math.atan2(camera.position.x - FIRE.x, camera.position.z - FIRE.z), lean = 0.12 * k;
+    flames.forEach((m, i) => { const hgt = 0.45 + 1.7 * k, wid = 0.32 + 0.55 * k; m.scale.set(wid * (1 - i * 0.3), hgt * (1 - i * 0.25), 1); m.position.set(FIRE.x + wind.x * lean, fy + 0.08 + m.scale.y / 2, FIRE.z + wind.z * lean); /* 風下へかたむく */ m.rotation.set(0, yaw + i * 0.9, 0); m.material.uniforms.t.value = t; m.material.uniforms.power.value = alive ? 1 : 0; m.visible = alive; });
     coalMat.uniforms.t.value = t; coalMat.uniforms.power.value = alive ? 0.9 + k : Math.max(0.25, 0.8 - out * 0.06);
     charMat.emissiveIntensity = alive ? 0.5 + k : 0.25;
     light.intensity = alive ? (5 + 22 * k) * (0.82 + 0.12 * Math.sin(t * 11) + 0.06 * Math.sin(t * 27.3)) : 1.5; light.distance = 4 + 9 * k;
@@ -76,21 +82,25 @@ export function makeFx(root) {
     emberAcc += dt * (alive ? 10 + 60 * k : 1.5);
     while (emberAcc > 1) { emberAcc--; spawn(embers, d => { d.x = FIRE.x + (Math.random() - .5) * 0.3 * (0.5 + k); d.z = FIRE.z + (Math.random() - .5) * 0.3 * (0.5 + k); d.y = fy + 0.2 + Math.random() * 0.3 * k; d.vx = (Math.random() - .5) * 0.4; d.vz = (Math.random() - .5) * 0.4; d.vy = 0.6 + Math.random() * 1.6 * (0.4 + k); d.max = d.life = 1.2 + Math.random() * 2.2; d.s = 0.03 + Math.random() * 0.05; d.ph = Math.random() * 9; }); }
     for (let i = 0; i < embers.n; i++) { const d = embers.data[i];
-      if (d.life > 0) { d.life -= dt; d.vx += Math.sin(t * 3 + d.ph) * 0.6 * dt; d.vz += Math.cos(t * 2.3 + d.ph) * 0.6 * dt; d.vy -= 0.15 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.z += d.vz * dt; }
+      if (d.life > 0) { d.life -= dt; d.vx += Math.sin(t * 3 + d.ph) * 0.6 * dt; d.vz += Math.cos(t * 2.3 + d.ph) * 0.6 * dt; d.vy -= 0.15 * dt; d.x += (d.vx + wind.x * 0.9) * dt; d.z += wind.z * 0.9 * dt; d.y += d.vy * dt; d.z += d.vz * dt; }
       const a = Math.max(0, d.life / d.max), tw = 0.6 + 0.4 * Math.sin(t * 20 + d.ph);
       embers.pos.setXYZ(i, d.x, d.life > 0 ? d.y : -99, d.z); embers.size.setX(i, d.s * (0.5 + a)); embers.col.setXYZW(i, 1, 0.35 + 0.4 * a, 0.08 * a, a * tw);
     }
     // けむり
     smokeAcc += dt * (alive ? 2 + 10 * smokeK : 0.6);
     while (smokeAcc > 1) { smokeAcc--; spawn(smoke, d => { d.x = FIRE.x; d.z = FIRE.z; d.y = fy + 0.5 + k * 0.6; d.vx = 0.15 + Math.random() * 0.1; d.vz = -0.08 + (Math.random() - .5) * 0.1; d.vy = 0.5 + Math.random() * 0.3; d.max = d.life = 5 + Math.random() * 3; d.s = 0.5; }); }
-    for (let i = 0; i < smoke.n; i++) { const d = smoke.data[i]; if (d.life > 0) { d.life -= dt; d.x += d.vx * dt; d.y += d.vy * dt; d.z += d.vz * dt; }
+    for (let i = 0; i < smoke.n; i++) { const d = smoke.data[i]; if (d.life > 0) { d.life -= dt; d.x += (d.vx + wind.x * 0.8) * dt; d.y += d.vy * dt; d.z += (d.vz + wind.z * 0.8) * dt; }
       const a = Math.max(0, d.life / d.max), age = 1 - a; smoke.pos.setXYZ(i, d.x, d.life > 0 ? d.y : -99, d.z); smoke.size.setX(i, 0.4 + age * 2.6); smoke.col.setXYZW(i, 0.42, 0.37, 0.34, Math.sin(a * Math.PI) * (0.18 + 0.25 * smokeK)); }
     // 灰: ひらひら回りながら落ちる（小さい灰は速く、大きい灰はゆっくり）
-    for (let i = 0; i < ash.n; i++) { const d = ash.data[i]; d.y -= d.sp * dt * (0.06 / d.s) * 0.5; if (d.y < -8) { d.y = 12; d.x = (Math.random() - .5) * 20; d.z = (Math.random() - .5) * 20; }
-      const fl = Math.sin(t * 1.7 + d.ph); ash.pos.setXYZ(i, d.x + Math.sin(t * 0.5 + d.ph) * 0.5, d.y, d.z + Math.cos(t * 0.4 + d.ph) * 0.35); ash.size.setX(i, d.s * (0.6 + 0.4 * Math.abs(fl))); const g = 0.55 + 0.2 * fl; ash.col.setXYZW(i, g, g * 0.92, g * 0.86, 0.55); }
+    for (let i = 0; i < ash.n; i++) { const d = ash.data[i]; d.y -= d.sp * dt * (0.06 / d.s) * 0.5 * (0.6 + 0.4 * ashK); d.x += wind.x * 1.4 * dt; d.z += wind.z * 1.4 * dt; if (d.y < -8 || Math.abs(d.x) > 12 || Math.abs(d.z) > 12) { d.y = d.y < -8 ? 12 : d.y; d.x = (Math.random() - .5) * 20 - wind.x * 4; d.z = (Math.random() - .5) * 20 - wind.z * 4; }
+      const fl = Math.sin(t * 1.7 + d.ph); ash.pos.setXYZ(i, d.x + Math.sin(t * 0.5 + d.ph) * 0.5, d.y, d.z + Math.cos(t * 0.4 + d.ph) * 0.35); ash.size.setX(i, d.s * (0.6 + 0.4 * Math.abs(fl)) * (0.7 + 0.5 * ashK)); const g = 0.55 + 0.2 * fl; ash.col.setXYZW(i, g, g * 0.92, g * 0.86, 0.55); }
     // 土ぼこり・こぼれる土
     for (let i = 0; i < dust.n; i++) { const d = dust.data[i]; if (d.life > 0) { d.life -= dt; d.vy -= 6 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.z += d.vz * dt; }
       const a = Math.max(0, d.life / d.max); dust.pos.setXYZ(i, d.x, d.life > 0 ? d.y : -99, d.z); dust.size.setX(i, d.s); dust.col.setXYZW(i, 0.3, 0.24, 0.19, Math.min(1, a * 2)); }
+    // 雨
+    rain.material.opacity = 0.35 * rainK; rain.visible = rainK > 0.01;
+    if (rain.visible) { for (let i = 0; i < RN; i++) { const d = rainData[i]; d.y -= d.v * dt; d.x += wind.x * 3 * dt; if (d.y < -6) { d.y = 12; d.x = (Math.random() - .5) * 22; d.z = (Math.random() - .5) * 22; }
+      rainPos.set([d.x, d.y, d.z, d.x - 0.02, d.y + 0.35, d.z], i * 6); } rainGeo.attributes.position.needsUpdate = true; }
     for (const P of [embers, ash, dust, smoke]) { P.pos.needsUpdate = P.size.needsUpdate = P.col.needsUpdate = true; P.p.material.uniforms.scale.value = innerHeight * 0.9; }
   }
   // くべた瞬間

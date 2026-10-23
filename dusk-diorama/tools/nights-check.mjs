@@ -9,7 +9,9 @@ try {
   const ctx = await safeContext(browser, server.origin, { width: 640, height: 480 });
   const page = await ctx.newPage(); const errors = []; page.on('pageerror', e => errors.push(String(e.message || e)));
   await page.goto(`${server.origin}/dusk-diorama/?auto=1&speed=10`); await page.waitForFunction(() => window.__game, null, { timeout: 60000 });
-  for (let n = 1; n <= nights; n++) {
+  const fromRock = process.argv.includes('--rock'); // 岩だけから（呑まれたあと）の巻き返しを見る
+  if (fromRock) await page.evaluate(() => { const G = window.__game; for (const c of G.isl.chunks) if (!c.fixed) { G.fall(c); c.group.visible = false; c.group.position.y = -60; } G.startNight(2); });
+  for (let n = fromRock ? 2 : 1; n <= nights; n++) {
     const run = page.evaluate(async ({ target }) => {
       const G = window.__game, dist = b => { const p = b.obj.getWorldPosition(new b.obj.position.constructor()); return Math.hypot(p.x - G.FIRE.x, p.z - G.FIRE.z); };
       const area = () => Math.round(100 * G.isl.chunks.filter(c => !c.fallen).reduce((s, c) => s + c.quads.length, 0) / G.isl.chunks.reduce((s, c) => s + c.quads.length, 0));

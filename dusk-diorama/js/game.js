@@ -1,7 +1,7 @@
 // 夜明けまでの島（段階A）: つまんで火にくべる。輪の外の島は崩れて落ちる。夜明けに何が残ったか
 import * as THREE from 'three';
 import { rng, H, FIRE } from './util.js';
-import { RULE, BURN, lightRadius, stepFire, stepChunk, darkness } from './rules.js';
+import { RULE, BURN, WEATHER, NIGHTS, lightRadius, stepFire, stepChunk, darkness } from './rules.js';
 import { textures } from './tex.js';
 import { buildIsland, chunkIdAt } from './island.js';
 import { buildVillage } from './village.js';
@@ -20,6 +20,18 @@ const fx = makeFx(scene);
 const C0 = isl.chunks.find(c => c.fixed);
 for (const o of fx.fireParts) C0.group.attach(o); // たき火は火の番の岩（まん中の塊）の上
 const sal = makeSalamander(C0.group); // 火の番の火トカゲ
+// 夜明けの岸（第5夜に、遠くの闇から近づいてくる黒い崖。うしろに朝の光）
+const shore = (() => {
+  const g = new THREE.Group(), m = new THREE.MeshStandardMaterial({ color: '#2a1a14', roughness: 1, flatShading: true, fog: true });
+  // 岸も浮かぶ大地（この世界の地面はみな宙に浮く）: 広い上の面と、ぎざぎざの下の岩。上に丘
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(34, 30, 3, 11), m); top.scale.z = 0.45; g.add(top);
+  for (let i = 0; i < 14; i++) { const r = 4 + Math.random() * 6, h = 8 + Math.random() * 20, c = new THREE.Mesh(new THREE.ConeGeometry(r, h, 5), m); c.rotation.x = Math.PI; c.position.set((Math.random() - .5) * 52, -1.5 - h / 2, (Math.random() - .5) * 18); g.add(c); }
+  for (let i = 0; i < 7; i++) { const r = 3 + Math.random() * 5, h = 2 + Math.random() * 4, c = new THREE.Mesh(new THREE.ConeGeometry(r, h, 6), m); c.position.set((Math.random() - .5) * 46, 1.5 + h / 2, (Math.random() - .5) * 8); g.add(c); }
+  const soft = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: soft, color: '#ffd29a', transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  glow.scale.set(110, 40, 1); glow.position.set(0, 4, -14); g.add(glow); g.userData.glow = glow;
+  g.position.set(0, -46, -100); g.visible = false; scene.add(g); return g;
+})();
 scene.traverse(o => { if (o.isMesh || o.isInstancedMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach(patchDark); });
 mountAudioPanel();
 const fireY = H(FIRE.x, FIRE.z);
@@ -28,7 +40,7 @@ for (const c of isl.chunks) c.dist = Math.max(0, Math.hypot(c.cx - FIRE.x, c.cz 
 const totalArea = isl.chunks.reduce((s, c) => s + c.quads.length, 0);
 
 // ── 状態 ──
-const st = { night: 1, t: 0, F: RULE.fuel0, burning: [], out: 0, phase: 'title', shownR: lightRadius(RULE.fuel0), dawnK: 0, burnedAny: false, returns: [] };
+const st = { W: WEATHER[0], night: 1, t: 0, F: RULE.fuel0, burning: [], out: 0, phase: 'title', shownR: lightRadius(RULE.fuel0), dawnK: 0, burnedAny: false, returns: [] };
 let carry = null, hover = null;
 const loose = []; // 島の外へ落とした物
 
@@ -103,8 +115,9 @@ function putDown(b, p) {
 const carry0 = b => b._off || (b._off = new THREE.Vector3());
 function burn(b) {
   b.burned = true; st.burnedAny = true;
-  const B = BURN[b.kind];
-  st.burning.push({ left: b.fuel, total: b.fuel, secs: B.secs, smoke: B.smoke });
+  const B = BURN[b.kind], wet = st.W.wet && !underRoof(b);
+  // 雨の夜: 外に出ていた薪はしけて、燃料が少なく、ゆっくりくすぶる
+  st.burning.push(wet ? { left: b.fuel * 0.8, total: b.fuel * 0.8, secs: B.secs * 3, smoke: 1 } : { left: b.fuel, total: b.fuel, secs: B.secs, smoke: B.smoke });
   // くべる動き: 火の上で小さくなって消える
   sinking.push({ obj: b.obj, t: 0 });
   fx.burst(Math.min(1.3, b.fuel / 9)); R3.grade.uniforms.flash.value = Math.min(0.12, 0.03 + b.fuel / 200);
@@ -112,9 +125,18 @@ function burn(b) {
   if (b.rootChunk !== undefined) { const c = isl.all[b.rootChunk]; c.root = false; c.s = Math.max(0.05, c.s - RULE.rootShock); shake.push({ c, t: 0.6 }); } // 根がなくなる
   if (b.house && b.house.roof === b) b.house.roofless = true;
   $('hint').hidden = true;
-  showToast(`${b.name}をくべた`);
+  showToast(wet ? `しけた${b.name}は、くすぶる` : `${b.name}をくべた`);
 }
 const sinking = [], shake = [];
+// 屋根の下の物（雨でぬれない）: 屋根のある家の部品と、そのそばの物
+function underRoof(b) {
+  if (b.house) return !b.house.roofless || b === b.house.roof;
+  const p = centerOf(b.obj);
+  return V.houses.some(h => !h.roofless && !h.g.userData.fallen && Math.hypot(p.x - h.x, p.z - h.z) < 1.15);
+}
+// 光の輪の中心（風の夜は風下へずれる）
+const ringC = new THREE.Vector3();
+function windVec() { const W = st.W; if (!W.wind) return { x: 0, z: 0 }; const a = st.windAng + (st.t > RULE.night / 2 ? Math.min(1, (st.t - RULE.night / 2) / 6) * 2.2 : 0); return { x: Math.cos(a), z: Math.sin(a), s: W.wind }; }
 
 // ── 塊が落ちる ──
 function fall(c) {
@@ -150,7 +172,8 @@ function hud() {
 
 function result(won) {
   st.phase = won ? 'dawn' : 'lost';
-  $('next').textContent = won ? '次の夜へ' : '岩から出直す';
+  const last = won && st.night >= NIGHTS;
+  $('next').textContent = won ? '次の夜へ' : '岩から出直す'; $('next').hidden = last;
   if (won) { showResult(true); st.resTimer = setTimeout(() => { $('result').hidden = false; }, 3500); }
   // 呑まれたときは、島が崩れきってから（まん中の塊も最後に落ちる）出す
 }
@@ -162,8 +185,9 @@ function showResult(won) {
     const graves = V.graves.filter(g => !g.g.userData.fallen).length, trees = V.trees.filter(t => !t.burned && !t.lost).length;
     rows = [['島の広さ', `${Math.round(area * 100)}%`], ['屋根のある家', `${roofed} / ${V.houses.length}`], ['礼拝堂', V.chapel.g.userData.fallen ? '落ちた' : '残った'], ['墓', `${graves} / ${V.graves.length}`], ['木', `${trees} / ${V.trees.length}`]];
   } else rows = [['もちこたえた', `${Math.round(st.tEnd)} / ${RULE.night} 秒`], ['くべたもの', `${V.burnables.filter(b => b.burned).length}`]];
-  $('resTitle').textContent = won ? `第${st.night}夜が明けた` : `第${st.night}夜、島は夜に呑まれた`;
-  $('resLead').textContent = won ? '残ったものに、朝の色がもどる。' : '火の番の岩だけが、おき火を抱いて漂っている。';
+  const last = won && st.night >= NIGHTS;
+  $('resTitle').textContent = last ? '夜明けの岸に着いた' : won ? `第${st.night}夜が明けた` : `第${st.night}夜、島は夜に呑まれた`;
+  $('resLead').textContent = last ? ending() : won ? '残ったものに、朝の色がもどる。' : '火の番の岩だけが、おき火を抱いて漂っている。';
   $('resRows').innerHTML = rows.map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
   $('resRows').style.gridTemplateColumns = `repeat(${rows.length}, 1fr)`;
 }
@@ -174,16 +198,32 @@ if (QS.get('auto')) { $('title').hidden = true; startNight(+QS.get('night') || 1
 // ── はじめる ──
 $('start').addEventListener('click', () => { $('title').hidden = true; startNight(1); startAudio(); });
 $('again').addEventListener('click', () => location.reload());
-$('next').addEventListener('click', () => startNight(st.night + 1));
+$('next').addEventListener('click', () => startNight(Math.min(NIGHTS, st.night + 1)));
+// 岸に着いたときの言葉（持って着いた物で変わる）
+function ending() {
+  const area = isl.chunks.filter(c => !c.fallen).reduce((s, c) => s + c.quads.length, 0) / totalArea, roofed = V.houses.filter(h => !h.g.userData.fallen && !h.roofless).length;
+  if (area > 0.8 && roofed >= 2) return '村ごと、岸に着いた。火トカゲは、新しい朝のそばで眠る。';
+  if (roofed >= 1) return '家と火種をのせて、島は岸に着いた。';
+  if (area < 0.15) return '火の番の岩だけが、岸に流れ着いた。火トカゲが、最初の火をおこす。';
+  return '欠けた島が、岸に着いた。おき火は、まだ温かい。';
+}
 
 // ── 次の夜（光で拾う。PLAN.md 2.7章）: 落ちたかけらが闇を漂って浮かび、光の輪がとどけば元の場所にくっつく ──
 function startNight(n) {
-  Object.assign(st, { night: n, t: 0, F: RULE.fuel0, burning: [], out: 0, phase: 'play', dawnK: 0, shown: false, lastT: 0, drift: 0, tEnd: 0 });
+  const W = WEATHER[Math.min(n, NIGHTS) - 1];
+  Object.assign(st, { W, night: n, t: 0, F: RULE.fuel0, burning: [], out: 0, phase: 'play', dawnK: 0, shown: false, lastT: 0, drift: 0, tEnd: 0, burnMul: W.burnMul || 1, windAng: Math.random() * Math.PI * 2 });
+  R3.setWeather({ fog: W.id === 'fog' ? 1 : 0, rain: W.wet ? 1 : 0 });
+  shore.visible = n >= NIGHTS; shore.position.set(0, -60, -115); shore.scale.setScalar(0.75);
+  const wx = $('wx'); wx.innerHTML = `<b>第${n}夜　${W.name}</b><span>${W.line}</span>`; wx.classList.add('on'); clearTimeout(st.wxT); st.wxT = setTimeout(() => wx.classList.remove('on'), 6500);
   C0.group.position.set(0, 0, 0); C0.group.rotation.set(0, 0, 0);
   clearTimeout(st.resTimer); $('result').hidden = true; R3.setDawn(0); // 前の夜の結果が遅れて出ないように
   // 浮かんでくる時刻（はじめの12秒は崩れを見せるので、そのあと）
-  st.returns = Array.from({ length: n > 1 ? RULE.returns : 0 }, (_, i) => 12 + (i + Math.random() * 0.8) * (RULE.night - 40) / RULE.returns);
-  showToast(`第${n}夜`);
+  // 流れ着いた流木（立っている塊に。岩だけなら岩に）
+  const stand = isl.chunks.filter(c => !c.fallen);
+  for (let i = 0; i < (RULE.washUp[Math.min(n, NIGHTS) - 1] || 0); i++) { const c = stand[Math.floor(Math.random() * stand.length)], w = V.addDriftwood(c, RULE.washFuel); w.obj.traverse(o => { if (o.isMesh) patchDark(o.material); }); }
+  // 浮かぶかけらの数: 島が小さいほど多い（岩だけからでも巻き返せるように）
+  const fallenN = isl.chunks.filter(c => c.fallen).length, nRet = n > 1 ? Math.round((RULE.returns + fallenN * RULE.catchUp) * (W.returnsMul || 1)) : 0;
+  st.returns = Array.from({ length: nRet }, (_, i) => 10 + (i + Math.random() * 0.8) * (RULE.night - 30) / Math.max(1, nRet));
 }
 function exposedOf(c) { return c.rim || [...c.neighbors].some(n => isl.all[n].fallen); }
 // 浮かばせるかけら: 島のとなり（立っている塊と接する落ちた塊）から
@@ -211,7 +251,7 @@ function stepDrift(dt, R) {
     d.age += dt;
     const bob = Math.sin(d.age * 1.3 + d.seed) * 0.12, tilt = Math.sin(d.age * 0.7 + d.seed) * 0.05;
     if (d.mode === 'up') {
-      const k = Math.min(1, d.age / 4), away = 1.4 + 0.4 * Math.sin(d.age * 0.4 + d.seed);
+      const k = Math.min(1, d.age / 4), away = (1.4 + 0.4 * Math.sin(d.age * 0.4 + d.seed)) * (st.W.near || 1);
       c.group.position.set(d.out.x * away, -7 + 6.2 * (1 - (1 - k) ** 3) + bob, d.out.z * away);
       c.group.rotation.set(tilt, Math.sin(d.age * 0.2 + d.seed) * 0.1, tilt * 0.7);
       const near = [...c.neighbors].some(n => !isl.all[n].fallen);
@@ -235,8 +275,11 @@ function frame(now) {
   if (st.phase === 'play') {
     st.t += dt;
     stepFire(st, dt);
-    const R = lightRadius(st.F);
+    const R = lightRadius(st.F) * (st.W.rMul || 1), w = windVec();
+    ringC.set(FIRE.x + w.x * (w.s || 0) * R / RULE.rMax, fireY, FIRE.z + w.z * (w.s || 0) * R / RULE.rMax);
+    for (const c of isl.chunks) c.dist = Math.max(0, Math.hypot(c.cx - ringC.x, c.cz - ringC.z) - 0.45 * c.rad);
     for (const c of isl.chunks) { if (!c.drift && stepChunk(c, R, dt)) fall(c); }
+    if (shore.visible) { const k = st.t / RULE.night; const dd = 115 - 30 * k; shore.position.set(-Math.sin(0.55) * dd, -52 + 24 * k, -Math.cos(0.55) * dd); shore.rotation.y = 0.55; /* 遠くの闇から、だんだん近づく */ }
     while (st.returns.length && st.t >= st.returns[0]) { st.returns.shift(); surface(); }
     stepDrift(dt, R);
     if (st.out > RULE.emberGrace) { st.tEnd = st.t; result(false); }
@@ -251,7 +294,8 @@ function frame(now) {
     st.drift = (st.drift || 0) + dt; const k = Math.min(1, st.drift / 4);
     C0.group.position.set(0, (Math.sin(st.drift * 0.5) * 0.18 - 0.2) * k, 0); C0.group.rotation.set(Math.sin(st.drift * 0.31) * 0.03 * k, Math.sin(st.drift * 0.2) * 0.05, Math.cos(st.drift * 0.27) * 0.03 * k);
   }
-  const Rt = st.phase === 'lost' ? RULE.emberR : lightRadius(st.F);
+  const Rt = st.phase === 'lost' ? RULE.emberR : lightRadius(st.F) * (st.W.rMul || 1);
+  DARK.uFire.value.lerp(st.phase === 'play' ? ringC : new THREE.Vector3(FIRE.x, fireY, FIRE.z), Math.min(1, dt * 2));
   st.shownR += (Rt + fx.flare * 0.4 - st.shownR) * Math.min(1, dt * 3);
   if (st.phase === 'dawn') st.dawnK = Math.min(1, st.dawnK + dt / 4);
   DARK.uR.value = st.shownR; DARK.uDark.value = 1 - st.dawnK; R3.setDawn(st.dawnK);
@@ -277,7 +321,9 @@ function frame(now) {
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').classList.remove('on'); }
   idle += dt; if (idle > 6 && !pointers.size && st.phase !== 'play') view.az += dt * 0.04;
   const smokeK = st.burning.reduce((s, b) => s + b.smoke * (b.left / b.total), 0);
-  fx.update(now / 1000, dt, { F: st.phase === 'lost' ? 0 : st.F, smokeK: Math.min(1, smokeK), camera, out: st.out });
+  const wv = windVec();
+  fx.update(now / 1000, dt, { F: st.phase === 'lost' ? 0 : st.F, smokeK: Math.min(1, smokeK), camera, out: st.out, wind: { x: wv.x * (wv.s || 0) * 0.6, z: wv.z * (wv.s || 0) * 0.6 }, rainK: st.W.wet && st.phase === 'play' ? 1 : 0, ashK: st.W.id === 'snow' ? 2.2 : 1 });
+  if (shore.visible) shore.userData.glow.material.opacity = 0.15 + 0.6 * st.dawnK;
   sal.update(now / 1000, dt, { F: st.phase === 'lost' ? 0 : st.F, flare: fx.flare, lost: st.phase === 'lost' });
   tickAudio({ fire: st.F > 0 ? 0.35 + 0.65 * Math.sqrt(st.F / RULE.fuelMax) : 0.15, walk: carry ? 1 : 0 });
   hud();

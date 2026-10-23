@@ -37,6 +37,7 @@ export function patchDark(mat) {
 }
 
 export function makeRenderer(canvas) {
+  const wx = { fog: 0, rain: 0 }; // 夜の空（setWeather）
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   const DPR = Math.min(2, devicePixelRatio || 1);
   renderer.setPixelRatio(DPR); renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -96,7 +97,7 @@ export function makeRenderer(canvas) {
     skyMat.uniforms.glowCol.value.copy(mix(NIGHT.glow, DAWN.glow, k)); skyMat.uniforms.glowAmt.value = NIGHT.glowAmt + (DAWN.glowAmt - NIGHT.glowAmt) * k;
     hemi.color.copy(mix(NIGHT.hemi[0], DAWN.hemi[0], k)); hemi.groundColor.copy(mix(NIGHT.hemi[1], DAWN.hemi[1], k)); hemi.intensity = NIGHT.hemi[2] + (DAWN.hemi[2] - NIGHT.hemi[2]) * k;
     key.color.copy(mix(NIGHT.key[0], DAWN.key[0], k)); key.intensity = NIGHT.key[1] + (DAWN.key[1] - NIGHT.key[1]) * k;
-    scene.fog.color.copy(mix(NIGHT.fog, DAWN.fog, k)); renderer.toneMappingExposure = NIGHT.exposure + (DAWN.exposure - NIGHT.exposure) * k;
+    scene.fog.color.copy(mix(NIGHT.fog, DAWN.fog, k)).lerp(tmp2.set('#7a4a40'), wx.fog * 0.6 * (1 - k)); // 霧の夜は、白っぽい霧 renderer.toneMappingExposure = (NIGHT.exposure + (DAWN.exposure - NIGHT.exposure) * k) * (1 - 0.18 * wx.rain * (1 - k));
     const G = grade.uniforms; G.satLo.value = NIGHT.sat[0] + (DAWN.sat[0] - NIGHT.sat[0]) * k; G.satHi.value = NIGHT.sat[1] + (DAWN.sat[1] - NIGHT.sat[1]) * k;
     G.lift.value.copy(mix(NIGHT.lift, DAWN.lift, k)); G.liftAmt.value = NIGHT.liftAmt + (DAWN.liftAmt - NIGHT.liftAmt) * k; G.vig.value = NIGHT.vig + (DAWN.vig - NIGHT.vig) * k;
     moon.material.opacity = 1 - k;
@@ -111,7 +112,7 @@ export function makeRenderer(canvas) {
     renderer.setSize(W, Hh, false); composer.setSize(W, Hh); composer.setPixelRatio(DPR);
     camera.aspect = asp; camera.updateProjectionMatrix(); view.base = Math.max(30, 24 / asp);
     tiltH.uniforms.dir.value.set(1 / W, 0); tiltV.uniforms.dir.value.set(0, 1 / Hh); grade.uniforms.aspect.value = asp;
-    const k = view.base - 30; scene.fog.near = 18 + k; scene.fog.far = 56 + k;
+    const k = view.base - 30, fk = wx.fog; scene.fog.near = (18 + k) * (1 - 0.45 * fk); scene.fog.far = (56 + k) * (1 - 0.35 * fk);
   }
   addEventListener('resize', resize); resize();
 
@@ -125,5 +126,7 @@ export function makeRenderer(canvas) {
     grade.uniforms.time.value = t;
     composer.render();
   }
-  return { renderer, scene, camera, view, render, setDawn, grade, resize };
+  // 夜の空: 霧（見える遠さがちぢむ）・雨（暗く）
+  function setWeather(o) { Object.assign(wx, o); resize(); setDawn(0); }
+  return { renderer, scene, camera, view, render, setDawn, grade, resize, setWeather };
 }
