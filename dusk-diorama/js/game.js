@@ -9,6 +9,7 @@ import { makeRenderer, patchDark, DARK, LAMPS } from './render.js';
 import { makeFx } from './fx.js';
 import { makeSalamander } from './creature.js';
 import { makeLamps, LAMP } from './lamps.js';
+import { makeShore, coast, PIER_LEN } from './shore.js';
 import { mountAudioPanel, startAudio, sfx, tickAudio } from './audio.js';
 
 const $ = id => document.getElementById(id);
@@ -24,18 +25,11 @@ const sal = makeSalamander(C0.group); // 火の番の火トカゲ
 const L = makeLamps(scene, isl, V); // 台と灯（PLAN.md 2.9章）
 const salLight = new THREE.PointLight('#ff9a4a', 0, 3.5, 2); C0.group.add(salLight); // 闇へ連れていった火トカゲの光
 const SAL = { mode: 'home', t: 0, k: 0, saved: false }; // mode: home（火のそば）・go（歩いていく）・rest（丸くなって照らす）・back（帰る）・save（おき火に入る）
-// 夜明けの岸（第5夜に、遠くの闇から近づいてくる黒い崖。うしろに朝の光）
-const shore = (() => {
-  const g = new THREE.Group(), m = new THREE.MeshStandardMaterial({ color: '#2a1a14', roughness: 1, flatShading: true, fog: true });
-  // 岸も浮かぶ大地（この世界の地面はみな宙に浮く）: 広い上の面と、ぎざぎざの下の岩。上に丘
-  const top = new THREE.Mesh(new THREE.CylinderGeometry(34, 30, 3, 11), m); top.scale.z = 0.45; g.add(top);
-  for (let i = 0; i < 14; i++) { const r = 4 + Math.random() * 6, h = 8 + Math.random() * 20, c = new THREE.Mesh(new THREE.ConeGeometry(r, h, 5), m); c.rotation.x = Math.PI; c.position.set((Math.random() - .5) * 52, -1.5 - h / 2, (Math.random() - .5) * 18); g.add(c); }
-  for (let i = 0; i < 7; i++) { const r = 3 + Math.random() * 5, h = 2 + Math.random() * 4, c = new THREE.Mesh(new THREE.ConeGeometry(r, h, 6), m); c.position.set((Math.random() - .5) * 46, 1.5 + h / 2, (Math.random() - .5) * 8); g.add(c); }
-  const soft = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
-  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: soft, color: '#ffd29a', transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-  glow.scale.set(110, 40, 1); glow.position.set(0, 4, -14); g.add(glow); g.userData.glow = glow;
-  g.position.set(0, -46, -100); g.visible = false; scene.add(g); return g;
-})();
+// 夜明けの岸（js/shore.js）: 第5夜に行く先の闇の底からせり上がり、夜明けに桟橋が島のふちまで寄ってくる。うしろに朝の光
+const SHORE = makeShore(TX), shore = SHORE.group; shore.visible = false; scene.add(shore);
+{ const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), color: '#ffe8cc', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  glow.scale.set(160, 60, 1); glow.position.set(0, 14, -70); shore.add(glow); shore.userData.glow = glow; }
 scene.traverse(o => { if (o.isMesh || o.isInstancedMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach(patchDark); });
 // 闇に沈めない物（遠くの灯台と次の空）は、このあとで足す
 // 行く先の灯台（PLAN.md 2.9章）: 前の地平線の光の点。夜ごとに近く大きく、第4夜から光が回り、第5夜は岸の上に立つ
@@ -75,9 +69,15 @@ function stepBoat(now) {
   leadBoat.g.position.set(AHEAD.x * d + Math.sin(now / 3000) * 0.5, -0.32 * d + Math.sin(now / 1700) * 0.4, AHEAD.z * d);
   leadBoat.glow.material.opacity = 0.75 + 0.25 * Math.sin(now / 400) * Math.sin(now / 170);
 }
+// 岸の置き場所: k = 夜の進み（0〜1）、a = 着く動き（0〜1。夜明けの数秒で桟橋の先が島のふちへ）
+const ARRIVE = 6.2 + PIER_LEN + coast(0); // 桟橋の先が、島のふち（半径 約6.2）に着く
+function placeShore(k, a) {
+  const e = a * a * (3 - 2 * a), d = (130 - 55 * k) * (1 - e) + ARRIVE * e, y = (-34 + 22 * k) * (1 - e) + (-0.15) * e;
+  shore.position.set(AHEAD.x * d, y, AHEAD.z * d); shore.rotation.y = Math.atan2(-AHEAD.x, -AHEAD.z); // 海岸（+z）を島に向ける
+}
 function stepBeacon(now) {
   const n = st.night, last = n >= NIGHTS;
-  if (last && shore.visible) { const p = new THREE.Vector3(0, 9, -6); shore.localToWorld(p); beacon.position.copy(p); } // 岸の崖の上
+  if (last && shore.visible) { const p = SHORE.lamp.clone(); shore.localToWorld(p); beacon.position.copy(p); } // 岸の崖の上の灯台
   else { const d = 150 - n * 14; beacon.position.set(AHEAD.x * d, -0.42 * d, AHEAD.z * d); } /* はじめのカメラで、画面の上の方に見える高さ */
   const turn = n >= 4 ? now / 1000 * 0.9 : 0, toCam = Math.atan2(beacon.position.z, -beacon.position.x), flash = n >= 4 ? Math.max(0, Math.cos(turn - toCam)) ** 6 : 0; // こちらを向くと、ぱっと明るい
   beacon.scale.setScalar((0.6 + n * 0.3) * (1 + flash * 1.2) * (0.92 + 0.08 * Math.sin(now / 300)));
@@ -340,7 +340,7 @@ function result(won) {
   st.phase = won ? 'dawn' : 'lost';
   const last = won && st.night >= NIGHTS;
   $('next').textContent = won ? '次の夜へ' : '岩から出直す'; $('next').hidden = last;
-  if (won) { showResult(true); st.resTimer = setTimeout(() => { $('result').hidden = false; }, 3500); }
+  if (won) { showResult(true); st.resTimer = setTimeout(() => { $('result').hidden = false; }, last ? 9500 : 3500); } // 岸に着いた夜は、岸が寄りきってから
   // 呑まれたときは、島が崩れきってから（まん中の塊も最後に落ちる）出す
 }
 function showResult(won) {
@@ -379,9 +379,9 @@ function ending() {
 // ── 次の夜（光で拾う。PLAN.md 2.7章）: 落ちたかけらが闇を漂って浮かび、光の輪がとどけば元の場所にくっつく ──
 function startNight(n) {
   const W = WEATHER[Math.min(n, NIGHTS) - 1];
-  Object.assign(st, { W, night: n, t: 0, F: RULE.fuel0, burning: [], out: 0, phase: 'play', dawnK: 0, shown: false, lastT: 0, drift: 0, tEnd: 0, burnMul: W.burnMul || 1, windAng: Math.random() * Math.PI * 2 });
+  Object.assign(st, { arrive: 0, W, night: n, t: 0, F: RULE.fuel0, burning: [], out: 0, phase: 'play', dawnK: 0, shown: false, lastT: 0, drift: 0, tEnd: 0, burnMul: W.burnMul || 1, windAng: Math.random() * Math.PI * 2 });
   R3.setWeather({ fog: W.id === 'fog' ? 1 : 0, rain: W.wet ? 1 : 0 });
-  shore.visible = n >= NIGHTS; shore.position.set(0, -60, -115); shore.scale.setScalar(0.75);
+  shore.visible = n >= NIGHTS; placeShore(0, 0);
   const wx = $('wx'); wx.innerHTML = `<b>${W.name}</b>`; /* 説明の文は出さない（起きたことで知らせる） */ wx.classList.add('on'); clearTimeout(st.wxT); st.wxT = setTimeout(() => wx.classList.remove('on'), 6500);
   C0.group.position.set(0, 0, 0); C0.group.rotation.set(0, 0, 0);
   if (n === 1 && !st.demoDone) startDemo(); else st.demoDone = true;
@@ -475,7 +475,7 @@ function step(now) {
     ringC.set(FIRE.x + w.x * (w.s || 0) * R / RULE.rMax, fireY, FIRE.z + w.z * (w.s || 0) * R / RULE.rMax);
     for (const c of isl.chunks) c.dist = Math.max(0, Math.hypot(c.cx - ringC.x, c.cz - ringC.z) - 0.45 * c.rad);
     for (const c of isl.chunks) { if (!c.drift && stepChunk(c, R, dt, Math.min(darkness(c.dist, R), darkness(shelterOf(c), 0)))) fall(c); }
-    if (shore.visible) { const k = st.t / RULE.night; const dd = 115 - 30 * k; shore.position.set(-Math.sin(0.55) * dd, -52 + 24 * k, -Math.cos(0.55) * dd); shore.rotation.y = 0.55; /* 遠くの闇から、だんだん近づく */ }
+    if (shore.visible) placeShore(st.t / RULE.night, 0); /* 遠くの闇の底から、だんだんせり上がって近づく */
     while (st.returns.length && st.t >= st.returns[0]) { st.returns.shift(); surface(); }
     stepDrift(dt, R);
     if (st.out > RULE.emberGrace) { st.tEnd = st.t; result(false); }
@@ -524,7 +524,16 @@ function step(now) {
   const smokeK = st.burning.reduce((s, b) => s + b.smoke * (b.left / b.total), 0);
   const wv = windVec();
   fx.update(now / 1000, dt, { F: st.phase === 'lost' ? 0 : st.F, smokeK: Math.min(1, smokeK), camera, out: st.out, wind: { x: wv.x * (wv.s || 0) * 0.6, z: wv.z * (wv.s || 0) * 0.6 }, rainK: st.W.wet && st.phase === 'play' ? 1 : 0, ashK: st.W.id === 'snow' ? 2.2 : 1 });
-  if (shore.visible) shore.userData.glow.material.opacity = 0.15 + 0.6 * st.dawnK;
+  if (shore.visible) {
+    shore.userData.glow.material.opacity = 0.1 + 0.3 * st.dawnK; SHORE.update(now / 1000, dt);
+    if (st.phase === 'dawn' && st.night >= NIGHTS) { // 着く: 岸が寄り、カメラは少し引いて岸と島を両方おさめる
+      st.arrive = Math.min(1, (st.arrive || 0) + dt / 7); placeShore(1, st.arrive);
+      const e = st.arrive * st.arrive * (3 - 2 * st.arrive), f = Math.min(1, dt * 0.8) * e; // 横から、島と桟橋と灯台が並ぶ向きへ（結果の札の上におさまるよう、少し下を見る）
+      const tall = innerWidth / innerHeight < 0.8, A = tall ? { d: 5, y: -0.5, zoom: 0.95 * view.base / 30, el: 0.3, az: 0.85 } : { d: 8, y: -1.6, zoom: 1.45, el: 0.24, az: 0.85 + 1.3 }; // たての画面は、島の向こうに岸が見える向き（上下に重ねる）
+      view.target.lerp(new THREE.Vector3(AHEAD.x * A.d, A.y, AHEAD.z * A.d), f); view.zoom += (A.zoom * 30 / view.base - view.zoom) * f; /* たての画面はもとが遠いので、同じ距離まで（岸の中に入らない） */ view.el += (A.el - view.el) * f;
+      view.az += Math.atan2(Math.sin(A.az - view.az), Math.cos(A.az - view.az)) * f;
+    }
+  }
   if (st.phase === 'play') { weatherLamps(dt); stepBoards(dt); }
   L.update(now / 1000, st.phase === 'play' ? dt : 0, DARK.uLamp.value);
   stepDemo(dt); stepSal(st.phase === 'play' ? dt : 0);
