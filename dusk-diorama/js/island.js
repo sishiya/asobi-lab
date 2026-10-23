@@ -27,7 +27,7 @@ export function chunkIdAt(x, z) {
 }
 
 const col = h => new THREE.Color(h);
-const GRASS_A = col('#232c1c'), GRASS_B = col('#3b4426'), DIRT = col('#4d3f2f'), MUD = col('#231d18'), STONE = col('#4f4c45'), SOIL = col('#2b2119');
+const GRASS_A = col('#232c1c'), GRASS_B = col('#3b4426'), DIRT = col('#4d3f2f'), MUD = col('#231d18'), STONE = col('#4f4c45'), SOIL = col('#2b2119'), ASH = col('#4a443e');
 const STRATA = ['#4a3b2f', '#6e5a46', '#3a332d', '#8a7258', '#4a443d', '#5a4a3e'].map(col);
 function groundColor(x, z, t, c) {
   c.copy(GRASS_A).lerp(GRASS_B, smooth(0.25, 0.7, fbm(x * 0.7, z * 0.7)));
@@ -35,6 +35,7 @@ function groundColor(x, z, t, c) {
   const dp = Math.hypot(x - POND.x, z - POND.z); c.lerp(MUD, 1 - smooth(POND.r * 0.9, POND.r * 1.6, dp));
   const dh = Math.hypot(x - HILL.x, z - HILL.z); c.lerp(STONE, (1 - smooth(0.5, 3, dh)) * smooth(0.35, 0.7, fbm(x * 1.6 + 9, z * 1.6)) * 0.8);
   c.lerp(DIRT, 1 - smooth(0.4, 0.9, Math.hypot(x - FIRE.x, z - FIRE.z)));
+  c.lerp(ASH, (1 - smooth(0.75, 1.1, Math.hypot(x - FIRE.x, z - FIRE.z))) * (0.45 + 0.4 * fbm(x * 2.3 + 5, z * 2.3))); // 火のまわりにつもった灰（黒い火トカゲが浮いて見える）
   if (t > 0.92) c.lerp(SOIL, (t - 0.92) / 0.08);
 }
 function topY(x, z, t) { return H(x, z) - Math.pow(Math.max(0, t - 0.9) / 0.1, 2) * 0.22; }

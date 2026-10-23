@@ -260,13 +260,14 @@ export function buildVillage(root, isl, TX) {
       const s = 0.07 + R() * R() * 0.3, g = lumpyRock(s, i * 1.3, vnoise); g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x, H(x, z) + s * 0.2, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(R() * 3, R() * 3, R() * 3)), new THREE.Vector3(1, 0.6 + R() * 0.4, 1)));
       addMerged('rock', M.rock, planarUV(g, 2), x, z); } }
   const grassMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 1, side: THREE.DoubleSide }), blade = bladeGeo();
+  const trod = (x, z) => { const d = Math.hypot(x - FIRE.x, z - FIRE.z); return d > 1.1 ? 1 : 0.22 + 0.78 * Math.max(0, (d - 0.85) / 0.25) + 0.25 * fbm(x * 3, z * 3); }; // 火のまわりは火トカゲの歩く輪で、踏まれて低い（火トカゲを草にうもれさせない）
   { const R = rng(71), c = new THREE.Color(); let n = 0;
     for (let tries = 0; tries < 60000 && n < 15000; tries++) {
       const a = R() * Math.PI * 2, rr = Math.sqrt(R()) * rimRadius(a) * 0.95, x = Math.cos(a) * rr, z = Math.sin(a) * rr;
       if (pathDist(x, z) < 0.3 || KEEP.some(k => Math.hypot(x - k.x, z - k.z) < k.r)) continue;
       if (fbm(x * 0.5 + 2, z * 0.5) < 0.35 && R() < 0.6) continue;
       const s = 0.6 + R() * 0.9; c.set('#3d4227').lerp(new THREE.Color('#6a5f3a'), R() * R());
-      addInst('grass', blade, grassMat, new THREE.Matrix4().compose(new THREE.Vector3(x, H(x, z) - 0.01, z), new THREE.Quaternion().setFromEuler(new THREE.Euler((R() - .5) * 0.6, R() * 6, (R() - .5) * 0.6)), new THREE.Vector3(1, 0.1 + R() * 0.24 * s, 1)), c, x, z); n++;
+      addInst('grass', blade, grassMat, new THREE.Matrix4().compose(new THREE.Vector3(x, H(x, z) - 0.01, z), new THREE.Quaternion().setFromEuler(new THREE.Euler((R() - .5) * 0.6, R() * 6, (R() - .5) * 0.6)), new THREE.Vector3(1, (0.1 + R() * 0.24 * s) * trod(x, z), 1)), c, x, z); n++;
     }
     for (let i = 0; i < 2400; i++) { // ふちから垂れる草
       const a = R() * Math.PI * 2, r = rimRadius(a) * (0.97 + R() * 0.03), x = Math.cos(a) * r, z = Math.sin(a) * r, out = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));

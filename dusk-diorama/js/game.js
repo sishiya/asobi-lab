@@ -23,7 +23,7 @@ const C0 = isl.chunks.find(c => c.fixed);
 for (const o of fx.fireParts) C0.group.attach(o); // たき火は火の番の岩（まん中の塊）の上
 const sal = makeSalamander(C0.group); // 火の番の火トカゲ
 const L = makeLamps(scene, isl, V); // 台と灯（PLAN.md 2.9章）
-const salLight = new THREE.PointLight('#ff9a4a', 0, 3.5, 2); C0.group.add(salLight); // 闇へ連れていった火トカゲの光
+const salLight = new THREE.PointLight('#ff9a4a', 0, 1.4, 2); C0.group.add(salLight); // 闇へ連れていった火トカゲの光
 const SAL = { mode: 'home', t: 0, k: 0, saved: false }; // mode: home（火のそば）・go（歩いていく）・rest（丸くなって照らす）・back（帰る）・save（おき火に入る）
 // 夜明けの岸（js/shore.js）: 第5夜に行く先の闇の底からせり上がり、夜明けに桟橋が島のふちまで寄ってくる。うしろに朝の光
 const SHORE = makeShore(TX), shore = SHORE.group; shore.visible = false; scene.add(shore);
@@ -236,7 +236,7 @@ function stepSal(dt) {
   // 光: 歩くあいだは小さく、丸くなると大きく
   const r = RULE.salR * SAL.k, away = SAL.mode === 'go' || SAL.mode === 'rest' || SAL.mode === 'back';
   DARK.uLamp.value[LAMPS - 1].set(lp.x, lp.z, r, away && r > 0.05 ? 1 : 0);
-  salLight.position.copy(sal.head()).setY(sal.head().y + 0.25); salLight.intensity = 6 * SAL.k; sal.materials[1].emissiveIntensity = 0.06 + 1.2 * SAL.k;
+  { const b = sal.body(), dx = b.x - camera.position.x, dz = b.z - camera.position.z, dl = Math.hypot(dx, dz) || 1; salLight.position.set(b.x + dx / dl * 0.2, b.y + 0.15, b.z + dz / dl * 0.2); } salLight.intensity = 6 * SAL.k; /* 光は体の向こう側に。体は逆光の黒い輪、まわりの灰が丸く照らされる */ sal.materials[1].emissiveIntensity = 0.06 + 1.2 * SAL.k;
 }
 // 闇から塊を守る光: たき火のほかに、灯と、闇で丸くなった火トカゲ
 function shelterOf(c) { let d = L.shelter(c); if (SAL.mode === 'go' || SAL.mode === 'rest' || SAL.mode === 'back') { const p = salPos(); d = Math.min(d, Math.hypot(c.cx - p.x, c.cz - p.z) - 0.45 * c.rad - RULE.salR * SAL.k); } return d; }
@@ -537,6 +537,7 @@ function step(now) {
   if (st.phase === 'play') { weatherLamps(dt); stepBoards(dt); }
   L.update(now / 1000, st.phase === 'play' ? dt : 0, DARK.uLamp.value);
   stepDemo(dt); stepSal(st.phase === 'play' ? dt : 0);
+  sal.ctl.peek = carry && carry.sal ? carry.p : hoverSal ? { x: camera.position.x, z: camera.position.z } : null; // つまむ手を見上げる
   sal.update(now / 1000, dt, { F: st.phase === 'lost' ? 0 : st.F, flare: fx.flare, lost: st.phase === 'lost' });
   tickAudio({ fire: st.F > 0 ? 0.35 + 0.65 * Math.sqrt(st.F / RULE.fuelMax) : 0.15, walk: carry ? 1 : 0 });
   hud();
