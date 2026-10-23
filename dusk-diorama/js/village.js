@@ -76,7 +76,7 @@ export function buildVillage(root, isl, TX) {
     for (let i = 0; i < 3; i++) door.add(mesh(B(0.072, 0.42 - (i === 2 ? 0.03 : 0), 0.022), M.wood, -0.075 + i * 0.075, i === 2 ? -0.015 : 0, 0));
     door.add(mesh(B(0.3, 0.045, 0.04), T, 0, 0.23, 0.002));
     g.add(mesh(new THREE.PlaneGeometry(0.22, 0.42), M.dark, -w * 0.22, 0.29, d / 2 + 0.004)); // 戸のあとの暗がり
-    house.parts.push(burnable(door, '戸', 6, 'dry', { house }));
+    house.parts.push(burnable(door, '戸', 6, 'dry', { house, board: true })); // board: 灯のそばで放すと風よけに立つ
     // 屋根: 下地＋板石＋棟。ひとまとまりではがす
     const roof = new THREE.Group(); roof.position.y = h + y0; roof.rotation.z = (R() - .5) * 0.08; g.add(roof);
     const hw = (w + 0.3) / 2, rh = 0.75, rd = d + 0.3;
@@ -269,5 +269,13 @@ export function buildVillage(root, isl, TX) {
     c.group.add(g); g.userData.chunks = new Set([c.id]); onChunk[c.id].push(g);
     return burnable(g, '流木', fuel, 'dry');
   }
-  return { burnables, houses, chapel, graves, trees, keepers, onChunk, M, water, addDriftwood, driftMat };
+  // 戸板（風の夜に、灯に立てかけてある1枚）: 戸と同じ作り
+  function addBoard(c, x, z) {
+    const g = new THREE.Group(); g.position.set(x, H(x, z) + 0.22, z);
+    for (let i = 0; i < 3; i++) g.add(mesh(B(0.072, 0.42 - (i === 2 ? 0.03 : 0), 0.022), M.wood, -0.075 + i * 0.075, i === 2 ? -0.015 : 0, 0));
+    g.add(mesh(B(0.3, 0.045, 0.04), M.timber, 0, 0.23, 0.002)); g.add(mesh(B(0.3, 0.045, 0.04), M.timber, 0, -0.12, 0.002));
+    c.group.add(g); g.userData.chunks = new Set([c.id]); onChunk[c.id].push(g);
+    return burnable(g, '戸板', 6, 'dry', { board: true });
+  }
+  return { burnables, houses, chapel, graves, trees, keepers, onChunk, M, water, addDriftwood, driftMat, addBoard };
 }

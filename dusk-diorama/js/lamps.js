@@ -31,7 +31,8 @@ export function makeLamps(scene, isl, V) {
   function add(g, x, z, kind, flameAt, glowMesh, house) {
     if (!house) { const c = isl.all[Math.max(0, chunkIdAt(x, z))]; c.group.add(g); }
     const fl = new THREE.Sprite(flameMat()); fl.position.copy(flameAt); fl.scale.setScalar(0.4); g.add(fl);
-    const s = { id: stands.length, g, x, z, kind, r: LAMP[kind], fl, glowMesh, house, life: 0, slot: stands.length };
+    const steam = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: '#8a8580', depthWrite: false, transparent: true, opacity: 0 })); steam.position.copy(flameAt); g.add(steam); // 雨でじゅっと上がる湯気
+    const s = { id: stands.length, g, x, z, kind, r: LAMP[kind], fl, glowMesh, house, life: 0, slot: stands.length, flameAt: flameAt.clone(), steam, ox: 0, oz: 0, lean: 0, wet: 0, rMul: 1, burnMul: 1 };
     g.traverse(o => { if (o.isMesh) o.userData.stand = s.id; }); stands.push(s); return s;
   }
   brazier(-2.6, 0.2); brazier(0.9, 3.1); brazier(3.0, 0.6); brazier(-0.7, -1.5); brazier(1.6, -2.6);
@@ -42,29 +43,35 @@ export function makeLamps(scene, isl, V) {
   const ember = new THREE.Sprite(flameMat()); ember.scale.setScalar(0.35); ember.visible = false; scene.add(ember);
   const emberLight = new THREE.PointLight('#ffa050', 0, 3, 2); scene.add(emberLight);
 
+  // 灯の光の中心と半径（風にあおられると風下へずれ、雨にぬれると小さく。game.js が毎こま ox・oz・rMul・burnMul を入れる）
+  const cx = s => s.x + s.ox, cz = s => s.z + s.oz, rad = s => s.r * s.rMul;
   const fallen = s => { let o = s.g; while (o) { if (o.userData.fallen) return true; o = o.parent; } const c = isl.all[Math.max(0, chunkIdAt(s.x, s.z))]; return !s.house && c.fallen || (s.house && s.house.g.userData.fallen); };
   function update(t, dt, U) {
     for (const s of stands) {
       if (s.life > 0) { s.life = Math.max(0, s.life - dt * (s.burnMul || 1)); if (fallen(s)) s.life = 0; }
       const on = s.life > 0, fl = s.life < LAMP.flicker && on ? 0.5 + 0.5 * Math.sin(t * 30 + s.id) * Math.sin(t * 13) : 1, k = on ? fl : 0;
-      s.fl.material.opacity = k; s.fl.scale.setScalar((s.kind === 'brazier' ? 0.55 : 0.32) * (0.9 + 0.1 * Math.sin(t * 9 + s.id)));
-      lights[s.id].intensity = (s.kind === 'brazier' ? 9 : 5) * k; lights[s.id].distance = s.r * 2.2;
+      const blow = s.lean ? 0.75 + 0.25 * Math.sin(t * 23 + s.id * 3) * Math.sin(t * 7) : 1; // 吹かれた灯はばたつく
+      s.fl.material.opacity = k * blow * (s.wet ? 0.7 : 1); s.fl.scale.setScalar((s.kind === 'brazier' ? 0.55 : 0.32) * (0.9 + 0.1 * Math.sin(t * 9 + s.id)) * s.rMul);
+      // 炎を風下へ寝かせる（台の向きによらず、世界の向きで）
+      const base = s.g.localToWorld(s.flameAt.clone()); base.x += s.ox * 0.18; base.z += s.oz * 0.18; base.y -= 0.04 * s.lean; s.fl.position.copy(s.g.worldToLocal(base));
+      lights[s.id].intensity = (s.kind === 'brazier' ? 9 : 5) * k * blow * s.rMul; lights[s.id].distance = rad(s) * 2.2;
+      // 雨の湯気: ぬれた灯の上に、灰色のもやが上がっては消える
+      const sp = (t * 0.7 + s.id * 0.37) % 1; s.steam.material.opacity = on && s.wet ? 0.35 * Math.sin(sp * Math.PI) : 0; s.steam.position.copy(s.flameAt).setY(s.flameAt.y + 0.1 + sp * 0.45); s.steam.scale.setScalar(0.2 + sp * 0.35);
       // 冷えた台も、皿にかすかな火の色（ここに置ける、と分かるように）。火種を運んでいるあいだ、ともせる台は脈打つ
       const cold = 0.12 + 0.08 * Math.sin(t * 2 + s.id) + (s.hint ? 0.5 + 0.4 * Math.sin(t * 6) : 0);
       if (s.glowMesh.material.emissiveIntensity !== undefined) s.glowMesh.material.emissiveIntensity = on ? 1.4 * k : cold;
       if (!on && s.hint) { s.fl.material.opacity = 0.25 + 0.2 * Math.sin(t * 6); }
-      const w = s.g.getWorldPosition(new THREE.Vector3());
-      if (s.id < LAMPS) U[s.id].set(w.x, w.z, s.r, on ? 1 : 0);
+      if (s.id < LAMPS) U[s.id].set(cx(s), cz(s), rad(s), on ? 1 : 0); // ランタンの g は家の中心にあるので、台の位置（s.x, s.z）で
     }
   }
   // 光のとどく範囲: たき火（cx,cz,R）と、ついている灯
   function lit(x, z, fire) {
     if (Math.hypot(x - fire.x, z - fire.z) < fire.r) return true;
-    return stands.some(s => s.life > 0 && Math.hypot(x - s.x, z - s.z) < s.r);
+    return stands.some(s => s.life > 0 && Math.hypot(x - cx(s), z - cz(s)) < rad(s));
   }
-  function canLight(s, fire) { return s.life <= 0 && !fallen(s) && (lit(s.x, s.z, { ...fire, r: fire.r + 0.8 }) || stands.some(o => o !== s && o.life > 0 && Math.hypot(o.x - s.x, o.z - s.z) < o.r + 0.6)); }
+  function canLight(s, fire) { return s.life <= 0 && !fallen(s) && (lit(s.x, s.z, { ...fire, r: fire.r + 0.8 }) || stands.some(o => o !== s && o.life > 0 && Math.hypot(cx(o) - s.x, cz(o) - s.z) < rad(o) + 0.6)); }
   function ignite(s) { s.life = LAMP.life; }
   // 塊ごとの光までの近さ: 光の中なら負（たき火と灯のうち、いちばん守ってくれるもの）
-  function shelter(c) { let best = 1e9; for (const s of stands) if (s.life > 0) best = Math.min(best, Math.hypot(c.cx - s.x, c.cz - s.z) - 0.45 * c.rad - s.r); return best; }
+  function shelter(c) { let best = 1e9; for (const s of stands) if (s.life > 0) best = Math.min(best, Math.hypot(c.cx - cx(s), c.cz - cz(s)) - 0.45 * c.rad - rad(s)); return best; }
   return { stands, update, lit, canLight, ignite, shelter, ember, emberLight, fallen };
 }

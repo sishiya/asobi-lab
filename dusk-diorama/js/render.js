@@ -10,7 +10,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 const NIGHT = { sky: ['#0e0304', '#5c160a', '#0b0404'], glow: '#ff5a1f', glowAmt: 0.7, hemi: ['#a04828', '#1a0c08', 1.4], key: ['#ff7a42', 2.8], fog: '#2a0f09', exposure: 1.3, sat: [0.55, 1.15], lift: '#2a0806', liftAmt: 0.06, vig: 0.5 };
 const DAWN = { sky: ['#1f2a46', '#b8714a', '#140f12'], glow: '#ffc890', glowAmt: 0.35, hemi: ['#7d8db3', '#2e2219', 1.1], key: ['#ffd2a8', 2.2], fog: '#2c2226', exposure: 1.0, sat: [0.95, 1.15], lift: '#0c1020', liftAmt: 0.02, vig: 0.38 };
 
-export const LAMPS = 8; // 灯（かがり台・ランタン）の数の上限
+export const LAMPS = 9; // 灯（かがり台5・ランタン3）と、闇へ連れていった火トカゲ（いちばん後ろ）
 export const DARK = { uFire: { value: new THREE.Vector3() }, uR: { value: 3 }, uDark: { value: 1 }, uLamp: { value: Array.from({ length: LAMPS }, () => new THREE.Vector4(0, 0, 0, 0)) } }; // uLamp: x, z, 半径, ついているか
 // 輪の外は色を抜いて暗く。輪のふちに、ほのかな火の色のすじ（島の上の面だけ）
 export function patchDark(mat) {

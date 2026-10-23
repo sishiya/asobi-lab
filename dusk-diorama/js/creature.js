@@ -26,7 +26,7 @@ export function makeSalamander(parent) {
   const P = Array.from({ length: N }, () => new THREE.Vector3());
   const st = { ang: 0.9, target: 0.9, walk: 0, step: 0, look: 0, curl: 0, next: 4 };
   const v = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
-  const ctl = { rOv: null, hold: false }; // 手本の場面で外から動かす（半径の上書き・止まらない）
+  const ctl = { rOv: null, hold: false, goal: null, curl: false }; // 外から動かす: 手本の半径の上書き・止まらない・goal＝闇へ歩いていく先（{x, z}）・curl＝丸くなる
   function update(t, dt, { F, flare, lost }) {
     // いる場所: 火のまわりの輪の上。ときどき少し歩いて場所をかえる
     st.next -= dt;
@@ -36,12 +36,23 @@ export function makeSalamander(parent) {
     st.ang += Math.sign(d) * Math.min(Math.abs(d), dt * 0.35);
     st.step += dt * (2 + 7 * st.walk);
     st.look += ((flare > 0.2 ? 1 : 0) - st.look) * Math.min(1, dt * 3);
-    st.curl += ((F < 6 || lost ? 1 : 0) - st.curl) * Math.min(1, dt * 1.2);
+    st.curl += ((F < 6 || lost || ctl.curl ? 1 : 0) - st.curl) * Math.min(1, dt * (ctl.curl ? 2.5 : 1.2));
     st.r = st.r ?? 0.66; st.r += ((ctl.rOv ?? (0.66 - 0.16 * st.curl)) - st.r) * Math.min(1, dt * 1.6); const r = st.r; // 火が小さいと、火に寄る
-    const hx = FIRE.x + Math.cos(st.ang) * r, hz = FIRE.z + Math.sin(st.ang) * r;
+    let hx = FIRE.x + Math.cos(st.ang) * r, hz = FIRE.z + Math.sin(st.ang) * r;
     // 体の向き: 歩くときは輪にそって、止まると火のほうを向く
     const toFire = Math.atan2(FIRE.z - hz, FIRE.x - hx), along = st.ang + Math.sign(d || 1) * Math.PI / 2;
-    const yaw = toFire + (along - toFire) * st.walk * 0.85 + Math.sin(t * 0.4) * 0.15;
+    let yaw = toFire + (along - toFire) * st.walk * 0.85 + Math.sin(t * 0.4) * 0.15;
+    // 闇へ歩く（ctl.goal）: 輪をはなれて、まっすぐ歩いていく。goal を消すと、火のそばの元の場所へ帰る
+    if (ctl.goal || st.free) {
+      if (!st.free) st.free = { x: hx, z: hz, yaw };
+      const home = { x: FIRE.x + Math.cos(st.ang) * 0.66, z: FIRE.z + Math.sin(st.ang) * 0.66 }, g2 = ctl.goal || home;
+      const dx = g2.x - st.free.x, dz = g2.z - st.free.z, dist = Math.hypot(dx, dz), go = dist > 0.03;
+      if (go) { const sp = Math.min(dist, dt * 0.75); st.free.x += dx / dist * sp; st.free.z += dz / dist * sp; const a = Math.atan2(dz, dx); st.free.yaw += Math.atan2(Math.sin(a - st.free.yaw), Math.cos(a - st.free.yaw)) * Math.min(1, dt * 6); }
+      st.walk += ((go ? 1 : 0) - st.walk) * Math.min(1, dt * 4); st.step += dt * 5 * st.walk;
+      hx = st.free.x; hz = st.free.z; yaw = st.free.yaw + Math.sin(t * 0.4) * 0.1 * (1 - st.walk);
+      st.arrived = !go;
+      if (!ctl.goal && !go) { st.free = null; st.r = 0.66; st.target = st.ang; } // 帰った
+    }
     const fx = Math.cos(yaw), fz = Math.sin(yaw), sx = -fz, sz = fx;
     // 背骨: 頭から後ろへ。横のうねり（歩くと大きく）と、火が小さいときの丸まり
     for (let i = 0; i < N; i++) {
@@ -67,5 +78,5 @@ export function makeSalamander(parent) {
       for (const [m, a, b] of [[L.a, sh, knee], [L.b, knee, foot]]) { m.position.copy(a).lerp(b, 0.5); m.scale.set(1, a.distanceTo(b), 1); m.quaternion.setFromUnitVectors(up, v.subVectors(b, a).normalize()); }
     }
   }
-  return { group: g, update, materials: [skin, spot, eye], ctl, goTo: a => { st.target = a; st.next = 99; }, head: () => P[0], get ang() { return st.ang; } };
+  return { group: g, update, materials: [skin, spot, eye], ctl, get away() { return !!st.free; }, get arrived() { return !!st.free && st.arrived; }, body: () => P[3], goTo: a => { st.target = a; st.next = 99; }, head: () => P[0], get ang() { return st.ang; } };
 }
