@@ -43,7 +43,7 @@ const totalArea = isl.chunks.reduce((s, c) => s + c.quads.length, 0);
 
 // ── 状態 ──
 const st = { W: WEATHER[0], night: 1, t: 0, F: RULE.fuel0, burning: [], out: 0, phase: 'title', shownR: lightRadius(RULE.fuel0), dawnK: 0, burnedAny: false, returns: [] };
-let carry = null, hover = null;
+let carry = null, hover = null, hoverFlame = false; // hoverFlame: マウスが炎の上（火種をつまめる）
 const loose = []; // 島の外へ落とした物
 
 // ── 運ぶ物の目じるし（いまやること1つだけ脈打つ） ──
@@ -97,14 +97,17 @@ cv.addEventListener('pointerdown', e => {
 });
 cv.addEventListener('pointermove', e => {
   const prev = pointers.get(e.pointerId);
-  if (!prev) { if (e.pointerType === 'mouse' && st.phase === 'play') { hover = pickAt(e); cv.style.cursor = hover ? 'grab' : ''; } return; }
+  if (!prev) {
+    if (e.pointerType === 'mouse' && st.phase === 'play') { hover = pickAt(e, false); hoverFlame = !hover && nearFlame(e); if (!hover && !hoverFlame) hover = pickAt(e); cv.style.cursor = hover || (hoverFlame && st.F >= RULE.emberMin) ? 'grab' : hoverFlame ? 'not-allowed' : ''; } // 押したときと同じ順（じかに当たった物 → 炎 → 近くの物）
+    return;
+  }
   if (pointers.size === 2) { const [a, b] = [...pointers.values()], d0 = Math.hypot(a.x - b.x, a.y - b.y); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY }); const [c, d] = [...pointers.values()]; view.zoom = THREE.MathUtils.clamp(view.zoom * d0 / Math.max(1, Math.hypot(c.x - d.x, c.y - d.y)), 0.45, 1.5); return; }
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (carry) { carry.p = groundAt(e); return; }
   if (rotating) { view.az -= (e.clientX - prev.x) * 0.006; view.el = THREE.MathUtils.clamp(view.el + (e.clientY - prev.y) * 0.004, 0.15, 1.2); }
 });
 function release(e) {
-  pointers.delete(e.pointerId);
+  pointers.delete(e.pointerId); hover = null; hoverFlame = false;
   if (pointers.size) return;
   rotating = false; cv.classList.remove('carry');
   if (!carry) return;
@@ -186,11 +189,14 @@ function hud() {
     if (carry && carry.ember) { let best = null, bd = 1e9; for (const s2 of L.stands) if (L.canLight(s2, fireLight())) { const d = Math.hypot(s2.x - carry.p.x, s2.z - carry.p.z); if (d < bd) { bd = d; best = s2; } } if (best && !st.litAny) gp = best.fl.getWorldPosition(new THREE.Vector3()); }
     else if (!carry && !st.burnedAny) { const b = nearestBurnable(); if (b) gp = centerOf(b.obj).add(new THREE.Vector3(0, 0.14, 0)); }
     else if (!carry && !st.tookEmber) gp = new THREE.Vector3(FIRE.x, fireY + 0.9, FIRE.z);
+    else if (!carry && hoverFlame) gp = new THREE.Vector3(FIRE.x, fireY + 0.9, FIRE.z);
     else if (!carry && hover) gp = centerOf(hover.obj).add(new THREE.Vector3(0, 0.14, 0));
   }
   glint.visible = !!gp; if (gp) glint.position.copy(gp);
   const tag = $('tag');
-  if (carry && carry.ember) tag.hidden = true; // 火種には名札はない（ここで止まって画面が固まっていた）
+  const tagAt = (v, dy) => { const p = v.clone().project(camera); tag.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`; tag.style.top = `${(-p.y * 0.5 + 0.5) * innerHeight - dy}px`; };
+  if (carry && carry.ember) { tag.hidden = false; tagAt(L.ember.position, 30); tag.textContent = '火種'; } // 火種は物ではない（carry.b はない）
+  else if (!carry && hoverFlame && st.phase === 'play') { tag.hidden = false; tagAt(new THREE.Vector3(FIRE.x, fireY + 0.9, FIRE.z), 10); tag.textContent = st.F >= RULE.emberMin ? '火種' : '火種（火が小さい）'; }
   else if (carry) { tag.hidden = false; const p = carry.b.obj.position.clone().project(camera); tag.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`; tag.style.top = `${(-p.y * 0.5 + 0.5) * innerHeight - 40}px`; tag.textContent = `${carry.b.name}　${'▮'.repeat(Math.max(1, Math.round(carry.b.fuel / 4)))}`; }
   else if (hover && st.phase === 'play') { tag.hidden = false; const p = centerOf(hover.obj).project(camera); tag.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`; tag.style.top = `${(-p.y * 0.5 + 0.5) * innerHeight - 34}px`; tag.textContent = `${hover.name}　${'▮'.repeat(Math.max(1, Math.round(hover.fuel / 4)))}`; }
   else tag.hidden = true;
@@ -242,7 +248,7 @@ function startNight(n) {
   Object.assign(st, { W, night: n, t: 0, F: RULE.fuel0, burning: [], out: 0, phase: 'play', dawnK: 0, shown: false, lastT: 0, drift: 0, tEnd: 0, burnMul: W.burnMul || 1, windAng: Math.random() * Math.PI * 2 });
   R3.setWeather({ fog: W.id === 'fog' ? 1 : 0, rain: W.wet ? 1 : 0 });
   shore.visible = n >= NIGHTS; shore.position.set(0, -60, -115); shore.scale.setScalar(0.75);
-  const wx = $('wx'); wx.innerHTML = `<b>${W.name}</b>`; // 説明の文は出さない（起きたことで知らせる） wx.classList.add('on'); clearTimeout(st.wxT); st.wxT = setTimeout(() => wx.classList.remove('on'), 6500);
+  const wx = $('wx'); wx.innerHTML = `<b>${W.name}</b>`; /* 説明の文は出さない（起きたことで知らせる） */ wx.classList.add('on'); clearTimeout(st.wxT); st.wxT = setTimeout(() => wx.classList.remove('on'), 6500);
   C0.group.position.set(0, 0, 0); C0.group.rotation.set(0, 0, 0);
   if (n === 1 && !st.demoDone) startDemo(); else st.demoDone = true;
   for (const s2 of L.stands) s2.life = 0;
