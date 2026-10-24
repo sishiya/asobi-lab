@@ -37,7 +37,7 @@ export function makeLamps(scene, isl, V, cliff = null) { // cliff: { parent（�
   }
   brazier(-2.6, 0.2); brazier(0.9, 3.1); brazier(3.0, 0.6); brazier(-0.7, -1.5); brazier(1.6, -2.6);
   for (const h of V.houses) lantern(h);
-  if (cliff) for (const p of cliff.path) { const s = brazier(p.x, p.z, { parent: cliff.parent, y: p.y }); Object.assign(s, { x: 1e4, z: 1e4, local: p, afterGully: p.afterGully, windy: p.windy, last: p.last }); } // 崖の場面まで遠くへ（島の台とまちがえない）。場所は game.js が毎こま入れる
+  if (cliff) for (const p of cliff.path) { const s = brazier(p.x, p.z, { parent: cliff.parent, y: p.y }); s.g.scale.setScalar(1.7); /* 崖の台は大きく（遠くから見て、台と分かるように） */ Object.assign(s, { x: 1e4, z: 1e4, local: p, afterGully: p.afterGully, windy: p.windy, last: p.last }); } // 崖の場面まで遠くへ（島の台とまちがえない）。場所は game.js が毎こま入れる
   // 灯の光（点の光は数を変えると描き直しになるので、はじめから台の数だけ用意する）
   const lights = stands.map(s => { if (s.kind === 'cliff') return null; /* 崖の台は点の光なし（光の数をふやすと重い） */ const L = new THREE.PointLight('#ff9a4a', 0, 4, 2); L.position.copy(s.fl.position); s.g.add(L); return L; });
   // 運んでいる火種
@@ -59,10 +59,11 @@ export function makeLamps(scene, isl, V, cliff = null) { // cliff: { parent（�
       // 雨の湯気: ぬれた灯の上に、灰色のもやが上がっては消える
       const sp = (t * 0.7 + s.id * 0.37) % 1; s.steam.material.opacity = on && s.wet ? 0.35 * Math.sin(sp * Math.PI) : 0; s.steam.position.copy(s.flameAt).setY(s.flameAt.y + 0.1 + sp * 0.45); s.steam.scale.setScalar(0.2 + sp * 0.35);
       // 冷えた台も、皿にかすかな火の色（ここに置ける、と分かるように）。火種を運んでいるあいだ、ともせる台は脈打つ
-      const cold = 0.12 + 0.08 * Math.sin(t * 2 + s.id) + (s.hint ? 0.5 + 0.4 * Math.sin(t * 6) : 0);
+      const cold = (s.kind === 'cliff' ? 0.45 : 0.12) + 0.08 * Math.sin(t * 2 + s.id) + (s.hint ? 0.5 + 0.4 * Math.sin(t * 6) : 0); // 崖の台は、冷えていてもおき火の色を強めに
       if (s.glowMesh.material.emissiveIntensity !== undefined) s.glowMesh.material.emissiveIntensity = on ? 1.4 * k : cold;
       if (!on && s.hint) { s.fl.material.opacity = 0.25 + 0.2 * Math.sin(t * 6); }
-      if (s.id < LAMPS) U[s.id].set(cx(s), cz(s), rad(s), on ? 1 : 0); // ランタンの g は家の中心にあるので、台の位置（s.x, s.z）で
+      else if (!on && s.kind === 'cliff') { s.fl.material.opacity = 0.14; s.fl.scale.setScalar(0.35); } // 冷えた崖の台にも、小さな残り火
+      if (s.id < LAMPS) U[s.id].set(cx(s), cz(s), on ? rad(s) : s.kind === 'cliff' ? 0.55 + (s.hint ? 0.25 : 0) : 0, on || s.kind === 'cliff' ? 1 : 0); // 冷えた崖の台のまわりも、少しだけ闇をあける（台のありかが見える） // ランタンの g は家の中心にあるので、台の位置（s.x, s.z）で
     }
   }
   // 光のとどく範囲: たき火（cx,cz,R）と、ついている灯
