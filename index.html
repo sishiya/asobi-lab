@@ -324,9 +324,14 @@ $('sort').addEventListener('click', e => { const b = e.target.closest('button');
 $('lang').hidden = false;
 $('lang').addEventListener('click', e => { const b = e.target.closest('button'); if (b && b.dataset.lang !== LANG) { LANG = b.dataset.lang; try { localStorage.setItem('manabi-lang', LANG); } catch (err) {} renderTexts(); update(); } });
 
+// 広い画面では並べかえの帯が上に固定されるので、キーボードで進んだカードが帯の下に隠れないように（まなびラボ RULES-more 6章の表）
+const padTools = () => { const t = $('tools'); document.documentElement.style.scrollPaddingTop = !t.hidden && getComputedStyle(t).position === 'sticky' ? (t.offsetHeight + 8) + 'px' : '0px'; };
+if (window.ResizeObserver) new ResizeObserver(padTools).observe($('tools'));
+addEventListener('resize', padTools);
+
 renderTexts();
 render(); MotionThumbs.pick();
-showChosenCat();
+showChosenCat(); padTools();
 </script>
 </body>
 </html>

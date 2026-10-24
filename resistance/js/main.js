@@ -10,7 +10,7 @@ const S = {
   bannerT: 0,              // 夜の始まりの札を出しているあいだ（秒）。そのあいだ夜は進まない
 };
 const cv = $('view'), ctx = cv.getContext('2d');
-let fit = {s: 1, ox: 0, oy: 0};
+let fit = {s: 1, ox: 0, oy: 0}, lastPadKey = '';
 
 function loadPrefs() {
   try { const v = localStorage.getItem('resistance.style'); if (['dot', 'cute', 'real'].includes(v)) S.style = v; } catch (e) {}
@@ -148,6 +148,14 @@ function resize() {
   const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
   const pw = Math.max(1, Math.round(r.width * dpr)), ph = Math.max(1, Math.round(r.height * dpr));
   if (cv.width !== pw || cv.height !== ph) { cv.width = pw; cv.height = ph; }
+  // スマホの縦向きでは上に固定した盤の下に、フォーカスしたボタンが隠れないように（まなびラボ RULES-more 6章の表）
+  // タイトルでは固定しないので、画面の大きさとタイトルかどうかが変わったときだけ測りなおす
+  const padKey = `${pw}x${ph}|${innerWidth}x${innerHeight}|${document.body.className}|${document.documentElement.className}`;
+  if (padKey !== lastPadKey) {
+    lastPadKey = padKey;
+    const st = $('stage');
+    document.documentElement.style.scrollPaddingTop = getComputedStyle(st).position === 'sticky' ? (st.offsetHeight + 8) + 'px' : '0px';
+  }
   const s = Math.min(pw / W, ph / H);
   fit = {s, ox: (pw - W * s) / 2, oy: (ph - H * s) / 2, dpr};
 }
