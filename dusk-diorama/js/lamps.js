@@ -59,9 +59,12 @@ export function makeLamps(scene, isl, V, cliff = null) { // cliff: { parent（�
       // 雨の湯気: ぬれた灯の上に、灰色のもやが上がっては消える
       const sp = (t * 0.7 + s.id * 0.37) % 1; s.steam.material.opacity = on && s.wet ? 0.35 * Math.sin(sp * Math.PI) : 0; s.steam.position.copy(s.flameAt).setY(s.flameAt.y + 0.1 + sp * 0.45); s.steam.scale.setScalar(0.2 + sp * 0.35);
       // 冷えた台も、皿にかすかな火の色（ここに置ける、と分かるように）。火種を運んでいるあいだ、ともせる台は脈打つ
-      const cold = (s.kind === 'cliff' ? 0.45 : 0.12) + 0.08 * Math.sin(t * 2 + s.id) + (s.hint ? 0.5 + 0.4 * Math.sin(t * 6) : 0); // 崖の台は、冷えていてもおき火の色を強めに
+      let cold = (s.kind === 'cliff' ? 0.45 : 0.12) + 0.08 * Math.sin(t * 2 + s.id) + (s.hint ? 0.5 + 0.4 * Math.sin(t * 6) : 0); // 崖の台は、冷えていてもおき火の色を強めに
+      if (s.dim) cold = 0.1; // 火種を運んでいるあいだ、置けない台は暗く沈める（置ける台との差で分かるように）
+      if (s.nope > 0) { s.nope -= dt; cold = 0.9 * Math.max(0, Math.sin(s.nope * 40)); } // 置けない台に放した: じゅっと一瞬またたいて消える
       if (s.glowMesh.material.emissiveIntensity !== undefined) s.glowMesh.material.emissiveIntensity = on ? 1.4 * k : cold;
-      if (!on && s.hint) { s.fl.material.opacity = 0.25 + 0.2 * Math.sin(t * 6); }
+      if (!on && s.hint) { s.fl.material.opacity = (s.kind === 'cliff' ? 0.45 : 0.25) + 0.25 * Math.sin(t * 6); if (s.kind === 'cliff') s.fl.scale.setScalar(0.6 + 0.12 * Math.sin(t * 6)); }
+      else if (!on && s.dim) { s.fl.material.opacity = 0.05; s.fl.scale.setScalar(0.3); }
       else if (!on && s.kind === 'cliff') { s.fl.material.opacity = 0.14; s.fl.scale.setScalar(0.35); } // 冷えた崖の台にも、小さな残り火
       if (s.id < LAMPS) U[s.id].set(cx(s), cz(s), on ? rad(s) : s.kind === 'cliff' ? 0.55 + (s.hint ? 0.25 : 0) : 0, on || s.kind === 'cliff' ? 1 : 0); // 冷えた崖の台のまわりも、少しだけ闇をあける（台のありかが見える） // ランタンの g は家の中心にあるので、台の位置（s.x, s.z）で
     }

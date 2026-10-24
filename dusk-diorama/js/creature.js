@@ -94,7 +94,7 @@ export function makeSalamander(parent) {
       if (!st.free) st.free = { x: hx, z: hz, yaw };
       const home = { x: FIRE.x + Math.cos(st.ang) * 0.66, z: FIRE.z + Math.sin(st.ang) * 0.66 }, g2 = ctl.goal || home;
       const dx = g2.x - st.free.x, dz = g2.z - st.free.z, dist = Math.hypot(dx, dz), go = dist > 0.03;
-      if (go) { const sp = Math.min(dist, dt * 1.0 * st.go); st.free.x += dx / dist * sp; st.free.z += dz / dist * sp; const a = Math.atan2(dz, dx); st.free.yaw += wrapA(a - st.free.yaw) * Math.min(1, dt * 6); }
+      if (go) { const sp = Math.min(dist, dt * 1.0 * st.go * (ctl.speed || 1)); st.free.x += dx / dist * sp; st.free.z += dz / dist * sp; const a = Math.atan2(dz, dx); st.free.yaw += wrapA(a - st.free.yaw) * Math.min(1, dt * 6); }
       st.walk += ((go ? 1 : 0) - st.walk) * Math.min(1, dt * 4); st.step += dt * 4 * st.walk * st.go;
       hx = st.free.x; hz = st.free.z; yaw = st.free.yaw + Math.sin(t * 0.4) * 0.1 * (1 - st.walk);
       st.arrived = !go;

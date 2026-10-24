@@ -176,7 +176,7 @@ cv.addEventListener('pointermove', e => {
   }
   if (pointers.size === 2) { const [a, b] = [...pointers.values()], d0 = Math.hypot(a.x - b.x, a.y - b.y); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY }); const [c, d] = [...pointers.values()]; view.zoom = THREE.MathUtils.clamp(view.zoom * d0 / Math.max(1, Math.hypot(c.x - d.x, c.y - d.y)), 0.45, 1.5); return; }
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (carry) { carry.p = groundAt(e); return; }
+  if (carry) { carry.p = groundAt(e); carry.e = { clientX: e.clientX, clientY: e.clientY }; return; }
   if (rotating) { view.az -= (e.clientX - prev.x) * 0.006; view.el = THREE.MathUtils.clamp(view.el + (e.clientY - prev.y) * 0.004, 0.15, 1.2); }
 });
 function release(e) {
@@ -230,17 +230,27 @@ function sendSal(p) {
   if (st.F < RULE.emberMin) { fx.crumbs(FIRE.x, fireY + 0.3, FIRE.z, 6, 0.3); sfx('sfx-pick', 0.3, 0.6); return; } // 小さい火からは、くわえていけない
   st.F -= RULE.emberCost; st.sentSal = true; goSal(p); sfx('sfx-flare2', 0.3, 1.7);
 }
-function goSal(p) { SAL.mode = 'go'; SAL.t = 0; SAL.goal = { x: p.x, z: p.z }; SAL.lit = false; sal.ctl.goal = SAL.goal; sal.ctl.curl = false; }
+function goSal(p) { SAL.mode = 'go'; SAL.t = 0; SAL.goal = { x: p.x, z: p.z }; SAL.lit = false; SAL.route = salRoute(SAL.goal); sal.ctl.goal = SAL.route.shift(); sal.ctl.curl = false; sal.ctl.speed = SAL.route.length ? 1.6 : 1; }
+// 火トカゲの道すじ: 崖の場面で島と岸を行き来するときは、桟橋の先 → 崖の道（台のわき）をたどる（まっすぐ行くと、島と岸のすき間の宙を歩いた）
+function shoreWay() { const L0 = SHORE.path.map(p => p.pier ? { x: 0, z: p.z } : { x: p.x, z: p.z - 0.4 }); return [{ x: 0, z: coast(0) + PIER_LEN - 0.15 }, ...L0].map(q => shore.localToWorld(new THREE.Vector3(q.x, 0, q.z))); }
+const nearWay = (W, p) => W.reduce((b, q, i) => Math.hypot(q.x - p.x, q.z - p.z) < Math.hypot(W[b].x - p.x, W[b].z - p.z) ? i : b, 0);
+function salRoute(dest) {
+  if (!st.cliff) return [dest];
+  const here = salPos(), onIsl = !onShore(here), toIsl = !onShore(dest); if (onIsl && toIsl) return [dest];
+  const W = shoreWay(), i0 = onIsl ? 0 : nearWay(W, here), i1 = toIsl ? 0 : nearWay(W, dest), way = [];
+  for (let i = i0; i !== i1; i += i1 > i0 ? 1 : -1) way.push(W[i]); way.push(W[i1]);
+  return [...way, dest];
+}
 function salPos() { const p = sal.head().clone(); C0.group.localToWorld(p); return p; }
 function stepSal(dt) {
   SAL.t += dt; const lp = salPos();
-  if (SAL.mode === 'go') { SAL.k += (0.35 - SAL.k) * Math.min(1, dt * 3); if ((sal.arrived && SAL.t > 0.4) || SAL.t > 30) { SAL.mode = 'rest'; /* 出たばかりは、前の場所の「着いた」が残っている */ SAL.t = 0; sal.ctl.curl = true; } }
+  if (SAL.mode === 'go') { SAL.k += (0.35 - SAL.k) * Math.min(1, dt * 3); if (sal.arrived && SAL.t > 0.4 && SAL.route.length) { sal.ctl.goal = SAL.route.shift(); SAL.t = 0; } /* 道すじの次へ */ else if ((sal.arrived && SAL.t > 0.4) || SAL.t > 30) { SAL.mode = 'rest'; sal.ctl.speed = 1; /* 出たばかりは、前の場所の「着いた」が残っている */ SAL.t = 0; sal.ctl.curl = true; } }
   else if (SAL.mode === 'rest') {
     SAL.k += ((SAL.t < RULE.salRest - 5 ? 1 : Math.max(0, (RULE.salRest - SAL.t) / 5)) - SAL.k) * Math.min(1, dt * 2); // 終わりの5秒で冷めていく
     if (!SAL.lit && SAL.t > 0.8) { SAL.lit = true; for (const s of L.stands) if (s.life <= 0 && !L.fallen(s) && Math.hypot(s.x - lp.x, s.z - lp.z) < 0.7 && (s.kind !== 'cliff' || prevLit(s) || (st.cliff && st.cliff.salTo === s))) { L.ignite(s); st.litAny = true; sfx('sfx-flare', 0.35, 1.4); fx.crumbs(s.x, H(s.x, s.z) + 0.7, s.z, 6, 0.2); } } // 空の台にふれると灯をともす
     const id = chunkIdAt(lp.x, lp.z); if (id >= 0 && isl.all[id].fallen) SAL.t = RULE.salRest; // 足もとが落ちそうなら、すぐ帰る
-    if (SAL.t >= RULE.salRest) { SAL.mode = 'back'; SAL.t = 0; sal.ctl.goal = null; sal.ctl.curl = false; }
-  } else if (SAL.mode === 'back') { SAL.k += (0 - SAL.k) * Math.min(1, dt * 2); if (!sal.away) SAL.mode = 'home'; }
+    if (SAL.t >= RULE.salRest) { SAL.mode = 'back'; SAL.t = 0; sal.ctl.curl = false; SAL.route = st.cliff && onShore(salPos()) ? salRoute({ x: FIRE.x + 0.66, z: FIRE.z }).slice(0, -1) : []; sal.ctl.goal = SAL.route.length ? SAL.route.shift() : null; sal.ctl.speed = SAL.route.length ? 1.6 : 1; } // 岸からは、来た道をもどる
+  } else if (SAL.mode === 'back') { SAL.k += (0 - SAL.k) * Math.min(1, dt * 2); SAL.t += 0; if (sal.ctl.goal && sal.arrived && SAL.t > 0.4) { sal.ctl.goal = SAL.route.length ? SAL.route.shift() : null; SAL.t = 0; if (!sal.ctl.goal) sal.ctl.speed = 1; } if (!sal.away) SAL.mode = 'home'; }
   else if (SAL.mode === 'save') { SAL.k += (0.6 - SAL.k) * Math.min(1, dt * 2); if (SAL.t > 1.2 && !SAL.gave) { SAL.gave = true; st.F += RULE.salSave; fx.burst(0.6); sfx('sfx-flare', 0.5, 0.8); } if (SAL.t > 7) { SAL.mode = 'home'; sal.ctl.rOv = null; sal.ctl.curl = false; } }
   else SAL.k += (0 - SAL.k) * Math.min(1, dt * 2);
   // 火が消えかけると、ひと晩に1回だけ、自分からおき火に入って丸くなる（そばにいるときだけ。闇へ行っているあいだは助けられない）
@@ -263,6 +273,7 @@ function dropEmber(p, e) {
   if (s && canLightS(s)) { L.ignite(s); st.litAny = true; sfx('sfx-flare', 0.4, 1.3); fx.crumbs(s.x, H(s.x, s.z) + 0.7, s.z, 6, 0.2); return; }
   if (s && s.afterGully && s.life <= 0 && st.cliff && !st.cliff.bridge && prevLit(s)) { handSal(s); return; } // 割れ目の向こう: 火トカゲが火種を受けとって渡る
   if (carry && carry.from && s === carry.from) { s.life += RELAY; return; } // 分けた台にもどす
+  if (s && s.life <= 0) { s.nope = 0.5; sfx('sfx-pick', 0.35, 0.5); fx.crumbs(s.x, groundY(s.x, s.z) + 0.8, s.z, 4, 0.15); return; } // 置けない台: じゅっとまたたいて消える
   if (Math.hypot(p.x - FIRE.x, p.z - FIRE.z) < RULE.dropR) { st.F += RULE.emberCost; return; } // 火にもどす
   fx.crumbs(p.x, H(p.x, p.z) + 0.2, p.z, 5, 0.2); // 闇の中で消える
 }
@@ -331,7 +342,8 @@ function hud() {
   $('bar').style.transform = `scaleX(${Math.min(1, st.cliff ? st.cliff.t / CLIFF.time : st.t / RULE.night)})`; if (st.orbN !== st.night + st.phase) { st.orbN = st.night + st.phase; const o = $('orbs'); o.setAttribute('aria-label', `第${st.night}夜`); [...o.children].forEach((e, i) => { e.className = i + 1 < st.night || (i + 1 === st.night && st.phase === 'dawn') ? 'done' : i + 1 === st.night ? 'now' : ''; }); }
   const hint = $('hint'); hint.hidden = true; // 字の案内はなし。目じるしの光と、火トカゲのしぐさで促す（PLAN.md 2.9章）
   // 目立たせるのは1つ: 手本のあと → 火から少し離れた柵 →（1つくべたら）炎の芯 →（火種を持ったら）ともせる台
-  for (const s2 of L.stands) s2.hint = !!(carry && carry.ember && canLightS(s2)) || !!(st.cliff && !carry && s2 === nextCliff()); // 崖の場面では、次にともす台がいつも脈打つ
+  for (const s2 of L.stands) s2.dim = !!(carry && carry.ember && s2.life <= 0 && !canLightS(s2) && !(s2.afterGully && st.cliff && !st.cliff.bridge && prevLit(s2)));
+  for (const s2 of L.stands) s2.hint = !!(carry && carry.ember && (canLightS(s2) || (s2.afterGully && st.cliff && !st.cliff.bridge && prevLit(s2) && s2.life <= 0))) || !!(st.cliff && !carry && s2 === nextCliff()); // 崖の場面では、次にともす台がいつも脈打つ
   let gp = null;
   if (st.phase === 'play' && st.demoDone) {
     if (carry && carry.ember) { let best = null, bd = 1e9; for (const s2 of L.stands) if (canLightS(s2)) { const d = Math.hypot(s2.x - carry.p.x, s2.z - carry.p.z); if (d < bd) { bd = d; best = s2; } } if (best && (!st.litAny || st.cliff)) gp = best.fl.getWorldPosition(new THREE.Vector3()); }
@@ -538,7 +550,7 @@ function stepCliff(dt) {
   }
   // 火トカゲが灯台の下に着いたら、火が塔をのぼって灯室へ。ともったら本当の夜明け
   C.seq += dt;
-  if (C.rise < 0 && (sal.arrived || C.seq > 14)) C.rise = 0;
+  if (C.rise < 0 && ((SAL.mode === 'rest' && C.seq > 1) || C.seq > 40)) C.rise = 0;
   if (C.rise >= 0 && !C.lit) { C.rise = Math.min(1, C.rise + dt / 2.5); SHORE.rise(C.rise); if (C.rise >= 1) lightLighthouse(); }
 }
 function lightLighthouse() {
@@ -638,7 +650,11 @@ function step(now) {
   }
   for (const s of shake) s.t -= dt; for (let i = shake.length - 1; i >= 0; i--) if (shake[i].t <= 0) shake.splice(i, 1);
   // 運んでいる物は指の下の少し上に、ゆれながら
-  if (carry && carry.ember) { const q = carry.p; L.ember.position.set(q.x, H(q.x, q.z) + 0.55, q.z); L.ember.scale.setScalar(0.3 + 0.05 * Math.sin(now / 90)); L.ember.material.opacity = 1; L.emberLight.position.copy(L.ember.position); L.emberLight.intensity = 3; }
+  if (carry && carry.ember) { // 置ける台に近づくと火種が台の炎に吸いつき、置けない台の上ではしぼむ
+    const q = carry.p, hs = carry.e ? standAtScreen(carry.e) : null, ok = hs && hs.life <= 0 && (canLightS(hs) || (hs.afterGully && st.cliff && !st.cliff.bridge && prevLit(hs)));
+    if (ok) { L.ember.position.lerp(hs.fl.getWorldPosition(new THREE.Vector3()), 0.35); L.ember.scale.setScalar(0.5 + 0.08 * Math.sin(now / 70)); L.ember.material.opacity = 1; L.emberLight.intensity = 5; }
+    else { L.ember.position.set(q.x, groundY(q.x, q.z) + 0.55, q.z); const no = hs && hs.life <= 0; L.ember.scale.setScalar(no ? 0.16 : 0.3 + 0.05 * Math.sin(now / 90)); L.ember.material.opacity = no ? 0.45 + 0.3 * Math.sin(now / 40) : 1; L.emberLight.intensity = no ? 1 : 3; }
+    L.emberLight.position.copy(L.ember.position); }
   else if (carry && carry.sal) { const q = carry.p; salRing.position.set(q.x, H(q.x, q.z) + 0.06, q.z); salRing.material.opacity = salOk(q) ? 0.55 + 0.2 * Math.sin(now / 200) : 0.12; }
   else if (carry) { const b = carry.b; carry.lift = Math.min(1, carry.lift + dt * 6); const tgt = new THREE.Vector3(carry.p.x, H(carry.p.x, carry.p.z) + 0.15 + 0.45 * carry.lift, carry.p.z).add(carry.off); b.obj.position.lerp(tgt, Math.min(1, dt * 14)); b.obj.rotation.z = Math.sin(st.t * 5) * 0.05; }
   if (!(carry && carry.sal)) salRing.material.opacity = 0;
@@ -672,4 +688,4 @@ function step(now) {
   R3.render(now / 1000);
 }
 requestAnimationFrame(frame);
-window.__game = { st, isl, V, view, RULE, camera, fx, burn, fall, FIRE, chunkIdAt, startNight, sal, L, SAL, sendSal, leanBoard, fireLight, shelterOf, cliffStands, placeBridge, CLIFF, SHORE, carry: () => carry, gullyDist, emberTo: s => { if (st.F < RULE.emberMin) return false; st.F -= RULE.emberCost; st.tookEmber = true; dropEmber({ x: s.x, z: s.z }); return s.life > 0; } }; // 確かめ用（tools/ と手で）
+window.__game = { st, isl, V, view, RULE, camera, fx, burn, fall, FIRE, chunkIdAt, startNight, sal, L, SAL, sendSal, leanBoard, fireLight, shelterOf, cliffStands, placeBridge, CLIFF, SHORE, carry: () => carry, gullyDist, onShore, salPos, emberTo: s => { if (st.F < RULE.emberMin) return false; st.F -= RULE.emberCost; st.tookEmber = true; dropEmber({ x: s.x, z: s.z }); return s.life > 0; } }; // 確かめ用（tools/ と手で）

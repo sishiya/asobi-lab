@@ -13,11 +13,13 @@ try {
   const drag = async (a, b) => { await page.mouse.move(...a); await page.mouse.down(); for (let i = 1; i <= 10; i++) { await page.mouse.move(a[0] + (b[0] - a[0]) * i / 10, a[1] + (b[1] - a[1]) * i / 10); await page.waitForTimeout(25); } await page.mouse.up(); await page.waitForTimeout(250); };
   const lit = k => page.evaluate(k => window.__game.cliffStands[k].life > 0, k);
   const relay = async k => { await drag(await standXY(k - 1), await standXY(k)); return lit(k); };
+  await page.evaluate(() => { const G = window.__game; window.__void = 0; window.__samples = 0; setInterval(() => { if (!G.sal.away) return; const p = G.salPos(), id = G.chunkIdAt(p.x, p.z), on = (id >= 0 && !G.isl.all[id].fallen) || G.onShore(p); window.__samples++; if (!on) window.__void++; }, 100); }); // 火トカゲが宙にいるか
   for (let k = 1; k <= 4; k++) console.log(`台${k + 1}:`, await relay(k) ? 'ともった' : 'ともらない');
   console.log('台6（割れ目の向こう・橋板なし）に火種を置くと:', await relay(5) ? 'ともった' : await page.evaluate(() => `火トカゲ ${window.__game.SAL.mode}`));
   if (salWay) { await page.waitForFunction(() => window.__game.cliffStands[5].life > 0, null, { timeout: 300000 }).catch(() => {}); console.log('火トカゲが渡って台6:', await lit(5) ? `ともった（${await page.evaluate(() => window.__game.st.cliff.t.toFixed(0))}s）` : 'ともらない');
     for (let k = 6; k <= 7; k++) console.log(`台${k + 1}:`, await relay(k) ? 'ともった' : 'ともらない');
   await page.waitForFunction(() => window.__game.st.cliff.lit, null, { timeout: 300000 }).catch(() => {}); console.log('灯台:', await page.evaluate(() => window.__game.st.cliff.lit ? `ともった（${window.__game.st.cliff.t.toFixed(0)}s）` : 'ともらない'));
+    console.log('火トカゲが宙にいた:', await page.evaluate(() => `${window.__void} / ${window.__samples} 回`));
     console.log(errors.length ? 'エラー: ' + errors.join(' / ') : 'エラーなし'); await browser.close(); server.close(); process.exit(0); }
   // 梁・荷車・丸太を、割れ目へ
   const beam = await page.evaluate(() => { const G = window.__game, on = b => { const p = b.obj.getWorldPosition(G.camera.position.clone()).project(G.camera); return Math.abs(p.x) < 0.85 && Math.abs(p.y) < 0.85 && p.z < 1; };
@@ -30,5 +32,6 @@ try {
   for (let k = 5; k <= 7; k++) console.log(`台${k + 1}:`, await relay(k) ? 'ともった' : 'ともらない');
   await page.waitForFunction(() => window.__game.st.cliff.lit, null, { timeout: 300000 }).catch(() => {}); console.log('灯台:', await page.evaluate(() => window.__game.st.cliff.lit ? `ともった（${window.__game.st.cliff.t.toFixed(0)}s）` : 'ともらない'));
   await page.screenshot({ path: path.join(dir, `dusk-gully-${w}x${h}.png`) });
+  console.log('火トカゲが宙にいた:', await page.evaluate(() => `${window.__void} / ${window.__samples} 回`));
   console.log(errors.length ? 'エラー: ' + errors.join(' / ') : 'エラーなし'); console.log(dir);
 } finally { await browser.close(); server.close(); }
