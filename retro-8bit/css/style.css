@@ -14,7 +14,9 @@ button{font:inherit;color:inherit}
 .tools{display:flex;gap:8px}
 .tool{background:transparent;border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--muted);cursor:pointer;min-height:40px}
 .tool:hover{color:var(--ink);border-color:var(--muted)}
-.tool[aria-pressed="false"]{text-decoration:line-through;opacity:.6}
+.tool[aria-pressed="false"] .snd{color:var(--muted);position:relative}
+.tool[aria-pressed="false"] .snd::after{content:"";position:absolute;left:-2px;right:-2px;top:50%;height:2px;background:currentColor;transform:rotate(-40deg)}
+.tool .lbl{margin-left:4px}
 
 /* 画面: 外の枠（ベゼル）に入れて、ドットのまま大きくする */
 .stage{min-height:0;display:flex;align-items:center;justify-content:center;padding:12px 0}
@@ -82,9 +84,10 @@ kbd{display:inline-block;min-width:22px;padding:1px 6px;margin-right:3px;border:
   .cartname{font-size:12px;padding:1px 8px}
   .tools{gap:6px}
   .tool{padding:8px 10px;min-width:40px}
-  #btnReset,#btnSound{font-size:0}
+  #btnReset{font-size:0}
   #btnReset::before{content:"↺";font-size:15px}
-  #btnSound::before{content:"♪";font-size:15px}
+  #btnSound .lbl{display:none}
+  #btnSound .snd{font-size:15px}
   .bezel{padding:8px;border-radius:12px}
   .bezel::after{inset:8px}
 }
@@ -182,22 +185,9 @@ kbd{display:inline-block;min-width:22px;padding:1px 6px;margin-right:3px;border:
 }
 @media (prefers-reduced-motion:reduce){ .cart .shell,.cart.flying .shell{transition:none} }
 
-/* 画面の見え方のメニュー（めったに使わないので右上に。開いたときだけ出す） */
-.menuwrap{position:relative}
-.menu{position:absolute;right:0;top:calc(100% + 6px);z-index:10;width:280px;padding:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.45)}
-.menu-h{margin:4px 8px 8px;font-size:12px;color:var(--muted)}
-.menu button{display:block;width:100%;text-align:left;background:transparent;border:0;border-radius:8px;padding:10px 12px;font-size:14px;cursor:pointer;min-height:44px}
-.menu button:hover{background:var(--btn)}
-.menu button small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
-.menu button[aria-checked="true"]{background:var(--btn);box-shadow:inset 3px 0 0 var(--acc)}
-.menu-note{margin:8px 8px 4px;font-size:11px;line-height:1.6;color:var(--muted)}
 #crt{display:block;background:#000;border-radius:6px}
 .bezel.crton::after{display:none}
-@media (max-width:520px){
-  #btnScreen{font-size:0}
-  #btnScreen::before{content:"▣";font-size:15px}
-  .menu{position:fixed;left:16px;right:16px;top:64px;width:auto}
-}
+
 /* 上の帯: 名前は縮めて、道具とぶつけない */
 .top .name{flex:1;min-width:0}
 .top .cartname{min-width:0;overflow:hidden;text-overflow:ellipsis}
@@ -212,3 +202,105 @@ kbd{display:inline-block;min-width:22px;padding:1px 6px;margin-right:3px;border:
 .memo .erase{font:inherit;font-size:13px;color:#8a3b12;background:transparent;border:1px solid #c9a07a;border-radius:6px;padding:4px 10px;cursor:pointer;min-height:32px}
 .memo .erase:hover{background:#efe2cc}
 .memo .erased{font-size:13px;color:#4a7a2a}
+
+/* ---------- 設定（⚙）。区割り: 上 = 題と ✕、その下にタブ（画面と音／キー）、中身。めったに使わないので、開いたときだけ ---------- */
+.settings{width:min(560px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:0;border:1px solid var(--line);border-radius:16px;background:var(--panel);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.settings::backdrop{background:rgba(5,8,15,.65)}
+.set-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 6px}
+.set-head h2{margin:0;font-size:17px}
+.set-tabs{display:flex;gap:4px;padding:0 16px;border-bottom:1px solid var(--line)}
+.set-tabs button{border:0;background:transparent;color:var(--muted);font-size:14px;padding:10px 14px;min-height:44px;cursor:pointer;border-bottom:3px solid transparent}
+.set-tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--acc)}
+.settings section{padding:12px 16px 18px;overflow:auto;max-height:calc(100dvh - 160px)}
+.settings h3{margin:14px 0 8px;font-size:13px;color:var(--muted);font-weight:600}
+.settings h3 small{font-weight:400;margin-left:6px}
+.radios{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.radios button{text-align:left;border:1px solid var(--line);background:transparent;border-radius:10px;padding:10px 12px;font-size:14px;min-height:56px;cursor:pointer}
+.radios button small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+.radios button[aria-checked="true"]{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc);background:rgba(136,216,0,.07)}
+.radios button:disabled{opacity:.4;cursor:not-allowed}
+.set-note{margin:8px 0 0;font-size:12px;line-height:1.7;color:var(--muted)}
+.opt{display:flex;align-items:center;gap:10px;min-height:40px;font-size:14px}
+.opt input[type=checkbox]{width:20px;height:20px;accent-color:var(--acc)}
+.opt input[type=range]{flex:1;max-width:240px;accent-color:var(--acc)}
+.krows{display:flex;flex-direction:column;gap:6px}
+.krow{display:grid;grid-template-columns:76px 1fr auto;align-items:center;gap:8px;min-height:40px}
+.krow .face{margin:0 auto 0 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:2px;padding:2px 4px 2px 8px;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;background:var(--bg);font:12px/1.6 ui-monospace,monospace}
+.chip button{border:0;background:transparent;color:var(--muted);font-size:14px;line-height:1;padding:4px 6px;cursor:pointer;min-width:28px;min-height:28px}
+.chip button:hover{color:#ff8a7a}
+.none{font-size:12px;color:var(--muted)}
+.addkey{border:1px dashed var(--line);background:transparent;border-radius:8px;padding:6px 10px;font-size:12px;color:var(--muted);cursor:pointer;min-height:36px;white-space:nowrap}
+.addkey:hover{color:var(--ink);border-color:var(--muted)}
+.addkey.wait{border-style:solid;border-color:var(--acc);color:var(--acc);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.55}}
+.keynote{min-height:1.6em;margin:12px 0 8px;font-size:13px;color:var(--acc)}
+.keyedit{border:0;background:transparent;color:var(--muted);font-size:12px;text-decoration:underline;cursor:pointer;padding:6px}
+.keyedit:hover{color:var(--ink)}
+/* A と B をいっしょに（指） */
+.ab{position:relative}
+.both{position:absolute;left:50%;top:-40px;transform:translateX(-50%);width:52px;height:30px;border-radius:15px;border:0;background:#7d2030;color:#fff;font-size:11px;font-weight:800;box-shadow:0 3px 0 #4a1018}
+.both.on{filter:brightness(1.3);transform:translate(-50%,2px)}
+/* 遊んでいるあいだはページを動かさない（引っぱって再読み込み・ダブルタップの拡大をさける） */
+body.playing{overflow:hidden;overscroll-behavior:none}
+body.playing .pad, body.playing .stage{touch-action:none}
+.pad button,.dpad{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+@media (max-width:520px){
+  .radios{grid-template-columns:1fr}
+  #btnSettings{font-size:0}
+  #btnSettings::before{content:"⚙";font-size:16px}
+  .krow{grid-template-columns:64px 1fr auto}
+}
+
+/* ---------- トップの本体を押せるように（電源スイッチ・さしこみ口・ドラッグ） ---------- */
+.console .slot{border:0;padding:0;cursor:pointer}
+.console .slot:hover,.console .slot.over{box-shadow:inset 0 3px 6px #000,0 0 0 2px rgba(255,225,79,.55),0 0 18px rgba(255,225,79,.35)}
+.console .slot:focus-visible,.console .sw:focus-visible{outline:3px solid #ffe14f;outline-offset:3px}
+.console .sw{border:0;padding:0;cursor:pointer}
+.console .sw:hover::after{filter:brightness(1.12)}
+.console .led.blink{animation:ledblink .5s steps(1) 3}
+@keyframes ledblink{0%{background:#ff4a3d;box-shadow:0 0 12px #ff4a3d}50%{background:#5a1a16;box-shadow:none}}
+.bubble{position:absolute;left:50%;top:calc(100% + 14px);transform:translateX(-50%);z-index:3;margin:0;padding:8px 14px;border-radius:10px;background:#f6efe0;color:#3a2a1c;font:14px/1.5 "Yomogi",cursive;white-space:nowrap;box-shadow:0 6px 14px rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .2s}
+.bubble::before{content:"";position:absolute;left:50%;top:-6px;margin-left:-6px;border:6px solid transparent;border-top:0;border-bottom-color:#f6efe0}
+.bubble.show{opacity:1}
+.cart .shell:active{transform:translateY(-4px) rotate(var(--tilt,0deg)) scale(.98)}
+.cart .shell[draggable=true]{cursor:grab}
+.cart.dragging .shell{opacity:.45}
+
+/* ---------- UX の見なおし（2026-10-24。遊び手・UX 役の指摘） ---------- */
+/* 指で押す所は 44px 以上 */
+.tool,.back{min-height:44px;min-width:44px}
+.pill{min-height:44px;padding:0 18px;font-size:12px}
+.mid{gap:16px}
+.both::before{content:"";position:absolute;inset:-8px}
+@media (pointer:coarse){ .addkey{min-height:44px;min-width:44px} .chip button{min-width:40px;min-height:40px} }
+/* リセットは右はしに離して置く。2回押しの案内 */
+.tools #btnReset{margin-left:10px}
+.tip{position:absolute;right:0;top:calc(100% + 8px);z-index:20;padding:6px 10px;border-radius:8px;background:#f3e6c0;color:#2a1a10;font-size:12px;white-space:nowrap;box-shadow:0 6px 14px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .15s}
+.back .tip{left:0;right:auto}
+.tip.show{opacity:1}
+/* ふきだし: スイッチの下に・2行 */
+.bubble{white-space:pre-line;text-align:center;max-width:240px}
+.bubble.at-sw{left:auto;right:0;transform:none}
+.bubble.at-sw::before{left:auto;right:30px;margin-left:0}
+/* 本体: 押せることが分かるように（POWER の刷り文字・口のふちの光） */
+.console .swlabel{position:absolute;right:28px;bottom:10px;width:72px;text-align:center;font:600 9px system-ui,sans-serif;letter-spacing:.2em;color:#a9aab3}
+.console .slot{box-shadow:inset 0 3px 6px #000,0 -1px 0 rgba(255,255,255,.28),0 1px 0 rgba(255,255,255,.12)}
+@media (pointer:coarse){ .console .slot{animation:slotglow 4s ease-in-out infinite} }
+@keyframes slotglow{0%,80%,100%{box-shadow:inset 0 3px 6px #000,0 -1px 0 rgba(255,255,255,.28)}88%{box-shadow:inset 0 3px 6px #000,0 0 0 2px rgba(255,225,79,.35),0 0 14px rgba(255,225,79,.25)}}
+@media (prefers-reduced-motion:reduce){ .console .slot{animation:none} }
+.cart.hop .shell{animation:hop .5s cubic-bezier(.3,.7,.4,1)}
+@keyframes hop{40%{transform:translateY(-14px) rotate(var(--tilt,0deg))}}
+/* キー設定: ＋ はキーの札のうしろに。2列 */
+.krow{grid-template-columns:64px 1fr}
+.addkey{min-width:36px;font-size:14px;padding:4px 10px}
+.coarse-only{display:none}
+@media (pointer:coarse){ .coarse-only{display:block;color:var(--ink)} }
+.p2{margin-top:14px}
+.p2 summary{cursor:pointer;font-size:13px;color:var(--muted);font-weight:600;min-height:40px;display:flex;align-items:center;gap:6px}
+.p2 summary small{font-weight:400}
+.p2 .krows{margin-top:6px}
+/* PC のキーの案内: ボタン ＝ キー */
+.keys{gap:8px 28px}
+.keys i{font-style:normal;opacity:.5;margin:0 2px}

@@ -17,6 +17,7 @@ export class Console8 {
     this.ppu.nmiOut = () => { this.cpu.nmi = true; };
     this.cpu.irq = () => this.apu.frameIrq;
     this.pad = [0, 0]; this.shift = [0, 0]; this.strobe = 0;
+    this.mic = false; // 2P のマイク（$4016 の 2 ビット目。当時の 2P コントローラーについていた）
     this.cpu.reset();
   }
   reset() { this.ppu.reset(); this.ppu.nmiOut = () => { this.cpu.nmi = true; }; this.cpu.reset(); }
@@ -26,10 +27,10 @@ export class Console8 {
     if (a < 0x4000) return this.ppu.readReg(a & 7);
     if (a === 0x4015) return this.apu.read();
     if (a === 0x4016 || a === 0x4017) {
-      const i = a & 1;
-      if (this.strobe) return 0x40 | (this.pad[i] & 1);
+      const i = a & 1, mic = i === 0 && this.mic ? 4 : 0;
+      if (this.strobe) return 0x40 | mic | (this.pad[i] & 1);
       const v = this.shift[i] & 1; this.shift[i] = (this.shift[i] >> 1) | 0x80;
-      return 0x40 | v;
+      return 0x40 | mic | v;
     }
     if (a < 0x6000) return 0;
     return this.cart.cpuRead(a);

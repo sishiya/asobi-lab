@@ -2,6 +2,8 @@
 import { Console8, BTN } from './nes.js';
 import { LIBRARY } from './library.js';
 import { createCRT } from './crt/crt-gl.js';
+import { createInput, keyLabel } from './input.js';
+import { initSettings } from './settings.js';
 
 const FRAME_MS = 1000 / 60.0988;
 const $ = (id) => document.getElementById(id);
@@ -10,6 +12,9 @@ const canvas = $('screen'), g = canvas.getContext('2d');
 const img = g.createImageData(256, 240), px = new Uint32Array(img.data.buffer);
 let nes = null, current = null, running = false, audio = null;
 let soundOn = read('retro8.sound', '1') === '1';
+let volume = Math.min(1, Math.max(0, +read('retro8.volume', '0.8') || 0));
+const COARSE = matchMedia('(pointer:coarse)').matches;
+let vibrateOn = read('retro8.vibrate', '1') === '1';
 
 function read(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } }
 function save(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } }
@@ -37,6 +42,12 @@ function renderShelf() {
     dl.href = e.file; dl.download = e.id + '.nes';
     dl.title = `${e.id}.nes をダウンロード`;
     shell.addEventListener('click', () => insertCart(cart, () => openEntry(e, true)));
+    // PC: 本体のさしこみ口へドラッグしても入る
+    if (!COARSE) {
+      shell.draggable = true;
+      shell.addEventListener('dragstart', (ev) => { ev.dataTransfer.setData('text/plain', e.id); ev.dataTransfer.effectAllowed = 'move'; cart.classList.add('dragging'); });
+      shell.addEventListener('dragend', () => cart.classList.remove('dragging'));
+    }
     box.insertBefore(cart, blank);
     // ラベルの絵: 音なしでタイトルまで進めて1枚描く
     loadRom(e).then((bytes) => {
@@ -68,9 +79,49 @@ function insertCart(cart, then) {
     { transform: `translate(${dx}px, ${above}px) scale(${k})`, clipPath: 'inset(0 0 0 0)', offset: 0.7 },
     { transform: `translate(${dx}px, ${into}px) scale(${k})`, clipPath: 'inset(0 0 100% 0)' },
   ], { duration: 600, easing: 'cubic-bezier(.45,0,.3,1)', fill: 'forwards' });
-  setTimeout(() => { led.classList.add('on'); con.classList.add('on'); }, 560);
+  setTimeout(() => clack('in'), 380);
+  setTimeout(() => { clack('sw'); led.classList.add('on'); con.classList.add('on'); }, 560);
   setTimeout(then, 760);
 }
+// ---------- トップの本体: 電源スイッチ・さしこみ口・ふきだし・小さな音 ----------
+let sfxCtx = null;
+function clack(kind) {
+  if (!soundOn) return;
+  try {
+    sfxCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+    const t = sfxCtx.currentTime, n = Math.floor(sfxCtx.sampleRate * 0.06), buf = sfxCtx.createBuffer(1, n, sfxCtx.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, kind === 'in' ? 6 : 10);
+    const src = sfxCtx.createBufferSource(), f = sfxCtx.createBiquadFilter(), g = sfxCtx.createGain();
+    f.type = 'bandpass'; f.frequency.value = kind === 'in' ? 900 : 2400; f.Q.value = 1.2;
+    g.gain.value = volume * 0.5;
+    src.buffer = buf; src.connect(f).connect(g).connect(sfxCtx.destination); src.start(t);
+  } catch { /* 音が出せなくても動く */ }
+}
+let bubbleTimer = 0;
+function bubble(text, atSwitch) {
+  const b = $('bubble'); b.textContent = text; b.classList.toggle('at-sw', !!atSwitch); b.classList.add('show');
+  clearTimeout(bubbleTimer); bubbleTimer = setTimeout(() => b.classList.remove('show'), 3500);
+}
+$('powerSw').addEventListener('click', () => {
+  clack('sw');
+  const led = $('led'); led.classList.remove('blink'); void led.offsetWidth; led.classList.add('blink');
+  bubble('カセットが入っていません。\n下のカセットを押してね', true);
+  // 次にすることを指す: 1枚目のカセットが1回だけはねる（目立たせるのはこれ1つ）
+  const first = document.querySelector('.cart:not(.blank)');
+  if (first && !matchMedia('(prefers-reduced-motion: reduce)').matches) { first.classList.remove('hop'); void first.offsetWidth; first.classList.add('hop'); }
+});
+{
+  const slot = $('slot');
+  slot.addEventListener('click', () => bubble(COARSE ? 'カセットを押すと入ります' : 'カセットを押すか、ここへドラッグ'));
+  slot.addEventListener('dragover', (ev) => { ev.preventDefault(); slot.classList.add('over'); });
+  slot.addEventListener('dragleave', () => slot.classList.remove('over'));
+  slot.addEventListener('drop', (ev) => {
+    ev.preventDefault(); slot.classList.remove('over');
+    const id = ev.dataTransfer.getData('text/plain'), e = LIBRARY.find((x) => x.id === id);
+    if (e) insertCart([...document.querySelectorAll('.cart:not(.blank)')][LIBRARY.indexOf(e)], () => openEntry(e, true));
+  });
+}
+
 function resetShelf() {
   $('led').classList.remove('on'); $('console').classList.remove('on');
   for (const c of document.querySelectorAll('.cart.flying')) { c.classList.remove('flying'); for (const an of c.querySelector('.shell').getAnimations()) an.cancel(); }
@@ -103,8 +154,9 @@ async function openEntry(e, gesture) {
   $('shelf').hidden = true;
   $('player').hidden = false;
   $('cartName').textContent = e.title;
-  const keys = e.keys?.length ? e.keys : [['PAD', ''], ['A', ''], ['B', ''], ['START', ''], ['SELECT', '']];
-  $('keys').innerHTML = keyGuide(keys) + '<span class="dim">ゲームパッドも使えます</span>';
+  guideKeys = e.keys?.length ? e.keys : [['PAD', ''], ['A', ''], ['B', ''], ['START', ''], ['SELECT', '']];
+  renderGuide();
+  document.body.classList.add('playing');
   if (e.id && location.hash !== '#' + e.id) history.pushState(null, '', '#' + e.id);
   fit();
   let bytes;
@@ -132,14 +184,27 @@ function backToShelf() {
   current = null;
   $('player').hidden = true;
   $('shelf').hidden = false;
+  document.body.classList.remove('playing');
   if (location.hash) history.pushState(null, '', location.pathname);
 }
-$('btnBack').addEventListener('click', backToShelf);
+// まちがえて押すと遊んでいた所が消えるボタンは、遊んでいる途中なら2回押す（1回目でボタンの下に案内）
+function twoTap(btn, text, act) {
+  let armed = 0;
+  const tip = document.createElement('span');
+  tip.className = 'tip'; tip.setAttribute('role', 'status');
+  btn.style.position = 'relative'; btn.append(tip);
+  btn.addEventListener('click', () => {
+    if (!running || Date.now() - armed < 2000) { armed = 0; tip.classList.remove('show'); act(); return; }
+    armed = Date.now(); tip.textContent = text; tip.classList.add('show');
+    setTimeout(() => { if (Date.now() - armed >= 1990) tip.classList.remove('show'); }, 2000);
+  });
+}
+twoTap($('btnBack'), 'もう一度押すと棚へ', backToShelf);
 function route() {
   const id = location.hash.slice(1);
   const e = LIBRARY.find((x) => x.id === id);
   if (e) { if (current !== e) openEntry(e, false); }
-  else if (current) { stopPlayer(); resetShelf(); current = null; $('player').hidden = true; $('shelf').hidden = false; }
+  else if (current) { stopPlayer(); resetShelf(); current = null; $('player').hidden = true; $('shelf').hidden = false; document.body.classList.remove('playing'); }
 }
 addEventListener('popstate', route);
 
@@ -232,20 +297,8 @@ function setScreen(mode) {
   const on = mode !== 'lcd';
   canvas.hidden = on; glCanvas.hidden = !on;
   $('bezel').classList.toggle('crton', on);
-  for (const b of document.querySelectorAll('[data-screen]')) {
-    b.setAttribute('aria-checked', String(b.dataset.screen === mode));
-    if (!crt && b.dataset.screen !== 'lcd') b.disabled = true;
-  }
   fit();
   if (nes) draw();
-}
-{
-  const btn = $('btnScreen'), menu = $('screenMenu');
-  const close = () => { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); };
-  btn.addEventListener('click', (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden)); });
-  for (const b of menu.querySelectorAll('[data-screen]')) b.addEventListener('click', () => { setScreen(b.dataset.screen); close(); });
-  document.addEventListener('click', (e) => { if (!menu.hidden && !menu.contains(e.target)) close(); });
-  addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
 }
 
 // ---------- 音（ためておく輪の入れ物から鳴らす） ----------
@@ -270,101 +323,90 @@ function setupAudio() {
       ring[a.w] = s[i] * 1.6; a.w = n;
     }
   };
-  a.gain.gain.value = soundOn ? 1 : 0;
+  a.gain.gain.value = soundOn ? volume : 0;
   node.connect(a.gain).connect(ctx.destination);
   return a;
 }
 function setSound(on) {
   soundOn = on; save('retro8.sound', on ? '1' : '0');
   $('btnSound').setAttribute('aria-pressed', String(on));
-  if (audio) audio.gain.gain.value = on ? 1 : 0;
+  $('soundLbl').textContent = on ? '音あり' : '音なし';
+  if (audio) audio.gain.gain.value = on ? volume : 0;
+}
+function setVolume(v) {
+  volume = v; save('retro8.volume', String(v));
+  if (audio) audio.gain.gain.value = soundOn ? v : 0;
 }
 setSound(soundOn);
 
-// ---------- 入力（キー・指・ゲームパッドを合わせる） ----------
-const KEYS = {
-  ArrowLeft: 'LEFT', ArrowRight: 'RIGHT', ArrowUp: 'UP', ArrowDown: 'DOWN',
-  // 画面の字（A・B・START）と同じ名前のキーで押せるように。X・Z はコントローラーの並び（B が左・A が右）が好きな人むけ
-  KeyA: 'A', KeyX: 'A', Space: 'A', KeyB: 'B', KeyZ: 'B', Enter: 'START', ShiftLeft: 'SELECT', ShiftRight: 'SELECT',
-};
-// キーの案内: コントローラーのボタン → 押せるキー
-const BUTTON_KEYS = { PAD: ['↑', '↓', '←', '→'], A: ['A', 'X'], B: ['B', 'Z'], START: ['Enter'], SELECT: ['Shift'] };
+// ---------- 入力（キー・指・ゲームパッド。くわしくは input.js） ----------
+const input = createInput();
+input.onPress = (p, b) => { if (!running && nes && (b === 'START' || b === 'A')) power(); };
+// キーの案内: コントローラーのボタン → いまの割り当てのキー → すること
+let guideKeys = [];
 const BUTTON_LABEL = { PAD: '十字キー', A: 'A', B: 'B', START: 'START', SELECT: 'SELECT' };
-function keyGuide(keys) {
-  return keys.map(([btn, what]) => {
-    const kb = BUTTON_KEYS[btn].map((k) => `<kbd>${k}</kbd>`).join('');
+function renderGuide() {
+  const k = input.keys.p1, first = (b) => (k[b][0] ? keyLabel(k[b][0]) : '—');
+  $('keys').innerHTML = guideKeys.map(([btn, what]) => {
+    const codes = btn === 'PAD' ? ['UP', 'DOWN', 'LEFT', 'RIGHT'].map(first) : k[btn].slice(0, 2).map(keyLabel);
+    const kb = (codes.length ? codes : ['—']).map((x) => `<kbd>${x}</kbd>`).join('');
+    if (btn === 'PAD') return `<span>${kb}<em>${what}</em></span>`;
     const face = btn === 'A' || btn === 'B' ? `<b class="face">${btn}</b>` : `<b class="face word">${BUTTON_LABEL[btn]}</b>`;
-    return `<span>${face}${kb}<em>${what}</em></span>`;
-  }).join('');
+    return `<span>${face}<i>＝</i>${kb}<em>${what}</em></span>`;
+  }).join('') + '<button class="keyedit" id="keyEdit">キーを変える</button>';
+  $('keyEdit').addEventListener('click', () => settings.open('keys'));
 }
-const keyHeld = new Set(), touchHeld = new Set(), dpadHeld = new Set();
-const tapped = new Set(); // 押してすぐはなしても、1フレームは押したことにする
-addEventListener('keydown', (e) => {
-  const b = KEYS[e.code];
-  if (!b || $('player').hidden) return;
-  e.preventDefault();
-  if (!running && (b === 'START' || b === 'A')) { power(); return; }
-  keyHeld.add(b); tapped.add(b);
-});
-addEventListener('keyup', (e) => { const b = KEYS[e.code]; if (b) keyHeld.delete(b); });
-addEventListener('blur', () => { keyHeld.clear(); touchHeld.clear(); dpadHeld.clear(); });
-
+const buzz = () => { if (COARSE && vibrateOn && navigator.vibrate) navigator.vibrate(8); };
 for (const el of document.querySelectorAll('[data-btn]')) {
-  const b = el.dataset.btn;
-  const on = (e) => { e.preventDefault(); if (!running) power(); touchHeld.add(b); tapped.add(b); el.classList.add('on'); try { el.setPointerCapture(e.pointerId); } catch { /* 指がもう離れている */ } };
-  const off = () => { touchHeld.delete(b); el.classList.remove('on'); };
+  const names = el.dataset.btn.split(' ');
+  const on = (e) => { e.preventDefault(); if (!running) power(); input.touchDown(names); el.classList.add('on'); buzz(); try { el.setPointerCapture(e.pointerId); } catch { /* 指がもう離れている */ } };
+  const off = () => { input.touchUp(names); el.classList.remove('on'); };
   el.addEventListener('pointerdown', on);
   el.addEventListener('pointerup', off);
   el.addEventListener('pointercancel', off);
+  el.addEventListener('lostpointercapture', off);
   el.addEventListener('contextmenu', (e) => e.preventDefault());
 }
-// 十字キー: 指の位置から向きを決める（ななめも）
+// 十字キー: 指の位置から向きを決める（ななめも）。押したまま指をすべらせて向きを変えられる
 {
   const dp = $('dpad'), parts = { UP: dp.querySelector('.u'), DOWN: dp.querySelector('.d'), LEFT: dp.querySelector('.l'), RIGHT: dp.querySelector('.r') };
+  let held = [];
   const set = (e) => {
     const r = dp.getBoundingClientRect();
     const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
-    const before = new Set(dpadHeld);
-    dpadHeld.clear();
+    const now = [];
     if (Math.hypot(dx, dy) > 12) {
-      if (dx < -Math.abs(dy) * 0.5) dpadHeld.add('LEFT');
-      if (dx > Math.abs(dy) * 0.5) dpadHeld.add('RIGHT');
-      if (dy < -Math.abs(dx) * 0.5) dpadHeld.add('UP');
-      if (dy > Math.abs(dx) * 0.5) dpadHeld.add('DOWN');
+      if (dx < -Math.abs(dy) * 0.5) now.push('LEFT');
+      if (dx > Math.abs(dy) * 0.5) now.push('RIGHT');
+      if (dy < -Math.abs(dx) * 0.5) now.push('UP');
+      if (dy > Math.abs(dx) * 0.5) now.push('DOWN');
     }
-    for (const b of dpadHeld) if (!before.has(b)) tapped.add(b);
-    for (const [k, el] of Object.entries(parts)) el.classList.toggle('on', dpadHeld.has(k));
+    const add = now.filter((b) => !held.includes(b));
+    input.touchUp(held.filter((b) => !now.includes(b)));
+    input.touchDown(add);
+    if (add.length) buzz();
+    held = now;
+    for (const [k, el] of Object.entries(parts)) el.classList.toggle('on', held.includes(k));
   };
-  const clear = () => { dpadHeld.clear(); for (const el of Object.values(parts)) el.classList.remove('on'); };
+  const clear = () => { input.touchUp(held); held = []; for (const el of Object.values(parts)) el.classList.remove('on'); };
   dp.addEventListener('pointerdown', (e) => { e.preventDefault(); try { dp.setPointerCapture(e.pointerId); } catch { /* 指がもう離れている */ } set(e); });
   dp.addEventListener('pointermove', (e) => { if (e.buttons || e.pointerType === 'touch') set(e); });
   dp.addEventListener('pointerup', clear);
   dp.addEventListener('pointercancel', clear);
 }
-function gamepadHeld() {
-  const s = new Set();
-  const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(Boolean) : null;
-  if (!gp) return s;
-  const p = (i) => gp.buttons[i]?.pressed;
-  if (p(0)) s.add('A');
-  if (p(1) || p(2)) s.add('B');
-  if (p(8)) s.add('SELECT');
-  if (p(9)) s.add('START');
-  if (p(12) || gp.axes[1] < -0.5) s.add('UP');
-  if (p(13) || gp.axes[1] > 0.5) s.add('DOWN');
-  if (p(14) || gp.axes[0] < -0.5) s.add('LEFT');
-  if (p(15) || gp.axes[0] > 0.5) s.add('RIGHT');
-  return s;
-}
-function applyInput() {
-  let bits = 0;
-  for (const set of [keyHeld, touchHeld, dpadHeld, tapped, gamepadHeld()]) for (const b of set) bits |= 1 << BTN[b];
-  tapped.clear();
-  // 左右・上下を同時に押したことにしない（本物の十字キーではできない）
-  if ((bits & 0xc0) === 0xc0) bits &= ~0xc0;
-  if ((bits & 0x30) === 0x30) bits &= ~0x30;
-  nes.pad[0] = bits;
-}
+
+// ---------- 設定 ----------
+let pausedBySettings = false;
+const settings = initSettings({
+  input,
+  screen: { get: () => screenMode, set: setScreen, can: !!crt },
+  sound: { get: () => soundOn, set: setSound },
+  volume: { get: () => volume, set: setVolume },
+  vibrate: { get: () => vibrateOn, set: (v) => { vibrateOn = v; save('retro8.vibrate', v ? '1' : '0'); }, can: COARSE && !!navigator.vibrate },
+  pause: () => { if (running) { running = false; pausedBySettings = true; audio?.ctx.suspend(); } },
+  resume: () => { renderGuide(); if (pausedBySettings) { pausedBySettings = false; running = true; last = 0; acc = 0; audio?.ctx.resume(); requestAnimationFrame(loop); } },
+});
+$('btnSettings').addEventListener('click', () => settings.open('view'));
 
 // ---------- 動かす ----------
 // 確かめ用の窓口（動いたフレームの数・画面の見え方）
@@ -378,7 +420,7 @@ function loop(t) {
   last = t;
   let n = 0;
   while (acc >= FRAME_MS) {
-    applyInput();
+    input.apply(nes);
     nes.runFrame();
     const s = nes.apu.take();
     if (audio) audio.push(s);
@@ -400,7 +442,7 @@ function power() {
 }
 $('power').addEventListener('click', power);
 $('btnSound').addEventListener('click', () => setSound(!soundOn));
-$('btnReset').addEventListener('click', () => { if (nes) { saveBattery(); nes.reset(); if (!running) power(); } });
+twoTap($('btnReset'), 'もう一度押すとリセット', () => { if (nes) { saveBattery(); nes.reset(); if (!running) power(); } });
 $('btnFull').addEventListener('click', () => {
   if (document.fullscreenElement) document.exitFullscreen();
   else document.documentElement.requestFullscreen?.().catch(() => {});
