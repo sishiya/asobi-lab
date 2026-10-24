@@ -318,7 +318,8 @@ if (crt) {
 if (!crt) screenMode = 'lcd';
 const sig = new Uint32Array(1024 * 240), sig8 = new Uint8Array(sig.buffer);
 function crtDraw() {
-  crt.draw({ view: [0, 0, glCanvas.width / 256], split: -1, scan: 1, inter: 0, mask: 1, triads: 1.5, gamma: 2.4, bloom: 0.10, curve: 1,
+  // crt-pixels と同じ値（ブルーム 0.12 を mix で。画素はたて横同じ＝par 1。テレビの 8:7 にはしない）
+  crt.draw({ view: [0, 0, glCanvas.width / 256], split: -1, scan: 1, inter: 0, mask: 1, triads: 1.5, gamma: 2.4, bloom: 0.12, curve: 1, par: 1, rowH: 1, dotW: 1,
     noise: screenMode === 'rf' ? 0.06 : 0, seed: (crtFrames++ % 97) * 0.37 });
 }
 function draw() {
