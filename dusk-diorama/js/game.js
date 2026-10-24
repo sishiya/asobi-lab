@@ -110,6 +110,9 @@ const glint = (() => { const c = document.createElement('canvas'); c.width = c.h
 // 火トカゲを運ぶ先の輪（置いたら照らす広さ）
 const salRing = new THREE.Mesh(new THREE.RingGeometry(RULE.salR - 0.05, RULE.salR, 48), new THREE.MeshBasicMaterial({ color: '#ffcf70', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
 salRing.rotation.x = -Math.PI / 2; salRing.renderOrder = 9; scene.add(salRing);
+// 割れ目の輪（崖の場面で物を運んでいるあいだだけ。ここで放すと橋板）
+const gullyRing = new THREE.Mesh(new THREE.RingGeometry(1.25, 1.35, 48), new THREE.MeshBasicMaterial({ color: '#ffb060', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+gullyRing.rotation.x = -Math.PI / 2; gullyRing.renderOrder = 9; scene.add(gullyRing);
 const dropRing = new THREE.Mesh(new THREE.RingGeometry(RULE.dropR - 0.06, RULE.dropR, 48), new THREE.MeshBasicMaterial({ color: '#ffb060', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
 dropRing.rotation.x = -Math.PI / 2; dropRing.position.set(FIRE.x, fireY + 0.08, FIRE.z); dropRing.renderOrder = 9; scene.add(dropRing);
 
@@ -186,7 +189,7 @@ function release(e) {
   const { b, p } = carry; carry = null; b.carried = false;
   if (st.phase !== 'play') { putDown(b, p); return; }
   if (Math.hypot(p.x - FIRE.x, p.z - FIRE.z) < RULE.dropR) burn(b);
-  else if (st.cliff && !st.cliff.bridge && b.kind === 'beam' && !b.house && gullyDist(p) < 1.4) placeBridge(b); // 割れ目に渡す橋板
+  else if (st.cliff && !st.cliff.bridge && !(b.house && b.house.roof === b) && gullyDist(p) < 1.4) placeBridge(b); // 割れ目に渡す橋板（屋根のほかは何でも。梁・荷車・丸太だけでは、つまみまちがえると分からなかった）
   else if (!(b.board && leanBoard(b, standNear(p)))) putDown(b, p);
 }
 cv.addEventListener('pointerup', release); cv.addEventListener('pointercancel', release);
@@ -231,10 +234,10 @@ function goSal(p) { SAL.mode = 'go'; SAL.t = 0; SAL.goal = { x: p.x, z: p.z }; S
 function salPos() { const p = sal.head().clone(); C0.group.localToWorld(p); return p; }
 function stepSal(dt) {
   SAL.t += dt; const lp = salPos();
-  if (SAL.mode === 'go') { SAL.k += (0.35 - SAL.k) * Math.min(1, dt * 3); if (sal.arrived || SAL.t > 30) { SAL.mode = 'rest'; SAL.t = 0; sal.ctl.curl = true; } }
+  if (SAL.mode === 'go') { SAL.k += (0.35 - SAL.k) * Math.min(1, dt * 3); if ((sal.arrived && SAL.t > 0.4) || SAL.t > 30) { SAL.mode = 'rest'; /* 出たばかりは、前の場所の「着いた」が残っている */ SAL.t = 0; sal.ctl.curl = true; } }
   else if (SAL.mode === 'rest') {
     SAL.k += ((SAL.t < RULE.salRest - 5 ? 1 : Math.max(0, (RULE.salRest - SAL.t) / 5)) - SAL.k) * Math.min(1, dt * 2); // 終わりの5秒で冷めていく
-    if (!SAL.lit && SAL.t > 0.8) { SAL.lit = true; for (const s of L.stands) if (s.life <= 0 && !L.fallen(s) && Math.hypot(s.x - lp.x, s.z - lp.z) < 0.7 && (s.kind !== 'cliff' || prevLit(s))) { L.ignite(s); st.litAny = true; sfx('sfx-flare', 0.35, 1.4); fx.crumbs(s.x, H(s.x, s.z) + 0.7, s.z, 6, 0.2); } } // 空の台にふれると灯をともす
+    if (!SAL.lit && SAL.t > 0.8) { SAL.lit = true; for (const s of L.stands) if (s.life <= 0 && !L.fallen(s) && Math.hypot(s.x - lp.x, s.z - lp.z) < 0.7 && (s.kind !== 'cliff' || prevLit(s) || (st.cliff && st.cliff.salTo === s))) { L.ignite(s); st.litAny = true; sfx('sfx-flare', 0.35, 1.4); fx.crumbs(s.x, H(s.x, s.z) + 0.7, s.z, 6, 0.2); } } // 空の台にふれると灯をともす
     const id = chunkIdAt(lp.x, lp.z); if (id >= 0 && isl.all[id].fallen) SAL.t = RULE.salRest; // 足もとが落ちそうなら、すぐ帰る
     if (SAL.t >= RULE.salRest) { SAL.mode = 'back'; SAL.t = 0; sal.ctl.goal = null; sal.ctl.curl = false; }
   } else if (SAL.mode === 'back') { SAL.k += (0 - SAL.k) * Math.min(1, dt * 2); if (!sal.away) SAL.mode = 'home'; }
@@ -258,6 +261,7 @@ function dropEmber(p, e) {
   L.ember.visible = false; L.emberLight.intensity = 0; cv.classList.remove('carry');
   const s = (e && standAtScreen(e)) || standNear(p);
   if (s && canLightS(s)) { L.ignite(s); st.litAny = true; sfx('sfx-flare', 0.4, 1.3); fx.crumbs(s.x, H(s.x, s.z) + 0.7, s.z, 6, 0.2); return; }
+  if (s && s.afterGully && s.life <= 0 && st.cliff && !st.cliff.bridge && prevLit(s)) { handSal(s); return; } // 割れ目の向こう: 火トカゲが火種を受けとって渡る
   if (carry && carry.from && s === carry.from) { s.life += RELAY; return; } // 分けた台にもどす
   if (Math.hypot(p.x - FIRE.x, p.z - FIRE.z) < RULE.dropR) { st.F += RULE.emberCost; return; } // 火にもどす
   fx.crumbs(p.x, H(p.x, p.z) + 0.2, p.z, 5, 0.2); // 闇の中で消える
@@ -335,7 +339,7 @@ function hud() {
     else if (!carry && !st.tookEmber) gp = new THREE.Vector3(FIRE.x, fireY + 0.9, FIRE.z);
     else if (!carry && st.cliff && !st.cliff.done && nextCliff()) { // 崖の場面: 火種を取る所（ひとつ前の台。はじめはたき火）が光り、置く台が脈打つ。割れ目の手前では割れ目が光る
       const n = nextCliff(), k = cliffStands.indexOf(n), src = k > 0 ? cliffStands[k - 1] : null;
-      gp = n.afterGully && !st.cliff.bridge ? gullyW().setY(groundY(gullyW().x, gullyW().z) + 0.3) : src && src.life > RELAY + 1 ? src.fl.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(FIRE.x, fireY + 0.9, FIRE.z); }
+      gp = src && src.life > RELAY + 1 ? src.fl.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(FIRE.x, fireY + 0.9, FIRE.z); }
     else if (!carry && hoverFlame) gp = new THREE.Vector3(FIRE.x, fireY + 0.9, FIRE.z);
     else if (!carry && hover) gp = centerOf(hover.obj).add(new THREE.Vector3(0, 0.14, 0));
   }
@@ -491,7 +495,7 @@ function cliffOk(s) { // 崖の台は順に。ひとつ前の台に灯があっ�
 const RELAY = 5; // ともった崖の台から火種を分けると、その台の灯がこれだけ短くなる
 function litStandAt(e) { if (!st.cliff || st.cliff.done || st.phase !== 'play') return null; let best = null, bd = 44; for (const s of cliffStands) { if (s.life <= RELAY + 1) continue; const d = scrDist(s.fl.getWorldPosition(new THREE.Vector3()), e); if (d < bd) { bd = d; best = s; } } return best; }
 const canLightS = s => s.kind === 'cliff' ? cliffOk(s) : L.canLight(s, fireLight());
-const nextCliff = () => cliffStands.find(s => s.life <= 0 && prevLit(s));
+const nextCliff = () => { const m = cliffStands.reduce((m, s, i) => s.life > 0 ? i : m, -1), n = cliffStands[m + 1]; return n && n.life <= 0 ? n : null; }; // いちばん先までともった台の次（手前の台の灯が切れても、案内は先頭を指す）
 function onShore(p) { const q = shore.worldToLocal(tmpV.set(p.x, 0, p.z)); return SHORE.groundAt(q.x, q.z) !== null; }
 // 地面の高さ（島の上は H。崖の場面では、岸と桟橋の上も）
 function groundY(x, z) {
@@ -506,6 +510,12 @@ function placeBridge(b) { // 割れ目の上に、道の向きに渡す
   const g = gullyW(), a = cliffStands.find(s => s.afterGully), i = cliffStands.indexOf(a), p = cliffStands[i - 1];
   b.obj.position.set(g.x, groundY(g.x, g.z) + 0.08, g.z); b.obj.rotation.set(0, Math.atan2(a.x - p.x, a.z - p.z), 0); shore.attach(b.obj);
   st.cliff.bridge = b; b.bridge = true; sfx('sfx-pick', 0.6, 0.6); fx.crumbs(g.x, g.y + 0.1, g.z, 10, 0.4);
+}
+// 橋板がないとき、割れ目の向こうの台に火種を置くと、火トカゲが受けとって割れ目を渡り、台をともす（遅いが必ず届く。決まりを知らなくても進める）
+function handSal(s) {
+  if (st.cliff.salTo === s && SAL.mode === 'go') return;
+  st.cliff.salTo = s; SAL.mode = 'home'; sal.ctl.goal = null; sal.ctl.rOv = null; goSal({ x: s.x + 0.25, z: s.z + 0.1 });
+  sfx('sfx-flare2', 0.35, 1.3); const g = gullyW(); fx.crumbs(g.x, groundY(g.x, g.z) + 0.2, g.z, 8, 0.3);
 }
 function placeCliffStands() { for (const s of cliffStands) { s.g.getWorldPosition(tmpV); s.x = tmpV.x; s.z = tmpV.z; } }
 function startCliff() {
@@ -632,6 +642,8 @@ function step(now) {
   else if (carry && carry.sal) { const q = carry.p; salRing.position.set(q.x, H(q.x, q.z) + 0.06, q.z); salRing.material.opacity = salOk(q) ? 0.55 + 0.2 * Math.sin(now / 200) : 0.12; }
   else if (carry) { const b = carry.b; carry.lift = Math.min(1, carry.lift + dt * 6); const tgt = new THREE.Vector3(carry.p.x, H(carry.p.x, carry.p.z) + 0.15 + 0.45 * carry.lift, carry.p.z).add(carry.off); b.obj.position.lerp(tgt, Math.min(1, dt * 14)); b.obj.rotation.z = Math.sin(st.t * 5) * 0.05; }
   if (!(carry && carry.sal)) salRing.material.opacity = 0;
+  { const on = carry && carry.b && st.cliff && !st.cliff.bridge && !(carry.b.house && carry.b.house.roof === carry.b), g = on ? gullyW() : null, nearG = on && gullyDist(carry.p) < 1.4;
+    gullyRing.material.opacity = on ? (nearG ? 0.9 : 0.4 + 0.2 * Math.sin(now / 200)) : 0; if (g) gullyRing.position.set(g.x, groundY(g.x, g.z) + 0.1, g.z); gullyRing.scale.setScalar(nearG ? 1.08 : 1); }
   const near = carry && !carry.ember && !carry.sal ? Math.hypot(carry.p.x - FIRE.x, carry.p.z - FIRE.z) < RULE.dropR : false;
   dropRing.material.opacity = carry && !carry.ember && !carry.sal ? (near ? 0.9 : 0.35 + 0.15 * Math.sin(now / 200)) : 0; dropRing.scale.setScalar(near ? 1.08 : 1);
   for (let i = sinking.length - 1; i >= 0; i--) { const s = sinking[i]; s.t += dt * 2.5; s.obj.position.lerp(new THREE.Vector3(FIRE.x, fireY + 0.1, FIRE.z), Math.min(1, dt * 8)); s.obj.scale.multiplyScalar(Math.max(0.2, 1 - dt * 3)); if (s.t >= 1) { s.obj.removeFromParent(); sinking.splice(i, 1); } }
@@ -660,4 +672,4 @@ function step(now) {
   R3.render(now / 1000);
 }
 requestAnimationFrame(frame);
-window.__game = { st, isl, V, view, RULE, camera, fx, burn, fall, FIRE, chunkIdAt, startNight, sal, L, SAL, sendSal, leanBoard, fireLight, shelterOf, cliffStands, placeBridge, CLIFF, SHORE, emberTo: s => { if (st.F < RULE.emberMin) return false; st.F -= RULE.emberCost; st.tookEmber = true; dropEmber({ x: s.x, z: s.z }); return s.life > 0; } }; // 確かめ用（tools/ と手で）
+window.__game = { st, isl, V, view, RULE, camera, fx, burn, fall, FIRE, chunkIdAt, startNight, sal, L, SAL, sendSal, leanBoard, fireLight, shelterOf, cliffStands, placeBridge, CLIFF, SHORE, carry: () => carry, gullyDist, emberTo: s => { if (st.F < RULE.emberMin) return false; st.F -= RULE.emberCost; st.tookEmber = true; dropEmber({ x: s.x, z: s.z }); return s.life > 0; } }; // 確かめ用（tools/ と手で）
