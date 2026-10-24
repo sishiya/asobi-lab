@@ -133,7 +133,7 @@ export function voiceData(env, triLin, sym) {
 // 小節で書く曲。bars の1つ = 'メロディ | 和音'。メロディは「音:拍」（- は休み。拍は 0.5・1・1.5・2・3・4）
 //   beat: 1拍のフレーム数。bass: 小節ごとのベースの形（waltz 3拍・sparse 4拍・march 4拍・gallop 4拍・none）
 //   1小節の拍の合計がベースの形とちがうと止める（ずれた曲を作らない）
-const CHORDS = { C: ['C3', 'G3'], Dm: ['D3', 'A3'], Em: ['E3', 'B3'], F: ['F2', 'C3'], G: ['G2', 'D3'], Am: ['A2', 'E3'], E: ['E2', 'B2'] };
+const CHORDS = { C: ['C3', 'G3'], Dm: ['D3', 'A3'], D: ['D3', 'A3'], Em: ['E3', 'B3'], F: ['F2', 'C3'], G: ['G2', 'D3'], Am: ['A2', 'E3'], A: ['A2', 'E3'], E: ['E2', 'B2'] };
 const up = (n) => n.replace(/\d/, (o) => +o + 1);
 const STYLE = {
   waltz: (r, f) => [[r, 1], ['-', 1], [f, 1]],

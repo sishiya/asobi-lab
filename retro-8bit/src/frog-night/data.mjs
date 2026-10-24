@@ -65,7 +65,7 @@ export function build() {
   sym.ADDR_SCORE = addr(8, 2);
   sym.ADDR_TIME = addr(27, 2);
 
-  // 曲: 夜の池の子守歌（3拍子、ラの短調）。A・A'・B・B'・A と、ベースだけの4小節の息つぎ ＝ 44 小節・約 44 秒で1周
+  // 曲: 夜の池の子守歌（3拍子、ラの長調。はじめはラの短調で書いて、下の major() で長調に移す）。A・A'・B・B'・A と、ベースだけの4小節の息つぎ ＝ 44 小節・約 44 秒で1周
   const A = ['A4:1 C5:1 E5:1 | Am', 'D5:2 C5:1 | F', 'B4:1 C5:1 D5:1 | G', 'E5:3 | E',
     'A4:1 C5:1 E5:1 | Am', 'G5:2 E5:1 | C', 'D5:1 C5:1 B4:1 | G', 'A4:3 | Am'];
   const A2 = ['C5:1 E5:1 A5:1 | Am', 'G5:2 E5:1 | C', 'F5:1 E5:1 D5:1 | Dm', 'E5:3 | E',
@@ -75,9 +75,19 @@ export function build() {
   const B2 = ['G5:2 A5:1 | C', 'G5:2 E5:1 | Am', 'F5:1 G5:1 F5:1 | Dm', 'E5:3 | Am',
     'D5:1 E5:1 F5:1 | Dm', 'E5:2 C5:1 | Am', 'B4:1 C5:1 D5:1 | G', 'E5:2 -:1 | E'];
   const breath = ['-:3 | Am', '-:3 | F', '-:3 | G', '-:3 | E'];
+  // 長調へ（2026-10-24 ユーザー「BGM を長調に」）: 同じ旋律をラの長調に移す。ド・ファ・ソを半音上げ、和音を I・IV・V に
+  //   Am→A・Dm と F→D・G と E→E・C→A（G#・C# は和音の上の7度の音になり、子守歌らしいやわらかい響き）
+  const MAJOR_NOTE = { C: 'C#', F: 'F#', G: 'G#' };
+  const MAJOR_CHORD = { Am: 'A', Dm: 'D', F: 'D', G: 'E', E: 'E', C: 'A' };
+  const major = (bars) => bars.map((bar) => {
+    const [m, rest] = bar.split('|');
+    const notes = m.trim().split(/\s+/).map((t) => t.replace(/^([A-G])(\d)/, (all, n, o) => (MAJOR_NOTE[n] || n) + o)).join(' ');
+    const [ch, ...style] = rest.trim().split(/\s+/);
+    return `${notes} | ${[MAJOR_CHORD[ch] || ch, ...style].join(' ')}`;
+  });
   const E = 8, Q = 16, DH = 48, H = 32;
   const songs = {
-    main: { tracks: compose({ beat: 20, bars: [...A, ...A2, ...B, ...B2, ...A, ...breath] }), duty: 0x80 },
+    main: { tracks: compose({ beat: 20, bars: major([...A, ...A2, ...B, ...B2, ...A, ...breath]) }), duty: 0x80 },
     morning: { tracks: [track(`C5 ${E} E5 ${E} G5 ${E} C6 ${DH}`, false, 0xfe), track(`C3 ${Q} G2 ${Q} C3 ${Q} C3 ${Q}`, true, 0xfe)], duty: 0x80 },
     over: { tracks: [track(`E5 ${Q} C5 ${Q} A4 ${Q} E4 ${H}`, false, 0xfe), track(`A2 ${Q} E2 ${Q} A2 ${Q} A2 ${H}`, true, 0xfe)], duty: 0x80 },
   };

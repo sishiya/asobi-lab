@@ -209,3 +209,6 @@ kbd{display:inline-block;min-width:22px;padding:1px 6px;margin-right:3px;border:
 .face.word{width:auto;padding:0 8px;border-radius:999px;background:var(--btn);color:var(--muted);font-size:11px;letter-spacing:.06em;border:1px solid var(--line)}
 @media (max-height:420px){ .keys .dim{display:none} .keys{gap:4px 14px} }
 .cart.blank:focus-within .shell{outline:3px solid #ffe14f;outline-offset:4px}
+.memo .erase{font:inherit;font-size:13px;color:#8a3b12;background:transparent;border:1px solid #c9a07a;border-radius:6px;padding:4px 10px;cursor:pointer;min-height:32px}
+.memo .erase:hover{background:#efe2cc}
+.memo .erased{font-size:13px;color:#4a7a2a}

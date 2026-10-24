@@ -168,6 +168,12 @@ function saveBattery() {
   if (s !== lastSave && save(k, s)) lastSave = s;
 }
 setInterval(() => { if (running) saveBattery(); }, 3000);
+// とりあつかい説明書の「セーブを消す」（遊んでいないときだけ押せる。消したら、つぎに入れたとき牧場ははじめから）
+$('eraseDino').addEventListener('click', () => {
+  if (!confirm('恐竜かけっこ牧場のセーブ（牧場の恐竜と、勝ちすすんだ杯）を消します。もとにはもどせません。消しますか？')) return;
+  try { localStorage.removeItem('retro8.save.dino-ranch'); } catch { /* 保存できない設定なら、もともと残っていない */ }
+  $('erased').textContent = '消しました';
+});
 addEventListener('pagehide', () => { if (nes) saveBattery(); });
 
 // ---------- 画面の大きさ（なるべく整数倍で、ドットをそろえる） ----------
