@@ -53,7 +53,7 @@ kbd{display:inline-block;min-width:22px;padding:1px 6px;margin-right:3px;border:
 .round.on,.pill.on{filter:brightness(1.3);transform:translateY(2px)}
 
 /* この機械について（画面の下。スクロールで見る） */
-.about{max-width:720px;margin:8px auto 40px;padding:0 16px;color:var(--muted);font-size:14px;line-height:1.8}
+.about{color:var(--muted);font-size:14px;line-height:1.8}
 .about summary{cursor:pointer;color:var(--ink);padding:8px 0}
 .about b{color:var(--ink)}
 .about a{color:var(--acc)}
@@ -91,3 +91,58 @@ kbd{display:inline-block;min-width:22px;padding:1px 6px;margin-right:3px;border:
 @media (max-height:420px){
   .power{padding:10px 18px;font-size:15px}
 }
+
+/* ---------- 棚（トップ）。区割り: 上 = 機械の名前と説明、まん中 = カートリッジの棚（あそぶ が主役）、下 = 自分のファイルを開く・この機械について ---------- */
+[hidden]{display:none!important}
+.shelf{max-width:960px;margin:0 auto;padding:40px 16px 56px}
+.eyebrow{margin:0;font-size:12px;letter-spacing:.2em;color:var(--muted)}
+.shelf h1{margin:4px 0 8px;font-size:30px;letter-spacing:.04em}
+.lead{margin:0;max-width:640px;color:var(--muted);line-height:1.8;font-size:15px}
+.carts{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;margin-top:28px}
+.cartcard{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.cartcard canvas{display:block;width:100%;aspect-ratio:256/240;image-rendering:pixelated;background:#000;cursor:pointer}
+.cartcard .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:8px;flex:1}
+.cartcard h3{margin:0;font-size:18px}
+.cartcard p{margin:0;color:var(--muted);font-size:14px;line-height:1.7;flex:1}
+.cartcard .row{display:flex;align-items:center;gap:12px;margin-top:6px}
+.play{flex:1;min-height:44px;border:0;border-radius:10px;background:var(--acc);color:#10200a;font-size:16px;font-weight:700;cursor:pointer}
+.play:hover{filter:brightness(1.08)}
+.dl{font-size:13px;color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:10px;padding:0 12px;min-height:44px;display:flex;align-items:center;white-space:nowrap}
+.dl:hover{color:var(--ink);border-color:var(--muted)}
+.open{margin-top:48px;padding-top:28px;border-top:1px solid var(--line)}
+.open h2{margin:0 0 8px;font-size:18px}
+.open p{margin:0 0 14px;color:var(--muted);font-size:14px;line-height:1.8;max-width:720px}
+.open b{color:var(--ink);font-weight:600}
+.drop{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:18px;border:1px dashed var(--line);border-radius:12px;cursor:pointer;max-width:720px}
+.drop.over{border-color:var(--acc);background:rgba(136,216,0,.06)}
+.drop-btn{border:1px solid var(--muted);border-radius:10px;padding:10px 16px;font-size:14px}
+.drop-hint{font-size:13px;color:var(--muted)}
+.err{color:#ff8a7a;font-size:14px}
+.shelf .about{margin:40px 0 0;padding:0}
+.back{border:1px solid var(--line);background:transparent;border-radius:8px;min-width:40px;min-height:40px;font-size:18px;color:var(--ink);cursor:pointer}
+.back:hover{border-color:var(--muted)}
+@media (max-width:520px){
+  .shelf{padding-top:28px}
+  .shelf h1{font-size:26px}
+}
+
+/* 画面の見え方のメニュー（めったに使わないので右上に。開いたときだけ出す） */
+.menuwrap{position:relative}
+.menu{position:absolute;right:0;top:calc(100% + 6px);z-index:10;width:280px;padding:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.45)}
+.menu-h{margin:4px 8px 8px;font-size:12px;color:var(--muted)}
+.menu button{display:block;width:100%;text-align:left;background:transparent;border:0;border-radius:8px;padding:10px 12px;font-size:14px;cursor:pointer;min-height:44px}
+.menu button:hover{background:var(--btn)}
+.menu button small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.menu button[aria-checked="true"]{background:var(--btn);box-shadow:inset 3px 0 0 var(--acc)}
+.menu-note{margin:8px 8px 4px;font-size:11px;line-height:1.6;color:var(--muted)}
+#crt{display:block;background:#000;border-radius:6px}
+.bezel.crton::after{display:none}
+@media (max-width:520px){
+  #btnScreen{font-size:0}
+  #btnScreen::before{content:"▣";font-size:15px}
+  .menu{position:fixed;left:16px;right:16px;top:64px;width:auto}
+}
+/* 上の帯: 名前は縮めて、道具とぶつけない */
+.top .name{flex:1;min-width:0}
+.top .cart{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.top .tools{flex:none}

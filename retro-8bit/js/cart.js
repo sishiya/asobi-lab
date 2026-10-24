@@ -11,6 +11,7 @@ export class Cart {
     this.chrRam = chrN === 0;
     this.chr = this.chrRam ? new Uint8Array(8192) : b.slice(p, p + chrN * 8192);
     this.prgRam = new Uint8Array(8192);
+    this.battery = !!(f6 & 2); // $6000 の RAM が電池で残る（セーブ）
     this.mirror = (f6 & 8) ? 'four' : (f6 & 1) ? 'vert' : 'horz';
     this.prgBanks = [0, Math.max(0, this.prg.length - 16384)]; // $8000・$C000 の 16KB の始まり
     this.chrBanks = [0, 4096];                                  // $0000・$1000 の 4KB の始まり
