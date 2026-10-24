@@ -1,6 +1,6 @@
 // 恐竜かけっこ牧場 8bit のデータ（絵・画面・曲・表・ライバル）。tools/build.mjs が呼ぶ
 import { KANA8, BG, SP } from './art.mjs';
-import { makeChr, screen, put as put0, text as text0, pal, packNt, addr, msg as msg0, track, periodData, songData } from '../../tools/lib.mjs';
+import { makeChr, screen, put as put0, text as text0, pal, packNt, addr, msg as msg0, track, periodData, songData, voiceData, compose } from '../../tools/lib.mjs';
 import { FONT } from '../font.mjs';
 
 export const BATTERY = true; // 牧場を $6000 に残す
@@ -158,7 +158,7 @@ export function build() {
     msg('m_3', 10, 2, '     3     '),
     msg('m_2', 10, 2, '     2     '),
     msg('m_1', 10, 2, '     1     '),
-    msg('m_go', 10, 2, '    GO!    '),
+    msg('m_go', 10, 2, 'GO! PUSH A '),
     msg('m_good', 10, 2, 'GOOD START!'),
     msg('m_false', 10, 2, 'FALSE START'),
     msg('m_clear', 10, 2, '           '),
@@ -187,22 +187,28 @@ export function build() {
   sym.ADDR_RTOP = addr(16, 17);
 
   // ---- 曲 ----
-  const Q = 12, E = 6, H = 24, W = 48;
-  const ranchMel = `
-C5 ${E} E5 ${E} G5 ${Q} E5 ${E} G5 ${E} A5 ${Q}   G5 ${E} E5 ${E} C5 ${Q} D5 ${H}
-E5 ${E} F5 ${E} G5 ${Q} A5 ${E} G5 ${E} E5 ${Q}   D5 ${E} E5 ${E} D5 ${Q} C5 ${H}`;
-  const ranchBass = `C3 ${Q} G3 ${Q} C3 ${Q} G3 ${Q} A2 ${Q} E3 ${Q} G2 ${Q} D3 ${Q} F2 ${Q} C3 ${Q} C3 ${Q} G3 ${Q} G2 ${Q} D3 ${Q} C3 ${Q} G2 ${Q}`;
-  const raceMel = `
-E5 ${E} E5 ${E} G5 ${E} E5 ${E} A5 ${E} G5 ${E} E5 ${E} D5 ${E}   E5 ${E} E5 ${E} G5 ${E} E5 ${E} D5 ${E} C5 ${E} D5 ${Q}
-E5 ${E} E5 ${E} G5 ${E} E5 ${E} A5 ${E} G5 ${E} A5 ${E} B5 ${E}   C6 ${E} B5 ${E} A5 ${E} G5 ${E} A5 ${Q} G5 ${Q}`;
-  const raceBass = `A2 ${E} A3 ${E} A2 ${E} A3 ${E} A2 ${E} A3 ${E} A2 ${E} A3 ${E} F2 ${E} F3 ${E} F2 ${E} F3 ${E} G2 ${E} G3 ${E} G2 ${E} G3 ${E}
-A2 ${E} A3 ${E} A2 ${E} A3 ${E} F2 ${E} F3 ${E} F2 ${E} F3 ${E} G2 ${E} G3 ${E} G2 ${E} G3 ${E} C3 ${E} C4 ${E} C3 ${E} C4 ${E}`;
+  // 牧場: ドの長調の、のどかな曲（4拍子）。A・B・A'・息つぎ4小節 ＝ 28 小節・約 30 秒で1周。ベースは2拍ずつ
+  const rA = ['C5:1 E5:1 G5:1 E5:1 | C sparse', 'F5:1 A5:1 G5:2 | F sparse', 'E5:1 C5:1 D5:1 E5:1 | C sparse', 'D5:3 -:1 | G sparse',
+    'C5:1 E5:1 G5:1 E5:1 | C sparse', 'F5:1 A5:1 G5:1 F5:1 | F sparse', 'E5:1 D5:1 C5:1 D5:1 | G sparse', 'C5:3 -:1 | C sparse'];
+  const rB = ['A5:1 G5:1 F5:1 E5:1 | F sparse', 'D5:2 G5:2 | G sparse', 'G5:1 F5:1 E5:1 D5:1 | Em sparse', 'C5:2 E5:2 | Am sparse',
+    'F5:1 E5:1 D5:1 C5:1 | Dm sparse', 'B4:1 C5:1 D5:1 E5:1 | G sparse', 'F5:2 D5:1 B4:1 | G sparse', 'G4:3 -:1 | G sparse'];
+  const rA2 = ['C5:0.5 D5:0.5 E5:1 G5:1 E5:1 | C sparse', 'F5:1 A5:1 G5:2 | F sparse', 'E5:0.5 F5:0.5 E5:0.5 D5:0.5 C5:1 E5:1 | Am sparse', 'D5:3 -:1 | G sparse',
+    'C5:1 E5:1 G5:1 C6:1 | C sparse', 'A5:1 F5:1 G5:1 E5:1 | F sparse', 'D5:1 G5:1 B4:1 D5:1 | G sparse', 'C5:3 -:1 | C sparse'];
+  const rBreath = ['-:4 | C sparse', '-:4 | F sparse', '-:4 | G sparse', '-:4 | C sparse'];
+  // かけっこ: ラの短調の速い曲（4拍子）。A・B・A ＝ 24 小節・約 16 秒（1レースでほぼ1回）。ベースは8分音符でかけ足
+  const cA = ['E5:0.5 E5:0.5 A5:1 E5:0.5 C5:0.5 A4:1 | Am gallop', 'D5:0.5 E5:0.5 F5:1 E5:1 D5:1 | Dm gallop',
+    'C5:0.5 D5:0.5 E5:1 C5:0.5 B4:0.5 A4:1 | Am gallop', 'B4:1 E5:1 G#4:2 | E gallop',
+    'E5:0.5 E5:0.5 A5:1 E5:0.5 C5:0.5 A4:1 | Am gallop', 'F5:0.5 G5:0.5 A5:1 G5:1 F5:1 | F gallop',
+    'E5:1 D5:1 C5:1 B4:1 | G gallop', 'A4:3 -:1 | Am gallop'];
+  const cB = ['C6:1 B5:1 A5:1 G5:1 | F gallop', 'A5:1 G5:1 F5:1 E5:1 | C gallop', 'F5:1 E5:1 D5:1 C5:1 | Dm gallop', 'E5:2 B4:2 | E gallop',
+    'C5:0.5 D5:0.5 E5:1 A5:1 E5:1 | Am gallop', 'F5:0.5 G5:0.5 A5:1 C6:1 A5:1 | F gallop', 'G5:1 F5:1 E5:1 D5:1 | G gallop', 'E5:2 G#4:2 | E gallop'];
+  const E = 6, Q = 12, W = 48;
   const songs = {
-    ranch: [track(ranchMel, false, 0xff), track(ranchBass, true, 0xff)],
-    race: [track(raceMel, false, 0xff), track(raceBass, true, 0xff)],
-    win: [track(`C5 ${E} E5 ${E} G5 ${E} C6 ${Q} G5 ${E} C6 ${W}`, false, 0xfe), track(`C3 ${Q} G2 ${Q} C3 ${Q} C3 ${W}`, true, 0xfe)],
-    lose: [track(`G4 ${Q} E4 ${Q} C4 ${W}`, false, 0xfe), track(`C3 ${Q} G2 ${Q} C2 ${W}`, true, 0xfe)],
-    ending: [track(`C5 ${Q} E5 ${Q} G5 ${Q} C6 ${H} A5 ${E} B5 ${E} C6 ${W} - ${W}`, false, 0xff), track(`C3 ${H} G2 ${H} F2 ${H} G2 ${H} C3 ${W}`, true, 0xff)],
+    ranch: { tracks: compose({ beat: 16, bars: [...rA, ...rB, ...rA2, ...rBreath] }), duty: 0x80 },
+    race: { tracks: compose({ beat: 10, bars: [...cA, ...cB, ...cA] }), duty: 0x40 },
+    win: { tracks: [track(`C5 ${E} E5 ${E} G5 ${E} C6 ${Q} G5 ${E} C6 ${W}`, false, 0xfe), track(`C3 ${Q} G2 ${Q} C3 ${Q} C3 ${W}`, true, 0xfe)], duty: 0x40 },
+    lose: { tracks: [track(`G4 ${Q} E4 ${Q} C4 ${W}`, false, 0xfe), track(`C3 ${Q} G2 ${Q} C2 ${W}`, true, 0xfe)], duty: 0x80 },
+    ending: { tracks: compose({ beat: 22, bars: [...rA, ...rB, ...rBreath] }), duty: 0x80 },
   };
 
   const rivals = pickRivals();
@@ -227,6 +233,7 @@ rival_genes:
 ${rivals.map((g, i) => `  .byte ${g.join(', ')}   ; ${Math.floor(i / 9) + 1}-${Math.floor(i / 3) % 3 + 1} ${derive(...g).kmh}km/h`).join('\n')}
 ${periodData()}
 ${songData(songs, sym)}
+${voiceData([9, 9, 8, 8, 7, 7, 7, 6, 6, 6, 6, 5, 5, 5, 5, 4], 0x24, sym)}
 `;
   return { chr: c.chr, count: c.count, sym, data };
 }

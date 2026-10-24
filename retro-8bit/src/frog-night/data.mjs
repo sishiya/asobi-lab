@@ -1,6 +1,6 @@
 // カエルのよる のデータ（絵・画面・曲・表）。tools/build.mjs が呼ぶ
 import { BG, KANA, SP } from './art.mjs';
-import { makeChr, shadow, screen, put as put0, text as text0, pal, packNt, addr, msg as msg0, track, periodData, songData } from '../../tools/lib.mjs';
+import { makeChr, shadow, screen, put as put0, text as text0, pal, packNt, addr, msg as msg0, track, periodData, songData, voiceData, compose } from '../../tools/lib.mjs';
 
 export const PALETTES = [[0x0f, 0x30, 0x21, 0x01], [0x0f, 0x1a, 0x2a, 0x01], [0x0f, 0x01, 0x11, 0x21], [0x0f, 0x38, 0x28, 0x16],
   [0x0f, 0x09, 0x2a, 0x38], [0x0f, 0x16, 0x25, 0x30], [0x0f, 0x00, 0x31, 0x17], [0x0f, 0x00, 0x28, 0x38]];
@@ -65,18 +65,21 @@ export function build() {
   sym.ADDR_SCORE = addr(8, 2);
   sym.ADDR_TIME = addr(27, 2);
 
-  const Q = 16, E = 8, H = 32, DH = 48;
-  const melody = `
-A4 ${Q} C5 ${Q} E5 ${Q} D5 ${E} C5 ${E}   A4 ${H} G4 ${Q} - ${Q}
-A4 ${Q} C5 ${Q} D5 ${Q} E5 ${E} G5 ${E}   E5 ${DH} - ${Q}
-G5 ${Q} E5 ${Q} D5 ${Q} C5 ${E} D5 ${E}   E5 ${H} D5 ${Q} C5 ${Q}
-A4 ${Q} C5 ${Q} D5 ${E} C5 ${E} A4 ${Q}   A4 ${DH} - ${Q}`;
-  const bassBar = (r, f) => `${r} ${Q} ${f} ${Q} ${r.replace(/\d/, (o) => +o + 1)} ${Q} ${f} ${Q}`;
-  const bass = [['A2', 'E3'], ['G2', 'D3'], ['A2', 'E3'], ['C3', 'G3'], ['C3', 'G3'], ['G2', 'D3'], ['F2', 'C3'], ['A2', 'E3']].map(([r, f]) => bassBar(r, f)).join(' ');
+  // 曲: 夜の池の子守歌（3拍子、ラの短調）。A・A'・B・B'・A と、ベースだけの4小節の息つぎ ＝ 44 小節・約 44 秒で1周
+  const A = ['A4:1 C5:1 E5:1 | Am', 'D5:2 C5:1 | F', 'B4:1 C5:1 D5:1 | G', 'E5:3 | E',
+    'A4:1 C5:1 E5:1 | Am', 'G5:2 E5:1 | C', 'D5:1 C5:1 B4:1 | G', 'A4:3 | Am'];
+  const A2 = ['C5:1 E5:1 A5:1 | Am', 'G5:2 E5:1 | C', 'F5:1 E5:1 D5:1 | Dm', 'E5:3 | E',
+    'C5:1 B4:1 A4:1 | Am', 'B4:2 G4:1 | G', 'A4:1 B4:1 C5:1 | F', 'A4:3 | Am'];
+  const B = ['G5:2 E5:1 | C', 'F5:2 D5:1 | Dm', 'E5:1 D5:1 C5:1 | Am', 'D5:3 | G',
+    'E5:2 C5:1 | Am', 'D5:2 B4:1 | G', 'C5:1 B4:1 A4:1 | F', 'B4:2 -:1 | E'];
+  const B2 = ['G5:2 A5:1 | C', 'G5:2 E5:1 | Am', 'F5:1 G5:1 F5:1 | Dm', 'E5:3 | Am',
+    'D5:1 E5:1 F5:1 | Dm', 'E5:2 C5:1 | Am', 'B4:1 C5:1 D5:1 | G', 'E5:2 -:1 | E'];
+  const breath = ['-:3 | Am', '-:3 | F', '-:3 | G', '-:3 | E'];
+  const E = 8, Q = 16, DH = 48, H = 32;
   const songs = {
-    main: [track(melody, false, 0xff), track(bass, true, 0xff)],
-    morning: [track(`C5 ${E} E5 ${E} G5 ${E} C6 ${DH}`, false, 0xfe), track(`C3 ${Q} G2 ${Q} C3 ${Q} C3 ${Q}`, true, 0xfe)],
-    over: [track(`E5 ${Q} C5 ${Q} A4 ${Q} E4 ${H}`, false, 0xfe), track(`A2 ${Q} E2 ${Q} A2 ${Q} A2 ${H}`, true, 0xfe)],
+    main: { tracks: compose({ beat: 20, bars: [...A, ...A2, ...B, ...B2, ...A, ...breath] }), duty: 0x80 },
+    morning: { tracks: [track(`C5 ${E} E5 ${E} G5 ${E} C6 ${DH}`, false, 0xfe), track(`C3 ${Q} G2 ${Q} C3 ${Q} C3 ${Q}`, true, 0xfe)], duty: 0x80 },
+    over: { tracks: [track(`E5 ${Q} C5 ${Q} A4 ${Q} E4 ${H}`, false, 0xfe), track(`A2 ${Q} E2 ${Q} A2 ${Q} A2 ${H}`, true, 0xfe)], duty: 0x80 },
   };
   const wave = [5, 12, 9].flatMap((A) => Array.from({ length: 64 }, (_, i) => Math.round(A * Math.sin((2 * Math.PI * i) / 64)) & 0xff));
   const hex = (n) => '$' + n.toString(16).toUpperCase().padStart(2, '0');
@@ -99,6 +102,7 @@ ${periodData()}
 wave: .byte ${wave.join(',')}
 wave_off: .byte 0, 64, 128
 ${songData(songs, sym)}
+${voiceData([7, 7, 6, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4, 3, 3], 0x28, sym)}
 `;
   return { chr: c.chr, count: c.count, sym, data };
 }

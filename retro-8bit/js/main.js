@@ -17,7 +17,7 @@ function save(k, v) { try { localStorage.setItem(k, v); return true; } catch { r
 // ---------- 棚 ----------
 const romCache = new Map();
 async function loadRom(entry) {
-  if (!romCache.has(entry.id)) romCache.set(entry.id, fetch(entry.file + '?v=2').then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
+  if (!romCache.has(entry.id)) romCache.set(entry.id, fetch(entry.file + '?v=3').then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
   return romCache.get(entry.id);
 }
 function renderShelf() {
@@ -76,8 +76,8 @@ async function openEntry(e, gesture) {
   $('shelf').hidden = true;
   $('player').hidden = false;
   $('cartName').textContent = e.title;
-  const keys = e.keys?.length ? e.keys : [['↑↓←→', '十字キー'], ['X', 'A'], ['Z', 'B'], ['Enter', 'スタート'], ['Shift', 'セレクト']];
-  $('keys').innerHTML = keys.map(([k, t]) => `<span>${k.split(/(?=[↑↓←→])|\s/).filter(Boolean).map((x) => `<kbd>${x}</kbd>`).join('')} ${t}</span>`).join('') + '<span class="dim">ゲームパッドも使えます</span>';
+  const keys = e.keys?.length ? e.keys : [['PAD', ''], ['A', ''], ['B', ''], ['START', ''], ['SELECT', '']];
+  $('keys').innerHTML = keyGuide(keys) + '<span class="dim">ゲームパッドも使えます</span>';
   if (e.id && location.hash !== '#' + e.id) history.pushState(null, '', '#' + e.id);
   fit();
   let bytes;
@@ -148,13 +148,13 @@ function fit() {
   const stage = $('stage'), bez = $('bezel');
   const pad = parseFloat(getComputedStyle(bez).paddingLeft) * 2;
   const w = stage.clientWidth - pad, h = stage.clientHeight - pad - 8;
-  let s = Math.max(1, Math.min(w / 256, h / 240));
-  if (Math.floor(s) >= s * 0.8) s = Math.floor(s);
-  const cw = Math.round(256 * s), ch = Math.round(240 * s);
-  for (const el of [canvas, glCanvas]) { el.style.width = cw + 'px'; el.style.height = ch + 'px'; }
-  // ブラウン管はデバイスのピクセルで描く（走査線と光る点が見えるように）
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
-  glCanvas.width = Math.round(cw * dpr); glCanvas.height = Math.round(ch * dpr);
+  // デバイスのピクセルで1ドットが整数になるように（Windows の 125%・150% でも走査線がゆがまない。crt-pixels と同じ決め方）
+  const dpr = window.devicePixelRatio || 1;
+  let sd = Math.max(1, Math.min(w / 256, h / 240)) * dpr;
+  if (Math.floor(sd) / sd >= 0.85) sd = Math.floor(sd);
+  const css = sd / dpr;
+  for (const el of [canvas, glCanvas]) { el.style.width = 256 * css + 'px'; el.style.height = 240 * css + 'px'; }
+  glCanvas.width = Math.round(256 * sd); glCanvas.height = Math.round(240 * sd);
   if (nes && screenMode !== 'lcd' && crt) crtDraw();
 }
 addEventListener('resize', fit);
@@ -250,8 +250,19 @@ setSound(soundOn);
 // ---------- 入力（キー・指・ゲームパッドを合わせる） ----------
 const KEYS = {
   ArrowLeft: 'LEFT', ArrowRight: 'RIGHT', ArrowUp: 'UP', ArrowDown: 'DOWN',
-  KeyX: 'A', Space: 'A', KeyZ: 'B', Enter: 'START', ShiftLeft: 'SELECT', ShiftRight: 'SELECT',
+  // 画面の字（A・B・START）と同じ名前のキーで押せるように。X・Z はコントローラーの並び（B が左・A が右）が好きな人むけ
+  KeyA: 'A', KeyX: 'A', Space: 'A', KeyB: 'B', KeyZ: 'B', Enter: 'START', ShiftLeft: 'SELECT', ShiftRight: 'SELECT',
 };
+// キーの案内: コントローラーのボタン → 押せるキー
+const BUTTON_KEYS = { PAD: ['↑', '↓', '←', '→'], A: ['A', 'X'], B: ['B', 'Z'], START: ['Enter'], SELECT: ['Shift'] };
+const BUTTON_LABEL = { PAD: '十字キー', A: 'A', B: 'B', START: 'START', SELECT: 'SELECT' };
+function keyGuide(keys) {
+  return keys.map(([btn, what]) => {
+    const kb = BUTTON_KEYS[btn].map((k) => `<kbd>${k}</kbd>`).join('');
+    const face = btn === 'A' || btn === 'B' ? `<b class="face">${btn}</b>` : `<b class="face word">${BUTTON_LABEL[btn]}</b>`;
+    return `<span>${face}${kb}<em>${what}</em></span>`;
+  }).join('');
+}
 const keyHeld = new Set(), touchHeld = new Set(), dpadHeld = new Set();
 const tapped = new Set(); // 押してすぐはなしても、1フレームは押したことにする
 addEventListener('keydown', (e) => {
@@ -266,7 +277,7 @@ addEventListener('blur', () => { keyHeld.clear(); touchHeld.clear(); dpadHeld.cl
 
 for (const el of document.querySelectorAll('[data-btn]')) {
   const b = el.dataset.btn;
-  const on = (e) => { e.preventDefault(); if (!running) power(); touchHeld.add(b); tapped.add(b); el.classList.add('on'); el.setPointerCapture?.(e.pointerId); };
+  const on = (e) => { e.preventDefault(); if (!running) power(); touchHeld.add(b); tapped.add(b); el.classList.add('on'); try { el.setPointerCapture(e.pointerId); } catch { /* 指がもう離れている */ } };
   const off = () => { touchHeld.delete(b); el.classList.remove('on'); };
   el.addEventListener('pointerdown', on);
   el.addEventListener('pointerup', off);
@@ -291,7 +302,7 @@ for (const el of document.querySelectorAll('[data-btn]')) {
     for (const [k, el] of Object.entries(parts)) el.classList.toggle('on', dpadHeld.has(k));
   };
   const clear = () => { dpadHeld.clear(); for (const el of Object.values(parts)) el.classList.remove('on'); };
-  dp.addEventListener('pointerdown', (e) => { e.preventDefault(); dp.setPointerCapture(e.pointerId); set(e); });
+  dp.addEventListener('pointerdown', (e) => { e.preventDefault(); try { dp.setPointerCapture(e.pointerId); } catch { /* 指がもう離れている */ } set(e); });
   dp.addEventListener('pointermove', (e) => { if (e.buttons || e.pointerType === 'touch') set(e); });
   dp.addEventListener('pointerup', clear);
   dp.addEventListener('pointercancel', clear);

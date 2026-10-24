@@ -146,3 +146,9 @@ kbd{display:inline-block;min-width:22px;padding:1px 6px;margin-right:3px;border:
 .top .name{flex:1;min-width:0}
 .top .cart{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .top .tools{flex:none}
+/* キーの案内: コントローラーのボタン（指の操作と同じ形）→ キー → すること */
+.keys span{display:inline-flex;align-items:center;gap:4px}
+.keys em{font-style:normal;margin-left:4px}
+.face{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#b8283a;color:#fff;font-size:12px;font-weight:800;margin-right:4px}
+.face.word{width:auto;padding:0 8px;border-radius:999px;background:var(--btn);color:var(--muted);font-size:11px;letter-spacing:.06em;border:1px solid var(--line)}
+@media (max-height:420px){ .keys .dim{display:none} .keys{gap:4px 14px} }

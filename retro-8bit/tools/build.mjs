@@ -17,7 +17,8 @@ for (const game of games) {
   const mod = await import(pathToFileURL(join(ROOT, 'src', game, 'data.mjs')).href);
   const { chr, count, sym, data } = mod.build();
   const consts = Object.entries(sym).map(([k, v]) => `${k} = ${v}`).join('\n');
-  const src = `${consts}\n${readFileSync(join(ROOT, 'src', game, 'game.s'), 'utf8')}\n${data}\n.pad $FFFA\n.word nmi, reset, irq\n`;
+  const music = readFileSync(join(ROOT, 'src', 'music.s'), 'utf8'); // 曲の係はどのゲームも同じ
+  const src = `${consts}\n${readFileSync(join(ROOT, 'src', game, 'game.s'), 'utf8')}\n${music}\n${data}\n.pad $FFFA\n.word nmi, reset, irq\n`;
   const { bytes, syms } = assemble(src, { origin: 0x8000, size: 0x8000 });
 
   // iNES: PRG 32KB×1・CHR 8KB×1・マッパー 0。ふだんは縦の折り返し（mod.HORIZONTAL で横）、mod.BATTERY なら $6000 の電池つきの RAM

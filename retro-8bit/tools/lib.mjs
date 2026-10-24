@@ -116,9 +116,47 @@ export function track(str, tri, end) {
 export function periodData() {
   return `period_lo: .byte ${periods.map((p) => p & 0xff).join(',')}\nperiod_hi: .byte ${periods.map((p) => p >> 8).join(',')}`;
 }
-// 曲の表: songs = { 名前: [ch0, ch1] } → song_tab と SONG_名前
+// 曲の表: songs = { 名前: { tracks: [ch0, ch1], duty } } → song_tab・song_duty と SONG_名前
+//   duty: 矩形波2の音色 $00 12.5%・$40 25%・$80 50%（やわらかい）
 export function songData(songs, sym) {
   Object.keys(songs).forEach((k, i) => { sym['SONG_' + k.toUpperCase()] = i; });
   return `song_tab:\n${Object.keys(songs).map((k) => `  .word song_${k}0, song_${k}1`).join('\n')}\n` +
-    Object.entries(songs).map(([k, [a, b]]) => `song_${k}0: .byte ${a}\nsong_${k}1: .byte ${b}`).join('\n');
+    `song_duty: .byte ${Object.values(songs).map((s) => s.duty ?? 0x80).join(', ')}\n` +
+    Object.entries(songs).map(([k, s]) => `song_${k}0: .byte ${s.tracks[0]}\nsong_${k}1: .byte ${s.tracks[1]}`).join('\n');
+}
+// メロディの音量の下がり方（env_tab）と、ベースの長さ（TRI_LIN）
+export function voiceData(env, triLin, sym) {
+  sym.ENV_LEN = env.length; sym.TRI_LIN = triLin;
+  return `env_tab: .byte ${env.join(', ')}`;
+}
+
+// 小節で書く曲。bars の1つ = 'メロディ | 和音'。メロディは「音:拍」（- は休み。拍は 0.5・1・1.5・2・3・4）
+//   beat: 1拍のフレーム数。bass: 小節ごとのベースの形（waltz 3拍・sparse 4拍・march 4拍・gallop 4拍・none）
+//   1小節の拍の合計がベースの形とちがうと止める（ずれた曲を作らない）
+const CHORDS = { C: ['C3', 'G3'], Dm: ['D3', 'A3'], Em: ['E3', 'B3'], F: ['F2', 'C3'], G: ['G2', 'D3'], Am: ['A2', 'E3'], E: ['E2', 'B2'] };
+const up = (n) => n.replace(/\d/, (o) => +o + 1);
+const STYLE = {
+  waltz: (r, f) => [[r, 1], ['-', 1], [f, 1]],
+  sparse: (r, f) => [[r, 2], [f, 2]],
+  march: (r, f) => [[r, 1], [f, 1], [up(r), 1], [f, 1]],
+  gallop: (r, f) => [r, up(r), f, up(r), r, up(r), f, up(r)].map((n) => [n, 0.5]),
+};
+export function compose({ beat, bars, loop = true }) {
+  const mel = [], bas = [];
+  bars.forEach((bar, bi) => {
+    const [m, rest] = bar.split('|').map((x) => x.trim());
+    const [ch, style = 'waltz'] = rest.split(/\s+/);
+    let sum = 0;
+    for (const tok of m.split(/\s+/)) {
+      const [n, b] = tok.split(':');
+      sum += +b;
+      mel.push(n, Math.round(+b * beat));
+    }
+    const pat = style === 'none' ? [['-', sum]] : STYLE[style](...(CHORDS[ch] || (() => { throw new Error('和音: ' + ch); })()));
+    const need = pat.reduce((a, [, b]) => a + b, 0);
+    if (Math.abs(need - sum) > 1e-6) throw new Error(`${bi + 1}小節目の拍が合わない（メロディ ${sum}・ベース ${need}）: ${bar}`);
+    for (const [n, b] of pat) bas.push(n, Math.round(b * beat));
+  });
+  const end = loop ? 0xff : 0xfe;
+  return [track(mel.join(' '), false, end), track(bas.join(' '), true, end)];
 }
