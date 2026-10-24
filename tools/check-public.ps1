@@ -13,7 +13,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-$textExt = '.html','.htm','.js','.mjs','.css','.md','.txt','.json','.ps1','.sh','.bat','.cmd','.yml','.yaml','.xml','.svg','.csv','.ini','.cfg','.toml','.py','.gltf',''
+$textExt = '.html','.htm','.js','.mjs','.css','.md','.txt','.json','.ps1','.sh','.bat','.cmd','.yml','.yaml','.xml','.svg','.csv','.ini','.cfg','.toml','.py','.gltf','.s',''
 $imageExt = '.jpg','.jpeg','.png','.gif','.webp'
 $badNames ='^\.env', '^\.dev\.vars', '\.pem$', '\.key$', '\.pfx$', '\.p12$', '^id_(rsa|ed25519|ecdsa)', '^credentials', '\.kdbx$'
 $skipDirs = '\\\.git\\', '\\node_modules\\'
@@ -98,6 +98,13 @@ foreach ($f in $files) {
     $extrasOk = $true
     foreach ($m in [regex]::Matches($json, '"extras":\{([^}]*)\}')) { if ($m.Groups[1].Value -notmatch '^("(slice|noInk|noSlice)":true,?)+$') { $extrasOk = $false } }
     if (-not $extrasOk -or $json -match '"(copyright|author)"|[A-Za-z]:[\\/]|/Users/|/home/') { [void]$hits.Add("$rel : glb に作者・付加情報・パスがある（書き出しの設定を見直す）") }
+    continue
+  }
+  if ($ext -eq '.nes') {
+    # 8ビット互換機の ROM（retro-8bit/tools/build.mjs が src/ から作る）: バイトの中に、メール・PC のパス・鍵・自分の言葉などがないか
+    $ascii = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($f))
+    foreach ($r in $rules) { if ($ascii -match $r.r) { [void]$hits.Add("$rel : ROM の中に $($r.n)") } }
+    foreach ($w in $private) { if ($ascii -match $w) { [void]$hits.Add("$rel : ROM の中に 自分の言葉（.private-words.txt）") } }
     continue
   }
   if ($textExt -notcontains $ext) { [void]$hits.Add("$rel : テキスト以外のファイル（画像なら撮影情報・写り込みを目で確認）"); continue }

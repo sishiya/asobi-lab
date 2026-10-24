@@ -51,3 +51,6 @@ pathstones/look/shots/
 
 # 夜明けまでの島: 見くらべのページ（ルック3案・音の板）は手元だけ
 dusk-diorama/look/
+
+# 8ビット互換機: ROM を画面なしで動かした絵（retro-8bit/tools/run.mjs・build.mjs --preview）
+_dev/retro-8bit/
