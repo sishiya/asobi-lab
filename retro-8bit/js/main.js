@@ -4,6 +4,7 @@ import { LIBRARY } from './library.js';
 import { createCRT } from './crt/crt-gl.js';
 import { createInput, keyLabel } from './input.js';
 import { initSettings } from './settings.js';
+import { listCarts, addCart, renameCart, deleteCart } from './mycarts.js';
 
 const FRAME_MS = 1000 / 60.0988;
 const $ = (id) => document.getElementById(id);
@@ -24,6 +25,16 @@ const romCache = new Map();
 async function loadRom(entry) {
   if (!romCache.has(entry.id)) romCache.set(entry.id, fetch(entry.file + '?v=5').then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
   return romCache.get(entry.id);
+}
+// ラベルの絵: 音なしでタイトルまで進めて1枚描く
+function paintLabel(canvas, bytes, frames) {
+  try {
+    const m = new Console8(bytes, 8000);
+    for (let i = 0; i < frames; i++) m.runFrame();
+    const c = canvas.getContext('2d'), im = c.createImageData(256, 240);
+    new Uint32Array(im.data.buffer).set(m.ppu.frame);
+    c.putImageData(im, 0, 0);
+  } catch { /* 描けないカセットは黒いまま */ }
 }
 function renderShelf() {
   const box = $('carts'), blank = $('drop');
@@ -51,13 +62,39 @@ function renderShelf() {
     box.insertBefore(cart, blank);
     // ラベルの絵: 音なしでタイトルまで進めて1枚描く
     loadRom(e).then((bytes) => {
-      const m = new Console8(bytes, 8000);
-      for (let i = 0; i < e.frames; i++) m.runFrame();
-      const c = cart.querySelector('canvas').getContext('2d'), im = c.createImageData(256, 240);
-      new Uint32Array(im.data.buffer).set(m.ppu.frame);
-      c.putImageData(im, 0, 0);
+      paintLabel(cart.querySelector('canvas'), bytes, e.frames);
       dl.textContent = `ROM ↓ ${Math.round(bytes.length / 1024)}KB`;
     }).catch(() => { dl.textContent = 'ROM ↓'; });
+  }
+  renderMine();
+}
+
+// じぶんのカセット（このブラウザの IndexedDB にだけ残っているもの）: 灰色のカセットに手書きの名前。なまえを変える・すてる
+async function renderMine() {
+  const box = $('carts'), blank = $('drop');
+  for (const old of box.querySelectorAll('.cart.mine')) old.remove();
+  for (const c of await listCarts()) {
+    const cart = document.createElement('article');
+    cart.className = 'cart mine';
+    cart.style.setProperty('--c', '#8f8d88');
+    cart.innerHTML = `<button class="shell"><span class="label"><canvas width="256" height="240"></canvas><b></b><small>じぶんのカセット</small></span><span class="grip"></span></button>
+      <span class="mine-tools"><button class="mt" data-act="rename">なまえ</button><button class="mt" data-act="del">すてる</button></span>`;
+    cart.querySelector('b').textContent = c.name;
+    const shell = cart.querySelector('.shell');
+    shell.setAttribute('aria-label', `${c.name} であそぶ`);
+    const entry = { id: c.id, title: c.name, keys: [], bytes: c.bytes, frames: 60 };
+    shell.addEventListener('click', () => insertCart(cart, () => openEntry(entry, true)));
+    cart.querySelector('[data-act=rename]').addEventListener('click', async () => {
+      const n = prompt('カセットの なまえ（32字まで）', c.name);
+      if (n === null) return;
+      await renameCart(c.id, n); renderMine();
+    });
+    cart.querySelector('[data-act=del]').addEventListener('click', async () => {
+      if (!confirm(`「${c.name}」をすてます（このブラウザから消え、セーブも消えます）。よいですか？`)) return;
+      await deleteCart(c.id); renderMine();
+    });
+    box.insertBefore(cart, blank);
+    paintLabel(cart.querySelector('canvas'), c.bytes, 60);
   }
 }
 
@@ -136,7 +173,14 @@ function openLocal(file) {
   file.arrayBuffer().then((buf) => {
     const bytes = new Uint8Array(buf);
     try { new Console8(bytes, 8000); } catch (e) { err.textContent = '開けませんでした: ' + e.message; err.hidden = false; return; }
-    insertCart($('drop'), () => openEntry({ id: null, title: file.name, keys: [], bytes }, true));
+    // このブラウザの中にだけ残す（残せなくても遊べる）
+    addCart(file.name, bytes).then((c) => {
+      renderMine();
+      insertCart($('drop'), () => openEntry({ id: c.id, title: c.name, keys: [], bytes, frames: 60 }, true));
+    }).catch((e2) => {
+      err.textContent = e2.message + '（今回は残さずに遊びます）'; err.hidden = false;
+      insertCart($('drop'), () => openEntry({ id: null, title: file.name, keys: [], bytes }, true));
+    });
   });
 }
 $('file').addEventListener('change', (e) => { openLocal(e.target.files[0]); e.target.value = ''; });
