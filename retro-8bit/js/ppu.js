@@ -1,4 +1,5 @@
-// PPU: 絵の係（2C02 互換）。1行ずつ描く（行の途中のスクロールの変化は行の単位でだけ効く）。
+// PPU: 絵の係（2C02 互換）。1行ずつ描く（行の途中のスクロールの変化は行の単位でだけ効く）。行はドット 1 でまとめて描き、
+// 0番の当たりの印は、本物と同じく当たったドットで立てる（テスト ROM の sprite hit timing に合わせた）。
 // 1フレーム = 262行 × 341ドット。0〜239 が見える行、241 で垂直帰線（NMI）、261 が描く前の準備の行
 import { PALETTE } from './palette.js';
 
@@ -89,8 +90,10 @@ export class PPU {
       }
       const L = this.line, D = this.dot;
       if (L < 240) {
-        if (D === 256) { this.renderLine(L); if (this.rendering) this.incY(); }
-        else if (D === 257 && this.rendering) this.copyX();
+        if (D === 1) this.renderLine(L);
+        else if (D === this.hitDot) this.status |= 0x40;
+        if (D === 256 && this.rendering) this.incY();
+        if (D === 257 && this.rendering) this.copyX();
         else if (D === 260 && this.rendering) this.cart.scanline?.();
       } else if (L === 241) {
         if (D === 1) { this.status |= 0x80; if ((this.ctrl & 0x80) && this.nmiOut) this.nmiOut(); }
@@ -121,6 +124,7 @@ export class PPU {
     const bgLeft = this.mask & 0x02, spLeft = this.mask & 0x04;
     const gray = (this.mask & 1) ? 0x30 : 0x3f;
     const bgPix = this.lineBg || (this.lineBg = new Uint8Array(256)); // 0 = すきとおり、ほかは パレットの番号(1〜15)
+    this.hitDot = -1;
     bgPix.fill(0);
 
     if (bgOn) {
@@ -179,7 +183,7 @@ export class PPU {
           const c = ((lo >> bit) & 1) | (((hi >> bit) & 1) << 1);
           if (!c || drawn[x] || (!spLeft && x < 8)) continue;
           drawn[x] = 1;
-          if (i === 0 && bgPix[x] && x !== 255) this.status |= 0x40; // 0番の当たり
+          if (i === 0 && bgPix[x] && x !== 255 && this.hitDot < 0 && !(this.status & 0x40)) this.hitDot = x + 2; // 0番の当たり（そのドットで印を立てる）
           if ((attr & 0x20) && bgPix[x]) continue; // 背景のうしろ
           out[row + x] = PALETTE[this.pal[0x10 | ((attr & 3) << 2) | c] & gray];
         }

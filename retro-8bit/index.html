@@ -6,45 +6,49 @@
 <title>8ビット互換機（試作）</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23141b2e'/><rect x='12' y='16' width='40' height='30' rx='4' fill='%230b0f1c' stroke='%237d8bb3' stroke-width='3'/><path d='M24 34h4v4h-4zM28 30h4v4h-4zM32 34h4v4h-4zM36 30h4v4h-4z' fill='%2388d800'/></svg>">
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Yomogi&display=swap">
+<link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
 
-<!-- 棚（トップ）: カートリッジをえらぶ・ROM を持ち帰る・自分のファイルを開く -->
+<!-- 棚（トップ）＝カセットの棚: カセットをえらぶ（本体にさしこむ）・ROM を持ち帰る・じぶんのカセット（自分のファイル） -->
 <div class="shelf" id="shelf">
-  <header class="shelf-head">
+  <header class="room">
     <p class="eyebrow">あそびラボ</p>
     <h1>8ビット互換機</h1>
-    <p class="lead">あそびラボが一から書いた、ブラウザで動く8ビットのゲーム機です。入っているのは、この機械のために作ったオリジナルのソフトだけ。</p>
+    <p class="lead">一から書いた8ビットのゲーム機と、この機械のために作ったオリジナルのカセット。</p>
+    <div class="console" id="console" aria-hidden="true">
+      <div class="slot" id="slot"></div>
+      <div class="plate"><b>ASOBI-LAB 8</b>COMPATIBLE SYSTEM</div>
+      <i class="led" id="led"></i><i class="sw"></i>
+    </div>
   </header>
 
-  <section aria-label="カートリッジ">
-    <div class="carts" id="carts"></div>
-  </section>
-
-  <section class="open" aria-labelledby="openTitle">
-    <h2 id="openTitle">自分のファイルを開く</h2>
-    <p>iNES 形式（.nes）のファイルを、この機械で動かせます。<b>ファイルはこの端末の中だけで読み、どこにも送りません。</b>自分で作ったものや、配ってよいと決められたものなど、権利を持っているファイルだけを開いてください。</p>
-    <label class="drop" id="drop">
-      <input type="file" id="file" accept=".nes" hidden>
-      <span class="drop-btn">ファイルをえらぶ</span><span class="drop-hint">またはここへドロップ</span>
-    </label>
+  <main class="desk">
+    <p class="desk-lead">カセットをえらぶと、本体にさしこんで電源が入ります。</p>
+    <div class="carts" id="carts">
+      <label class="cart blank" id="drop" style="--c:#8f8d88">
+        <input type="file" id="file" accept=".nes" class="vh">
+        <span class="shell" aria-hidden="true"><span class="label"><b>なまえ：</b><span>じぶんのカセット<br>.nes をえらぶ・<br>ここへドロップ</span></span><span class="grip"></span></span>
+        <span class="desc">この端末の中だけで読み、どこにも送りません。権利を持っているファイルだけを。</span>
+      </label>
+    </div>
     <p class="err" id="openErr" role="alert" hidden></p>
-  </section>
 
-  <details class="about">
-    <summary>この機械について</summary>
-    <p>CPU（6502）・絵・音（矩形波2・三角波・ノイズ）・カートリッジのしくみ（マッパー 0・1・2・3・7）を、あそびラボが JavaScript で書きました。メーカーのプログラムやデータは入っていません。棚のソフトは、自作のアセンブラで作ったものです。ROM のファイルは自由にダウンロードできます（ゲームの中身は CC BY-NC 4.0）。</p>
-    <p>電池つきのカートリッジ（恐竜かけっこ牧場 8bit）のセーブは、このブラウザの中に残ります。</p>
-    <p class="small">ver. 0.2（試作）・<a href="launcher.html">過去の版</a>・<a href="../archive.html">あそびラボの保管庫へ</a></p>
-  </details>
+    <details class="memo">
+      <summary>とりあつかい説明書</summary>
+      <p>CPU（6502）・絵・音（矩形波2・三角波・ノイズ）・カートリッジのしくみ（マッパー 0・1・2・3・7）を、あそびラボが JavaScript で書きました。メーカーのプログラムやデータは入っていません。カセットのソフトは、自作のアセンブラで作ったオリジナルです。ROM のファイルは自由にダウンロードできます（ゲームの中身は CC BY-NC 4.0）。</p>
+      <p>電池つきのカセット（恐竜かけっこ牧場 8bit）のセーブは、このブラウザの中に残ります。ふーっと息をふきかけなくても、ちゃんと動きます。</p>
+      <p class="small">ver. 0.3（試作）・<a href="launcher.html">過去の版</a>・<a href="../archive.html">あそびラボの保管庫へ</a></p>
+    </details>
+  </main>
 </div>
 
 <!-- 遊ぶ画面 -->
 <div class="app" id="player" hidden>
   <!-- 上: いまの状態（機械とカートリッジ）と、めったに使わない道具 -->
   <header class="top">
-    <div class="name"><button class="back" id="btnBack" aria-label="棚へもどる">←</button><span class="cart" id="cartName"></span></div>
+    <div class="name"><button class="back" id="btnBack" aria-label="棚へもどる">←</button><span class="cartname" id="cartName"></span></div>
     <div class="tools">
       <div class="menuwrap">
         <button class="tool" id="btnScreen" aria-haspopup="true" aria-expanded="false" title="画面">▣ 画面</button>
@@ -79,6 +83,6 @@
   <footer class="keys" id="keys"></footer>
 </div>
 
-<script type="module" src="js/main.js?v=4"></script>
+<script type="module" src="js/main.js?v=5"></script>
 </body>
 </html>

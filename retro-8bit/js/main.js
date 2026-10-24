@@ -21,32 +21,59 @@ async function loadRom(entry) {
   return romCache.get(entry.id);
 }
 function renderShelf() {
-  const box = $('carts');
-  box.textContent = '';
+  const box = $('carts'), blank = $('drop');
+  for (const old of box.querySelectorAll('.cart:not(.blank)')) old.remove();
   for (const e of LIBRARY) {
-    const card = document.createElement('article');
-    card.className = 'cartcard';
-    card.innerHTML = `<canvas width="256" height="240" aria-hidden="true"></canvas>
-      <div class="body"><h3></h3><p></p>
-      <div class="row"><button class="play">あそぶ</button><a class="dl" download>ROM ↓</a></div></div>`;
-    card.querySelector('h3').textContent = e.title;
-    card.querySelector('p').textContent = e.desc;
-    const dl = card.querySelector('.dl');
+    const cart = document.createElement('article');
+    cart.className = 'cart';
+    cart.style.setProperty('--c', e.color || '#8f8d88');
+    cart.innerHTML = `<button class="shell"><span class="label"><canvas width="256" height="240"></canvas><b></b><small>ROM CASSETTE</small></span><span class="grip"></span></button>
+      <a class="tag" download>ROM ↓</a><p class="desc"></p>`;
+    const shell = cart.querySelector('.shell');
+    shell.setAttribute('aria-label', `${e.title} であそぶ`);
+    cart.querySelector('b').textContent = e.title;
+    cart.querySelector('.desc').textContent = e.desc;
+    const dl = cart.querySelector('.tag');
     dl.href = e.file; dl.download = e.id + '.nes';
     dl.title = `${e.id}.nes をダウンロード`;
-    card.querySelector('.play').addEventListener('click', () => openEntry(e, true));
-    card.querySelector('canvas').addEventListener('click', () => openEntry(e, true));
-    box.append(card);
-    // 小さな画面: 音なしでタイトルまで進めて1枚描く
+    shell.addEventListener('click', () => insertCart(cart, () => openEntry(e, true)));
+    box.insertBefore(cart, blank);
+    // ラベルの絵: 音なしでタイトルまで進めて1枚描く
     loadRom(e).then((bytes) => {
       const m = new Console8(bytes, 8000);
       for (let i = 0; i < e.frames; i++) m.runFrame();
-      const c = card.querySelector('canvas').getContext('2d'), im = c.createImageData(256, 240);
+      const c = cart.querySelector('canvas').getContext('2d'), im = c.createImageData(256, 240);
       new Uint32Array(im.data.buffer).set(m.ppu.frame);
       c.putImageData(im, 0, 0);
       dl.textContent = `ROM ↓ ${Math.round(bytes.length / 1024)}KB`;
     }).catch(() => { dl.textContent = 'ROM ↓'; });
   }
+}
+
+// カセットを本体のさしこみ口へ: 口の上まで飛んで、口の線より下が見えなくなりながら入っていく
+// （動きを減らす設定や、本体が画面の外なら、すぐ次へ）
+function insertCart(cart, then) {
+  const slot = $('slot').getBoundingClientRect(), shell = cart.querySelector('.shell'), c = shell.getBoundingClientRect();
+  const led = $('led'), con = $('console');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || slot.bottom < 0 || slot.top > innerHeight || !shell.animate) {
+    led.classList.add('on'); con.classList.add('on'); then(); return;
+  }
+  const k = Math.min(0.55, (slot.width * 0.9) / c.width);          // 口の幅に合わせて縮める
+  const dx = slot.left + slot.width / 2 - (c.left + c.width / 2);
+  const above = slot.top + slot.height / 2 - c.height * k / 2 - (c.top + c.height / 2) - 40; // 口の 40px 上
+  const into = above + c.height * k;                                  // 口へ入りきる
+  cart.classList.add('flying');
+  shell.animate([
+    { transform: 'none', clipPath: 'inset(0 0 0 0)' },
+    { transform: `translate(${dx}px, ${above}px) scale(${k})`, clipPath: 'inset(0 0 0 0)', offset: 0.7 },
+    { transform: `translate(${dx}px, ${into}px) scale(${k})`, clipPath: 'inset(0 0 100% 0)' },
+  ], { duration: 600, easing: 'cubic-bezier(.45,0,.3,1)', fill: 'forwards' });
+  setTimeout(() => { led.classList.add('on'); con.classList.add('on'); }, 560);
+  setTimeout(then, 760);
+}
+function resetShelf() {
+  $('led').classList.remove('on'); $('console').classList.remove('on');
+  for (const c of document.querySelectorAll('.cart.flying')) { c.classList.remove('flying'); for (const an of c.querySelector('.shell').getAnimations()) an.cancel(); }
 }
 
 // 自分のファイルを開く（この端末の中だけ。fetch も送信もしない）
@@ -58,7 +85,7 @@ function openLocal(file) {
   file.arrayBuffer().then((buf) => {
     const bytes = new Uint8Array(buf);
     try { new Console8(bytes, 8000); } catch (e) { err.textContent = '開けませんでした: ' + e.message; err.hidden = false; return; }
-    openEntry({ id: null, title: file.name, keys: [], bytes }, true);
+    insertCart($('drop'), () => openEntry({ id: null, title: file.name, keys: [], bytes }, true));
   });
 }
 $('file').addEventListener('change', (e) => { openLocal(e.target.files[0]); e.target.value = ''; });
@@ -101,6 +128,7 @@ function stopPlayer() {
 }
 function backToShelf() {
   stopPlayer();
+  resetShelf();
   current = null;
   $('player').hidden = true;
   $('shelf').hidden = false;
@@ -111,7 +139,7 @@ function route() {
   const id = location.hash.slice(1);
   const e = LIBRARY.find((x) => x.id === id);
   if (e) { if (current !== e) openEntry(e, false); }
-  else if (current) { stopPlayer(); current = null; $('player').hidden = true; $('shelf').hidden = false; }
+  else if (current) { stopPlayer(); resetShelf(); current = null; $('player').hidden = true; $('shelf').hidden = false; }
 }
 addEventListener('popstate', route);
 
