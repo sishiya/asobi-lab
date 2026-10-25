@@ -6,7 +6,8 @@ import { PALETTE } from './palette.js';
 export class PPU {
   constructor(cart) {
     this.cart = cart;
-    this.vram = new Uint8Array(2048);
+    this.vram = cart.ciram;   // 画面の表の RAM はカセットの側に置く（マッパーが表の割りあてを変える）
+    cart.ppu = this;
     this.pal = new Uint8Array(32);
     this.oam = new Uint8Array(256);
     this.frame = new Uint32Array(256 * 240); // RGBA（リトルエンディアンで ABGR）
@@ -24,13 +25,13 @@ export class PPU {
   read(a) {
     a &= 0x3fff;
     if (a < 0x2000) return this.cart.chrRead(a);
-    if (a < 0x3f00) return this.vram[this.cart.ntIndex(a)];
+    if (a < 0x3f00) return this.cart.ntRead(a);
     return this.pal[palIndex(a)];
   }
   write(a, v) {
     a &= 0x3fff;
     if (a < 0x2000) this.cart.chrWrite(a, v);
-    else if (a < 0x3f00) this.vram[this.cart.ntIndex(a)] = v;
+    else if (a < 0x3f00) this.cart.ntWrite(a, v);
     else this.pal[palIndex(a)] = v & 0x3f;
   }
 
@@ -94,14 +95,14 @@ export class PPU {
         else if (D === this.hitDot) this.status |= 0x40;
         if (D === 256 && this.rendering) this.incY();
         if (D === 257 && this.rendering) this.copyX();
-        else if (D === 260 && this.rendering) this.cart.scanline?.();
+        else if (D === 260 && this.rendering) this.cart.scanline?.(L);
       } else if (L === 241) {
         if (D === 1) { this.status |= 0x80; if ((this.ctrl & 0x80) && this.nmiOut) this.nmiOut(); }
       } else if (L === 261) {
         if (D === 1) this.status &= 0x1f;
         else if (D === 256 && this.rendering) this.incY();
         else if (D === 257 && this.rendering) this.copyX();
-        else if (D === 260 && this.rendering) this.cart.scanline?.();   // 準備の行も数える（MMC3）
+        else if (D === 260 && this.rendering) this.cart.scanline?.(L);   // 準備の行も数える（MMC3・MMC5）
         else if (D === 280 && this.rendering) this.v = (this.v & 0x041f) | (this.t & 0x7be0);
       }
     }
@@ -128,7 +129,9 @@ export class PPU {
     this.hitDot = -1;
     bgPix.fill(0);
 
+    const cart = this.cart, exBg = cart.exBg;   // exBg: MMC5 の拡張の色（1マスごとの CHR とパレット）
     if (bgOn) {
+      cart.fetch = 1;
       const v = this.v;
       let cx = v & 31, nt = (v >> 10) & 3;
       const cy = (v >> 5) & 31, fy = (v >> 12) & 7;
@@ -139,9 +142,12 @@ export class PPU {
         const tile = this.read(ntAddr);
         const at = this.read(0x23c0 | (nt << 10) | ((cy >> 2) << 3) | (cx >> 2));
         const shift = ((cy & 2) << 1) | (cx & 2);
-        const hi2 = ((at >> shift) & 3) << 2;
+        let hi2 = ((at >> shift) & 3) << 2;
         const p = base + tile * 16 + fy;
-        const lo = this.read(p), hi = this.read(p + 8);
+        let lo, hi;
+        const e = exBg ? exBg(ntAddr, p) : -1;
+        if (e >= 0) { hi2 = (e >> 16) << 2; lo = (e >> 8) & 0xff; hi = e & 0xff; }
+        else { lo = this.read(p); hi = this.read(p + 8); }
         for (let b = 0; b < 8; b++, x++) {
           if (x < 0 || x > 255) continue;
           const c = ((lo >> (7 - b)) & 1) | (((hi >> (7 - b)) & 1) << 1);
@@ -155,6 +161,7 @@ export class PPU {
     for (let x = 0; x < 256; x++) out[row + x] = PALETTE[this.pal[bgPix[x] ? bgPix[x] : 0] & gray];
 
     if (spOn) {
+      cart.fetch = 2;
       const h = (this.ctrl & 0x20) ? 16 : 8;
       // その行に乗る絵（スプライト）を前から8つまで
       const list = [];
@@ -190,6 +197,7 @@ export class PPU {
         }
       }
     }
+    cart.fetch = 0;
   }
 }
 

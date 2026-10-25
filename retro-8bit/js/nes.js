@@ -15,7 +15,8 @@ export class Console8 {
     this.apu = new APU(sampleRate);
     this.cpu = new CPU(this);
     this.ppu.nmiOut = () => { this.cpu.nmi = true; };
-    this.cpu.irq = () => this.apu.frameIrq || this.cart.irqLine;   // APU とマッパー（MMC3）の IRQ
+    this.cpu.irq = () => this.apu.frameIrq || this.cart.irqLine;   // APU とマッパーの IRQ
+    this.apu.ext = this.cart.audio || null;                          // カセットの音の石（VRC6・ネームコ 163・サンソフト 5B）
     this.pad = [0, 0]; this.shift = [0, 0]; this.strobe = 0;
     this.mic = false; // 2P のマイク（$4016 の 2 ビット目。当時の 2P コントローラーについていた）
     this.cpu.reset();
@@ -32,8 +33,8 @@ export class Console8 {
       const v = this.shift[i] & 1; this.shift[i] = (this.shift[i] >> 1) | 0x80;
       return 0x40 | mic | v;
     }
-    if (a < 0x6000) return 0;
-    return this.cart.cpuRead(a);
+    if (a < 0x4020) return 0;
+    return this.cart.cpuRead(a);   // $4020 から上はカセット（MMC5・ネームコ 163 は $4800〜$5FFF にもレジスタ）
   }
   cpuWrite(a, v) {
     if (a < 0x2000) { this.ram[a & 0x7ff] = v; return; }
@@ -55,13 +56,14 @@ export class Console8 {
 
   // 1フレーム（約 1/60 秒）進める
   runFrame() {
-    const ppu = this.ppu, cpu = this.cpu, apu = this.apu;
+    const ppu = this.ppu, cpu = this.cpu, apu = this.apu, clock = this.cart.clock;   // clock: CPU のサイクルで数えるマッパーの IRQ と音
     ppu.frameDone = false;
     let guard = 0;
     while (!ppu.frameDone && guard++ < 200000) {
       if (this.strobe) { this.shift[0] = this.pad[0]; this.shift[1] = this.pad[1]; }
       const c = cpu.step();
       ppu.step(c * 3);
+      if (clock) clock(c);
       apu.step(c);
     }
   }

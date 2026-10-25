@@ -231,7 +231,7 @@ function loadBattery() {
   if (!s) return;
   try {
     const bin = atob(s);
-    for (let i = 0; i < bin.length && i < 8192; i++) nes.cart.prgRam[i] = bin.charCodeAt(i);
+    for (let i = 0; i < bin.length && i < nes.cart.prgRam.length; i++) nes.cart.prgRam[i] = bin.charCodeAt(i);
     lastSave = s;
   } catch { /* こわれたセーブは使わない */ }
 }

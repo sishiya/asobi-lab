@@ -101,6 +101,7 @@ export class APU {
     this.cycle = 0; this.frameCycle = 0; this.five = false; this.irqOff = false; this.frameIrq = false;
     this.setRate(sampleRate);
     this.hp = 0; this.hpPrev = 0; this.lp = 0;
+    this.ext = null; // カセットの音（あれば、いまの大きさを返す関数）
   }
   setRate(r) {
     this.rate = r; this.perSample = CPU_HZ / r; this.acc = 0; this.sum = 0; this.cnt = 0;
@@ -150,7 +151,7 @@ export class APU {
       const pulse = p ? 95.88 / (8128 / p + 100) : 0;
       const t = this.tri.out / 8227 + this.noise.out / 12241;
       const tnd = t ? 159.79 / (1 / t + 100) : 0;
-      this.sum += pulse + tnd; this.cnt++;
+      this.sum += pulse + tnd + (this.ext ? this.ext() : 0); this.cnt++;
       if (++this.acc >= this.perSample) {
         this.acc -= this.perSample;
         let s = this.sum / this.cnt; this.sum = 0; this.cnt = 0;
