@@ -24,9 +24,9 @@ document.documentElement.lang = LANG;
 </script>
 <style>
 :root{--bg:#fbf6ef;--ink:#1f1a17;--muted:#6b625a;--line:#e3d9cc;--card:#fff;--accent:#d9480f;--accent-ink:#fff;--thumb:#eadfd1;--field:#fff;
-  --c-action:#c2410c;--c-puzzle:#2f7a8c;--c-sim:#5f8a3a;--c-party:#a3489b;--new:#d9480f;--new-ink:#fff;color-scheme:light dark}
+  --c-action:#c2410c;--c-puzzle:#2f7a8c;--c-sim:#5f8a3a;--c-party:#a3489b;--c-console:#4559a8;--new:#d9480f;--new-ink:#fff;color-scheme:light dark}
 @media (prefers-color-scheme:dark){:root{--bg:#14110f;--ink:#f1ebe4;--muted:#a59b91;--line:#332c26;--card:#1d1916;--accent:#ff8a4c;--accent-ink:#14110f;--thumb:#332c26;--field:#1d1916;
-  --c-action:#f0a072;--c-puzzle:#7fc0cf;--c-sim:#a6c98a;--c-party:#d79ad0;--new:#ff8a4c;--new-ink:#1a0e05}}
+  --c-action:#f0a072;--c-puzzle:#7fc0cf;--c-sim:#a6c98a;--c-party:#d79ad0;--c-console:#9eabe8;--new:#ff8a4c;--new-ink:#1a0e05}}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 :root[lang=en] [lang=ja],:root:not([lang=en]) [lang=en]{display:none!important}
@@ -106,7 +106,7 @@ h2+.grid{margin-top:0}
 
 .note{font-size:13px;color:var(--muted);margin:64px 0 0;padding-top:24px;border-top:1px solid var(--line)}
 .note.sub{margin-top:16px;padding-top:0;border-top:0;font-size:12px}
-.c-action{--c:var(--c-action)}.c-puzzle{--c:var(--c-puzzle)}.c-sim{--c:var(--c-sim)}.c-party{--c:var(--c-party)}
+.c-action{--c:var(--c-action)}.c-puzzle{--c:var(--c-puzzle)}.c-sim{--c:var(--c-sim)}.c-party{--c:var(--c-party)}.c-console{--c:var(--c-console)}
 @media (max-width:719px){main{padding-top:32px}}
 
 /* スマホ: 一覧は横長のリスト、ジャンルは横にスクロールする1行、押す所は高さ44px */
@@ -190,7 +190,7 @@ const GAMES = [
   {id:'face-in-frame', title:'名画の顔ハメ', cat:'party', created:'2026-10-25', updated:'2026-10-25',
    desc:'モナ・リザ、ムンクの叫び、写楽の役者絵。名画の鼻から下がくり抜かれた顔ハメ看板に、カメラで自分の顔をはめる。数秒のうちに絵の表情をまねしてシャッター。最後に、口の形と首のかしげ方がどれだけ似ていたかの点が出る。カメラの映像は送らず、保存もしない。',
    title_en:'Masterpiece Face-in-Hole', desc_en:'The Mona Lisa, Munch’s The Scream, a Sharaku kabuki print. The lower half of each face is cut out like a face-in-hole board. Put your own face in with your camera, copy the expression in a few seconds, and snap. At the end you get a score for how well your mouth and the tilt of your head matched. The camera video is never sent or saved.', en:true},
-  {id:'retro-8bit', title:'8ビット互換機', cat:'action', created:'2026-10-25', updated:'2026-10-25',
+  {id:'retro-8bit', title:'8ビット互換機', cat:'console', created:'2026-10-25', updated:'2026-10-25',
    desc:'あそびラボが一から書いた8ビットのゲーム機。透明なケースからカセットをえらぶと、本体にカチャッとさしこんで電源が入る。ソフトはこの機械のために作ったオリジナル3本。画面はブラウン管にもできる。',
    title_en:'8-bit Console', desc_en:'An 8-bit game console written from scratch by Asobi Lab. Pick a cartridge from its clear case, and it clicks into the console and powers on. Three original games made for this machine. The screen can look like an old CRT TV.', en:true},
   {id:'dino-race', title:'恐竜かけっこ牧場', cat:'sim', created:'2026-10-17', updated:'2026-10-19',
@@ -208,6 +208,7 @@ const CATS = [
   {id:'puzzle', name:'パズル', name_en:'Puzzle'},
   {id:'sim', name:'育てる・つくる', name_en:'Build & grow'},
   {id:'party', name:'みんなで', name_en:'Party'},
+  {id:'console', name:'ゲーム機', name_en:'Consoles'},
 ];
 const SORTS = ['cat','new','upd'];
 const FRESH_DAYS = 2; // きょう・きのうの公開・更新に印をつける
