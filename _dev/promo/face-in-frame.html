@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>紹介動画づくり</title>
+<link rel="stylesheet" href="promo.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.min.js"></script>
+<script src="promo.js"></script>
+<script src="promo-audio.js"></script>
+<script src="dino-race-common.js"></script>
+<script src="face-in-frame-common.js"></script>
+<script>
+'use strict';
+// 台本: 名画の顔ハメ（ショート、縦長 40秒＋締め 5秒。?short で開く）（2026-10-26）
+// ミッション（叫びに顔をはめる）→ タイトルの画面 → 写楽・モナ・リザ・ゴッホを1枚ずつ（穴のまわりに寄せて）→ けっか →「あなたは何点？」
+// 素材は out/fif-clips（face-in-frame-clips.mjs）。カメラのかわりに名画の顔で遊んだもの（本物の人の顔は使わない。画面に札を出す）。
+// 上 300px は字幕・札、まんなかに額に入れた絵（ゲームの画面を寄せて）かスマホの画面。下の約25%は YouTube の表示が重なるので何も置かない
+const TOP = 330, VH = 1070, T_END = 36;
+const NAME = '名画の顔ハメ', SUB = '名画の顔に、自分の顔をはめて表情をまねる';
+// 場面: クリップの時刻 ct = c0 + (t − a) × rate。focus・zoom は寄せ方（クリップの中の 0〜1）
+const SC = [
+  { a: 0, b: 6, clip: 'title', c0: 17.6, focus: [0.52, 0.56], zoom: 1.5 },          // 叫び（クリップの中で絵が出る 17.87・シャッター 22.97 → t 5.37）
+  { a: 6, b: 10.5, clip: 'title', c0: 0.4, rate: 0.6, phone: true },                  // タイトルの画面
+  { a: 10.5, b: 16.5, clip: 'play', c0: 16.3, focus: [0.58, 0.47], zoom: 1.45 },    // 写楽（出る 16.37・シャッター 21.40 → t 15.6）
+  { a: 16.5, b: 24.2, clip: 'play', c0: 22.6, focus: [0.47, 0.42], zoom: 1.7 },     // モナ・リザ（22.57・29.47 → t 23.37）
+  { a: 24.2, b: 32, clip: 'play', c0: 30.6, focus: [0.48, 0.5], zoom: 1.6 },        // ゴッホ（30.53・37.43 → t 31.03）
+  { a: 32, b: 40, img: 'bottom', from: 'top', slideAt: 34, phone: true },             // けっか
+];
+const CAPS = [
+  { a: 6.2, b: 10.3, main: 'カメラで、自分の顔をはめる', sub: '映像は端末の中だけ。送らず、保存もしない',
+    en: ['Put your own face in with your camera', 'The video stays on your device. Never sent or saved'] },
+  { a: 10.7, b: 16.3, main: '穴に合わせて、5秒で表情をまねる', sub: '写楽のお題は「口をへの字に！」',
+    en: ['Fit the hole and copy the look in 5 seconds', 'Sharaku says: "Turn your mouth down!"'] },
+  { a: 16.7, b: 24, main: '色と陰影を、絵になじませる', sub: 'モナ・リザは「ほんのり、ほほえむ」',
+    en: ['Your face is blended into the painting\'s colors and shading', 'Mona Lisa: "A faint smile"'] },
+  { a: 24.4, b: 31.8, main: '筆のタッチも、絵ごとに', sub: 'ゴッホの画風を、その場で顔にかける',
+    en: ['Brushstrokes, too, painting by painting', 'Van Gogh\'s style is applied to your face live'] },
+  { a: 32.2, b: T_END - 0.2, main: '最後に、似ていたかの点', sub: '見るのは口の形と首のかしげ方',
+    en: ['At the end: how close were you?', 'It scores the shape of your mouth and the tilt of your head'] },
+];
+const SHOTS_T = [5.37, 15.6, 23.37, 31.03];   // シャッターの時刻（クリップの中の白い光のコマから）
+const MUSIC = { style: 'romp', stopAt: SHORT_END, cues: [
+  { t: 0.6, type: 'pop' }, ...CAPS.map(c => ({ t: c.a, type: 'pop' })), ...SHOTS_T.map(t => ({ t, type: 'stamp' })),
+  { t: 6, type: 'whoosh' }, { t: 10.5, type: 'whoosh' }, { t: 16.5, type: 'whoosh' }, { t: 24.2, type: 'whoosh' }, { t: 32, type: 'whoosh' }, { t: 34, type: 'whoosh' },
+  { t: T_END + 0.4, type: 'whoosh' }, { t: SHORT_END, type: 'jingle' }] };
+const scAt = t => SC.find(s => t < s.b) || SC[SC.length - 1];
+promoStart({
+  name: NAME, out: 'face-in-frame', src: 'about:blank', iw: 1080, ih: 1920, dur: SHORT_END + IDENT_CLOSE, peek: 28,
+  music: MUSIC,
+  subs: () => [
+    { a: 0.6, b: 5.4, ja: 'ミッション: ムンクの「叫び」に顔をはめて、さけべ！\n名画の顔ハメ', en: 'Mission: put your face in Munch\'s The Scream, and scream!\nMasterpiece Face-in-Hole' },
+    ...capSubs(CAPS),
+    { a: T_END + 0.4, b: SHORT_END, ja: 'あなたは、何点？\nブラウザですぐ遊べます（パソコン・スマホ／日本語・英語）', en: 'What will you score?\nPlay right in your browser (PC or phone, Japanese or English)' },
+  ],
+  ready: () => FIF.ready,
+  setup() { return null; },
+  async renderAt(t) { await fifSeek(SC, t); },
+  drawSource(g) { g.fillStyle = '#16120d'; g.fillRect(0, 0, PW * RES, PH * RES); },
+  overlay(g, t) {
+    const s = scAt(t), f = Math.min(clamp((t - s.a) / 0.35, 0, 1), clamp((s.b - t) / 0.35, 0, 1) + (s === SC[SC.length - 1] ? 1 : 0));
+    // 額に入れた絵（ゲームの画面を寄せて）か、スマホの画面
+    if (s.phone) fifPhoneScene(g, PW / 2, TOP + VH / 2 + 20, 980, clamp((t - s.a) / 0.5, 0, 1) * (f > 0 ? 1 : 0), s, t,
+      { tilt: -0.02, tap: s.clip === 'title' ? { x: 0.5, y: 0.6375, u: (t - 9.6) / 0.6 } : null });
+    else fifFrame(g, 40, TOP + 10, PW - 80, VH - 20, f, () => fifView(g, FIF.v[s.clip], 40, TOP + 10, PW - 80, VH - 20, s.focus, s.zoom));
+    if (t > 10.5 && t < 32) fifStandIn(g, fade(t, 10.8, 31.8, 0.4), PW / 2, TOP + VH + 30);
+    // ミッション（はじまり）
+    drMission(g, fade(t, 0.6, 5.4, 0.4), 330, 'MISSION', 'ムンクの「叫び」に顔をはめて', 'さけべ！');
+    drawTitle(g, t, 0.6, 5.4, NAME, SUB);
+    drPopCaps(g, t, CAPS, 205);
+    // 終わり:「あなたは、何点？」
+    const fe = clamp((t - T_END) / 0.5, 0, 1);
+    if (fe > 0) {
+      g.shadowBlur = 0; g.globalAlpha = 0.8 * fe; g.fillStyle = '#0d0a07'; g.fillRect(0, 0, PW, PH); g.globalAlpha = 1;
+      fifPhone(g, PW / 2, 790, 820, clamp((t - T_END - 0.4) / 0.5, 0, 1), (sw, sh) => g.drawImage(FIF.img.top, -sw / 2, -sh / 2, sw, sh), { tilt: 0.03 });
+      drPopCaps(g, t, [{ a: T_END + 0.1, b: SHORT_END + 0.3, main: 'あなたは、何点？', size: 80, color: '#ffd27a' }], 200);
+      prep(g); g.globalAlpha = fe;
+      drawBlock(g, [{ s: NAME, size: 64, color: '#fff', bold: true }, { s: 'ブラウザですぐ遊べる（パソコン・スマホ）', size: 36, color: '#f2c79a', gap: 12 },
+        { s: '絵はどれもパブリックドメイン。顔の読み取りは MediaPipe', size: 24, color: '#aaa', gap: 22 }], 1405, 'bottom');
+      g.globalAlpha = 1; g.shadowBlur = 0;
+    }
+    drawIdentMini(g, t, 0.3); drSister(g, t, 0.3);
+    drawIdent(g, t, SHORT_END); drSisterClose(g, t, SHORT_END);
+  },
+  short: { iw: 1080, ih: 1920 },
+});
+fifLoad();
+</script>
+</body>
+</html>

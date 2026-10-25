@@ -1,0 +1,34 @@
+{
+  "file": "_dev/promo/out/face-in-frame-short.mp4",
+  "thumbnail": "_dev/promo/thumbs/face-in-frame-short.jpg",
+  "privacy": "private",
+  "publishAt": "2026-10-27T19:05:00+09:00",
+  "captions": {
+    "en": "_dev/promo/out/face-in-frame-short.en.srt"
+  },
+  "title": "名画に顔をはめて、5秒で表情をまねろ！ #Shorts",
+  "description": "ムンクの「叫び」、写楽、モナ・リザ、ゴッホ。名画の顔ハメ看板に、カメラで自分の顔をはめて、5秒で絵の表情をまねる。顔は絵の色になじみ、筆のタッチもかかる。最後に、似ていたかの点。しし屋 まなびラボの姉妹サイト「あそびラボ」のブラウザゲーム「名画の顔ハメ」から。\n\nゲーム（ブラウザで遊べます。パソコン・スマホ／日本語・英語）:\nhttps://sishiya.github.io/asobi-lab/face-in-frame/\n\nしし屋 あそびラボ（ほかのゲーム）:\nhttps://sishiya.github.io/asobi-lab/\nしし屋 まなびラボ（学べるアプリ）:\nhttps://sishiya.github.io/manabi-lab/\n\nこの動画では、カメラのかわりに名画（カラヴァッジョ「トカゲに噛まれる少年」ほか）の顔で遊んでいます。本物の人の顔はうつしていません。\n絵はどれもパブリックドメインです。顔の読み取りに MediaPipe、筆のタッチに Magenta の任意スタイル変換と TensorFlow.js（どれも Apache-2.0）。\n\n音楽: プログラムで合成したオリジナルの音です。\n\n#名画 #顔ハメ #ブラウザゲーム",
+  "tags": [
+    "名画の顔ハメ",
+    "顔ハメ",
+    "名画",
+    "モナ・リザ",
+    "写楽",
+    "ゴッホ",
+    "ムンク",
+    "ブラウザゲーム",
+    "あそびラボ",
+    "まなびラボ",
+    "しし屋",
+    "Masterpiece Face-in-Hole",
+    "face in hole",
+    "browser game",
+    "Shorts"
+  ],
+  "localizations": {
+    "en": {
+      "title": "Put Your Face in a Masterpiece and Copy the Look in 5 Seconds! #Shorts",
+      "description": "Munch's The Scream, Sharaku, the Mona Lisa, Van Gogh. Put your own face into a masterpiece face-in-hole board with your camera and copy the expression in 5 seconds. Your face blends into the painting, brushstrokes and all. Then you get a score. From \"Masterpiece Face-in-Hole\", a browser game on Shishiya Asobi Lab, the sister site of Manabi Lab.\n\nGame (Japanese / English; switch with JP / EN on the title screen):\nhttps://sishiya.github.io/asobi-lab/face-in-frame/\n\nShishiya Asobi Lab (more games): https://sishiya.github.io/asobi-lab/\nShishiya Manabi Lab (learning apps): https://sishiya.github.io/manabi-lab/\n\nIn this video, a face from another painting (Caravaggio's Boy Bitten by a Lizard and others) stands in for the camera. No real person's face is shown.\nAll paintings are in the public domain. Face tracking: MediaPipe. Brushstrokes: Magenta arbitrary style transfer with TensorFlow.js (all Apache-2.0).\n\nMusic: original sounds synthesized by code.\n\n#Masterpiece #BrowserGame"
+    }
+  }
+}

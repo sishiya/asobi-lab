@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>紹介動画づくり</title>
+<link rel="stylesheet" href="promo.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.min.js"></script>
+<script src="promo.js"></script>
+<script src="promo-audio.js"></script>
+<script src="dino-race-common.js"></script>
+<script src="face-in-frame-common.js"></script>
+<script>
+'use strict';
+// 台本: 名画の顔ハメ ― あそびかたと見どころ（横長の説明動画、100秒＋締め 5秒、案内役のライオン＝あそびラボのオーバーオール）（2026-10-26）
+// 左にスマホの画面（out/fif-clips のクリップ）、右に穴のまわりを寄せた額か札。上の帯に字幕（下は英語の CC にあける）、右下はライオン。
+// 素材はカメラのかわりに名画（カラヴァッジョ「トカゲに噛まれる少年」・フェルメール）の顔で遊んだもの。本物の人の顔は使わない（画面に札を出す）。
+// 場面の時刻はクリップの中の「絵が出たコマ」と「シャッターの白い光のコマ」で合わせた（face-in-frame-common.js の fifSeek）
+const END = 100, DUR = END + IDENT_CLOSE;
+const PX = 470, PY = 630, PHH = 780, X = 880, XW = 620;   // スマホの真ん中と高さ、右の額・札の左はしと幅
+const NAME = '名画の顔ハメ';
+const SC = [
+  { a: 0, b: 15, clip: 'play', c0: 0.2, rate: 0, phone: true },                                    // タイトルの画面
+  { a: 15, b: 24, clip: 'title', c0: 2.4, rate: 0.5, phone: true, tap: [[16.0, 0.333, 0.769], [23.2, 0.5, 0.75]] },   // 設定（開く ct 2.95 → t 16.1、閉じる 6.6 → t 23.4）
+  { a: 24, b: 31, clip: 'play', c0: 0, rate: 2.33, phone: true, tap: [[24.1, 0.5, 0.6375]] },      // はじめる → カメラと絵の準備（早送り）
+  { a: 31, b: 37.2, clip: 'play', c0: 16.3, phone: true, zoom: [[0.62, 0.47], 2.2], label: '穴のまわり' },   // 写楽（シャッター ct 21.40 → t 36.1）
+  { a: 37.2, b: 45, clip: 'play', c0: 22.57, phone: true, zoom: [[0.47, 0.39], 2.2], label: '穴のまわり' }, // モナ・リザ（29.47 → t 44.1）
+  { a: 45, b: 53, clip: 'play', c0: 30.5, phone: true, zoom: [[0.48, 0.52], 2.2], label: '穴のまわり' },    // ゴッホ（37.43 → t 51.93）
+  { a: 53, b: 61, stills: [['plain', 7.5], ['play', 21.25]] },                                       // なじませ・筆のタッチ なし／あり（写楽、シャッターの直前）
+  { a: 61, b: 73, img: 'bottom', from: 'top', slideAt: 67, phone: true },                            // けっか
+  { a: 73, b: 81, clip: 'title', c0: 17.9, phone: true, zoom: [[0.52, 0.58], 2.2], label: '穴のまわり' }, // 叫び（22.97 → t 78.07）
+  { a: 81, b: 999, img: 'bottom', phone: true },                                                     // 保存
+];
+const CAPS = [
+  { a: 7.3, b: 14.6, main: '名画の顔がくり抜かれた、顔ハメ看板', sub: 'カメラで自分の顔をはめて、時間のうちに絵の表情をまねする',
+    en: ['A face-in-hole board cut from masterpieces', 'Put your face in with your camera and copy the expression before time runs out'] },
+  { a: 15.2, b: 23.6, main: '設定で、遊びやすさを変えられる', sub: '顔を穴へ寄せる・絵の色になじませる・筆のタッチ・1枚の時間・枚数',
+    en: ['Adjust how it plays in Settings', 'Pull your face into the hole, blend into the colors, brushstrokes, time per painting, number of paintings'] },
+  { a: 24.2, b: 30.8, main: 'カメラの映像は、この端末の中だけ', sub: '顔の読み取りも端末の中。映像は送らず、保存もしない',
+    en: ['The camera video stays on this device', 'Face tracking runs on the device too. Nothing is sent or saved'] },
+  { a: 31.2, b: 37, main: '穴に顔を合わせて、5秒で表情をまねる', sub: 'お題は絵ごと。写楽は「口をへの字に！」。のこり3秒で 3・2・1',
+    en: ['Fit your face in the hole and copy the look in 5 seconds', 'Each painting has a prompt. Sharaku: "Turn your mouth down!" Then 3, 2, 1'] },
+  { a: 37.4, b: 44.8, main: '顔の色と陰影を、絵になじませる', sub: '顔の色を絵の顔の色へ寄せ、光の当たり方も絵に合わせる',
+    en: ['Your face is blended into the painting', 'Its colors shift toward the painted face, and the shading follows the painting'] },
+  { a: 45.2, b: 52.8, main: '筆のタッチも、絵ごとに', sub: '絵の画風を、その場で顔にかける（GPU のある端末で）',
+    en: ['Brushstrokes, too, painting by painting', 'The painting\'s style is applied to your face live (on devices with a GPU)'] },
+  { a: 53.2, b: 60.8, main: 'なじませ・筆のタッチ「なし」と「あり」', sub: 'そのままの顔だと、絵の中で浮いて見える',
+    en: ['Blending and brushstrokes: off vs. on', 'Without them, your face stands out from the painting'] },
+  { a: 61.2, b: 72.8, main: '最後に、どれだけ似ていたかの点', sub: '見るのは口の形と首のかしげ方（目と眉は絵のまま）。部位ごとに ◎○△',
+    en: ['At the end: how close were you?', 'It scores your mouth shape and head tilt (the eyes and brows stay painted), with ◎ ○ △ for each'] },
+  { a: 73.2, b: 80.8, main: '絵は6枚から、1回3枚（設定で5枚）', sub: 'ムンクの「叫び」なら、さけべ！',
+    en: ['3 of the 6 paintings each round (5 in Settings)', 'For Munch\'s The Scream: scream!'] },
+  { a: 81.2, b: 91.8, main: '写真は「保存」を押したときだけ、この端末に', sub: '1枚ずつでも、まとめて1枚の画像にもできる',
+    en: ['Photos are saved to this device only when you press Save', 'Save them one by one or all together as one image'] },
+];
+const SHOTS_T = [36.1, 44.1, 51.93, 78.07];
+const MUSIC = { style: 'romp', light: true, stopAt: END, cues: [{ t: END, type: 'jingle' }, { t: 1.0, type: 'pop' },
+  ...SHOTS_T.map(t => ({ t, type: 'stamp' })), { t: 15, type: 'whoosh' }, { t: 24, type: 'whoosh' }, { t: 31, type: 'whoosh' }, { t: 37.2, type: 'whoosh' },
+  { t: 45, type: 'whoosh' }, { t: 53, type: 'whoosh' }, { t: 61, type: 'whoosh' }, { t: 67, type: 'whoosh' }, { t: 73, type: 'whoosh' }, { t: 81, type: 'whoosh' }] };
+const EXP = [[0, 'calm'], [7.3, 'smile'], [10, 'calm'], [15.4, 'think'], [19, 'calm'], [24.4, 'think'], [28, 'calm'], [31.4, 'smile'], [36.2, 'wow'], [38, 'calm'],
+  [44.2, 'smile'], [46, 'think'], [52, 'wow'], [54, 'calm'], [55.5, 'think'], [59, 'calm'], [61.4, 'proud'], [64, 'calm'], [73.4, 'shock'], [76, 'wow'], [78.5, 'smile'],
+  [81.4, 'calm'], [END - 7.6, 'smile']];
+const scAt = t => SC.find(s => t < s.b) || SC[SC.length - 1];
+promoStart({
+  name: '名画の顔ハメ（あそびかた）', out: 'face-in-frame-guide', src: 'about:blank', iw: 1920, ih: 1080, dur: DUR, peek: 40,
+  music: MUSIC,
+  ready: () => !!LION.api && FIF.ready,
+  setup() {
+    MUSIC.cues.push(...lionSetup({ caps: CAPS, cur: [], exp: EXP, end: END, bye: END - 5.8 }));
+    return null;
+  },
+  subs: () => [
+    { a: 0.6, b: 6.6, ja: '名画の顔ハメ\nあそびかたと見どころ（まなびラボの姉妹サイト「あそびラボ」）', en: 'Masterpiece Face-in-Hole\nHow to play (from Asobi Lab, the sister site of Manabi Lab)' },
+    ...capSubs(CAPS),
+    { a: END - 7.8, b: END, ja: '名画の顔ハメ\nブラウザですぐ遊べます（パソコン・スマホ／日本語・英語）', en: 'Masterpiece Face-in-Hole\nPlay right in your browser (PC or phone, Japanese or English)' },
+  ],
+  async renderAt(t) { await fifSeek(SC, t); },
+  drawSource(g) { g.fillStyle = '#16120d'; g.fillRect(0, 0, PW * RES, PH * RES); },
+  overlay(g, t) {
+    const s = scAt(t), fin = clamp((t - s.a) / 0.35, 0, 1), fout = s.b > 900 ? 1 : clamp((s.b - t) / 0.35, 0, 1), f = Math.min(fin, fout);
+    // スマホの画面
+    if (s.phone) {
+      const tp = (s.tap || []).find(([tt]) => t > tt && t < tt + 0.6);
+      const first = s === SC[0] || !SC[SC.indexOf(s) - 1].phone;   // 前もスマホなら出しなおさない（中だけ替える）
+      fifPhoneScene(g, PX, PY, PHH, first ? Math.min(clamp((t - s.a) / 0.5, 0, 1), fout + (scAt(s.b + 0.01).phone ? 1 : 0)) : 1, s, t,
+        { tilt: -0.015, tap: tp && { x: tp[1], y: tp[2], u: (t - tp[0]) / 0.6 } });
+      if (!first && fin < 1) { g.shadowBlur = 0; g.globalAlpha = 1 - fin; g.fillStyle = '#0c0b0a'; const sw = PHH * 9 / 16; g.fillRect(PX - sw / 2, PY - PHH / 2, sw, PHH); g.globalAlpha = 1; }
+    }
+    // 右: 穴のまわりを寄せた額
+    if (s.zoom) fifFrame(g, X, 210, XW, 640, f, () => fifView(g, FIF.v[s.clip], X, 210, XW, 640, s.zoom[0], s.zoom[1]), s.label);
+    // なし／あり（2つの額）
+    if (s.stills) {
+      const W2 = 640, H2 = 660, y = 220;
+      fifFrame(g, 220, y, W2, H2, f, () => fifView(g, FIF.v.plain, 220, y, W2, H2, [0.6, 0.47], 1.9), 'なし');
+      fifFrame(g, 220 + W2 + 70, y, W2, H2, f, () => fifView(g, FIF.v.play, 220 + W2 + 70, y, W2, H2, [0.6, 0.47], 1.9), 'あり（はじめの設定）');
+    }
+    // 右の札
+    drawPanel(g, X, 230, XW, '絵はいま6枚（どれもパブリックドメイン）', ['叫び（ムンク）', 'モナ・リザ（ダ・ヴィンチ）', '真珠の耳飾りの少女（フェルメール）', 'トカゲに噛まれる少年（カラヴァッジョ）', '三代目大谷鬼次の江戸兵衛（写楽）', '麦わら帽子の自画像（ゴッホ）'], fade(t, 7.6, 14.6, 0.4));
+    drawPanel(g, X, 230, XW, 'はじめの設定', ['顔を穴へ寄せる: 弱', '絵の色になじませる: 中', '筆のタッチ: 中', '1枚の時間: 5秒（8秒も）', '枚数: 3枚（5枚も）'], fade(t, 16.4, 23.6, 0.4));
+    drawPanel(g, X, 230, XW, 'この動画では', ['カメラのかわりに、名画の顔で遊んでいます', '（本物の人の顔はうつしていません）', '名画の顔は表情を変えないので、点は低め'], fade(t, 24.6, 30.8, 0.4), '#ffd27a');
+    drawPanel(g, X, 230, XW, 'この回のけっか（31点「もっと大げさに！」）', ['写楽: 口 △　首 ○', 'モナ・リザ: 口 △　首 ◎', 'ゴッホ: 口 △　首 ◎'], fade(t, 61.6, 72.8, 0.4));
+    if (t > 31 && t < 53) fifStandIn(g, fade(t, 31.2, 52.8, 0.4), PX, PY + PHH / 2 + 34);
+    drPopCaps(g, t, CAPS, 40, 'top');
+    // 決まった部分（題名・CC の案内・終わり・目印）
+    drawTitle(g, t, 0.6, 6.6, NAME, 'あそびかたと見どころ');
+    const fc = fade(t, 1.5, 6.6, 0.6);
+    if (fc > 0) { prep(g); g.globalAlpha = fc; g.textAlign = 'right'; txt(g, 'CC: English subtitles', PW - 50, PH - 40, 30, '#ddd', true); g.globalAlpha = 1; g.shadowBlur = 0; }
+    drawEnd(g, t, END - 7.8, NAME, 'ブラウザですぐ遊べます（パソコン・スマホ／日本語・英語）',
+      '絵はどれもパブリックドメイン。顔の読み取り MediaPipe、筆のタッチ Magenta・TensorFlow.js（Apache-2.0）');
+    drawLion(g, t);
+    drawIdentMini(g, t, 0.3); drSister(g, t, 0.3);
+    drawIdent(g, t, END); drSisterClose(g, t, END);
+  },
+});
+fifLoad();
+lionOpen();   // 裏の iframe でライオンを開く（ready で待つ。服はあそびラボのオーバーオールが既定）
+</script>
+</body>
+</html>
