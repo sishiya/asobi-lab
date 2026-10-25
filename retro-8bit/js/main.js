@@ -6,7 +6,7 @@ import { createInput, keyLabel } from './input.js';
 import { initSettings } from './settings.js';
 import { initShelf } from './shelf.js?v=23';
 import { TX, initLang, setRomLang } from './i18n.js';
-import { createBoard } from './board.js?v=1';
+import { createBoard } from './board.js?v=2';
 import { CPU_HZ } from './apu.js';
 
 const FRAME_MS = 1000 / 60.0988;
@@ -73,7 +73,7 @@ const shelf = initShelf({ library: LIBRARY, loadRom, open: (e) => openEntry(e, t
 let room = null, roomPlay = read('retro8.roomPlay', '0') === '1';
 const ROOM_OK = !matchMedia('(prefers-reduced-motion: reduce)').matches && (() => { try { return !!document.createElement('canvas').getContext('webgl2'); } catch { return false; } })();
 if (ROOM_OK) {
-  import('./room3d.js?v=8').then((m) => {
+  import('./room3d.js?v=9').then((m) => {
     room = m.createRoom();
     $('roombox').hidden = false; $('conbox').hidden = true;
     room.attach($('roombox'), 'shelf');
@@ -92,28 +92,38 @@ if (ROOM_OK) {
 } else document.documentElement.classList.remove('room3d');   // 2D の本体にもどす
 // 遊ぶ画面で: 部屋のテレビで遊ぶ（ふつうの画面は隠す）／ふつうの画面にもどす
 function setRoomPlay(on) {
-  if (on && boardOn) setBoard(false);   // 部屋のテレビと基板は、どちらか一方
   roomPlay = on; save('retro8.roomPlay', on ? '1' : '0');
   $('btnRoom').setAttribute('aria-pressed', String(on));
   if (!room) return;
   $('bezel').hidden = on; $('stage').classList.toggle('roomon', on);
   if (on) { room.attach($('stage'), 'play'); room.setPower(true); if (nes) room.show(nes.ppu.frame); }
   else { room.attach($('roombox'), 'shelf'); fit(); if (nes) draw(); }
+  if (boardOn) applyBoard();   // 部屋で遊ぶときは、本体のふたを開けて中を見る（v032）
 }
 $('btnRoom').addEventListener('click', () => setRoomPlay(!roomPlay));
 
 // ---------- 基板をのぞく（js/board.js。PLAN 8章）: 画面の横（せまい画面は下）に本体の中の図。ゆっくりのあいだは音を止める ----------
+// 部屋で遊んでいるとき（▣ 部屋）は、図のかわりに部屋の本体のふたを開けて、中の部品を光らせる（v032。速さと説明の板は下に重ねる）
 let boardOn = false, slowBudget = 0;
 const board = createBoard($('board'), $('beam'));
 function setBoard(on) {
-  if (on && room && roomPlay) setRoomPlay(false);
   boardOn = on;
-  $('btnBoard').setAttribute('aria-pressed', String(on));
-  $('board').hidden = !on; $('beam').hidden = !on;
-  $('stage').classList.toggle('boardon', on); $('player').classList.toggle('boardon', on);
   if (on) { if (nes) board.attach(nes); }
   else { board.detach(); board.setSpeed(1); }
+  applyBoard();
+}
+function applyBoard() {
+  const on = boardOn, in3d = on && !!room && roomPlay;
+  $('btnBoard').setAttribute('aria-pressed', String(on));
+  $('board').hidden = !on; $('beam').hidden = !on || in3d;
+  $('stage').classList.toggle('boardon', on); $('player').classList.toggle('boardon', on);
+  $('stage').classList.toggle('in3d', in3d);
+  if (room && roomPlay) room.openLid(on);
   fit();
+}
+function boardTick(dt) {
+  board.update(dt);
+  if (room && roomPlay) room.setLevels(board.levels);
 }
 $('btnBoard').addEventListener('click', () => setBoard(!boardOn));
 new ResizeObserver(() => { if (boardOn) fit(); }).observe($('board'));   // 説明の行数が変わったら、画面の大きさを合わせなおす
@@ -497,7 +507,7 @@ function loop(t) {
     stats.frames++;
   }
   if (n) draw();
-  if (boardOn) board.update(dt);
+  if (boardOn) boardTick(dt);
   requestAnimationFrame(loop);
 }
 // ゆっくり: 時間に合わせたサイクルのぶんだけ、1命令ずつ進める（こまの途中でも絵を見せる。描いた行までが新しい絵）
@@ -511,7 +521,7 @@ function slowTick(dt) {
     nes.apu.take();   // ゆっくりの音は鳴らさない
     draw();
   }
-  board.update(dt);
+  boardTick(dt);
 }
 // ゆっくり（基板をのぞく）のあいだは音を出さない
 function audioResume() { if (audio && !(boardOn && board.speed < 1)) audio.ctx.resume(); }

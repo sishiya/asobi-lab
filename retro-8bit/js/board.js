@@ -277,7 +277,7 @@ export function createBoard(root, beamCanvas) {
   let speed = 1;
   const HINT = TX('ゆっくりにすると、部品のあいだの出来事が読めます', 'Slow down to read what passes between the parts');
   const spdBtns = [...root.querySelectorAll('[data-speed]')], stepBtns = [...root.querySelectorAll('[data-step]')];
-  const api = { attach, detach, onSpeed: null, onStep: null, get speed() { return speed; } };
+  const api = { attach, detach, onSpeed: null, onStep: null, get speed() { return speed; }, get levels() { return lvl; } };   // levels: 部屋の本体の中（room3d.js の setLevels）
   function setSpeed(i) {
     speed = SPEEDS[i];
     for (const b of spdBtns) b.setAttribute('aria-pressed', String(+b.dataset.speed === i));

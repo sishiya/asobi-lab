@@ -189,7 +189,9 @@ export function createRoom() {
   const con = new THREE.Group(); con.position.set(2.25, 0, 0.75); scene.add(con);
   const TOP = 1.1, slotZ = -0.45;
   const inSlot = (x, z) => Math.abs(x) < 0.7 && inR(z, -0.6, -0.3), nearSlot = (x, z) => Math.abs(x) < 0.8 && inR(z, -0.7, -0.2);
-  con.add(vox(-1.1, 0, -1.2, 22, 11, 25, (x, y, z, i, j, k) => {
+  // v032: 中が空の下の箱（y 0.7 まで）と、外せるふた（lid）に分けた。ふたを開けると、中の基板（inner）が見える
+  const cav = (x, z) => rr(x, z, 0.98, 1.08, 0.15);   // 箱の内がわ（かべは1つ）
+  const conFn = (x, y, z, i, j, k) => {
     if (y < 0.1) return inR(Math.abs(x), 0.7, 0.9) && inR(Math.abs(z), 0.8, 1.0) ? 0x2a2522 : null;   // 足
     if (z > 1.2) {   // 前に出るボタン
       return inR(y, 0.6, 0.7) && inR(x, 0.4, 0.8) ? WHITE : null;   // 電源ボタン（1つ。v023）
@@ -203,10 +205,15 @@ export function createRoom() {
     if (inR(y, 0.3, 0.4) && inR(x, -0.9, -0.6) && z < -1.0) return z < -1.1 ? null : 0x1d1a18;   // うしろのコントローラーの口（1つ。v027 で前から移した）
     if (y > 0.9 && inR(z, 0.7, 1.0) && Math.abs(x) < 0.8 && k % 2 === 0) return 0xd8d0c2;   // 前の上のみぞ
     return y < 0.2 ? ORANGE_D : ORANGE;
-  }));
+  };
+  con.add(vox(-1.1, 0, -1.2, 22, 7, 25, (x, y, z, i, j, k) => (y > 0.2 && cav(x, z) ? null : conFn(x, y, z, i, j, k))));
+  const LID_Y = 0.9;   // ふたのまん中の高さ（ふたは y 0.7〜1.1）
+  const lid = new THREE.Group(); lid.position.set(0, LID_Y, 0); con.add(lid);
+  lid.add(vox(-1.1, 0.7 - LID_Y, -1.2, 22, 4, 24, (x, y, z, i, j, k) => (y + LID_Y < 0.9 && cav(x, z) ? null : conFn(x, y + LID_Y, z, i, j + 7, k))));
+  const inner = buildInner(); con.add(inner.group);
   let conLed;
   {
-    const fz = 1.201;
+    const fz = 1.201;   // 名前と電源の明かりは前の面の y 0.6 前後＝下の箱
     const nm = decal(pixText('ASOBI-LAB 8', 62, 12, '#ffffff', '700 10px "Hiragino Sans","Yu Gothic UI",sans-serif'), 0.99, 0.19);
     nm.position.set(-0.45, 0.6, fz); con.add(nm);
     conLed = new THREE.Mesh(new THREE.BoxGeometry(V * 0.8, V * 0.8, V * 0.8), new THREE.MeshStandardMaterial({ color: 0x5a1a14, emissive: 0xff3a2a, emissiveIntensity: 0 })); conLed.position.set(0.95, 0.65, fz + 0.02); con.add(conLed);
@@ -228,6 +235,53 @@ export function createRoom() {
   const labelCanvas = document.createElement('canvas'); labelCanvas.width = 256; labelCanvas.height = 274;   // 棚のカセットのラベル（272×292）に近い形
   const labelTex = new THREE.CanvasTexture(labelCanvas); labelTex.colorSpace = THREE.SRGBColorSpace; labelTex.anisotropy = 8;
   const label = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.07), new THREE.MeshStandardMaterial({ map: labelTex, roughness: 0.55 })); label.position.set(0, CART_H - 0.15 - 0.535, 0.101); cart.add(label);   // 上 0.15・下 0.28（棚のカセットと同じ割合）
+
+  // ---------- 本体の中（v032。ふたを開けると見える。基板をのぞく js/board.js の光と同じ色・同じ強さで光る） ----------
+  // 基板（緑）の上に、カセットの差しこみ口（前のレール＝プログラムの線・うしろのレール＝絵の線）、CPU（音の係つき）・作業メモリ・絵の係・画面の表、
+  // コントローラーの口とテレビへの口。部品のあいだに光る線。配置は 2D の図（board.js）と同じ向き: 左が CPU の組、右が絵の係の組、奥がカセット
+  function buildInner() {
+    const group = new THREE.Group(), glowMats = {};
+    const COL = { cpu: 0xffb44c, ram: 0xffb44c, prg: 0xffb44c, ppu: 0x5fd8ff, vram: 0x5fd8ff, chr: 0x5fd8ff, pad: 0xa6e05a, nmi: 0xff7eaa, video: 0xeef0ff, apu: 0xc99cff };
+    const mat = (k, base) => { const m = voxMat({ emissive: COL[k], emissiveIntensity: 0, ...(base || {}) }); (glowMats[k] ||= []).push(m); return m; };
+    // 基板（ところどころに小さな穴の色）
+    group.add(vox(-0.9, 0.2, -1.0, 18, 1, 20, (x, y, z, i, j, k) => (rr(x, z, 0.9, 1.0, 0.1) ? ((i * 7 + k * 3) % 11 === 0 ? 0x2c6b49 : 0x1e5136) : null)));
+    // 差しこみ口のレール（カセットの下のはしがはまる）
+    group.add(vox(-0.8, 0.3, -0.3, 16, 2, 1, () => 0x1b1a1c, mat('prg')));
+    group.add(vox(-0.8, 0.3, -0.7, 16, 2, 1, () => 0x1b1a1c, mat('chr')));
+    // 石（チップ）: [かぎ, x, z, 幅, 奥, 字]
+    const chips = [['cpu', -0.8, 0.0, 6, 5, 'CPU'], ['ram', -0.8, 0.6, 5, 3, 'RAM'], ['ppu', 0.2, 0.0, 6, 5, 'PPU'], ['vram', 0.3, 0.6, 5, 3, 'VRAM'], ['pad', -0.9, -1.0, 3, 1, ''], ['video', 0.6, -1.0, 3, 1, '']];
+    for (const [k, x, z, w, d, name] of chips) {
+      group.add(vox(x, 0.3, z, w, 1, d, () => 0x1c1d22, mat(k)));
+      if (name) {
+        const t = decal(pixText(name, 32, 10, '#d8dbe4', '700 9px "Yu Gothic UI",sans-serif', 2), w * V * 0.8, w * V * 0.25);
+        t.rotation.x = -Math.PI / 2; t.position.set(x + w * V / 2, 0.401, z + d * V * (k === 'cpu' ? 0.3 : 0.5)); group.add(t);
+      }
+    }
+    // 音の係は CPU と同じ石の中（2D の図と同じく、CPU の手前に小さく）
+    { const m = mat('apu', { color: 0x2a2433, vertexColors: false }); const b = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.02, 0.12), m); b.position.set(-0.5, 0.41, 0.38); group.add(b); }
+    // 光る線（基板の上を、まっすぐの区切りで）
+    const trace = (k, pts, w = 0.035) => {
+      const m = new THREE.MeshStandardMaterial({ color: 0x0c2a1c, emissive: COL[k], emissiveIntensity: 0, roughness: 0.5 }); (glowMats[k] ||= []).push(m);
+      for (let i = 1; i < pts.length; i++) {
+        const [x0, z0] = pts[i - 1], [x1, z1] = pts[i];
+        const b = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x1 - x0) + w, 0.012, Math.abs(z1 - z0) + w), m);
+        b.position.set((x0 + x1) / 2, 0.306, (z0 + z1) / 2); group.add(b);
+      }
+    };
+    trace('ram', [[-0.55, 0.5], [-0.55, 0.6]]); trace('ram', [[-0.4, 0.5], [-0.4, 0.6]]);
+    trace('ppu', [[-0.2, 0.12], [0.2, 0.12]]); trace('ppu', [[-0.2, 0.22], [0.2, 0.22]]);
+    trace('nmi', [[0.2, 0.4], [-0.2, 0.4]], 0.025);
+    trace('prg', [[-0.6, 0.0], [-0.6, -0.2]]); trace('prg', [[-0.4, 0.0], [-0.4, -0.2]]);
+    trace('chr', [[0.7, 0.0], [0.7, -0.15], [0.86, -0.15], [0.86, -0.65], [0.8, -0.65]]);
+    trace('vram', [[0.45, 0.5], [0.45, 0.6]]); trace('vram', [[0.6, 0.5], [0.6, 0.6]]);
+    trace('pad', [[-0.8, 0.1], [-0.86, 0.1], [-0.86, -0.9]]);
+    trace('video', [[0.8, 0.35], [0.92, 0.35], [0.92, -0.85], [0.75, -0.85], [0.75, -0.9]], 0.025);
+    // 光の強さ（board.js の lvl。0〜1）。石は色つきの立方体なのでひかえめ、線は細いので強め
+    function set(lvl) {
+      for (const k in glowMats) { const a = Math.min(1, lvl[k] || 0); for (const m of glowMats[k]) m.emissiveIntensity = a * (m.vertexColors ? 0.6 : 2.2); }
+    }
+    return { group, set };
+  }
 
   // ---------- コントローラーと線 ----------
   const pad = new THREE.Group(); pad.position.set(0.4, 0, 2.8); pad.rotation.y = 0.15; scene.add(pad);
@@ -302,7 +356,14 @@ export function createRoom() {
   // hw・hv: 横・たてに入れたい半分の幅（画面が細い・低いときは、これが入るまで引く）
   const SHELF = { az: -0.3, el: 0.26, d: 9.4, hw: 4.3, hv: 2.6, t: new THREE.Vector3(0.3, 1.75, 1.2) };
   const TVV = { az: 0, el: 0.06, d: 7.4, hw: 2.4, t: new THREE.Vector3(-1.35, 2.05, 1.2) };
-  let view = SHELF, tween = null, frames = 0, running = false, host = null;
+  // ふたを開けたとき: テレビと本体の中をいっしょに（下に速さと説明の板が重なるので、少し上へ寄せる）
+  const OPEN = { az: 0.25, el: 0.82, d: 8, hw: 3.9, hv: 3.7, t: new THREE.Vector3(0.6, 0.85, 0.3) };
+  // たての画面（スマホ）: 本体に寄る。下の板にかくれないよう、本体が上寄りに見えるところを見る
+  const OPEN_TALL = { az: 0.2, el: 0.95, d: 6, hw: 1.9, t: new THREE.Vector3(1.95, 0.0, 1.9) };
+  // 横に長く低い画面（スマホの横）: 下の板が半分近くをふさぐので、上半分に入るように見る
+  const OPEN_SHORT = { az: 0.25, el: 0.82, d: 8, hw: 3.4, t: new THREE.Vector3(0.6, -1.1, 1.1) };
+  const openView = () => (camera.aspect < 0.9 ? OPEN_TALL : camera.aspect > 1.9 ? OPEN_SHORT : OPEN);
+  let view = SHELF, tween = null, frames = 0, running = false, host = null, lidOpen = false, mode = 'shelf';
   const fitDist = (v) => { const vf = THREE.MathUtils.degToRad(camera.fov) / 2, hf = Math.atan(Math.tan(vf) * camera.aspect); return Math.max(v.d, v.hw / Math.tan(hf) * 1.04, (v.hv || 0) / Math.tan(vf)); };
   const posOf = (v) => { const d = fitDist(v); return new THREE.Vector3(v.t.x + d * Math.sin(v.az) * Math.cos(v.el), v.t.y + d * Math.sin(v.el), v.t.z + d * Math.cos(v.az) * Math.cos(v.el)); };
   function goView(v, ms = 900) {
@@ -353,6 +414,7 @@ export function createRoom() {
     const w = host.clientWidth, h = host.clientHeight;
     if (!w || !h) return;
     renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = camera.aspect < 1 ? 40 : 32; camera.updateProjectionMatrix();
+    if (lidOpen) view = openView();   // 向きを変えたら、開けたときの見る向きも選びなおす
     if (!tween) { camera.position.copy(posOf(view)); controls.target.copy(view.t); }
     kick(2);
   }
@@ -373,10 +435,11 @@ export function createRoom() {
   const api = {
     canvas,
     // 入れ物（トップの上半分、または遊ぶ画面のまん中）へ移す
-    attach(el, mode) {
+    attach(el, m) {
       host = el; el.append(canvas); ro.disconnect(); ro.observe(el);
-      controls.enabled = mode !== 'play';
-      view = mode === 'play' ? TVV : SHELF;
+      mode = m; lidOpen = false; lid.position.set(0, LID_Y, 0); lid.rotation.y = 0;   // 移すときは、ふたを閉めた形から
+      controls.enabled = m !== 'play';
+      view = m === 'play' ? TVV : SHELF;
       resize(); camera.position.copy(posOf(view)); controls.target.copy(view.t); controls.update(); kick(2);
     },
     // 口の真上（画面の座標）: 棚のカセットをここまで飛ばしてから、3D のカセットに入れかえる
@@ -416,6 +479,24 @@ export function createRoom() {
       return { left: x0, top: y0, width: x1 - x0, height: y1 - y0 };
     },
     renderNow() { controls.update(); renderer.render(scene, camera); },
+    // ふたを開ける／閉める（v032）。開けると、まっすぐ持ち上げて（カセットをよける）本体のうしろの机に置き、テレビと中が見える向きへ。
+    // 開けているあいだは回して見られる
+    openLid(on, ms = 1100) {
+      if (on === lidOpen) return Promise.resolve();
+      lidOpen = on;
+      const UP = 2.35, P1 = new THREE.Vector3(0.35, 0.2, -2.85), R1 = 0.14;   // 置く場所（机の上・少しななめ）
+      const go = anim(ms, (k) => {
+        const a = on ? k : 1 - k, up = Math.min(1, a / 0.4), e = ease3(Math.max(0, (a - 0.4) / 0.6));
+        const arc = Math.sin(Math.PI * e) * 0.25;   // うしろへ運ぶあいだ、少し弧をえがく
+        lid.position.set(P1.x * e, LID_Y + (UP - LID_Y) * ease3(up) * (1 - e) + (P1.y - LID_Y) * e + arc, P1.z * e);
+        lid.rotation.y = R1 * e;
+      });
+      controls.enabled = on || mode !== 'play';
+      return Promise.all([go, goView(on ? openView() : mode === 'play' ? TVV : SHELF, ms)]);
+    },
+    get lidOpen() { return lidOpen; },
+    // 中の部品の光（board.js の lvl をそのまま）
+    setLevels(lvl) { inner.set(lvl); if (lidOpen) kick(2); },
     resize,
     onPick: null, canPick: null,
     // 確かめ用: 3D のカセットを口の上の高さ y に出して、正面から見る（2D のカセットと見くらべる）
