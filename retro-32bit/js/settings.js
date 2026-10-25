@@ -1,5 +1,5 @@
 // 設定の画面（⚙ 設定）: 「画面と音」と「キー」の2つのタブ。開いているあいだはゲームを止める（8ビット互換機の settings.js と同じ形。キーは 1P だけ）
-import { P1_BUTTONS, BUTTON_NAME, keyLabel } from './input.js';
+import { P1_BUTTONS, BUTTON_NAME, keyLabel } from './input.js?v=2';
 import { TX } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
@@ -21,7 +21,7 @@ export function initSettings(o) {
         const chips = o.input.keys[p][b].map((c) => `<span class="chip">${esc(keyLabel(c))}<button type="button" data-del="${p}|${b}|${esc(c)}" aria-label="${TX(`${esc(keyLabel(c))} を外す`, `Remove ${esc(keyLabel(c))}`)}">×</button></span>`).join('');
         const isWait = waiting && waiting.p === p && waiting.b === b;
         // ＋ は、その行のキーの札のすぐうしろに（どの行に足すかが目で分かるように）
-        return `<div class="krow">${face(b)}<span class="chips">${chips}<button type="button" class="addkey${isWait ? ' wait' : ''}" data-add="${p}|${b}" aria-label="${TX(`${p === 'p1' ? '1P' : '2P'} の ${BUTTON_NAME[b]} にキーを足す`, `Add a key for ${p === 'p1' ? '1P' : '2P'} ${BUTTON_NAME[b]}`)}">${isWait ? TX('キーを押して…', 'Press a key…') : '＋'}</button></span></div>`;
+        return `<div class="krow">${face(b)}<span class="chips">${chips}<button type="button" class="addkey${isWait ? ' wait' : ''}" data-add="${p}|${b}" aria-label="${TX(`${p === 'p1' ? '1P' : '2P'} の ${BUTTON_NAME[b]} にキーを足す`, `Add a key for ${p === 'p1' ? '1P' : '2P'} ${BUTTON_NAME[b]}`)}">${isWait ? TX('キーかマウスを押して…', 'Press a key or mouse button…') : '＋'}</button></span></div>`;
       }).join('');
     }
   }
@@ -73,6 +73,10 @@ export function initSettings(o) {
   $('optSound').addEventListener('change', (e) => o.sound.set(e.target.checked));
   $('optVolume').addEventListener('input', (e) => o.volume.set(+e.target.value / 100));
   $('optVibrate').addEventListener('change', (e) => o.vibrate.set(e.target.checked));
+  // マウス（口 2）: 速さと上下の逆
+  const renderMouse = () => { $('optMouseSens').value = String(Math.round(o.input.mouseSens * 100)); $('optMouseInv').checked = o.input.mouseInvert; };
+  $('optMouseSens').addEventListener('input', (e) => { o.input.mouseSens = +e.target.value / 100; });
+  $('optMouseInv').addEventListener('change', (e) => { o.input.mouseInvert = e.target.checked; });
 
   dlg.addEventListener('close', () => { stopWaiting(); o.input.enabled = true; o.resume(); });
   // Esc はキーを待っているあいだは「やめる」にだけ使う
@@ -81,7 +85,7 @@ export function initSettings(o) {
   return {
     open(tab) {
       o.pause(); o.input.enabled = false; o.input.clear();
-      renderView(); renderKeys(); say('');
+      renderView(); renderKeys(); renderMouse(); say('');
       show(tabs.find((t) => t.dataset.tab === tab) || tabs[0]);
       dlg.showModal();
     },

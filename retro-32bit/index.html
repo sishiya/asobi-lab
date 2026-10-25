@@ -61,7 +61,7 @@
     <p lang="en">Your own discs (your .exe files) stay only in this browser and are never sent anywhere. Please add only files you have the rights to.</p>
     <p lang="ja">遊ぶ画面の上の「▣ 部屋」で、机の上のテレビで遊べます。「⚙ 設定」で、画面の見え方（ブラウン管）・音・キーを変えられます。</p>
     <p lang="en">Press "▣ Room" above the game to play on the TV on the desk. "⚙ Settings" changes the screen look (CRT), sound and keys.</p>
-    <p class="small">ver. 0.11<span lang="ja">（試作）</span><span lang="en"> (prototype)</span>・<a href="launcher.html"><span lang="ja">過去の版</span><span lang="en">Past versions</span></a>・<a href="../archive.html"><span lang="ja">あそびラボの保管庫へ</span><span lang="en">Asobi Lab archive</span></a></p>
+    <p class="small">ver. 0.12<span lang="ja">（試作）</span><span lang="en"> (prototype)</span>・<a href="launcher.html"><span lang="ja">過去の版</span><span lang="en">Past versions</span></a>・<a href="../archive.html"><span lang="ja">あそびラボの保管庫へ</span><span lang="en">Asobi Lab archive</span></a></p>
   </div>
 </dialog>
 
@@ -126,15 +126,19 @@
   </section>
   <section id="tabKeys" role="tabpanel" hidden>
     <p class="set-note coarse-only"><span lang="ja">キーボードやゲームパッドをつないだとき用です。</span><span lang="en">For when a keyboard or gamepad is connected.</span></p>
-    <p class="set-note"><span lang="ja">＋ を押して、使いたいキーを押す（× で外す）。</span><span lang="en">Press ＋, then the key you want (× removes it).</span></p>
+    <p class="set-note"><span lang="ja">＋ を押して、使いたいキーかマウスのボタン・ホイールを押す（× で外す）。</span><span lang="en">Press ＋, then the key, mouse button or wheel you want (× removes it).</span></p>
     <h3><span lang="ja">コントローラー（口 1）</span><span lang="en">Controller (port 1)</span></h3>
     <div class="krows" id="keys1"></div>
     <p class="set-note"><span lang="ja">ゲームパッドは 1 台目を使います（下・右・左・上のボタンが B・A・X・Y）。</span><span lang="en">The first gamepad is used (its bottom, right, left and top buttons are B, A, X and Y).</span></p>
+    <h3><span lang="ja">マウス（口 2）</span><span lang="en">Mouse (port 2)</span></h3>
+    <p class="set-note"><span lang="ja">遊ぶ画面をクリックするとマウスをつかみます（Esc で放す）。見回せるのは、マウスに合わせたディスクだけです。</span><span lang="en">Click the game screen to grab the mouse (Esc releases it). Only discs made for the mouse can look around with it.</span></p>
+    <label class="opt"><span lang="ja">速さ</span><span lang="en">Speed</span> <input type="range" id="optMouseSens" min="20" max="300" step="10"></label>
+    <label class="opt"><input type="checkbox" id="optMouseInv"> <span lang="ja">上下を逆にする</span><span lang="en">Invert up/down</span></label>
     <p class="keynote" id="keyNote" role="status"></p>
     <button type="button" class="tool" id="keysReset"><span lang="ja">はじめのキーにもどす</span><span lang="en">Reset to default keys</span></button>
   </section>
 </dialog>
 
-<script type="module" src="js/main.js?v=6"></script>
+<script type="module" src="js/main.js?v=15"></script>
 </body>
 </html>

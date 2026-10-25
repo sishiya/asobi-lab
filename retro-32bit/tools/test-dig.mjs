@@ -158,5 +158,27 @@ function boot(card = null) {
   const t3 = boot(card); t3.press('RIGHT'); t3.press('A');
   ok('あたらしく: はじめの島', t3.V('DAY') === 1 && t3.inv(2) === 5 && t3.block(sel) !== 8);
 }
+// マウス（口 2）: 動きで見回す・←→ は横歩き・L2（ホイール ↑）は前の持ち物。マウスがなければ ←→ で向きを回す
+{
+  let t = boot();
+  const VB = (syms.vars & 0x1fffff) >> 2, P = (k) => t.m.ram32[VB + k] | 0;
+  const yaw0 = t.V('YAW'); t.press('LEFT');
+  ok('マウスがなければ ← で向きを回す', t.V('YAW') !== yaw0);
+  t = boot();
+  t.m.sio.mouse = { dx: 0, dy: 0, left: false, right: false };
+  t.run(2);
+  const y0 = t.V('YAW'), p0 = t.V('PIT');
+  t.m.sio.mouse.dx = 100; t.m.sio.mouse.dy = -40; t.run(2);
+  const dyaw = ((t.V('YAW') - y0) & 0xffff), dpit = t.V('PIT') - p0;
+  ok('マウスを右へ動かすと右を向く・上へ動かすと上を見る', dyaw === 2700 && dpit === 1080, `向き +${dyaw}・上下 +${dpit}`);
+  const x0 = P(0), z0 = P(2), y1 = t.V('YAW');
+  t.m.sio.buttons[0] = 1 << BTN.RIGHT; t.run(10); t.m.sio.buttons[0] = 0; t.run(2);
+  const ang = (t.V('YAW') >> 8) / 256 * Math.PI * 2, mx = P(0) - x0, mz = P(2) - z0;
+  const side = mx * Math.cos(ang) - mz * Math.sin(ang), fwd = mx * Math.sin(ang) + mz * Math.cos(ang);
+  ok('マウスがあれば → は右へ横歩き（向きは変わらない）', t.V('YAW') === y1 && (side > 50 || Math.hypot(mx, mz) === 0) && Math.abs(fwd) < Math.abs(side) + 1, `右へ ${side.toFixed(0)}・前へ ${fwd.toFixed(0)}`);
+  t.setInv([0, 0, 3, 2, 0, 0, 0, 4]); t.m.ram32[VB + 15] = 3; t.run(1);
+  t.press('L2'); ok('L2（ホイール ↑）で前の持ち物', t.m.ram32[VB + 15] === 2, `選び ${t.m.ram32[VB + 15]}`);
+  t.press('R2'); t.press('R2'); ok('R2（ホイール ↓）でつぎの持ち物', t.m.ram32[VB + 15] === 7, `選び ${t.m.ram32[VB + 15]}`);
+}
 console.log(fails ? `${fails} こ NG` : 'ぜんぶ ok');
 process.exitCode = fails ? 1 : 0;

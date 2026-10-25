@@ -1,9 +1,9 @@
 // 棚（トップ）と遊ぶ画面。画面・音・入力をつなぐ（ブラウザの係。8ビット互換機の main.js と同じ形）
 import { Console32 } from './psx.js';
-import { LIBRARY } from './library.js?v=4';
+import { LIBRARY } from './library.js?v=5';
 import { createCRT } from './crt/crt-gl.js';
-import { createInput, bindTouch, keyLabel } from './input.js';
-import { initSettings } from './settings.js';
+import { createInput, bindTouch, keyLabel } from './input.js?v=2';
+import { initSettings } from './settings.js?v=2';
 import { initShelf } from './shelf.js?v=1';
 import { TX, initLang } from './i18n.js';
 import { createAudio } from './audio.js';
@@ -27,7 +27,7 @@ function save(k, v) { try { localStorage.setItem(k, v); return true; } catch { r
 // ---------- 棚 ----------
 const exeCache = new Map();
 async function loadExe(entry) {
-  if (!exeCache.has(entry.id)) exeCache.set(entry.id, fetch(entry.file + '?v=7').then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
+  if (!exeCache.has(entry.id)) exeCache.set(entry.id, fetch(entry.file + '?v=8').then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
   return exeCache.get(entry.id);
 }
 // 棚の手ざわりの音（sfx/。8ビット互換機と同じ音を写した。Stable Audio で作って、カチッが1つだけの所を切り出したもの）。
@@ -295,8 +295,9 @@ setSound(soundOn);
 
 // ---------- 入力（キー・指・ゲームパッド。くわしくは input.js） ----------
 const input = createInput();
+input.attachMouse($('bezel'));   // 画面をクリックでマウスをつかむ（口 2）
 input.onPress = (p, b) => { if (!running && m && !$('player').hidden && (b === 'START' || b === 'A')) power(); };
-const BUTTON_LABEL = { PAD: TX('十字キー', 'D-pad'), A: 'A', B: 'B', X: 'X', Y: 'Y', L: 'L', R: 'R', START: 'START', SELECT: 'SELECT' };
+const BUTTON_LABEL = { PAD: TX('十字キー', 'D-pad'), A: 'A', B: 'B', X: 'X', Y: 'Y', L: 'L', R: 'R', L2: 'L2', R2: 'R2', START: 'START', SELECT: 'SELECT' };
 function renderGuide() {
   const k = input.keys.p1, first = (b) => (k[b][0] ? keyLabel(k[b][0]) : '—');
   $('keys').innerHTML = guideKeys.map(([btn, what]) => {

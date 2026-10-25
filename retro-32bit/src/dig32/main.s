@@ -33,6 +33,9 @@ B_Y     = 0x1000
 B_A     = 0x2000
 B_B     = 0x4000
 B_X     = 0x8000
+B_L2    = 0x0100
+B_R2    = 0x0200
+MSENS   = 27     ; マウス 1 点で回る量（×256。2400 点で 1 周＝ブロックのゲームのふつうの速さ）
 
 ; 変数（gp から）
 V_CX    = 0      ; 足もとの x（×256）
@@ -97,6 +100,10 @@ V_TMP6  = 228
 V_TMP7  = 232
 V_PLVL  = 256    ; 前のこまの明るさの段（朝になったか見る。ここから先はセーブしない）
 V_SAVET = 260    ; セーブの印を出すのこり（負ならセーブできなかった）
+V_MOUSE = 264    ; 口 2 にマウスがある（あれば、マウスで見回し、←→ は横歩き）
+V_MDX   = 268    ; このこまにマウスが動いた量
+V_MDY   = 272
+V_STRF  = 276    ; 横歩きの速さ（このこま）
 V_CRABN = 236    ; ヤシガニが近い（ねらいの横に [B] の札）
 V_MODE  = 240    ; 0 遊ぶ・1 はじめの画面（つづき／あたらしく）
 V_MSEL  = 244    ; はじめの画面でえらんでいる方（0 つづき・1 あたらしく）
@@ -488,8 +495,12 @@ update:
   b @frozen                  ; 向きを変えている間は歩かない
   nop
 @noacam:
-  ; 向き（←→）と、上下（L・R）
+  ; 向き: マウスがあればマウスで（←→ は横歩き）、なければ ←→ で。上下は L・R とマウス
   lw t0, V_YAW(gp)
+  lw t2, V_MOUSE(gp)
+  nop
+  bnez t2, @mlook
+  nop
   andi t1, s0, B_LEFT
   beqz t1, @nl
   nop
@@ -499,6 +510,14 @@ update:
   beqz t1, @nr
   nop
   addiu t0, t0, 0x300
+  b @nr
+  nop
+@mlook:
+  lw t1, V_MDX(gp)
+  li t2, MSENS
+  mult t1, t2
+  mflo t1
+  addu t0, t0, t1
 @nr:
   li t1, 0xffff
   and t0, t0, t1
@@ -514,6 +533,11 @@ update:
   nop
   addiu t0, t0, -0x200
 @nld:
+  lw t1, V_MDY(gp)           ; マウスを前へ（上へ）動かすと上を見る
+  li t2, MSENS
+  mult t1, t2
+  mflo t1
+  subu t0, t0, t1
   li t1, 48 << 8
   slt t2, t1, t0
   beqz t2, @p1
@@ -539,7 +563,24 @@ update:
   nop
   li s1, -SPEED
 @nb:
-  beqz s1, @nomove
+  li t7, 0                   ; 横歩き（マウスがあるときの ←→）
+  lw t2, V_MOUSE(gp)
+  nop
+  beqz t2, @ns
+  nop
+  andi t1, s0, B_LEFT
+  beqz t1, @nsl
+  nop
+  li t7, -SPEED
+@nsl:
+  andi t1, s0, B_RIGHT
+  beqz t1, @ns
+  nop
+  li t7, SPEED
+@ns:
+  sw t7, V_STRF(gp)
+  or t1, s1, t7
+  beqz t1, @nomove
   nop
   lw t0, V_ONG(gp)           ; 足音: 地面を歩いた量がたまったら
   lw t1, V_STEPC(gp)
@@ -561,11 +602,32 @@ update:
   srl a0, a0, 8
   jal sincos
   nop
-  mult t0, s1                ; dx = sin × 速さ
+  lw t7, V_STRF(gp)          ; 前 f と横 st（ななめは 0.7 倍）
+  move t5, s1
+  move t6, t7
+  beqz t5, @nd
+  nop
+  beqz t6, @nd
+  nop
+  li t4, 181
+  mult t5, t4
+  mflo t5
+  sra t5, t5, 8
+  mult t6, t4
+  mflo t6
+  sra t6, t6, 8
+@nd:
+  mult t0, t5                ; dx = sin × f + cos × st
   mflo t2
+  mult t1, t6
+  mflo t4
+  addu t2, t2, t4
   sra t2, t2, 12
-  mult t1, s1                ; dz = cos × 速さ
+  mult t1, t5                ; dz = cos × f − sin × st
   mflo t3
+  mult t0, t6
+  mflo t4
+  subu t3, t3, t4
   sra t3, t3, 12
   sw t3, 12(sp)
   ; x へ動かして、ぶつかったらもどす
@@ -909,21 +971,30 @@ update:
   addiu t0, t0, -1
   sw t0, V_DENY(gp)
 @nodeny:
-  ; ---- 持ち物をかえる（Y。持っている数が 1 以上のものだけ）----
+  ; ---- 持ち物をかえる（Y・R2＝つぎ、L2＝まえ。マウスのホイール。持っている数が 1 以上のものだけ）----
   lw t0, V_EDGE(gp)
+  li t6, 1
+  andi t1, t0, B_Y | B_R2
+  bnez t1, @dosel
   nop
-  andi t0, t0, B_Y
-  beqz t0, @nosel
+  andi t1, t0, B_L2
+  beqz t1, @nosel
   nop
+  li t6, -1
+@dosel:
   lw t1, V_SEL(gp)
   la t3, inv
   li t4, 13
 @sl:
-  addiu t1, t1, 1
+  addu t1, t1, t6
   slti t2, t1, 13
-  bnez t2, @sl2
+  bnez t2, @sl1
   nop
   li t1, 1
+@sl1:
+  bgtz t1, @sl2
+  nop
+  li t1, 12
 @sl2:
   addu t5, t3, t1
   lbu t5, 0(t5)

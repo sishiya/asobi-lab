@@ -2104,6 +2104,48 @@ readpad:
   or v0, v0, t5
   not v0, v0
   andi v0, v0, 0xffff
+  move t6, v0
+  ; 口 2: マウス（12）なら、動いた量
+  li t0, 0x2003
+  sh t0, JCTRL(s7)
+  li a0, 0x01
+  bal @xfer
+  nop
+  li a0, 0x42
+  bal @xfer
+  nop
+  li t0, 0x12
+  sw zero, V_MOUSE(gp)
+  sw zero, V_MDX(gp)
+  sw zero, V_MDY(gp)
+  bne v0, t0, @nomouse
+  nop
+  li a0, 0
+  bal @xfer
+  nop
+  li a0, 0
+  bal @xfer
+  nop
+  li a0, 0
+  bal @xfer
+  nop
+  li a0, 0
+  bal @xfer
+  nop
+  sll v0, v0, 24
+  sra v0, v0, 24
+  sw v0, V_MDX(gp)
+  li a0, 0
+  bal @xfer
+  nop
+  sll v0, v0, 24
+  sra v0, v0, 24
+  sw v0, V_MDY(gp)
+  li t0, 1
+  sw t0, V_MOUSE(gp)
+@nomouse:
+  sh zero, JCTRL(s7)
+  move v0, t6
   lw t1, V_PAD(gp)
   sw v0, V_PAD(gp)
   sw t1, V_PREV(gp)
