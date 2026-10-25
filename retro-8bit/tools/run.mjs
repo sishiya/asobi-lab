@@ -20,6 +20,7 @@ const out = join(ROOT, '..', '_dev', 'retro-8bit');
 mkdirSync(out, { recursive: true });
 
 const nes = new Console8(readFileSync(rom), 44100);
+if (opt('lang', 'ja') === 'en') nes.cart.prgRam[0x1fff] = 1; // ことば（ページと同じ。$7FFF が 1 なら英語）
 const last = Math.max(...shots);
 const t0 = performance.now();
 let samples = 0, peak = 0;

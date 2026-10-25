@@ -43,8 +43,6 @@ export function build() {
     pal(s, 0, 0, 32, 4, 3);
     pal(s, 0, 28, 32, 2, 3);
     for (let cy = 0; cy < H; cy++) for (let cx = 0; cx < W; cx++) cell(s, cx, cy, map.g[cy * W + cx]);
-    text(s, 2, 1, 'STAGE ' + String(n + 1).padStart(2, '0'));
-    text(s, 2, 2, st.name.toUpperCase());
     stageNt.push(packNt(s));
     if (map.stones > 4) throw new Error(st.name + ': 石は 4 つまで（字の段の印）');
     const best = solve(map).min;
@@ -60,8 +58,6 @@ export function build() {
   pal(title, 0, 0, 32, 30, 3);
   ['da', 'n', 'go', 'mu', 'shi', 'no', 'mi', 'chi'].forEach((k, i) => put(title, 4 + i * 3, 5, 'k_' + k, 2, 2));
   text(title, 10, 9, 'PILLBUG PATH');
-  text(title, 12, 15, 'STAGE 01');
-  text(title, 11, 18, 'PUSH START');
   text(title, 9, 26, 'ASOBI LAB 2026');
   // 下に土の帯と、岩・葉っぱ（ダンゴムシが歩く地面）
   for (let cx = 0; cx < 16; cx++) {
@@ -70,14 +66,52 @@ export function build() {
   }
   pal(title, 0, 21, 32, 4, 0);
   sym.ADDR_TSTAGE = addr(18, 15);
+  sym.ADDR_TSTAGE_JA = addr(14, 15);
 
-  // エンディング（本物のしくみ: 交替性転向反応）
-  const end = screen();
-  pal(end, 0, 0, 32, 30, 3);
-  const lines = [[4, 'ALL THE LEAVES ARE EATEN!'], [8, 'A PILLBUG TURNS LEFT'], [10, 'THEN RIGHT THEN LEFT...'],
-    [13, 'SCIENTISTS CALL IT'], [15, 'TURN ALTERNATION.'], [18, 'IT HELPS THE BUG KEEP'], [20, 'GOING ONE WAY - AWAY'], [22, 'FROM WHAT BLOCKED IT.'],
-    [26, 'THANK YOU FOR PLAYING']];
-  for (const [r, str] of lines) text(end, Math.floor((32 - str.length) / 2), r, str);
+  // エンディング（本物のしくみ: 交替性転向反応）。かなと英語で 1 枚ずつ
+  const ENDING = {
+    ja: [[4, 'はっぱを ぜんぶ たべた!'], [8, 'ダンゴムシは ひだりに まがると'], [10, 'つぎは みぎに まがりやすい。'],
+      [13, 'これを こうたいせい てんこう'], [15, 'はんのう という。'], [18, 'じぐざぐに すすんで'], [20, 'ぶつかった ものから'], [22, 'はなれて いけるんだって。'],
+      [26, 'あそんでくれて ありがとう']],
+    en: [[4, 'ALL THE LEAVES ARE EATEN!'], [8, 'A PILLBUG TURNS LEFT'], [10, 'THEN RIGHT THEN LEFT...'],
+      [13, 'SCIENTISTS CALL IT'], [15, 'TURN ALTERNATION.'], [18, 'IT HELPS THE BUG KEEP'], [20, 'GOING ONE WAY - AWAY'], [22, 'FROM WHAT BLOCKED IT.'],
+      [26, 'THANK YOU FOR PLAYING']],
+  };
+  const endNt = {};
+  for (const [lang, lines] of Object.entries(ENDING)) {
+    const end = screen();
+    pal(end, 0, 0, 32, 30, 3);
+    for (const [r, str] of lines) text(end, Math.floor((32 - [...str].length) / 2), r, str);
+    endNt[lang] = packNt(end);
+  }
+
+  // 字（0 かな・1 英語）。同じ場所に同じ長さで書く（短いほうを空白でうめる）。M_名前 が番号、game.s の say がことばで選ぶ
+  const MSGS = [];
+  const len = (t) => [...t].length;
+  const bi = (name, col, row, ja, en) => {
+    const w = Math.max(len(ja), len(en));
+    MSGS.push([name, col, row, ja + ' '.repeat(w - len(ja)), en + ' '.repeat(w - len(en))]);
+  };
+  const line = (ja, en) => [ja + ' '.repeat(29 - len(ja)), en + ' '.repeat(29 - len(en))]; // 下の案内は 29 字
+  bi('push', 9, 18, 'START を おしてね', ' PUSH START');
+  bi('push_off', 9, 18, ' '.repeat(16), '');
+  bi('end_push', 9, 28, 'START を おしてね', ' PUSH START');
+  bi('tstage', 12, 15, '  00 めん', 'STAGE 00'); // タイトルの面の番号（00 のところに数字を書く: かな ADDR_TSTAGE_JA・英語 ADDR_TSTAGE）
+  bi('hint_plan', 2, 28, ...line('A いし  START あるく  SELECT もどす', 'A STONE START GO SELECT CLEAR'));
+  bi('hint_watch', 2, 28, ...line('START で あるくよ。まがるのを みてね', 'START GO - WATCH IT TURN'));
+  bi('hint_walk', 2, 28, ...line('A ずっと はやく   B とめる', 'HOLD A FAST    B STOP'));
+  bi('hint_clear', 2, 28, ...line('むしゃむしゃ!       A つぎへ', 'YUM!           A NEXT'));
+  bi('hint_best', 2, 28, ...line('むしゃむしゃ! さいこう! A つぎへ', 'YUM! BEST!     A NEXT'));
+  bi('hint_sun', 2, 28, ...line('まぶしい! まるまっちゃった', 'TOO SUNNY! IT CURLED UP.'));
+  for (const [name] of MSGS) sym['M_' + name.toUpperCase()] = MSGS.findIndex((m) => m[0] === name);
+  sym.M_STAGE = MSGS.length; // 面ごとに 2 つ（番号・名前）: M_STAGE + 面×2
+  STAGES.forEach((st, n) => {
+    const nn = String(n + 1).padStart(2, '0');
+    bi('st' + n, 2, 1, nn + ' めん', 'STAGE ' + nn);
+    bi('sn' + n, 2, 2, st.ja, st.name.toUpperCase());
+  });
+  sym.MSG_N = MSGS.length;
+  if (MSGS.length > 127) throw new Error('字が多すぎる（say は 2×MSG_N が 256 まで）');
 
   // 曲: 庭の土の上をのんびり（4拍子・ドの長調）。A・B・A と息つぎ 2 小節 ＝ 26 小節・約 38 秒で1周
   const A = ['E5:1 D5:1 C5:1 D5:1 | C sparse', 'E5:2 G5:2 | C sparse', 'F5:1 E5:1 D5:1 C5:1 | F sparse', 'D5:3 -:1 | G sparse',
@@ -98,23 +132,19 @@ palette:
   .byte ${PALETTES.flat().map(hex).join(',')}
 nt_title:
   .byte ${packNt(title).join(',')}
-nt_end:
-  .byte ${packNt(end).join(',')}
+nt_end_ja:
+  .byte ${endNt.ja.join(',')}
+nt_end_en:
+  .byte ${endNt.en.join(',')}
 ${stageNt.map((b, i) => `nt_stage${i}:\n  .byte ${b.join(',')}`).join('\n')}
 ${stageCells.map((b, i) => `cells${i}:\n  .byte ${b.join(',')}`).join('\n')}
 stage_nt_lo: .byte ${stageNt.map((_, i) => `<nt_stage${i}`).join(', ')}
 stage_nt_hi: .byte ${stageNt.map((_, i) => `>nt_stage${i}`).join(', ')}
 stage_cells_lo: .byte ${stageCells.map((_, i) => `<cells${i}`).join(', ')}
 stage_cells_hi: .byte ${stageCells.map((_, i) => `>cells${i}`).join(', ')}
-${msg('txt_push', 11, 18, 'PUSH START')}
-${msg('txt_push_off', 11, 18, '          ')}
-${msg('txt_end_push', 11, 28, 'PUSH START')}
-${msg('txt_hint_plan', 2, 28, 'A STONE START GO SELECT CLEAR')}
-${msg('txt_hint_watch', 2, 28, 'START GO - WATCH IT TURN     ')}
-${msg('txt_hint_walk', 2, 28, 'HOLD A FAST    B STOP        ')}
-${msg('txt_hint_clear', 2, 28, 'YUM!           A NEXT        ')}
-${msg('txt_hint_best', 2, 28, 'YUM! BEST!     A NEXT        ')}
-${msg('txt_hint_sun', 2, 28, 'TOO SUNNY! IT CURLED UP.     ')}
+${MSGS.map(([name, col, row, ja, en]) => `${msg(`m_${name}_0`, col, row, ja)}\n${msg(`m_${name}_1`, col, row, en)}`).join('\n')}
+msg_lo: .byte ${[0, 1].flatMap((l) => MSGS.map(([n]) => `<m_${n}_${l}`)).join(', ')}
+msg_hi: .byte ${[0, 1].flatMap((l) => MSGS.map(([n]) => `>m_${n}_${l}`)).join(', ')}
 ${periodData()}
 ${songData(songs, sym)}
 ${voiceData([6, 6, 5, 5, 5, 4, 4, 4, 4, 3, 3, 3, 3, 3, 2, 2], 0x24, sym)}

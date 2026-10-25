@@ -1,9 +1,9 @@
 // ダンゴムシのみち の面（16×12）。決まりは rules.mjs。確かめは node retro-8bit/tools/pillbug-levels.mjs
-//   . 土・# 岩・L 葉っぱ・o ひなた・> v < ^ はじめの場所と向き。stones = 置ける石の数
+//   . 土・# 岩・L 葉っぱ・o ひなた・> v < ^ はじめの場所と向き。stones = 置ける石の数。name は英語・ja はかなの面の名前
 //   7〜10 面は、いちばん少ない数より1つ多く置ける（ゆとり）。いちばん少ない数で解くと BEST
 export const STAGES = [
   {
-    name: 'left right', stones: 0, map: [
+    name: 'left right', ja: 'ひだり みぎ', stones: 0, map: [
       '................',
       '................',
       '.......#........',
@@ -19,7 +19,7 @@ export const STAGES = [
     ],
   },
   {
-    name: 'one stone', stones: 1, map: [
+    name: 'one stone', ja: 'いしを ひとつ', stones: 1, map: [
       '................',
       '................',
       '..........L.....',
@@ -35,7 +35,7 @@ export const STAGES = [
     ],
   },
   {
-    name: 'no left', stones: 1, map: [
+    name: 'no left', ja: 'ひだりが だめなら', stones: 1, map: [
       '................',
       '................',
       '................',
@@ -51,7 +51,7 @@ export const STAGES = [
     ],
   },
   {
-    name: 'two leaves', stones: 1, map: [
+    name: 'two leaves', ja: 'はっぱ ふたつ', stones: 1, map: [
       '................',
       '................',
       '................',
@@ -67,7 +67,7 @@ export const STAGES = [
     ],
   },
   {
-    name: 'sunny spot', stones: 1, map: [
+    name: 'sunny spot', ja: 'ひなたは にがて', stones: 1, map: [
       '................',
       '................',
       '................',
@@ -83,7 +83,7 @@ export const STAGES = [
     ],
   },
   {
-    name: 'stairs', stones: 1, map: [
+    name: 'stairs', ja: 'かいだん', stones: 1, map: [
       '................',
       '................',
       '............L...',
@@ -99,7 +99,7 @@ export const STAGES = [
     ],
   },
   {
-    name: 'around', stones: 3, map: [
+    name: 'around', ja: 'ぐるっと', stones: 3, map: [
       '................',
       '................',
       '................',
@@ -115,7 +115,7 @@ export const STAGES = [
     ],
   },
   {
-    name: 'sun garden', stones: 3, map: [
+    name: 'sun garden', ja: 'ひだまりの にわ', stones: 3, map: [
       '................',
       '.........oL.....',
       '....#.#..oo.....',
@@ -131,7 +131,7 @@ export const STAGES = [
     ],
   },
   {
-    name: 'three leaves', stones: 3, map: [
+    name: 'three leaves', ja: 'はっぱ みっつ', stones: 3, map: [
       '................',
       '................',
       '................',
@@ -147,7 +147,7 @@ export const STAGES = [
     ],
   },
   {
-    name: 'long way', stones: 3, map: [
+    name: 'long way', ja: 'とおまわり', stones: 3, map: [
       '................',
       '........#.....#.',
       '........#.....L.',
@@ -163,7 +163,7 @@ export const STAGES = [
     ],
   },
   {
-    name: 'corner', stones: 3, map: [
+    name: 'corner', ja: 'すみっこ', stones: 3, map: [
       '.........>##....',
       '...#......#.....',
       '...L......oo....',
@@ -179,7 +179,7 @@ export const STAGES = [
     ],
   },
   {
-    name: 'last leaf', stones: 3, map: [
+    name: 'last leaf', ja: 'さいごの はっぱ', stones: 3, map: [
       '.........>##....',
       '...#......#.....',
       '...L......oo....',

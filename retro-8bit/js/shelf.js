@@ -6,12 +6,13 @@
 // 色・なまえ・ダウンロード・すてるは「…」のメニュー。色はブラウザに残す（retro8.cartColor.<id>）
 import { Console8 } from './nes.js';
 import { listCarts, addCart, renameCart, deleteCart } from './mycarts.js';
+import { TX, setRomLang } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 // カセットの色: 本体（クリーム・ミント・サンゴ）とかぶらない8色（濃さでも本体とはなす）。ねずみは じぶんのカセットのはじめの色
 export const CART_COLORS = [
-  ['#3f4f86', '藍'], ['#d4a03a', 'からし'], ['#7d4f78', 'すみれ'], ['#56636f', '鉄'],
-  ['#8c3a3f', 'えんじ'], ['#6f7a3a', 'オリーブ'], ['#e0a26a', 'あんず'], ['#8e8a84', 'ねずみ'],
+  ['#3f4f86', TX('藍', 'Indigo')], ['#d4a03a', TX('からし', 'Mustard')], ['#7d4f78', TX('すみれ', 'Violet')], ['#56636f', TX('鉄', 'Iron')],
+  ['#8c3a3f', TX('えんじ', 'Crimson')], ['#6f7a3a', TX('オリーブ', 'Olive')], ['#e0a26a', TX('あんず', 'Apricot')], ['#8e8a84', TX('ねずみ', 'Gray')],
 ];   // 4×2（v013 で「すみ」を外した。前に選んだ人のカセットはその色のまま）
 const MINE_COLOR = '#8e8a84';   // じぶんのカセットのはじめの色（目立たない灰色）
 const MINE_COUNT = 'retro8.mineCount';   // 読みこむ前にケースの場所をとるための本数
@@ -41,6 +42,7 @@ export function initShelf(o) {
   function paint(canvas, bytes, frames) {
     try {
       const m = new Console8(bytes, 8000);
+      setRomLang(m); // ラベルのタイトル画面も、このページのことばで
       for (let i = 0; i < frames; i++) m.runFrame();
       const c = canvas.getContext('2d'), im = c.createImageData(256, 240);
       new Uint32Array(im.data.buffer).set(m.ppu.frame);
@@ -59,8 +61,8 @@ export function initShelf(o) {
       <button class="menuBtn" aria-haspopup="true" aria-expanded="false">…</button>`;
     it.querySelector('b').textContent = entry.title;
     const cart = it.querySelector('.cart');
-    cart.setAttribute('aria-label', `${entry.title} であそぶ`);
-    it.querySelector('.menuBtn').setAttribute('aria-label', `${entry.title} のメニュー（色・なまえ・ダウンロード）`);
+    cart.setAttribute('aria-label', TX(`${entry.title} であそぶ`, `Play ${entry.title}`));
+    it.querySelector('.menuBtn').setAttribute('aria-label', TX(`${entry.title} のメニュー（色・なまえ・ダウンロード）`, `${entry.title} menu (color, name, download)`));
     cart.addEventListener('click', () => insert(it, entry));
     it.querySelector('.menuBtn').addEventListener('click', (e) => { e.stopPropagation(); toggleMenu(it, entry, mine); });
     return it;
@@ -79,11 +81,11 @@ export function initShelf(o) {
     const m = document.createElement('div');
     m.className = 'cmenu'; m.setAttribute('role', 'menu');
     const now = colorOf(entry.id, entry.color);
-    m.innerHTML = `<p>カセットの色</p><div class="sw">${CART_COLORS.map(([c, n]) => `<button role="menuitemradio" aria-checked="${c === now}" style="--s:${c}" data-c="${c}" aria-label="${n}" title="${n}"></button>`).join('')}</div>
-      ${mine ? '<button class="row2" data-act="rename">なまえをかえる</button>' : ''}
-      <a class="row2" data-act="dl">ROM をダウンロード</a>
-      ${read('retro8.save.' + entry.id) ? '<button class="row2 del" data-act="erase">セーブを消す</button>' : ''}
-      ${mine ? '<button class="row2 del" data-act="del">すてる</button>' : ''}`;
+    m.innerHTML = `<p>${TX('カセットの色', 'Cassette color')}</p><div class="sw">${CART_COLORS.map(([c, n]) => `<button role="menuitemradio" aria-checked="${c === now}" style="--s:${c}" data-c="${c}" aria-label="${n}" title="${n}"></button>`).join('')}</div>
+      ${mine ? `<button class="row2" data-act="rename">${TX('なまえをかえる', 'Rename')}</button>` : ''}
+      <a class="row2" data-act="dl">${TX('ROM をダウンロード', 'Download ROM')}</a>
+      ${read('retro8.save.' + entry.id) ? `<button class="row2 del" data-act="erase">${TX('セーブを消す', 'Erase save')}</button>` : ''}
+      ${mine ? `<button class="row2 del" data-act="del">${TX('すてる', 'Remove')}</button>` : ''}`;
     for (const b of m.querySelectorAll('[data-c]')) b.addEventListener('click', () => {
       save('retro8.cartColor.' + entry.id, b.dataset.c);
       it.style.setProperty('--c', b.dataset.c);
@@ -97,18 +99,18 @@ export function initShelf(o) {
       dl.addEventListener('click', () => setTimeout(() => URL.revokeObjectURL(url), 4000));
     } else { dl.href = entry.file; dl.download = entry.id + '.nes'; }
     m.querySelector('[data-act=rename]')?.addEventListener('click', async () => {
-      const n = prompt('カセットの なまえ（32字まで）', entry.title);
+      const n = prompt(TX('カセットの なまえ（32字まで）', 'Cassette name (up to 32 characters)'), entry.title);
       if (n === null) return;
       await renameCart(entry.id, n); closeMenus(); await render();
     });
     // 電池のセーブ（セーブがあるカセットだけ出す）。2026-10-25 説明書の中から、そのカセットのメニューへ移した
     m.querySelector('[data-act=erase]')?.addEventListener('click', () => {
-      if (!confirm(`「${entry.title}」のセーブを消します（はじめからになります）。もとにはもどせません。消しますか？`)) return;
+      if (!confirm(TX(`「${entry.title}」のセーブを消します（はじめからになります）。もとにはもどせません。消しますか？`, `Erase the save for "${entry.title}"? It will start over, and this can't be undone.`))) return;
       try { localStorage.removeItem('retro8.save.' + entry.id); } catch { /* 残せない設定なら、もともとない */ }
       closeMenus();
     });
     m.querySelector('[data-act=del]')?.addEventListener('click', async () => {
-      if (!confirm(`「${entry.title}」をすてます（このブラウザから消え、セーブも消えます）。よいですか？`)) return;
+      if (!confirm(TX(`「${entry.title}」をすてます（このブラウザから消え、セーブも消えます）。よいですか？`, `Remove "${entry.title}" from this browser, along with its save?`))) return;
       if (seated?.id === entry.id) { seated.fly.remove(); seated = null; setPower(false); }
       await deleteCart(entry.id); closeMenus(); await render();
     });
@@ -186,10 +188,10 @@ export function initShelf(o) {
     const err = $('openErr');
     err.hidden = true;
     if (!file) return;
-    if (file.size > 1024 * 1024) { err.textContent = '大きすぎるファイルです（1MB まで）'; err.hidden = false; return; }
+    if (file.size > 1024 * 1024) { err.textContent = TX('大きすぎるファイルです（1MB まで）', 'That file is too big (1 MB max).'); err.hidden = false; return; }
     file.arrayBuffer().then(async (buf) => {
       const bytes = new Uint8Array(buf);
-      try { new Console8(bytes, 8000); } catch (e) { err.textContent = '開けませんでした: ' + e.message; err.hidden = false; return; }
+      try { new Console8(bytes, 8000); } catch (e) { err.textContent = TX('開けませんでした: ', 'Could not open it: ') + e.message; err.hidden = false; return; }
       let c;
       try { c = await addCart(file.name, bytes); } catch (e) { err.textContent = e.message; err.hidden = false; return; }
       await render();
@@ -216,7 +218,7 @@ export function initShelf(o) {
     for (let i = 0; i < n; i++) {
       const g = document.createElement('div');
       g.className = 'item loading'; g.setAttribute('aria-hidden', 'true');
-      g.innerHTML = '<span class="ghost">よみこみ中…</span><span class="case"></span>';
+      g.innerHTML = `<span class="ghost">${TX('よみこみ中…', 'Loading…')}</span><span class="case"></span>`;
       row.insertBefore(g, add); ghosts.push(g);
     }
     const mine = await listCarts();

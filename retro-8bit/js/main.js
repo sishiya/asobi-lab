@@ -5,6 +5,7 @@ import { createCRT } from './crt/crt-gl.js';
 import { createInput, keyLabel } from './input.js';
 import { initSettings } from './settings.js';
 import { initShelf } from './shelf.js';
+import { TX, initLang, setRomLang } from './i18n.js';
 
 const FRAME_MS = 1000 / 60.0988;
 const $ = (id) => document.getElementById(id);
@@ -62,6 +63,7 @@ function clack(kind) {
   } catch { /* 音が出せなくても動く */ }
 }
 // 棚（くわしくは shelf.js）
+initLang();
 const shelf = initShelf({ library: LIBRARY, loadRom, open: (e) => openEntry(e, true), sfx: { clack } });
 
 // ---------- 遊ぶ画面へ ----------
@@ -80,6 +82,7 @@ async function openEntry(e, gesture) {
   try { bytes = e.bytes || await loadRom(e); } catch { backToShelf(); return; }
   nes = new Console8(bytes, audio ? audio.ctx.sampleRate : 48000);
   loadBattery();
+  setRomLang(nes); // ソフトのことば（かな／英語）は、このページのことばに合わせる
   if (gesture) power();
   else {
     // 直接ひらいたとき: 音を出すには一度押してもらう
@@ -240,7 +243,7 @@ function setupAudio() {
 function setSound(on) {
   soundOn = on; save('retro8.sound', on ? '1' : '0');
   $('btnSound').setAttribute('aria-pressed', String(on));
-  $('soundLbl').textContent = on ? '音あり' : '音なし';
+  $('soundLbl').textContent = on ? TX('音あり', 'Sound on') : TX('音なし', 'Muted');
   if (audio) audio.gain.gain.value = on ? volume : 0;
 }
 function setVolume(v) {
@@ -254,7 +257,7 @@ const input = createInput();
 input.onPress = (p, b) => { if (!running && nes && (b === 'START' || b === 'A')) power(); };
 // キーの案内: コントローラーのボタン → いまの割り当てのキー → すること
 let guideKeys = [];
-const BUTTON_LABEL = { PAD: '十字キー', A: 'A', B: 'B', START: 'START', SELECT: 'SELECT' };
+const BUTTON_LABEL = { PAD: TX('十字キー', 'D-pad'), A: 'A', B: 'B', START: 'START', SELECT: 'SELECT' };
 function renderGuide() {
   const k = input.keys.p1, first = (b) => (k[b][0] ? keyLabel(k[b][0]) : '—');
   $('keys').innerHTML = guideKeys.map(([btn, what]) => {
@@ -263,7 +266,7 @@ function renderGuide() {
     if (btn === 'PAD') return `<span>${kb}<em>${what}</em></span>`;
     const face = btn === 'A' || btn === 'B' ? `<b class="face">${btn}</b>` : `<b class="face word">${BUTTON_LABEL[btn]}</b>`;
     return `<span>${face}<i>＝</i>${kb}<em>${what}</em></span>`;
-  }).join('') + '<button class="keyedit" id="keyEdit">キーを変える</button>';
+  }).join('') + `<button class="keyedit" id="keyEdit">${TX('キーを変える', 'Change keys')}</button>`;
   $('keyEdit').addEventListener('click', () => settings.open('keys'));
 }
 const buzz = () => { if (COARSE && vibrateOn && navigator.vibrate) navigator.vibrate(8); };

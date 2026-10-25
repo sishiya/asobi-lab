@@ -94,6 +94,8 @@ ttl_x = $48
 dir_t = $49        ; 曲がる向きを調べるときの向き（a・b）
 dir_t2 = $4A
 best = $4B         ; いちばん少ない石の数（それで解くと BEST）
+lang = $4C         ; 0 かな・1 英語（ページが $7FFF に入れる。タイトルのたびに読む）
+LANG = $7FFF
 
 OAM = $0200
 BUF = $0300        ; 帰線のあいだに画面へ書くもの: 番地の上・下・長さ・中身…、0 でおわり
@@ -380,7 +382,10 @@ put_meta:
   lda m_attr
   and #$80
   beq @nv
-  ldx #8
+  txa
+  clc
+  adc #8
+  tax
 @nv:
   stx m_ord
   lda m_attr
@@ -477,6 +482,20 @@ two_digits:
   sta tmp2
   rts
 
+; A = 字の番号（M_…）→ ptr にことばの字（buf_data で書く）
+say_ptr:
+  ldx lang
+  beq @j
+  clc
+  adc #MSG_N
+@j:
+  tax
+  lda msg_lo,x
+  sta ptr
+  lda msg_hi,x
+  sta ptr+1
+  rts
+
 ; ================= セーブ =================
 load_save:
   ldx #3
@@ -505,6 +524,14 @@ load_save:
 
 ; ================= タイトル =================
 go_title:
+  ; ことば（ページが電源を入れる前に $7FFF へ。1 だけが英語、ほかは かな）
+  ldx #0
+  lda LANG
+  cmp #1
+  bne @lj
+  inx
+@lj:
+  stx lang
   jsr screen_off
   lda #<nt_title
   sta ptr
@@ -521,6 +548,9 @@ go_title:
   lda #SONG_MAIN
   jsr play_song
   jsr screen_on
+  lda #M_TSTAGE
+  jsr say_ptr
+  jsr buf_data
   jsr title_digits
   rts
 
@@ -531,6 +561,11 @@ title_digits:
   jsr two_digits
   lda #>ADDR_TSTAGE
   ldx #<ADDR_TSTAGE
+  ldy lang
+  bne @en
+  lda #>ADDR_TSTAGE_JA
+  ldx #<ADDR_TSTAGE_JA
+@en:
   ldy #2
   jsr buf_head
   lda tmp2
@@ -547,16 +582,12 @@ title_update:
   sta blink_old
   cmp #0
   bne @off
-  lda #<txt_push
-  sta ptr
-  lda #>txt_push
-  sta ptr+1
+  lda #M_PUSH
+  jsr say_ptr
   jmp @put
 @off:
-  lda #<txt_push_off
-  sta ptr
-  lda #>txt_push_off
-  sta ptr+1
+  lda #M_PUSH_OFF
+  jsr say_ptr
 @put:
   jsr buf_data
 @same:
@@ -694,6 +725,18 @@ load_stage:
   jsr play_song
   jsr screen_on
   jsr hud_icons
+  lda stage
+  asl a
+  clc
+  adc #M_STAGE
+  pha
+  jsr say_ptr
+  jsr buf_data
+  pla
+  clc
+  adc #1
+  jsr say_ptr
+  jsr buf_data
   jsr plan_hint
   rts
 
@@ -701,16 +744,12 @@ load_stage:
 plan_hint:
   lda stones_max
   bne @p
-  lda #<txt_hint_watch
-  sta ptr
-  lda #>txt_hint_watch
-  sta ptr+1
+  lda #M_HINT_WATCH
+  jsr say_ptr
   jmp buf_data
 @p:
-  lda #<txt_hint_plan
-  sta ptr
-  lda #>txt_hint_plan
-  sta ptr+1
+  lda #M_HINT_PLAN
+  jsr say_ptr
   jmp buf_data
 
 ; ダンゴムシをはじめの場所へ。葉っぱの数を数えなおす
@@ -895,10 +934,8 @@ plan_update:
   beq @nst
   lda #2
   sta state
-  lda #<txt_hint_walk
-  sta ptr
-  lda #>txt_hint_walk
-  sta ptr+1
+  lda #M_HINT_WALK
+  jsr say_ptr
   jsr buf_data
   jsr sfx_place
 @nst:
@@ -1260,16 +1297,12 @@ go_clear:
   sbc stones_left
   cmp best
   bne @plain
-  lda #<txt_hint_best
-  sta ptr
-  lda #>txt_hint_best
-  sta ptr+1
+  lda #M_HINT_BEST
+  jsr say_ptr
   jmp @put
 @plain:
-  lda #<txt_hint_clear
-  sta ptr
-  lda #>txt_hint_clear
-  sta ptr+1
+  lda #M_HINT_CLEAR
+  jsr say_ptr
 @put:
   jsr buf_data
   rts
@@ -1306,10 +1339,8 @@ go_sun:
   lda #0
   sta st_t
   jsr sfx_sun
-  lda #<txt_hint_sun
-  sta ptr
-  lda #>txt_hint_sun
-  sta ptr+1
+  lda #M_HINT_SUN
+  jsr say_ptr
   jsr buf_data
   rts
 
@@ -1449,7 +1480,8 @@ draw_sprites:
   jsr hide_rest
   rts
 
-; つぎに曲がる向き d = 左なら h+3・右なら h+1。ダンゴムシのその側に矢じるし
+; 「まっすぐ進んで、ぶつかったら左（右）へ」の矢じるしを、ダンゴムシの前のますに（16×16）
+; 絵は向き×つぎの曲がり（bug_h×2＋bug_next）で turn_tile・turn_attr から。前のますが面の外なら出さない
 put_arrow:
   lda stuck
   bne @r
@@ -1461,57 +1493,63 @@ put_arrow:
   bne @show
   rts
 @show:
-  lda bug_next
-  beq @l
-  lda bug_h
-  clc
-  adc #1
-  jmp @d
-@l:
-  lda bug_h
-  clc
-  adc #3
-@d:
-  and #3
-  tax
+  ldx bug_h
   lda bug_x
-  clc
-  adc arrow_dx,x
-  sta tmp4
-  ; 面の左右のはしの外なら出さない
   cpx #0
   bne @n0
-  lda bug_x
   cmp #240
   bcs @r
 @n0:
   cpx #2
   bne @n2
-  lda bug_x
-  cmp #8
+  cmp #16
   bcc @r
 @n2:
+  lda bug_y
+  cpx #1
+  bne @n1
+  cmp #176
+  bcs @r
+@n1:
+  cpx #3
+  bne @n3
+  cmp #16
+  bcc @r
+@n3:
+  lda bug_x
+  clc
+  adc ahead_dx,x
+  sta m_x
   lda bug_y
   clc
   adc #FIELD_Y
   clc
-  adc arrow_dy,x
-  sta tmp
-  lda arrow_tile,x
-  sta tmp2
-  lda arrow_attr,x
-  sta tmp3
-  jsr put_spr
+  adc ahead_dy,x
+  sta m_y
+  txa
+  asl a
+  ora bug_next
+  tax
+  lda turn_tile,x
+  sta m_base
+  lda turn_attr,x
+  sta m_attr
+  jsr put_meta
 @r:
   rts
 
 ; ================= エンディング =================
 go_ending:
   jsr screen_off
-  lda #<nt_end
+  lda #<nt_end_ja
+  ldx #>nt_end_ja
+  ldy lang
+  beq @ja
+  lda #<nt_end_en
+  ldx #>nt_end_en
+@ja:
   sta ptr
-  lda #>nt_end
-  sta ptr+1
+  stx ptr+1
   jsr draw_nt
   lda #5
   sta state
@@ -1656,12 +1694,12 @@ dir_dx: .byte 1, 0, $ff, 0
 dir_dy: .byte 0, 1, 0, $ff
 meta_dx: .byte 0, 8, 0, 8
 meta_dy: .byte 0, 0, 8, 8
-meta_ord: .byte 0, 1, 2, 3,  1, 0, 3, 2,  2, 3, 0, 1
+meta_ord: .byte 0, 1, 2, 3,  1, 0, 3, 2,  2, 3, 0, 1,  3, 2, 1, 0
 bug_tile: .byte S_BUGR1, S_BUGU1, S_BUGR1, S_BUGU1
 bug_flip: .byte $00, $80, $40, $00
-; 矢じるし（8×8）: 右・下・左・上
-arrow_dx: .byte 17, 4, $f9, 4
-arrow_dy: .byte 4, 17, 4, $f9
-arrow_tile: .byte S_ARROWR, S_ARROWU, S_ARROWR, S_ARROWU
-arrow_attr: .byte $01, $81, $41, $01
+; 曲がる矢じるし: 前のますへのずれ（右・下・左・上）と、向き×つぎの曲がり（左・右）の絵と裏返し
+ahead_dx: .byte 16, 0, $f0, 0
+ahead_dy: .byte 0, 16, 0, $f0
+turn_tile: .byte S_TURNRU, S_TURNRU,  S_TURNUR, S_TURNUR,  S_TURNRU, S_TURNRU,  S_TURNUR, S_TURNUR
+turn_attr: .byte $01, $81,  $81, $C1,  $C1, $41,  $41, $01
 turn_pitch: .byte $fd, $a8

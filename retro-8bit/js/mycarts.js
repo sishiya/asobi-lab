@@ -1,10 +1,11 @@
 // じぶんのカセット: 遊ぶ人が開いた .nes を、このブラウザの中（IndexedDB）にだけ残す。
 // 送らない・ほかの人と分けない・サイトには上げない（PLAN.md 0章）。名前の変更と削除は自由。1本 1MB まで・30本まで
+import { TX } from './i18n.js';
 const DB = 'retro8', STORE = 'carts', MAX = 30;
 
 function open() {
   return new Promise((ok, ng) => {
-    if (!('indexedDB' in window)) { ng(new Error('この ブラウザでは残せません')); return; }
+    if (!('indexedDB' in window)) { ng(new Error(TX('この ブラウザでは残せません', 'This browser cannot keep cassettes'))); return; }
     const r = indexedDB.open(DB, 1);
     r.onupgradeneeded = () => r.result.createObjectStore(STORE, { keyPath: 'id' });
     r.onsuccess = () => ok(r.result);
@@ -30,7 +31,7 @@ export async function listCarts() {
 }
 export async function addCart(name, bytes) {
   const all = await listCarts();
-  if (all.length >= MAX) throw new Error(`じぶんのカセットは ${MAX} 本までです（いらないものを消してください）`);
+  if (all.length >= MAX) throw new Error(TX(`じぶんのカセットは ${MAX} 本までです（いらないものを消してください）`, `Up to ${MAX} of your own cassettes (please remove some)`));
   const cart = { id: 'my-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: cleanName(name), bytes, added: Date.now() };
   await run('readwrite', (st) => st.put(cart));
   return cart;
@@ -47,5 +48,5 @@ export async function deleteCart(id) {
 }
 // 名前: 拡張子を外し、32 字まで（画面には textContent で出す）
 export function cleanName(s) {
-  return String(s || '').replace(/\.nes$/i, '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 32) || 'なまえのないカセット';
+  return String(s || '').replace(/\.nes$/i, '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 32) || TX('なまえのないカセット', 'Untitled cassette');
 }

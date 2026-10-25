@@ -2,10 +2,11 @@
 // 当時の機械と同じく、1P は 十字キー・A・B・SELECT・START、2P は 十字キー・A・B と マイク（SELECT・START はない）。
 // キーの割り当ては変えられる（localStorage の retro8.keys。設定の画面から）。ゲームパッドは 1 台目が 1P、2 台目が 2P
 import { BTN } from './nes.js';
+import { TX } from './i18n.js';
 
 export const P1_BUTTONS = ['UP', 'DOWN', 'LEFT', 'RIGHT', 'B', 'A', 'SELECT', 'START'];
 export const P2_BUTTONS = ['UP', 'DOWN', 'LEFT', 'RIGHT', 'B', 'A', 'MIC'];
-export const BUTTON_NAME = { UP: '上', DOWN: '下', LEFT: '左', RIGHT: '右', A: 'A', B: 'B', SELECT: 'SELECT', START: 'START', MIC: 'マイク' };
+export const BUTTON_NAME = { UP: TX('上', 'Up'), DOWN: TX('下', 'Down'), LEFT: TX('左', 'Left'), RIGHT: TX('右', 'Right'), A: 'A', B: 'B', SELECT: 'SELECT', START: 'START', MIC: TX('マイク', 'Mic') };
 // 画面の字（A・B・START）と同じ名前のキーで押せるように。X・Z はコントローラーの並び（B が左・A が右）が好きな人むけ
 export const DEFAULT_KEYS = {
   p1: { UP: ['ArrowUp'], DOWN: ['ArrowDown'], LEFT: ['ArrowLeft'], RIGHT: ['ArrowRight'], B: ['KeyB', 'KeyZ'], A: ['KeyA', 'KeyX', 'Space'], SELECT: ['ShiftLeft', 'ShiftRight'], START: ['Enter'] },
@@ -13,8 +14,8 @@ export const DEFAULT_KEYS = {
 };
 
 const SPECIAL = {
-  ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Space: 'Space', Enter: 'Enter', NumpadEnter: 'テンキー Enter',
-  ShiftLeft: '左 Shift', ShiftRight: '右 Shift', ControlLeft: '左 Ctrl', ControlRight: '右 Ctrl', AltLeft: '左 Alt', AltRight: '右 Alt',
+  ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Space: 'Space', Enter: 'Enter', NumpadEnter: TX('テンキー Enter', 'Numpad Enter'),
+  ShiftLeft: TX('左 Shift', 'L Shift'), ShiftRight: TX('右 Shift', 'R Shift'), ControlLeft: TX('左 Ctrl', 'L Ctrl'), ControlRight: TX('右 Ctrl', 'R Ctrl'), AltLeft: TX('左 Alt', 'L Alt'), AltRight: TX('右 Alt', 'R Alt'),
   Tab: 'Tab', Backspace: 'BS', Period: '.', Comma: ',', Slash: '/', Semicolon: ';', Quote: "'", BracketLeft: '[', BracketRight: ']',
   Minus: '-', Equal: '^', Backslash: '\\', IntlRo: 'ろ', IntlYen: '¥', Backquote: '半/全',
 };
@@ -23,7 +24,7 @@ export function keyLabel(code) {
   let m;
   if ((m = code.match(/^Key([A-Z])$/))) return m[1];
   if ((m = code.match(/^Digit(\d)$/))) return m[1];
-  if ((m = code.match(/^Numpad(.+)$/))) return 'テンキー ' + m[1];
+  if ((m = code.match(/^Numpad(.+)$/))) return TX('テンキー ', 'Numpad ') + m[1];
   return code;
 }
 // 押してはいけないキー（ブラウザの操作）

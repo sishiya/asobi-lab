@@ -1,5 +1,6 @@
 // 設定の画面（⚙ 設定）: 「画面と音」と「キー」の2つのタブ。開いているあいだはゲームを止める
 import { P1_BUTTONS, P2_BUTTONS, BUTTON_NAME, keyLabel } from './input.js';
+import { TX } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -17,10 +18,10 @@ export function initSettings(o) {
   function renderKeys() {
     for (const [p, list, box] of [['p1', P1_BUTTONS, $('keys1')], ['p2', P2_BUTTONS, $('keys2')]]) {
       box.innerHTML = list.map((b) => {
-        const chips = o.input.keys[p][b].map((c) => `<span class="chip">${esc(keyLabel(c))}<button type="button" data-del="${p}|${b}|${esc(c)}" aria-label="${esc(keyLabel(c))} を外す">×</button></span>`).join('');
+        const chips = o.input.keys[p][b].map((c) => `<span class="chip">${esc(keyLabel(c))}<button type="button" data-del="${p}|${b}|${esc(c)}" aria-label="${TX(`${esc(keyLabel(c))} を外す`, `Remove ${esc(keyLabel(c))}`)}">×</button></span>`).join('');
         const isWait = waiting && waiting.p === p && waiting.b === b;
         // ＋ は、その行のキーの札のすぐうしろに（どの行に足すかが目で分かるように）
-        return `<div class="krow">${face(b)}<span class="chips">${chips}<button type="button" class="addkey${isWait ? ' wait' : ''}" data-add="${p}|${b}" aria-label="${p === 'p1' ? '1P' : '2P'} の ${BUTTON_NAME[b]} にキーを足す">${isWait ? 'キーを押して…' : '＋'}</button></span></div>`;
+        return `<div class="krow">${face(b)}<span class="chips">${chips}<button type="button" class="addkey${isWait ? ' wait' : ''}" data-add="${p}|${b}" aria-label="${TX(`${p === 'p1' ? '1P' : '2P'} の ${BUTTON_NAME[b]} にキーを足す`, `Add a key for ${p === 'p1' ? '1P' : '2P'} ${BUTTON_NAME[b]}`)}">${isWait ? TX('キーを押して…', 'Press a key…') : '＋'}</button></span></div>`;
       }).join('');
     }
   }
@@ -29,25 +30,25 @@ export function initSettings(o) {
 
   dlg.addEventListener('click', (e) => {
     const del = e.target.closest('[data-del]'), add = e.target.closest('[data-add]');
-    if (del) { const [p, b, c] = del.dataset.del.split('|'); o.input.unbind(p, b, c); say(`${keyLabel(c)} を外しました`); renderKeys(); }
+    if (del) { const [p, b, c] = del.dataset.del.split('|'); o.input.unbind(p, b, c); say(TX(`${keyLabel(c)} を外しました`, `Removed ${keyLabel(c)}`)); renderKeys(); }
     if (add) {
       const [p, b] = add.dataset.add.split('|');
       waiting = { p, b };
-      say(`${p === 'p1' ? '1P' : '2P'} の ${BUTTON_NAME[b]} に使うキーを押してください（Esc でやめる）`);
+      say(TX(`${p === 'p1' ? '1P' : '2P'} の ${BUTTON_NAME[b]} に使うキーを押してください（Esc でやめる）`, `Press the key for ${p === 'p1' ? '1P' : '2P'} ${BUTTON_NAME[b]} (Esc to cancel)`));
       o.input.capture = (code) => {
-        if (code === 'Escape') { say('やめました'); stopWaiting(); return; }
-        if (o.input.reserved(code)) { say(`${keyLabel(code)} はブラウザで使うので、えらべません`); return; }
+        if (code === 'Escape') { say(TX('やめました', 'Canceled')); stopWaiting(); return; }
+        if (o.input.reserved(code)) { say(TX(`${keyLabel(code)} はブラウザで使うので、えらべません`, `${keyLabel(code)} is used by the browser and can't be chosen`)); return; }
         const was = o.input.whoUses(code);
         o.input.bind(p, b, code);
         say(was && (was[0] !== (p === 'p1' ? 0 : 1) || was[1] !== b)
-          ? `${keyLabel(code)} を ${was[0] ? '2P' : '1P'} の ${BUTTON_NAME[was[1]]} から移しました`
-          : `${keyLabel(code)} を ${p === 'p1' ? '1P' : '2P'} の ${BUTTON_NAME[b]} にしました`);
+          ? TX(`${keyLabel(code)} を ${was[0] ? '2P' : '1P'} の ${BUTTON_NAME[was[1]]} から移しました`, `Moved ${keyLabel(code)} from ${was[0] ? '2P' : '1P'} ${BUTTON_NAME[was[1]]}`)
+          : TX(`${keyLabel(code)} を ${p === 'p1' ? '1P' : '2P'} の ${BUTTON_NAME[b]} にしました`, `Set ${keyLabel(code)} for ${p === 'p1' ? '1P' : '2P'} ${BUTTON_NAME[b]}`));
         stopWaiting();
       };
       renderKeys();
     }
   });
-  $('keysReset').addEventListener('click', () => { o.input.resetKeys(); stopWaiting(); say('はじめのキーにもどしました'); });
+  $('keysReset').addEventListener('click', () => { o.input.resetKeys(); stopWaiting(); say(TX('はじめのキーにもどしました', 'Keys reset to default')); });
 
   // タブ
   const tabs = [...dlg.querySelectorAll('[role=tab]')];

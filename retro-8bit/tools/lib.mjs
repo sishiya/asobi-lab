@@ -1,5 +1,6 @@
 // ROM づくりの共通の道具: ドット絵 → CHR、画面（32×30 と属性）、字、曲。ゲームごとの data.mjs が使う
 import { FONT } from '../src/font.mjs';
+import { KANA } from '../src/kana.mjs';
 
 export function makeChr() {
   const chr = new Uint8Array(8192);
@@ -47,7 +48,15 @@ export function makeChr() {
     sym.T_0 = CH['0'];
     sym.T_A = CH.A;
   }
-  return { chr, count, sym, CH, tile, big, font };
+  // かなは使う字だけ、はじめて出てきたときに背景の表へ足す（字の色 1・影 3）
+  function kana(ch) {
+    if (CH[ch] === undefined) {
+      if (!KANA[ch]) return undefined;
+      CH[ch] = tile(0, shadow([...KANA[ch].map((r) => r + '.'), '........'], () => '1'));
+    }
+    return CH[ch];
+  }
+  return { chr, count, sym, CH, tile, big, font, kana };
 }
 
 // 影（右下に 3）をつけ、1 を ink(y) の色にする
@@ -69,7 +78,7 @@ export function put(c, s, col, row, name, w = 1, h = 1) {
   if (first === undefined) throw new Error('ない絵: ' + name);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) s.nt[row + y][col + x] = first + y * w + x;
 }
-const glyph = (c, ch) => { if (ch === ' ') return 0; if (c.CH[ch] === undefined) throw new Error('字がない: ' + ch); return c.CH[ch]; };
+const glyph = (c, ch) => { if (ch === ' ') return 0; const t = c.CH[ch] ?? c.kana(ch); if (t === undefined) throw new Error('字がない: ' + ch + '（かなは src/kana.mjs に足す）'); return t; };
 export function text(c, s, col, row, str) { [...str].forEach((ch, i) => { s.nt[row][col + i] = glyph(c, ch); }); }
 export function pal(s, col, row, w, h, p) { for (let y = row; y < row + h; y++) for (let x = col; x < col + w; x++) s.at[y >> 1][x >> 1] = p; }
 export function packNt(s) {
