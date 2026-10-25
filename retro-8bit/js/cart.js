@@ -1,11 +1,11 @@
-// カートリッジ: iNES の形のファイルを読み、マッパー（バンクの切りかえ）0・1・2・3・7 をまねる
+// カートリッジ: iNES の形のファイルを読み、マッパー（バンクの切りかえ）0・1・2・3・4・7 をまねる
 export class Cart {
   constructor(bytes) {
     const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
     if (b[0] !== 0x4e || b[1] !== 0x45 || b[2] !== 0x53 || b[3] !== 0x1a) throw new Error('iNES の形ではありません');
     const prgN = b[4], chrN = b[5], f6 = b[6], f7 = b[7];
     this.mapper = (f6 >> 4) | (f7 & 0xf0);
-    if (![0, 1, 2, 3, 7].includes(this.mapper)) throw new Error('このマッパーには対応していません: ' + this.mapper);
+    if (![0, 1, 2, 3, 4, 7].includes(this.mapper)) throw new Error('このマッパーには対応していません: ' + this.mapper);
     let p = 16 + ((f6 & 4) ? 512 : 0);
     this.prg = b.slice(p, p + prgN * 16384); p += prgN * 16384;
     this.chrRam = chrN === 0;
@@ -17,8 +17,17 @@ export class Cart {
     this.chrBanks = [0, 4096];                                  // $0000・$1000 の 4KB の始まり
     if (this.prg.length === 16384) this.prgBanks = [0, 0];
     this.mmc1 = { sr: 0x10, ctrl: 0x0c, chr0: 0, chr1: 0, prg: 0 };
+    this.irqLine = false;   // マッパーが CPU に IRQ を出しているか（MMC3）
+    if (this.mapper === 4) {
+      this.four = this.mirror === 'four';
+      this.mmc3 = { sel: 0, r: [0, 2, 4, 5, 6, 7, 0, 1], latch: 0, count: 0, reload: false, on: false };
+      this.p8 = [0, 0, 0, 0];               // $8000・$A000・$C000・$E000 の 8KB の始まり
+      this.c1 = [0, 0, 0, 0, 0, 0, 0, 0];   // $0000〜$1FFF の 1KB ずつの始まり
+      this.mmc3Apply();
+    }
   }
   cpuRead(a) {
+    if (a >= 0x8000 && this.p8) return this.prg[this.p8[(a >> 13) & 3] + (a & 0x1fff)];
     if (a >= 0x8000) { const i = (a >> 14) & 1; return this.prg[this.prgBanks[i] + (a & 0x3fff)]; }
     if (a >= 0x6000) return this.prgRam[a - 0x6000];
     return 0;
@@ -29,6 +38,7 @@ export class Cart {
     const P = this.prg.length;
     switch (this.mapper) {
       case 1: this.mmc1Write(a, v); break;
+      case 4: this.mmc3Write(a, v); break;
       case 2: this.prgBanks[0] = ((v & 0x0f) * 16384) % P; break;
       case 3: { const o = ((v & 3) * 8192) % this.chr.length; this.chrBanks = [o, o + 4096]; break; }
       case 7: {
@@ -57,8 +67,33 @@ export class Cart {
     if (m.ctrl & 0x10) this.chrBanks = [(m.chr0 * 4096) % C, (m.chr1 * 4096) % C];
     else { const o = ((m.chr0 & 0x1e) * 4096) % C; this.chrBanks = [o, o + 4096]; }
   }
-  chrRead(a) { return this.chr[this.chrBanks[a >> 12] + (a & 0xfff)]; }
-  chrWrite(a, v) { if (this.chrRam) this.chr[this.chrBanks[a >> 12] + (a & 0xfff)] = v; }
+  // MMC3（マッパー 4）: 8KB ずつの PRG・1KB ずつの CHR・行を数えて IRQ（画面の途中で絵やスクロールを変える）
+  mmc3Write(a, v) {
+    const m = this.mmc3, odd = a & 1;
+    switch (a & 0xe000) {
+      case 0x8000: if (odd) m.r[m.sel & 7] = v; else m.sel = v; this.mmc3Apply(); break;
+      case 0xa000: if (!odd && !this.four) this.mirror = (v & 1) ? 'horz' : 'vert'; break;   // 奇数は PRG RAM の守り（いつも読み書きできることにする）
+      case 0xc000: if (odd) { m.count = 0; m.reload = true; } else m.latch = v; break;
+      case 0xe000: if (odd) m.on = true; else { m.on = false; this.irqLine = false; } break;
+    }
+  }
+  mmc3Apply() {
+    const m = this.mmc3, r = m.r, P = this.prg.length, C = this.chr.length;
+    const b8 = (n) => (n * 8192) % P, last = P - 8192, last2 = P - 16384;
+    this.p8 = (m.sel & 0x40) ? [last2, b8(r[7]), b8(r[6]), last] : [b8(r[6]), b8(r[7]), last2, last];
+    const k = (n) => (n * 1024) % C;
+    const two = [k(r[0] & 0xfe), k((r[0] & 0xfe) + 1), k(r[1] & 0xfe), k((r[1] & 0xfe) + 1)], four = [k(r[2]), k(r[3]), k(r[4]), k(r[5])];
+    this.c1 = (m.sel & 0x80) ? [...four, ...two] : [...two, ...four];
+  }
+  // PPU が描く行ごとに1回（本物は PPU の番地の A12 が上がるとき。背景 $0000・絵 $1000 のふつうの使い方なら、行の 260 ドットめ）
+  scanline() {
+    const m = this.mmc3;
+    if (!m) return;
+    if (m.count === 0 || m.reload) { m.count = m.latch; m.reload = false; } else m.count--;
+    if (m.count === 0 && m.on) this.irqLine = true;
+  }
+  chrRead(a) { return this.c1 ? this.chr[this.c1[a >> 10] + (a & 0x3ff)] : this.chr[this.chrBanks[a >> 12] + (a & 0xfff)]; }
+  chrWrite(a, v) { if (!this.chrRam) return; if (this.c1) this.chr[this.c1[a >> 10] + (a & 0x3ff)] = v; else this.chr[this.chrBanks[a >> 12] + (a & 0xfff)] = v; }
   // 画面の表（$2000〜$2FFF）が 2KB のどこにあるか
   ntIndex(a) {
     const t = (a >> 10) & 3, o = a & 0x3ff;

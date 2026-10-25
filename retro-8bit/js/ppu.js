@@ -101,6 +101,7 @@ export class PPU {
         if (D === 1) this.status &= 0x1f;
         else if (D === 256 && this.rendering) this.incY();
         else if (D === 257 && this.rendering) this.copyX();
+        else if (D === 260 && this.rendering) this.cart.scanline?.();   // 準備の行も数える（MMC3）
         else if (D === 280 && this.rendering) this.v = (this.v & 0x041f) | (this.t & 0x7be0);
       }
     }

@@ -15,7 +15,7 @@ export class Console8 {
     this.apu = new APU(sampleRate);
     this.cpu = new CPU(this);
     this.ppu.nmiOut = () => { this.cpu.nmi = true; };
-    this.cpu.irq = () => this.apu.frameIrq;
+    this.cpu.irq = () => this.apu.frameIrq || this.cart.irqLine;   // APU とマッパー（MMC3）の IRQ
     this.pad = [0, 0]; this.shift = [0, 0]; this.strobe = 0;
     this.mic = false; // 2P のマイク（$4016 の 2 ビット目。当時の 2P コントローラーについていた）
     this.cpu.reset();
