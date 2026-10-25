@@ -1,14 +1,14 @@
 // 名画の顔ハメ: 画面の流れ・看板の合成・シャッター・けっか。
 // カメラの映像はこの端末の中だけで使う。写真はけっかで「保存」を押したときだけファイルにする。
-import { PAINTINGS } from './paintings.js?v=2';
-import { createLandmarker, readFace, areaBox, AREAS } from './face.js?v=2';
-import { createBlender, labStats } from './blend.js?v=2';
-import { scoreFace, averageFaces, mark } from './score.js?v=2';
+import { PAINTINGS } from './paintings.js?v=3';
+import { createLandmarker, readFace, areaBox } from './face.js?v=3';
+import { createBlender, labStats } from './blend.js?v=3';
+import { scoreFace, averageFaces, mark } from './score.js?v=3';
 
 const $ = s => document.querySelector(s);
 
 // ---- 設定（覚えておけなくても動く） ----
-const DEF = { assist: 1, blend: 2, secs: 5, shots: 3, sound: 1, area: 0 };
+const DEF = { assist: 1, blend: 2, secs: 5, shots: 3, sound: 1 };
 const cfg = { ...DEF };
 try { Object.assign(cfg, JSON.parse(localStorage.getItem('face-in-frame') || '{}')); } catch (e) {}
 const saveCfg = () => { try { localStorage.setItem('face-in-frame', JSON.stringify(cfg)); } catch (e) {} };
@@ -57,8 +57,8 @@ function shutterSound() {
 // ---- 絵の用意: 穴をあけた絵と、穴の中の色 ----
 const loadImg = src => new Promise((ok, ng) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ng; i.src = src; });
 const cache = new Map();
-// くり抜く所（設定。ユーザーが3回目に「目が映らない範囲で」と言ったので、案を並べて選べるようにした。RULES 6章）
-const area = () => AREAS[cfg.area] || AREAS[0];
+// くり抜く所は「鼻から下」（目・眉・髪・耳は絵のまま）。v002 で3案を設定で切りかえ、ユーザーが決めた（2026-10-25）
+const area = () => 'nose';
 const keyOf = p => p.id + ':' + area();
 async function prepare(p) {
   if (cache.has(keyOf(p))) return cache.get(keyOf(p));
