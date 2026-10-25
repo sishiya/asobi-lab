@@ -200,7 +200,7 @@ export function createRoom() {
     }
     if (!(y > 0.9 ? rr(x, z, 1.0, 1.1, 0.2) : rr(x, z, 1.1, 1.2, 0.25))) return null;
     if (y > 0.2) { if (inSlot(x, z)) return null; if (nearSlot(x, z)) return 0x141210; }   // 口の中は暗い
-    if (inR(y, 0.3, 0.4) && inR(x, -0.9, -0.6) && z > 1.0) return z > 1.1 ? null : 0x1d1a18;   // 前のコントローラーの口（1つ。v023）
+    if (inR(y, 0.3, 0.4) && inR(x, -0.9, -0.6) && z < -1.0) return z < -1.1 ? null : 0x1d1a18;   // うしろのコントローラーの口（1つ。v027 で前から移した）
     if (y > 0.9 && inR(z, 0.7, 1.0) && Math.abs(x) < 0.8 && k % 2 === 0) return 0xd8d0c2;   // 前の上のみぞ
     return y < 0.2 ? ORANGE_D : ORANGE;
   }));
@@ -244,12 +244,13 @@ export function createRoom() {
       return dp || bt ? ORANGE : null;
     }));
     // 線: 曲線をなぞって、半分の大きさ（0.05）の立方体をならべる
-    // 線は長めにたるませて、本体の前の口へ（v023。ユーザー「もっと長いほうがいい。届かなそう」）
-    // コントローラーの背面のまん中からまっすぐ出して（v024）、奥でまわって前の口へ
-    const pts = [new THREE.Vector3(0.35, 0.1, 2.44), new THREE.Vector3(0.31, 0.04, 2.2), new THREE.Vector3(0.42, 0.03, 1.88), new THREE.Vector3(0.95, 0.03, 1.98), new THREE.Vector3(1.3, 0.03, 2.22), new THREE.Vector3(1.5, 0.06, 2.12), new THREE.Vector3(1.5, 0.3, 1.99)];
+    // 線は長めに（v023。ユーザー「もっと長いほうがいい。届かなそう」）。コントローラーの背面のまん中から出て（v024）、
+    // テレビと本体のあいだを通って、本体のうしろの口へ（v027。ユーザー「背面から伸びるように」）
+    // 手前で S 字にたるませて、長さに余裕を見せる
+    const pts = [new THREE.Vector3(0.35, 0.1, 2.44), new THREE.Vector3(0.28, 0.04, 2.18), new THREE.Vector3(0.0, 0.03, 1.95), new THREE.Vector3(0.12, 0.03, 1.6), new THREE.Vector3(0.62, 0.03, 1.72), new THREE.Vector3(0.92, 0.03, 1.38), new THREE.Vector3(0.78, 0.03, 0.75), new THREE.Vector3(0.95, 0.03, 0.05), new THREE.Vector3(0.85, 0.03, -0.55), new THREE.Vector3(1.2, 0.03, -0.85), new THREE.Vector3(1.5, 0.06, -0.64), new THREE.Vector3(1.5, 0.3, -0.48)];
     const curve = new THREE.CatmullRomCurve3(pts), H = V / 2, seen = new Set(), cells = [];
-    for (let i = 0; i <= 400; i++) {
-      const p = curve.getPoint(i / 400), a = Math.floor(p.x / H), b = Math.max(0, Math.floor(p.y / H)), c = Math.floor(p.z / H), id = a + ',' + b + ',' + c;
+    for (let i = 0; i <= 800; i++) {
+      const p = curve.getPoint(i / 800), a = Math.floor(p.x / H), b = Math.max(0, Math.floor(p.y / H)), c = Math.floor(p.z / H), id = a + ',' + b + ',' + c;
       if (!seen.has(id)) { seen.add(id); cells.push([a, b, c]); }
     }
     const cord = new THREE.InstancedMesh(new THREE.BoxGeometry(H, H, H), new THREE.MeshStandardMaterial({ color: 0x3a3530, roughness: 0.75 }), cells.length);
@@ -257,7 +258,7 @@ export function createRoom() {
     cells.forEach(([a, b, c], i) => cord.setMatrixAt(i, m.makeTranslation((a + 0.5) * H, (b + 0.5) * H, (c + 0.5) * H)));
     cord.castShadow = true; scene.add(cord);
     const plug = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.1, 0.1), new THREE.MeshStandardMaterial({ color: 0x3a3530, roughness: 0.7 }));
-    plug.position.set(1.5, 0.35, 1.98); plug.castShadow = true; scene.add(plug);
+    plug.position.set(1.5, 0.35, -0.48); plug.castShadow = true; scene.add(plug);
   }
 
   // ---------- ブラウン管の絵（RGB。遊ぶ画面と同じ計算） ----------

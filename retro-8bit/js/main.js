@@ -71,7 +71,7 @@ const shelf = initShelf({ library: LIBRARY, loadRom, open: (e) => openEntry(e, t
 let room = null, roomPlay = read('retro8.roomPlay', '0') === '1';
 const ROOM_OK = !matchMedia('(prefers-reduced-motion: reduce)').matches && (() => { try { return !!document.createElement('canvas').getContext('webgl2'); } catch { return false; } })();
 if (ROOM_OK) {
-  import('./room3d.js?v=7').then((m) => {
+  import('./room3d.js?v=8').then((m) => {
     room = m.createRoom();
     $('roombox').hidden = false; $('conbox').hidden = true;
     room.attach($('roombox'), 'shelf');
