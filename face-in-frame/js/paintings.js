@@ -5,18 +5,20 @@
 // title_en・artist_en・hint_en: 英語のときの題・作者・ひとこと。styleCrop: 筆のタッチのスタイルを読む広さ（顔のはばの倍、ふつう 3。tools/style-bottlenecks）。touchMax: 筆のタッチの強さの上限（ふつう 1）。fast: 筆のタッチに絵ごとの専用モデルを使う。fastCrop: 専用モデルの学習で読む広さ。
 // goal: お手本の口の形（face.js の expression の jaw・smile・frown・round、0〜1）。書かなかった名前は 0 として軽く見る。
 // roll: 首のかたむき（度。右に倒すと＋）、yaw: 顔の向き（画面の右向きが＋、-1〜1）。null なら見ない。
+import { CALIBRATED } from './goals.js?v=10';
+
 export const PAINTINGS = [
   { id: 'scream', src: 'art/scream.jpg', title: '叫び', artist: 'エドヴァルド・ムンク', year: 1893, hint: 'さけべ！',
     title_en: 'The Scream', artist_en: 'Edvard Munch', hint_en: 'Scream!',
     face: { nx: 0.525, ny: 0.717, rot: 3, brow: -0.043, lidTop: -0.035, lidBot: -0.022, chin: 0.08, left: -0.053, right: 0.058 },
     goal: { jaw: 0.6, round: 0.55 }, roll: 0, yaw: null },
-  { id: 'monalisa', src: 'art/monalisa.jpg', title: 'モナ・リザ', artist: 'レオナルド・ダ・ヴィンチ', year: 1503, hint: 'ほんのり、ほほえむ',
-    title_en: 'Mona Lisa', artist_en: 'Leonardo da Vinci', hint_en: 'A faint smile',
+  { id: 'monalisa', src: 'art/monalisa.jpg', title: 'モナ・リザ', artist: 'レオナルド・ダ・ヴィンチ', year: 1503, hint: 'すまし顔',
+    title_en: 'Mona Lisa', artist_en: 'Leonardo da Vinci', hint_en: 'Poker face',
     touchMax: 0.4, // 筆のタッチの強さの上限（なめらかな肌の絵は、模様が強く出すぎるので弱く）
     face: { nx: 0.4346, ny: 0.4329, rot: 0, brow: -0.1083, lidTop: -0.0952, lidBot: -0.0783, chin: 0.0985, left: -0.0666, right: 0.1631 },
     goal: { smile: 0.35 }, roll: 0, yaw: -0.4 },
-  { id: 'pearl', src: 'art/pearl.jpg', title: '真珠の耳飾りの少女', artist: 'ヨハネス・フェルメール', year: 1665, hint: 'ふりむいて、はっ',
-    title_en: 'Girl with a Pearl Earring', artist_en: 'Johannes Vermeer', hint_en: 'Glance back… oh!',
+  { id: 'pearl', src: 'art/pearl.jpg', title: '真珠の耳飾りの少女', artist: 'ヨハネス・フェルメール', year: 1665, hint: 'ふりむいて、そっと',
+    title_en: 'Girl with a Pearl Earring', artist_en: 'Johannes Vermeer', hint_en: 'Glance back, softly',
     touchMax: 0.4, // 筆のタッチの強さの上限（なめらかな肌の絵は、模様が強く出すぎるので弱く）
     styleCrop: 1.1, // 筆のタッチ: まわりの暗い地を読むと顔が黒ずむので、顔の肌だけを読む（ユーザー「すごい濃くなっちゃった」）
     face: { nx: 0.346, ny: 0.5551, rot: 11, brow: -0.1417, lidTop: -0.1209, lidBot: -0.0945, chin: 0.1341, left: -0.0421, right: 0.2481 },
@@ -29,14 +31,15 @@ export const PAINTINGS = [
     goal: { jaw: 0.35, round: 0.3 }, roll: 15, yaw: null },
   { id: 'sharaku', src: 'art/sharaku.jpg', title: '三代目大谷鬼次の江戸兵衛', artist: '東洲斎写楽', year: 1794, hint: '口をへの字に！',
     title_en: 'Ōtani Oniji III as Yakko Edobei', artist_en: 'Tōshūsai Sharaku', hint_en: 'Frown hard!',
-    fast: true, // 筆のタッチに専用モデル（vendor/style-models/sharaku.bin。tools/train_style.py）
     styleCrop: 1.1, // 筆のタッチ: まわりの暗い地と髪を読むと顔が黒ずむので、顔の肌と線だけを読む
-    fastCrop: 1.8,  // 専用モデルは、眉や目の線もふくめて読む（肌だけだと紙の色しか学ばない）
     face: { nx: 0.856, ny: 0.6875, rot: 0, brow: -0.195, lidTop: -0.165, lidBot: -0.1315, chin: 0.1955, left: -0.236, right: 0.02 },
     goal: { frown: 0.6 }, roll: 0, yaw: 0.5 },
-  { id: 'gogh', src: 'art/gogh.jpg', title: '麦わら帽子の自画像', artist: 'フィンセント・ファン・ゴッホ', year: 1887, hint: 'むすっ',
-    title_en: 'Self-Portrait with a Straw Hat', artist_en: 'Vincent van Gogh', hint_en: 'Grumpy',
-    fast: true, // 筆のタッチに専用モデル（vendor/style-models/gogh.bin。tools/train_style.py）
+  { id: 'gogh', src: 'art/gogh.jpg', title: '麦わら帽子の自画像', artist: 'フィンセント・ファン・ゴッホ', year: 1887, hint: '口をすぼめて、むすっ',
+    title_en: 'Self-Portrait with a Straw Hat', artist_en: 'Vincent van Gogh', hint_en: 'Purse your lips',
     face: { nx: 0.427, ny: 0.627, rot: 0, brow: -0.157, lidTop: -0.147, lidBot: -0.114, chin: 0.163, left: -0.13, right: 0.14 },
     goal: { frown: 0.25 }, roll: 0, yaw: -0.3 },
 ];
+
+// お手本を、その絵自身の顔を同じしくみで読んだ数に合わせる（tools/calibrate.mjs が js/goals.js に書く）。
+// 絵の顔を正確にはめこめば 100 点近くになるように（v010 ユーザー）。読めない絵（叫び・写楽）は上の手で決めた数のまま
+for (const p of PAINTINGS) if (CALIBRATED[p.id]) Object.assign(p, CALIBRATED[p.id]);

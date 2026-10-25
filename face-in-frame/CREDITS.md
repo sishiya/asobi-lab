@@ -15,4 +15,4 @@
 - MediaPipe Tasks Vision 0.10.14（`vendor/mediapipe/`。Face Landmarker のモデル `face_landmarker.task` もふくむ）: Apache License 2.0、Google。顔の読み取りはブラウザの中だけで動き、映像を外に送りません。
 - TensorFlow.js 4.22.0（`vendor/tfjs/tf.min.js`）: Apache License 2.0、Google。筆のタッチを使うときだけ読む。
 - Magenta の任意スタイル変換（Ghiasi ほか 2017「Exploring the structure of a real-time, arbitrary neural artistic stylization network」）の変換のネットワーク（`vendor/style-transfer/`）: reiinakano/arbitrary-image-stylization-tfjs が TensorFlow.js の形にしたもの（saved_model_transformer_separable_js）。Apache License 2.0。スタイルを読むほうのネットワーク（saved_model_style_js）は公開せず、開発のときに絵ごとの特徴を計算するのにだけ使った（`js/styles.js`）。
-- 絵ごとの専用モデル（`vendor/style-models/`。ゴッホ・写楽）: `tools/train_style.py` で学習したもの（Johnson ほか 2016 の速いスタイル変換の形。このリポジトリのコード・MIT）。学習には COCO val2017 の写真（学習に使っただけで、写真そのものは入れていない）と、torchvision の VGG16（ImageNet で学習済み。損失の計算にだけ使い、入れていない）を使った。
+- 絵ごとの専用モデル（v009 で使い、v010 でやめた）: `tools/train_style.py` で学習（COCO val2017 の写真と torchvision の VGG16 を手元の学習にだけ使った）。

@@ -122,6 +122,15 @@ def export(net, path):
         json.dump({'format': 'face-in-frame fast style v1', 'dtype': 'float16', 'tensors': meta}, fp)
 
 
+# カメラの映像は、肌や壁のような平らな所が多い。平らな所で縞を描かないように、写真の半分をぼかして学ばせる
+# （v010。ぼかさずに学んだモデルは、なめらかな所に縦縞と格子を出した。ユーザー「変な縦縞がでました」）
+BLURS = [transforms.GaussianBlur(21, s) for s in (1.5, 3, 6)] + [transforms.GaussianBlur(41, 12)]
+
+
+def soften(x):
+    return random.choice(BLURS)(x) if random.random() < 0.5 else x
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--painting', required=True)
@@ -133,7 +142,8 @@ def main():
     ap.add_argument('--batch', type=int, default=4)
     ap.add_argument('--style-weight', type=float, default=1e5)
     ap.add_argument('--content-weight', type=float, default=1.0)
-    ap.add_argument('--tv-weight', type=float, default=1e-6)
+    ap.add_argument('--tv-weight', type=float, default=4e-6)
+    ap.add_argument('--noise', type=float, default=0.02)  # 入力にのせる小さなゆらぎ（js/style-fast.js の NOISE と同じにする）
     ap.add_argument('--lr', type=float, default=1e-3)
     ap.add_argument('--preview', default='')  # 学習のあとに変換してみる写真（なくてもよい）
     a = ap.parse_args()
@@ -151,8 +161,8 @@ def main():
     print(f'{a.painting}: {len(files)} 枚・{steps} 歩', flush=True)
     t0 = time.time()
     for step in range(steps):
-        batch = torch.stack([tf(Image.open(random.choice(files)).convert('RGB')) for _ in range(a.batch)]).to(dev)
-        y = net(batch)
+        batch = torch.stack([soften(tf(Image.open(random.choice(files)).convert('RGB'))) for _ in range(a.batch)]).to(dev)
+        y = net((batch + a.noise * torch.randn_like(batch)).clamp(0, 1))
         fy, fx = vgg(y), vgg(batch)
         lc = a.content_weight * F.mse_loss(fy[1], fx[1])
         ls = a.style_weight * sum(F.mse_loss(gram(f), g.expand(f.shape[0], -1, -1)) for f, g in zip(fy, gs))

@@ -1,6 +1,8 @@
 // 絵ごとの専用モデル（速いスタイル変換）。tools/train_style.py で学習した重み（vendor/style-models/<絵>.bin・.json、float16）を読み、
 // 同じ形のネットワークを TensorFlow.js で組む（train_style.py の Transformer と同じ。変えたら両方を直す）。
 const BASE = new URL('../vendor/style-models/', import.meta.url).href;
+// 入力にのせる小さなゆらぎ（train_style.py の --noise と同じ）。まっ平らな所で模様がくり返して縞になるのをふせぐ
+const NOISE = 0.02;
 
 // float16 → float32
 function half(u16) {
@@ -37,8 +39,11 @@ export async function loadFast(id) {
       }
       return relu ? tf.relu(x) : x;
     };
+    const noise = {}; // ゆらぎは大きさごとに1つに決めておく（コマごとに変えると模様がちらつく）
     return x => {
-      let y = conv(x, 'layers.0', 9);
+      const key = x.shape.join('x');
+      noise[key] = noise[key] || tf.keep(tf.randomNormal(x.shape, 0, NOISE, 'float32', 7));
+      let y = conv(x.add(noise[key]).clipByValue(0, 1), 'layers.0', 9);
       y = conv(y, 'layers.1', 3, 2);
       y = conv(y, 'layers.2', 3, 2);
       for (let i = 3; i <= 7; i++) y = y.add(conv(conv(y, `layers.${i}.a`, 3), `layers.${i}.b`, 3, 1, false, true, false));

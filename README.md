@@ -49,5 +49,5 @@ git config core.quotepath false
 - **ゲームの中身**（名前・文章・キャラクターやステージのデザイン・画像・音・企画書などの文書。コードの中に書かれていても）: CC BY-NC 4.0（`LICENSE-CONTENT`）。作者を表示すれば共有・改変してよく、営利目的には使えません。
 - 実行時に読み込む Planck.js（MIT、恐竜かけっこ牧場の物理）や Google Fonts のフォント（SIL Open Font License。果ての滝の箱庭の DotGothic16 など）は、それぞれのライセンスに従います。
 - 8ビット互換機のブラウン管の画面（`retro-8bit/js/crt/`）は、まなびラボ「ブラウン管のドット絵」のコード（同じ作者・MIT）。その土台の考え方は Timothy Lottes の crt-lottes（パブリックドメイン）。
-- 名画の顔ハメの絵（`face-in-frame/art/`）はパブリックドメイン（出典は `face-in-frame/CREDITS.md`）。顔の読み取りの MediaPipe Tasks Vision とそのモデル（`face-in-frame/vendor/mediapipe/`）は Apache License 2.0（Google）。筆のタッチの TensorFlow.js（`face-in-frame/vendor/tfjs/`）と、Magenta の任意スタイル変換のネットワーク（`face-in-frame/vendor/style-transfer/`、reiinakano/arbitrary-image-stylization-tfjs）も Apache License 2.0。絵ごとの専用モデル（`face-in-frame/vendor/style-models/`）は、このリポジトリの `face-in-frame/tools/train_style.py` で学習したもの。
+- 名画の顔ハメの絵（`face-in-frame/art/`）はパブリックドメイン（出典は `face-in-frame/CREDITS.md`）。顔の読み取りの MediaPipe Tasks Vision とそのモデル（`face-in-frame/vendor/mediapipe/`）は Apache License 2.0（Google）。筆のタッチの TensorFlow.js（`face-in-frame/vendor/tfjs/`）と、Magenta の任意スタイル変換のネットワーク（`face-in-frame/vendor/style-transfer/`、reiinakano/arbitrary-image-stylization-tfjs）も Apache License 2.0。
 - 2026-10-13 より前のコミットは、すべて MIT で公開していました。

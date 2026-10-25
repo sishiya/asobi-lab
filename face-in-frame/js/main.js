@@ -1,11 +1,12 @@
 // 名画の顔ハメ: 画面の流れ・看板の合成・シャッター・けっか。
 // カメラの映像はこの端末の中だけで使う。写真はけっかで「保存」を押したときだけファイルにする。
-import { PAINTINGS } from './paintings.js?v=9';
-import { createLandmarker, readFace, areaBox } from './face.js?v=9';
-import { createBlender, labStats } from './blend.js?v=9';
-import { scoreFace, averageFaces, mark } from './score.js?v=9';
-import { TX, initLang } from './i18n.js?v=9';
-import { loadStyler, stylize, LIVE, PHOTO } from './style.js?v=9';
+import { PAINTINGS } from './paintings.js?v=10';
+import { createLandmarker, readFace, areaBox } from './face.js?v=10';
+import { createBlender, labStats } from './blend.js?v=10';
+import { scoreFace, averageFaces, mark } from './score.js?v=10';
+import { TX, initLang } from './i18n.js?v=10';
+import { loadStyler, stylize, LIVE, PHOTO } from './style.js?v=10';
+import { createHarmonizer } from './harmonize.js?v=10';
 
 const $ = s => document.querySelector(s);
 
@@ -61,6 +62,7 @@ function shutterSound() {
 // ---- 絵の用意: 穴をあけた絵と、穴の中の色 ----
 const loadImg = src => new Promise((ok, ng) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ng; i.src = src; });
 const cache = new Map();
+const harm = createHarmonizer(); // なじませ（周波数で分ける）。WebGL がなければ null
 // くり抜く所は「鼻から下」（目・眉・髪・耳は絵のまま）。v002 で3案を設定で切りかえ、ユーザーが決めた（2026-10-25）
 const area = () => 'nose';
 const keyOf = p => p.id + ':' + area();
@@ -87,44 +89,10 @@ async function prepare(p) {
   const grad = g.createRadialGradient(0, 0, 0, 0, 0, 1);
   grad.addColorStop(0, '#000'); grad.addColorStop(0.84, '#000'); grad.addColorStop(1, 'rgba(0,0,0,0)');
   g.fillStyle = grad; g.beginPath(); g.arc(0, 0, 1, 0, Math.PI * 2); g.fill(); g.restore();
-  // 陰影: 穴の中の絵の明るさを 12×12 にならした地図（灰色 128 が明るさそのまま）。顔の光の当たり方だけが残る
-  const shade = shadeMap(data, bw, bh, (x, y) => inside(x, y, 0.85), 12, false);
-  const out = { p, img, W, H, hx, hy, rx, ry, box, faceW: L.right - L.left, holed: c, dst, shade, sbox: [bx, by, bw, bh] };
+  const low = harm ? harm.lowOf(img, bx, by, bw, bh) : null; // 穴の下の元の絵の顔の、ぼかした成分
+  const out = { p, img, W, H, hx, hy, rx, ry, box, low, faceW: L.right - L.left, holed: c, dst, sbox: [bx, by, bw, bh] };
   cache.set(keyOf(p), out);
   return out;
-}
-
-// 明るさの地図: n×n のますごとの明るさを、まん中（mask の中）の平均とくらべて灰色にする。
-// soft-light で重ねると、明るいますは明るく・暗いますは暗くなる。invert で逆（その陰影を打ち消す）
-function shadeMap(data, w, h, mask, n, invert) {
-  const sum = new Float32Array(n * n), cnt = new Float32Array(n * n);
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    if (!mask(x, y)) continue;
-    const i = (y * w + x) * 4, k = Math.min(n - 1, y * n / h | 0) * n + Math.min(n - 1, x * n / w | 0);
-    sum[k] += data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114; cnt[k]++;
-  }
-  let all = 0, m = 0;
-  for (let k = 0; k < n * n; k++) if (cnt[k]) { all += sum[k] / cnt[k]; m++; }
-  const mean = m ? all / m : 128;
-  // まわりに1ますずつ灰色（そのまま）のふちをつけ、広げて描いたときに境目が出ないようにする
-  const c = Object.assign(document.createElement('canvas'), { width: n + 2, height: n + 2 }), g = c.getContext('2d');
-  g.fillStyle = '#808080'; g.fillRect(0, 0, n + 2, n + 2);
-  const im = g.createImageData(n, n);
-  for (let k = 0; k < n * n; k++) {
-    let d = cnt[k] ? (sum[k] / cnt[k] / mean - 1) : 0;
-    if (invert) d = -d;
-    const v = Math.max(30, Math.min(225, 128 + d * 150));
-    im.data[k * 4] = im.data[k * 4 + 1] = im.data[k * 4 + 2] = v; im.data[k * 4 + 3] = 255;
-  }
-  g.putImageData(im, 1, 1);
-  c.n = n;
-  return c;
-}
-
-// 明るさの地図を、ふちのますの分だけ広げて x・y・w・h の箱に描く
-function drawShade(g, map, x, y, w, h) {
-  const dx = w / map.n, dy = h / map.n;
-  g.imageSmoothingEnabled = true; g.drawImage(map, x - dx, y - dy, w + dx * 2, h + dy * 2);
 }
 
 // ---- カメラと顔 ----
@@ -132,6 +100,11 @@ let video = null, stream = null, lmk = null, blender = null;
 // 確かめ用: ?test=<絵の id> でカメラのかわりに、その絵の顔をゆらして映す（カメラのない所で動きを見る）。
 // &path=align で、ゆらすかわりに「がんばって穴に合わせる」動き（動くサムネイル用。tools/motion-thumb.mjs）
 const QS = new URLSearchParams(location.search), TEST = QS.get('test'), PATH = QS.get('path');
+// &light=明るさ:色温度:肌:ざらつき（例 0.45:0.2:0:0.15＝暗い電球色の部屋）。部屋や肌のちがいでなじみ方を確かめる（tools/light-test.mjs）
+const LIGHT = (QS.get('light') || '1:0:0:0').split(':').map(Number);
+const GRAIN = (() => { const c = Object.assign(document.createElement('canvas'), { width: 256, height: 256 }), g = c.getContext('2d'), d = g.createImageData(256, 256);
+  for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+  g.putImageData(d, 0, 0); return c; })();
 // 絵が出てからの秒 → カメラの中の顔のずれ（dx・dy は画素、k は大きさ、r は度）。行きすぎて、もどって、合う
 const ALIGN = [
   [0, -26, 14, 0.86, -11], [4.0, -26, 14, 0.86, -11], [4.6, 72, -32, 1.18, 9], [5.2, -34, 24, 0.9, -6],
@@ -156,8 +129,16 @@ async function testStream() {
       dx += Math.sin(t * 9) * 1.5; dy += Math.cos(t * 7) * 1.2;      // 手持ちの小さなゆれ
     }
     g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#3a3230'; g.fillRect(0, 0, 640, 480);
-    g.translate(320 + dx, 240 + dy); g.rotate(r * Math.PI / 180); g.scale(s * k, s * k); g.translate(-box.x, -box.y);
+    // 画面は鏡なので、人が画面の絵をまねたときと同じく、絵を左右反転してカメラに映す（画面ではもとの向きにもどる）
+    g.translate(320 + dx, 240 + dy); g.rotate(-r * Math.PI / 180); g.scale(-s * k, s * k); g.translate(-box.x, -box.y);
     g.drawImage(img, 0, 0); g.setTransform(1, 0, 0, 1, 0, 0);
+    const [bright, warm, tone, grain] = LIGHT;
+    if (tone > 0) { g.globalCompositeOperation = 'multiply'; g.globalAlpha = tone; g.fillStyle = '#8a5a3c'; g.fillRect(0, 0, 640, 480); } // 濃い肌
+    if (warm) { g.globalCompositeOperation = 'multiply'; g.globalAlpha = Math.abs(warm); g.fillStyle = warm > 0 ? '#ffb070' : '#8fb4ff'; g.fillRect(0, 0, 640, 480); } // 電球色・青白い光
+    g.globalAlpha = 1;
+    if (bright !== 1) { g.globalCompositeOperation = bright < 1 ? 'multiply' : 'screen'; const v = bright < 1 ? Math.round(255 * bright) : Math.round(255 * (bright - 1)); g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(0, 0, 640, 480); }
+    if (grain > 0) { g.globalCompositeOperation = 'overlay'; g.globalAlpha = grain; g.drawImage(GRAIN, -Math.random() * 100, -Math.random() * 100, 900, 700); g.globalAlpha = 1; } // 暗いときのざらつき
+    g.globalCompositeOperation = 'source-over';
   };
   draw(); setInterval(draw, 33);
   return c.captureStream(30);
@@ -186,7 +167,7 @@ function stopCamera() {
 // ---- 1回のあそび ----
 const stage = $('#stage'), ctx = stage.getContext('2d');
 let run = null;   // { list, i, phase, t0, cur, shots: [] }
-let face = null, smooth = null, recent = [], srcStats = null, srcShade = null, lastStat = 0, lastVT = -1;
+let face = null, smooth = null, recent = [], srcStats = null, lastStat = 0, lastVT = -1;
 
 function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
@@ -266,20 +247,9 @@ function compose(g, cur, scale, live) {
     const pl = placement(cur, gw, gh);
     g.setTransform(scale * pl.k, 0, 0, scale * pl.k, scale * pl.ox, scale * pl.oy);
     g.drawImage(blender.canvas, 0, 0);
-    // 陰影をなじませる: 自分の顔の光の当たり方をうすめてから、絵の顔の陰影をのせる
+    // なじませる: 穴のまわりの明るさ・色・光の当たり方を、元の絵の顔のものに入れかえる（こまかい成分＝表情は残す。js/harmonize.js）
     const amt = BLEND[cfg.blend] || 0;
-    if (amt > 0) {
-      g.save(); g.globalCompositeOperation = 'soft-light';
-      if (srcShade) { // 映像の中の顔のまん中（鏡にしてあるので左右を返す）
-        const [sx, sy, sw, sh] = srcShade.box;
-        g.globalAlpha = amt * 0.7;
-        g.translate(sx + sw / 2, 0); g.scale(-1, 1); drawShade(g, srcShade.map, -sw / 2, sy, sw, sh);
-      }
-      g.restore(); g.save(); g.globalCompositeOperation = 'soft-light';
-      g.setTransform(scale, 0, 0, scale, 0, 0); g.globalAlpha = amt;
-      const [bx, by, bw, bh] = cur.sbox; drawShade(g, cur.shade, bx, by, bw, bh);
-      g.restore();
-    }
+    if (amt > 0 && harm && cur.low) harm.apply(g, holeRect(cur, scale), cur.low, amt);
   }
   const touch = (TOUCH[cfg.touch] || 0) * (cur.p.touchMax ?? 1);
   if (live && styler && styler.live && touch > 0) {
@@ -304,7 +274,6 @@ function measureFace(gw, gh) {
   const w = b.w * 0.6 * f, h = b.h * 0.6 * f, x = (gw - b.x) * f - w / 2, y = b.y * f - h / 2;
   statG.drawImage(video, x, y, w, h, 0, 0, 40, 40);
   const px = statG.getImageData(0, 0, 40, 40).data, round = (i, j) => (i - 19.5) ** 2 + (j - 19.5) ** 2 < 400;
-  srcShade = { map: shadeMap(px, 40, 40, round, 6, true), box: [b.x - b.w * 0.3, b.y - b.h * 0.3, b.w * 0.6, b.h * 0.6] };
   const st = labStats(px, 40, 40, round);
   if (!st) return;
   if (!srcStats) srcStats = st;
@@ -328,6 +297,7 @@ function shoot() {
   const now = performance.now();
   const f = averageFaces(recent.filter(r => now - r.t < 450).map(r => r.f));
   const score = scoreFace(f, cur.p);
+  if (TEST) (window.__shotFaces = window.__shotFaces || []).push(f); // 確かめ用: 撮ったときの顔の数（tools/calibrate.mjs）
   run.shots.push({ p: cur.p, canvas: c, score });
   shutterSound();
   const fl = $('#flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
@@ -382,6 +352,9 @@ requestAnimationFrame(frame);
 const RANKS = [[90, TX('名画そのもの', 'A true masterpiece')], [75, TX('美術館にかざれる', 'Museum-worthy')], [55, TX('なかなかの名優', 'Quite the actor')], [35, TX('あと少し、大げさに', 'A little bigger!')], [0, TX('もっと大げさに！', 'Go bigger!')]];
 function finish() {
   const shots = run.shots; run = null; stopCamera();
+  if (TEST) window.__crops = shots.map(s => { // 確かめ用: 穴のまわりを切り出した写真
+    const [bx, by, bw, bh] = cache.get(keyOf(s.p)).sbox, d = Math.max(bw, bh) * 1.7, c = Object.assign(document.createElement('canvas'), { width: 300, height: 300 });
+    c.getContext('2d').drawImage(s.canvas, bx + bw / 2 - d / 2, by + bh / 2 - d / 2, d, d, 0, 0, 300, 300); return c.toDataURL('image/jpeg', 0.9); });
   const total = Math.round(shots.reduce((a, s) => a + s.score.total, 0) / shots.length);
   $('#total').textContent = total;
   $('#rank').textContent = RANKS.find(r => total >= r[0])[1];
