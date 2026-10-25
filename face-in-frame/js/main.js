@@ -1,11 +1,11 @@
 // 名画の顔ハメ: 画面の流れ・看板の合成・シャッター・けっか。
 // カメラの映像はこの端末の中だけで使う。写真はけっかで「保存」を押したときだけファイルにする。
-import { PAINTINGS } from './paintings.js?v=7';
-import { createLandmarker, readFace, areaBox } from './face.js?v=7';
-import { createBlender, labStats } from './blend.js?v=7';
-import { scoreFace, averageFaces, mark } from './score.js?v=7';
-import { TX, initLang } from './i18n.js?v=7';
-import { loadStyler, stylize, LIVE, PHOTO } from './style.js?v=7';
+import { PAINTINGS } from './paintings.js?v=8';
+import { createLandmarker, readFace, areaBox } from './face.js?v=8';
+import { createBlender, labStats } from './blend.js?v=8';
+import { scoreFace, averageFaces, mark } from './score.js?v=8';
+import { TX, initLang } from './i18n.js?v=8';
+import { loadStyler, stylize, LIVE, PHOTO } from './style.js?v=8';
 
 const $ = s => document.querySelector(s);
 
@@ -281,7 +281,7 @@ function compose(g, cur, scale, live) {
       g.restore();
     }
   }
-  const touch = TOUCH[cfg.touch] || 0;
+  const touch = (TOUCH[cfg.touch] || 0) * (cur.p.touchMax ?? 1);
   if (live && styler && styler.live && touch > 0) {
     g.setTransform(1, 0, 0, 1, 0, 0);
     const r = holeRect(cur, scale);
@@ -317,7 +317,7 @@ function shoot() {
   c.width = cur.W; c.height = cur.H;
   const cg = c.getContext('2d');
   compose(cg, cur, 1);
-  const touch = TOUCH[cfg.touch] || 0;
+  const touch = (TOUCH[cfg.touch] || 0) * (cur.p.touchMax ?? 1);
   if (styler && touch > 0) { // 写真は細かく変換して重ね、穴のあいた絵をのせなおす
     const r = holeRect(cur, 1), out = document.createElement('canvas');
     run.pending = (run.pending || 0) + 1;

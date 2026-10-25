@@ -2,7 +2,7 @@
 // スタイルの特徴（js/styles.js）は事前に計算しておき、ここで使うのは変換のほう（vendor/style-transfer/、2.4MB）だけ。
 // 「筆のタッチ」をなしにしたままなら、TensorFlow.js もモデルも読みこまない。
 // 入力はいつも正方形の LIVE（遊んでいるあいだ）か PHOTO（写真）。大きさが変わるたびに GPU の下ごしらえ（1〜2秒）が走るのをさけるため
-import { STYLES } from './styles.js?v=7';
+import { STYLES } from './styles.js?v=8';
 
 export const LIVE = 224, PHOTO = 448;
 const BASE = new URL('../vendor/', import.meta.url).href;
@@ -44,7 +44,13 @@ async function run(src, [x, y, w, h], id, size, out) {
   const img = tf.tidy(() => {
     const content = tf.browser.fromPixels(tmp).toFloat().div(255).expandDims();
     const style = tf.tensor(STYLES[id], [1, 1, 1, 100]);
-    return net.execute({ Placeholder: content, Placeholder_1: style }).squeeze().clipByValue(0, 1); // 入力は 画像・スタイルの特徴
+    const y = net.execute({ Placeholder: content, Placeholder_1: style }).squeeze(); // 入力は 画像・スタイルの特徴
+    // 明るさと色の散らばりを、もとの顔にもどす（筆づかいの模様だけをもらう。暗い絵で顔が黒ずまないように）
+    // 測るのは正方形のまん中（顔のあたり）だけ。まわりの暗い所で平均がずれないように
+    const q = Math.round(size / 4), mid = t => t.slice([q, q, 0], [size - 2 * q, size - 2 * q, 3]);
+    const x = content.squeeze(), cx = mid(x), cy = mid(y), mx = cx.mean([0, 1]), my = cy.mean([0, 1]);
+    const sx = cx.sub(mx).square().mean([0, 1]).sqrt(), sy = cy.sub(my).square().mean([0, 1]).sqrt().add(1e-3);
+    return y.sub(my).div(sy).mul(sx).add(mx).clipByValue(0, 1);
   });
   out.width = img.shape[1]; out.height = img.shape[0];
   await tf.browser.toPixels(img, out);
