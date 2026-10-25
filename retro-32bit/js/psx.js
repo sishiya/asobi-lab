@@ -3,6 +3,8 @@
 //   KUSEG・KSEG0（80000000〜）・KSEG1（A0000000〜）は同じ物を指す。FFFE0130 などのキャッシュの設定は受け流す
 import { CPU } from './cpu.js';
 import { GPU } from './gpu.js';
+import { GTE } from './gte.js';
+import { SIO } from './pad.js';
 import './raster.js';
 
 export const CLOCK = 33868800;               // 1秒のサイクル
@@ -20,6 +22,8 @@ export class Console32 {
     this.sdv = new DataView(this.scratch.buffer);
     this.gpu = new GPU();
     this.cpu = new CPU(this);
+    this.cpu.gte = new GTE();
+    this.sio = new SIO(() => this.raise(IRQ.PAD));
     this.istat = 0; this.imask = 0;
     this.dma = Array.from({ length: 7 }, () => ({ madr: 0, bcr: 0, chcr: 0 }));
     this.dpcr = 0x07654321; this.dicr = 0;
@@ -44,6 +48,7 @@ export class Console32 {
     this.istat = 0; this.imask = 0; this.dicr = 0;
     const c = this.cpu;
     c.reset(pc);
+    c.gte = new GTE();
     c.cop0[12] = 0;                 // BEV を下ろす（例外は RAM の 80000080 へ）
     c.r[28] = gp; c.r[29] = c.r[30] = sp || 0x801ffff0;
     this.installStub();
@@ -137,6 +142,7 @@ export class Console32 {
       if (r === 4) { const m = t.mode; t.mode &= ~0x1800; return m; } // 読むと「とどいた」の印が消える
       return t.target;
     }
+    if (p >= 0x1f801040 && p < 0x1f801050) return this.sio.read32(p & 0xf);
     if (p === 0x1f801810) return this.gpu.read();
     if (p === 0x1f801814) return this.gpu.stat();
     return 0;
@@ -163,11 +169,13 @@ export class Console32 {
       else if (r === 8) t.target = v & 0xffff;
       return;
     }
+    if (p >= 0x1f801040 && p < 0x1f801050) { this.sio.write16(p & 0xf, v & 0xffff); return; }
     if (p === 0x1f801810) { this.gpu.gp0(v); return; }
     if (p === 0x1f801814) { this.gpu.gp1(v); return; }
     // 音・CD・パッドなどは段階B 以降。いまは受け流す
   }
   io16w(p, v) {
+    if (p >= 0x1f801040 && p < 0x1f801050) { this.sio.write16(p & 0xf, v); return; }
     if (p >= 0x1f801100 && p < 0x1f801130) { this.io32w(p & ~3, v); return; }
     if (p === 0x1f801070 || p === 0x1f801074) { this.io32w(p, v | (p === 0x1f801070 ? 0xffff0000 : 0)); return; }
     // SPU・パッドは段階B・C

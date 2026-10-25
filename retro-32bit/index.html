@@ -9,7 +9,7 @@
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="../assets/no-quirks.css"><script src="../assets/no-quirks.js" defer></script>
-<link rel="stylesheet" href="css/style.css?v=1">
+<link rel="stylesheet" href="css/style.css?v=2">
 </head>
 <body>
 <!-- 区割り: 上 = 機械の名前（右にめったに使わない道具: ことば）、まん中 = 画面、下 = ソフトの札と操作（開く・止める・はじめから） -->
@@ -18,7 +18,7 @@
     <div class="name">
       <small><span lang="ja">あそびラボ</span><span lang="en">Asobi Lab</span></small>
       <h1><span lang="ja">32ビット互換機</span><span lang="en">32-bit Console</span></h1>
-      <span class="ver">ver. 0.1</span>
+      <span class="ver">ver. 0.2</span>
     </div>
     <div class="langsw" role="group" aria-label="言語 Language"><button type="button" data-lang="ja" aria-label="日本語">JP</button><button type="button" data-lang="en" aria-label="English">EN</button></div>
   </header>
@@ -30,7 +30,23 @@
     </div>
   </main>
 
+  <!-- 指のパッド（スマホだけ）。左手＝L・十字キー・SELECT、右手＝R・ひし形の4つ・START -->
+  <div class="pad" id="pad" aria-hidden="true">
+    <div class="hand">
+      <span class="sh" data-btn="L">L</span>
+      <div class="dpad"><span class="u" data-btn="UP"></span><span class="d" data-btn="DOWN"></span><span class="l" data-btn="LEFT"></span><span class="r" data-btn="RIGHT"></span>
+        <span class="ul" data-btn="UP LEFT"></span><span class="ur" data-btn="UP RIGHT"></span><span class="dl" data-btn="DOWN LEFT"></span><span class="dr" data-btn="DOWN RIGHT"></span><i></i></div>
+      <span class="pill" data-btn="SELECT">SELECT</span>
+    </div>
+    <div class="hand right">
+      <span class="sh" data-btn="R">R</span>
+      <div class="face"><span class="y" data-btn="Y">Y</span><span class="x" data-btn="X">X</span><span class="a" data-btn="A">A</span><span class="b" data-btn="B">B</span></div>
+      <span class="pill" data-btn="START">START</span>
+    </div>
+  </div>
+
   <footer class="deck">
+    <p class="keys"><span><kbd>←↑↓→</kbd></span><span><kbd>X</kbd>A</span><span><kbd>Z</kbd>B</span><span><kbd>A</kbd>X</span><span><kbd>S</kbd>Y</span><span><kbd>Q</kbd>L</span><span><kbd>W</kbd>R</span><span><kbd>Enter</kbd>START</span><span><kbd>Shift</kbd>SELECT</span></p>
     <div class="discs" id="discs" role="group" aria-label="ソフト" data-en-label="Software"></div>
     <div class="ctl">
       <button type="button" class="tool" id="btnOpen"><span aria-hidden="true">⏏</span> <span lang="ja">自分のファイルを開く</span><span lang="en">Open your file</span></button>
@@ -38,10 +54,10 @@
       <button type="button" class="tool icon" id="btnReset" aria-label="はじめから" data-en-label="Restart"><span aria-hidden="true">↺</span></button>
       <input type="file" id="file" accept=".exe,application/octet-stream" hidden>
     </div>
-    <p class="note"><span lang="ja">試作（段階A: CPU と絵）。自分のファイルはこの端末の中だけで読み、どこにも送りません。権利を持っているファイルだけを開いてください。</span><span lang="en">Prototype (stage A: CPU and graphics). Your file is read only on this device and never sent anywhere. Open only files you have the rights to.</span>
+    <p class="note"><span lang="ja">試作（段階B: 3D の計算とコントローラー）。自分のファイルはこの端末の中だけで読み、どこにも送りません。権利を持っているファイルだけを開いてください。</span><span lang="en">Prototype (stage B: 3D math and controller). Your file is read only on this device and never sent anywhere. Open only files you have the rights to.</span>
       <a href="../archive.html"><span lang="ja">あそびラボの保管庫へ</span><span lang="en">Asobi Lab archive</span></a></p>
   </footer>
 </div>
-<script type="module" src="js/main.js?v=1"></script>
+<script type="module" src="js/main.js?v=2"></script>
 </body>
 </html>

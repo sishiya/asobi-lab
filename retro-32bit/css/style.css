@@ -36,6 +36,33 @@ button{font:inherit;color:inherit}
 .note{grid-column:1/-1;margin:0;font-size:12px;line-height:1.7;color:var(--muted)}
 .note a{color:var(--ink);margin-left:8px}
 
+/* キーの案内（PC） */
+.keys{grid-column:1/-1;margin:0;display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted)}
+kbd{display:inline-block;min-width:20px;padding:1px 6px;margin-right:4px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;background:var(--panel);color:var(--ink);font:12px/1.5 ui-monospace,monospace;text-align:center}
+
+/* 指のパッド（スマホ）。ふだんは隠す */
+.pad{display:none;justify-content:space-between;align-items:flex-start;gap:12px;user-select:none;-webkit-user-select:none;touch-action:none;width:min(100%,560px);margin:0 auto}
+.hand{display:grid;justify-items:center;gap:10px}
+.dpad{position:relative;width:138px;height:138px}
+.dpad span{position:absolute;width:46px;height:46px}
+.dpad .u,.dpad .d,.dpad .l,.dpad .r{background:#262b3a;border:1px solid var(--line)}
+.dpad .u{left:46px;top:0;border-radius:9px 9px 0 0;border-bottom:0}.dpad .d{left:46px;bottom:0;border-radius:0 0 9px 9px;border-top:0}
+.dpad .l{left:0;top:46px;border-radius:9px 0 0 9px;border-right:0}.dpad .r{right:0;top:46px;border-radius:0 9px 9px 0;border-left:0}
+.dpad .ul{left:0;top:0}.dpad .ur{right:0;top:0}.dpad .dl{left:0;bottom:0}.dpad .dr{right:0;bottom:0}
+.dpad i{position:absolute;left:46px;top:46px;width:46px;height:46px;background:#262b3a}
+.dpad span.on{background:#3d4560}
+.face{position:relative;width:138px;height:138px}
+.face span{position:absolute;width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#fff;background:#2b3142;box-shadow:0 3px 0 #10131b}
+.face .y{left:44px;top:0;color:#7fe0a0}.face .x{left:0;top:44px;color:#8fb4ff}.face .a{right:0;top:44px;color:#ff8f86}.face .b{left:44px;bottom:0;color:#ffd27a}
+.face span.on,.sh.on,.pill.on{filter:brightness(1.5);transform:translateY(2px)}
+.sh{min-width:88px;padding:10px 0;border-radius:10px 10px 4px 4px;background:#262b3a;border:1px solid var(--line);text-align:center;font-weight:700;color:var(--muted)}
+.pill{padding:8px 14px;min-height:36px;border-radius:999px;background:#262b3a;border:1px solid var(--line);font-size:11px;letter-spacing:.08em;color:var(--muted)}
+@media (pointer:coarse){
+  .pad{display:flex}
+  .keys{display:none}
+  .app{grid-template-rows:auto auto auto auto}
+}
+
 @media (max-width:640px){
   .deck{grid-template-columns:1fr}
   .bezel{padding:8px;border-radius:12px}
@@ -48,4 +75,18 @@ button{font:inherit;color:inherit}
   .bezel{padding:6px;border-radius:10px;width:min(100%,calc((100dvh - 70px) * 4 / 3 + 12px))}
   .msg{inset:6px}
   .deck{grid-template-columns:1fr;align-content:center}
+}
+/* スマホの横: 画面をまん中に、左右の手にパッドを分ける。札と操作は上の右に小さく */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:480px){
+  .app{grid-template-columns:150px minmax(0,1fr) 150px;grid-template-rows:auto 1fr;grid-template-areas:'top top top' 'lh stage rh';padding:6px max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left))}
+  .top{grid-area:top}
+  .stage{grid-area:stage}
+  .bezel{width:min(100%,calc((100dvh - 64px) * 4 / 3 + 12px))}
+  .pad{display:contents}
+  .hand{grid-area:lh;align-self:center}
+  .hand.right{grid-area:rh}
+  .deck{position:absolute;top:6px;left:50%;transform:translateX(-50%);width:auto;display:flex;gap:8px}
+  .deck .note,.deck .discs{display:none}
+  .tool{min-height:36px}.tool.icon{width:40px}
+  .top .name small,.top .ver{display:none}
 }

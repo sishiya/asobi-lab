@@ -1,9 +1,11 @@
 // ページ: ソフトの札・自分のファイルを開く・1こまずつ回して画面に出す
 import { Console32 } from './psx.js';
 import { TX, initLang } from './i18n.js';
+import { createInput, bindTouch } from './input.js';
 
 // 棚のソフト（あそびラボのオリジナルだけ。PLAN.md 0章）
 const DISCS = [
+  { id: 'cube', name: TX('光るキューブ', 'Lit Cube'), file: 'discs/cube.exe?v=2' },
   { id: 'spin-tri', name: TX('回る三角形', 'Spinning Triangle'), file: 'discs/spin-tri.exe?v=1' },
 ];
 
@@ -15,6 +17,8 @@ const off = document.createElement('canvas'), offCtx = off.getContext('2d');
 let img = null, running = false, paused = false, lastBuf = null, acc = 0, prev = 0;
 
 initLang();
+const input = createInput();
+bindTouch($('pad'), input);
 
 function show(text) { msg.textContent = text; msg.hidden = !text; }
 
@@ -62,7 +66,7 @@ function loop(t) {
   acc += prev ? Math.min(t - prev, 100) : 1000 / 60; prev = t;
   let n = 0;
   try {
-    while (acc >= 1000 / 60 && n < 4) { m.runFrame(); acc -= 1000 / 60; n++; }
+    while (acc >= 1000 / 60 && n < 4) { input.apply(m); m.runFrame(); acc -= 1000 / 60; n++; }
   } catch (e) { running = false; show(TX('止まりました: ', 'Stopped: ') + e.message); console.error(e); return; }
   if (n) draw();
 }
