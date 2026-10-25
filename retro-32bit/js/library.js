@@ -13,9 +13,9 @@ export const LIBRARY = [
   },
   {
     id: 'dig32', file: 'discs/dig32.exe', title: TX('ほって つんで 3D（試作）', 'Dig and Stack 3D (prototype)'), color: '#6f7a3a',
-    desc: TX('ブロックの島を、自分の目で歩く。掘ったブロックは持ち物に入り、好きな所に積める。',
-      'Walk a block island with your own eyes. Blocks you dig go into your pack, and you can stack them anywhere.'),
-    keys: [['B', TX('掘る（おしつづける）', 'dig (hold)')], ['X', TX('置く', 'place')], ['PAD', TX('↑↓ 前・うしろ ←→ 向き', '↑↓ walk ←→ turn')], ['L', TX('上を見る', 'look up')], ['R', TX('下を見る', 'look down')], ['A', TX('ジャンプ', 'jump')], ['Y', TX('持ち物をかえる', 'next item')]],
+    desc: TX('火山の島を、自分の目で歩く。掘ったブロックで道具を作り、夜をこえて、のろしを島のいちばん高い所に立てて船を呼ぼう。',
+      'Walk a volcanic island with your own eyes. Make tools from the blocks you dig, get through the nights, and raise a signal fire on the highest ground to call a ship.'),
+    keys: [['B', TX('掘る（おしつづける）', 'dig (hold)')], ['X', TX('置く／夜にたき火で休む', 'place / rest at a fire at night')], ['PAD', TX('↑↓ 前・うしろ ←→ 向き', '↑↓ walk ←→ turn')], ['A', TX('ジャンプ', 'jump')], ['SELECT', TX('作る（開く・閉じる）', 'craft (open/close)')], ['Y', TX('持ち物をかえる', 'next item')], ['L', TX('上を見る', 'look up')], ['R', TX('下を見る', 'look down')]],
     frames: 50,
   },
   {

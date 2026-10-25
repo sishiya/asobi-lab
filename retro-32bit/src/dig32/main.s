@@ -26,6 +26,7 @@ B_RIGHT = 0x0020
 B_DOWN  = 0x0040
 B_LEFT  = 0x0080
 B_START = 0x0008
+B_SELECT = 0x0001
 B_L     = 0x0400
 B_R     = 0x0800
 B_Y     = 0x1000
@@ -57,6 +58,31 @@ V_INWAT = 76     ; 水の中
 V_SCL   = 80
 V_NFACE = 84     ; このこまに描いた面の数（確かめ用）
 V_DENY  = 88     ; 置けなかった印を出すのこりのこま
+V_EVT   = 92     ; 音の印（sound.s の EV_〜。sndframe が鳴らして消す）
+V_EVM   = 96     ; 音のブロック（掘る・くずれた・置いたの高さ）
+V_STEPC = 100    ; 足音までの歩いた量
+V_TIME  = 104    ; 1 日の中のこま（0 〜 DAYU × 64）
+V_LVL   = 108    ; 明るさの段（0 昼 〜 7 夜。lvltab から）
+; 描くときの段ごとの数（render の lightset が lighttab から写す）
+V_MODB  = 112    ; この段の modtab
+V_FOG0  = 116
+V_FOGK  = 120
+V_LIGHT = 124
+V_VR2   = 128
+V_FOGC  = 132
+V_FOGRGB = 136
+V_SKYT  = 140
+V_SEA   = 144
+V_CRAFT = 148    ; 作る帯が開いている（開いている間は世界が止まる）
+V_CSEL  = 152    ; 作る帯で選んでいる物（0〜3）
+V_BLADE = 156    ; 火山ガラスの刃を持っている（掘るのが 2 倍の速さ）
+V_DAY   = 160    ; 何日目
+V_WIN   = 164    ; のろしをあげた
+V_WINP  = 168    ; のろしの場所（ブロックの番号）
+V_WINT  = 172    ; のろしをあげてからのこま
+V_SEEN  = 176    ; 作る帯を一度でも開いた（開くまでは、幹を持つと案内が光る）
+V_ACAM  = 180    ; のろしのあと、カメラを水平にして船へ向けるのこりのこま
+V_UPF   = 184    ; のろしを低い所に置いたとき、ねらいの上に ▲ を出すのこりのこま
 
 EYE_H   = 410    ; 目の高さ（1.6 ブロック）
 BODY_H  = 461    ; 体の高さ（1.8）
@@ -92,6 +118,8 @@ start:
   nop
   jal newworld
   nop
+  jal sndinit
+  nop
   li s6, 0
 
 frame:
@@ -106,6 +134,8 @@ frame:
   jal update
   nop
   jal render
+  nop
+  jal sndframe
   nop
   j frame
   nop
@@ -131,9 +161,9 @@ newworld:
   li t0, START_Z
   sw t0, V_CZ(gp)
   sw zero, V_VY(gp)
-  li t0, 128 << 8            ; 向き: −z（島のまん中）を見る
+  li t0, START_YAW << 8      ; 向き: 島のまん中を見る
   sw t0, V_YAW(gp)
-  li t0, -24 << 8            ; 少し下を見る（はじめの B で足もとの草が掘れる）
+  li t0, -10 << 8            ; 少し下を見る（島ののぼりと、手前の地面の両方が見える）
   sw t0, V_PIT(gp)
   li t0, 2
   sw t0, V_SEL(gp)
@@ -145,6 +175,17 @@ newworld:
   sw zero, 12(t0)
   li t1, 5
   sb t1, 2(t0)
+  sw zero, V_CRAFT(gp)
+  sw zero, V_CSEL(gp)
+  sw zero, V_BLADE(gp)
+  sw zero, V_WIN(gp)
+  sw zero, V_WINT(gp)
+  sw zero, V_SEEN(gp)
+  sw zero, V_TIME(gp)
+  sw zero, V_ACAM(gp)
+  sw zero, V_UPF(gp)
+  li t1, 1
+  sw t1, V_DAY(gp)
   li t0, 0xffff
   sw t0, V_DIRTY(gp)
   jal rebuildall
@@ -161,6 +202,172 @@ update:
   sw s0, 4(sp)
   sw s1, 8(sp)
   lw s0, V_PAD(gp)
+  ; ---- 作る帯（SELECT で開く・閉じる。開いている間は世界が止まる）----
+  lw t0, V_EDGE(gp)
+  lw t1, V_CRAFT(gp)
+  andi t2, t0, B_SELECT
+  beqz t2, @nosw
+  nop
+  xori t1, t1, 1
+  sw t1, V_CRAFT(gp)
+  li t2, 1
+  sw t2, V_SEEN(gp)
+  b @frozen
+  nop
+@nosw:
+  beqz t1, @play
+  nop
+  andi t2, t0, B_B           ; B でも閉じる
+  beqz t2, @nb2
+  nop
+  sw zero, V_CRAFT(gp)
+  b @frozen
+  nop
+@nb2:
+  lw t3, V_CSEL(gp)          ; ←→ で選ぶ
+  andi t2, t0, B_LEFT
+  beqz t2, @nl2
+  nop
+  addiu t3, t3, -1
+@nl2:
+  andi t2, t0, B_RIGHT
+  beqz t2, @nr2
+  nop
+  addiu t3, t3, 1
+@nr2:
+  andi t3, t3, 3
+  sw t3, V_CSEL(gp)
+  andi t2, t0, B_A           ; A で作る
+  beqz t2, @frozen
+  nop
+  move a0, t3
+  jal cancraft
+  nop
+  beqz v0, @cdeny
+  nop
+  la t0, recipes             ; 材料をへらす
+  lw t3, V_CSEL(gp)
+  nop
+  sll t1, t3, 3
+  addu t0, t0, t1
+  la t3, inv
+  lbu t1, 2(t0)
+  lbu t2, 3(t0)
+  addu t4, t3, t1
+  lbu t5, 0(t4)
+  nop
+  subu t5, t5, t2
+  sb t5, 0(t4)
+  lbu t1, 4(t0)
+  lbu t2, 5(t0)
+  beqz t1, @one
+  addu t4, t3, t1
+  lbu t5, 0(t4)
+  nop
+  subu t5, t5, t2
+  sb t5, 0(t4)
+@one:
+  lbu t1, 0(t0)              ; できた物を持ち物へ（刃は印だけ）
+  lbu t2, 1(t0)
+  li t5, 13
+  bne t1, t5, @blk
+  nop
+  li t5, 1
+  sw t5, V_BLADE(gp)
+  b @made
+  nop
+@blk:
+  addu t4, t3, t1
+  lbu t5, 0(t4)
+  nop
+  addu t5, t5, t2
+  slti t6, t5, 100
+  bnez t6, @cap
+  nop
+  li t5, 99
+@cap:
+  sb t5, 0(t4)
+  lw t6, V_SEL(gp)           ; 選んでいる物が空なら、できた物を持つ
+  nop
+  addu t7, t3, t6
+  lbu t7, 0(t7)
+  nop
+  bnez t7, @made
+  nop
+  sw t1, V_SEL(gp)
+@made:
+  lw t0, V_EVT(gp)
+  nop
+  ori t0, t0, EV_MADE
+  sw t0, V_EVT(gp)
+  b @frozen
+  nop
+@cdeny:
+  lw t0, V_EVT(gp)
+  nop
+  ori t0, t0, EV_DENY
+  sw t0, V_EVT(gp)
+  b @frozen
+  nop
+@play:
+  ; 時刻をすすめて、明るさの段を決める（1 日が回ったら何日目をふやす）
+  lw t0, V_TIME(gp)
+  li t1, DAYU * 64
+  addiu t0, t0, 1
+  slt t2, t0, t1
+  bnez t2, @tok
+  nop
+  lw t2, V_DAY(gp)
+  nop
+  addiu t2, t2, 1
+  sw t2, V_DAY(gp)
+  li t0, 0
+@tok:
+  sw t0, V_TIME(gp)
+  srl t0, t0, 6
+  la t1, lvltab
+  addu t1, t1, t0
+  lbu t1, 0(t1)
+  nop
+  sw t1, V_LVL(gp)
+  lw t0, V_WIN(gp)           ; のろしをあげてからの時間（船が近づく）
+  lw t1, V_WINT(gp)
+  beqz t0, @nowin
+  nop
+  addiu t1, t1, 1
+  sw t1, V_WINT(gp)
+@nowin:
+  lw t0, V_UPF(gp)
+  nop
+  blez t0, @noupf
+  nop
+  addiu t0, t0, -1
+  sw t0, V_UPF(gp)
+@noupf:
+  ; のろしのあと: 上下を水平へ、向きを船の方角へ、1/8 ずつ（遊ぶ人がいちばんのごほうびを見のがさないように）
+  lw t0, V_ACAM(gp)
+  nop
+  blez t0, @noacam
+  nop
+  addiu t0, t0, -1
+  sw t0, V_ACAM(gp)
+  lw t1, V_PIT(gp)
+  nop
+  sra t2, t1, 3
+  subu t1, t1, t2
+  sw t1, V_PIT(gp)
+  lw t1, V_YAW(gp)
+  li t2, SHIPYAW << 8
+  subu t2, t2, t1
+  sll t2, t2, 16
+  sra t2, t2, 16             ; −32768〜32767 に
+  sra t2, t2, 3
+  addu t1, t1, t2
+  andi t1, t1, 0xffff
+  sw t1, V_YAW(gp)
+  b @frozen                  ; 向きを変えている間は歩かない
+  nop
+@noacam:
   ; 向き（←→）と、上下（L・R）
   lw t0, V_YAW(gp)
   andi t1, s0, B_LEFT
@@ -214,6 +421,21 @@ update:
 @nb:
   beqz s1, @nomove
   nop
+  lw t0, V_ONG(gp)           ; 足音: 地面を歩いた量がたまったら
+  lw t1, V_STEPC(gp)
+  beqz t0, @nostep
+  nop
+  addiu t1, t1, SPEED
+  slti t0, t1, 150
+  bnez t0, @nostep
+  nop
+  li t1, 0
+  lw t0, V_EVT(gp)
+  nop
+  ori t0, t0, EV_STEP
+  sw t0, V_EVT(gp)
+@nostep:
+  sw t1, V_STEPC(gp)
   lw a0, V_YAW(gp)
   nop
   srl a0, a0, 8
@@ -317,6 +539,14 @@ update:
   sw zero, V_VY(gp)
   bgtz t0, @oky              ; 頭をぶつけた
   nop
+  slti t1, t0, -24           ; 速く落ちてきたら着地の音
+  beqz t1, @soft
+  nop
+  lw t1, V_EVT(gp)
+  nop
+  ori t1, t1, EV_LAND
+  sw t1, V_EVT(gp)
+@soft:
   li t1, 1
   sw t1, V_ONG(gp)
 @oky:
@@ -361,13 +591,28 @@ update:
   lbu t5, 0(t5)
   lw t6, V_DIGP(gp)
   nop
+  lw t7, V_BLADE(gp)         ; 火山ガラスの刃があれば 2 倍の速さ
   addiu t6, t6, 1
+  addu t6, t6, t7
   sw t6, V_DIGP(gp)
+  andi t7, t6, 7             ; 掘りぐあいが 8 すすむごとに「ざくっ」
+  li t8, 2
+  bne t7, t8, @nosnd
+  nop
+  lw t7, V_EVT(gp)
+  sw t4, V_EVM(gp)
+  ori t7, t7, EV_DIG
+  sw t7, V_EVT(gp)
+@nosnd:
   slt t7, t6, t5
   bnez t7, @digdone
   nop
   ; 掘れた: 空気にして、持ち物へ
   sb zero, 0(t3)
+  lw t7, V_EVT(gp)
+  sw t4, V_EVM(gp)
+  ori t7, t7, EV_BREAK
+  sw t7, V_EVT(gp)
   la t5, dropof
   addu t5, t5, t4
   lbu t5, 0(t5)
@@ -404,12 +649,34 @@ update:
   addiu t1, t1, -1
   sw t1, V_DIGP(gp)
 @digdone:
-  ; ---- 置く（X）----
+  ; ---- 置く（X）。夜にたき火をねらって X なら、朝までとばす ----
   lw t0, V_EDGE(gp)
   nop
   andi t0, t0, B_X
   beqz t0, @noplace
   nop
+  lw t0, V_TGT(gp)
+  la t1, world
+  bltz t0, @nofire
+  addu t1, t1, t0
+  lbu t1, 0(t1)
+  li t2, 11
+  bne t1, t2, @nofire
+  nop
+  lw t1, V_LVL(gp)
+  nop
+  slti t1, t1, 4
+  bnez t1, @nofire
+  nop
+  li t1, DAWNT
+  sw t1, V_TIME(gp)
+  lw t1, V_EVT(gp)
+  nop
+  ori t1, t1, EV_MADE
+  sw t1, V_EVT(gp)
+  b @noplace
+  nop
+@nofire:
   lw t0, V_PLC(gp)
   lw t1, V_SEL(gp)
   bltz t0, @deny
@@ -436,6 +703,10 @@ update:
 @deny:
   li t0, 24
   sw t0, V_DENY(gp)
+  lw t0, V_EVT(gp)
+  nop
+  ori t0, t0, EV_DENY
+  sw t0, V_EVT(gp)
   b @noplace
   nop
 @placed:
@@ -443,6 +714,42 @@ update:
   nop
   addiu t3, t3, -1
   sb t3, 0(t2)
+  lw t0, V_SEL(gp)
+  lw t1, V_EVT(gp)
+  sw t0, V_EVM(gp)
+  ori t1, t1, EV_PLACE
+  sw t1, V_EVT(gp)
+  li t2, 12                  ; のろしを島のいちばん高い地面の高さ以上に置いたら、船を呼べた
+  bne t0, t2, @nowin2
+  nop
+  lw t2, V_PLC(gp)
+  lw t3, V_WIN(gp)
+  srl t4, t2, 10
+  bnez t3, @nowin2
+  slti t4, t4, SUMMIT
+  bnez t4, @nowin2
+  nop
+  li t3, 1
+  sw t3, V_WIN(gp)
+  sw t2, V_WINP(gp)
+  sw zero, V_WINT(gp)
+  li t3, 90
+  sw t3, V_ACAM(gp)
+  ori t1, t1, EV_WIN
+  sw t1, V_EVT(gp)
+  b @placeok
+  nop
+@nowin2:
+  li t2, 12                  ; のろしを低い所に置いた: ねらいの上に ▲（もっと高い所へ）
+  bne t0, t2, @placeok
+  nop
+  lw t3, V_WIN(gp)
+  nop
+  bnez t3, @placeok
+  nop
+  li t3, 40
+  sw t3, V_UPF(gp)
+@placeok:
   lw a0, V_PLC(gp)
   jal markdirty
   nop
@@ -462,10 +769,10 @@ update:
   nop
   lw t1, V_SEL(gp)
   la t3, inv
-  li t4, 9
+  li t4, 13
 @sl:
   addiu t1, t1, 1
-  slti t2, t1, 9
+  slti t2, t1, 13
   bnez t2, @sl2
   nop
   li t1, 1
@@ -482,6 +789,7 @@ update:
 @slok:
   sw t1, V_SEL(gp)
 @nosel:
+@frozen:
   jal rebuilddirty
   nop
   lw ra, 0(sp)
@@ -721,3 +1029,42 @@ aim:
   lw s4, 20(sp)
   jr ra
   addiu sp, sp, 24
+
+; a0 = 作る物の番号 → v0 = 作れるなら 1（材料が足りる・刃はまだ持っていない）
+cancraft:
+  la t0, recipes
+  sll t1, a0, 3
+  addu t0, t0, t1
+  lbu t1, 0(t0)
+  li t2, 13
+  bne t1, t2, @c1
+  nop
+  lw t2, V_BLADE(gp)
+  nop
+  bnez t2, @no
+  nop
+@c1:
+  la t3, inv
+  lbu t1, 2(t0)
+  lbu t2, 3(t0)
+  addu t4, t3, t1
+  lbu t4, 0(t4)
+  nop
+  slt t4, t4, t2
+  bnez t4, @no
+  nop
+  lbu t1, 4(t0)
+  lbu t2, 5(t0)
+  beqz t1, @yes
+  addu t4, t3, t1
+  lbu t4, 0(t4)
+  nop
+  slt t4, t4, t2
+  bnez t4, @no
+  nop
+@yes:
+  jr ra
+  li v0, 1
+@no:
+  jr ra
+  li v0, 0

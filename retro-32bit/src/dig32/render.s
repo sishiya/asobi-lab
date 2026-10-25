@@ -3,11 +3,10 @@
 NEAR    = 40             ; これより手前の点がある面は描かない（手前の切れ目）
 LODZ    = 2048           ; これより遠い面は、模様をやめて霧にまぜた一色（8 ブロック）
 AOZ     = 1536           ; これより近い面だけ、すみの陰（グーロー）をつける（6 ブロック）
-FOG0    = 1024           ; 霧がかかりはじめる所（4 ブロック）。FARZ − FOG0 = 4096
 FARZ    = 5120           ; 霧でいちばん白くなる所（20 ブロック）
-VIEWR   = 22             ; チャンクのまん中がこれより遠ければ描かない（ブロック）
+; 見える広さ・霧のはじまりと長さ・霧の上限・明るさは、昼と夜の段ごと（data.mjs の LEVELS → lighttab → V_〜）
 MAXDRAW = 1400           ; 1 こまに描く面のいちばん多い数（近いチャンクから描くので、あふれるのは遠く）
-; 霧の色 FOG_R・FOG_G・FOG_B は data.mjs（倍率の表と同じ色を使うため）
+SHIPYAW = 200            ; のろしのあと船が来る方角（256 で 1 周）
 TPAGE   = 10             ; 模様のページ（VRAM の x = 640）・4 ビット
 
 gteinit:
@@ -17,12 +16,39 @@ gteinit:
   ctc2 t0, 26                ; H（横の見える広さ ≒ 90 度）
   li t0, 1024
   ctc2 t0, 30                ; ZSF4 = 1/4（4 点の平均）
-  li t0, FOG_R * 16          ; 遠くの色（DPCS で霧にまぜる）
-  ctc2 t0, 21
-  li t0, FOG_G * 16
-  ctc2 t0, 22
-  li t0, FOG_B * 16
-  ctc2 t0, 23
+  jr ra
+  nop
+
+; 明るさの段（V_LVL）の数を lighttab から V_〜 へ写し、霧の色を GTE の FC へ（毎こま、描くまえに）
+lightset:
+  lw t0, V_LVL(gp)
+  la t1, lighttab
+  sll t2, t0, 5
+  sll t0, t0, 4
+  addu t0, t0, t2            ; × 48
+  addu t1, t1, t0
+  addiu t2, gp, V_MODB
+  li t3, 9
+@ls:
+  lw t0, 0(t1)
+  addiu t1, t1, 4
+  sw t0, 0(t2)
+  addiu t3, t3, -1
+  bnez t3, @ls
+  addiu t2, t2, 4
+  lw t0, V_FOGRGB(gp)        ; 遠くの色（DPCS で霧にまぜる）= 霧の色 × 16
+  nop
+  andi t1, t0, 255
+  sll t1, t1, 4
+  ctc2 t1, 21
+  srl t1, t0, 8
+  andi t1, t1, 255
+  sll t1, t1, 4
+  ctc2 t1, 22
+  srl t1, t0, 16
+  andi t1, t1, 255
+  sll t1, t1, 4
+  ctc2 t1, 23
   jr ra
   nop
 
@@ -32,10 +58,10 @@ texupload:
   sw t0, GP0(s7)
   li t0, 640                 ; (640, 0)
   sw t0, GP0(s7)
-  li t0, (16 << 16) | 64     ; 64 × 16
+  li t0, (32 << 16) | 64     ; 64 × 32（2 段）
   sw t0, GP0(s7)
   la t1, texdata
-  li t2, 64 * 16 / 2
+  li t2, 64 * 32 / 2
 @t:
   lw t0, 0(t1)
   addiu t1, t1, 4
@@ -70,6 +96,8 @@ render:
   sw s4, 20(sp)
   sw s5, 24(sp)
   sw fp, 28(sp)
+  jal lightset
+  nop
   jal sky
   nop
   ; 回す行列 = 上下（x のまわり）×向き（y のまわり）。どちらも逆向きに回して、見る向きを +z に
@@ -135,7 +163,9 @@ render:
   mult t1, t1
   mflo t3
   addu t2, t2, t3
-  slti t2, t2, VIEWR * VIEWR
+  lw t3, V_VR2(gp)
+  nop
+  slt t2, t2, t3
   beqz t2, @nextchunk
   nop
   sw t9, 36(sp)              ; チャンクの番号
@@ -363,7 +393,12 @@ render:
   addu t6, t6, t4
   lbu a3, 0(t6)              ; 向きの明るさ
   ; 霧の割合 t =（奥行き − FOG0）を 0〜4096 に（近い面も遠い面も同じ t で霧の色へまぜる）
-  addiu t0, a1, -FOG0
+  lw t0, V_FOG0(gp)
+  lw t1, V_FOGK(gp)
+  subu t0, a1, t0
+  mult t0, t1
+  mflo t0
+  sra t0, t0, 8              ; ×（4096 / 霧の長さ）
   bgez t0, @f0
   nop
   li t0, 0
@@ -376,10 +411,12 @@ render:
   mult t0, t0                ; 2 乗にして、近くはうすく遠くで急に濃く（中ほどの木が透けて見えないように）
   mflo t0
   srl t0, t0, 12
-  slti t1, t0, 2662          ; 霧は 65% まで（遠くの木が空に溶けて透けて見えないように）
-  bnez t1, @f0c
+  lw t1, V_FOGC(gp)          ; 霧の上限（昼は 65%＝遠くの木が空に溶けて透けて見えないように、夜は 100%）
   nop
-  li t0, 2662
+  slt t2, t0, t1
+  bnez t2, @f0c
+  nop
+  move t0, t1
 @f0c:
   slti t7, a1, LODZ
   beqz t7, @flat
@@ -388,7 +425,11 @@ render:
   ;   ねらい = 平均 × 明るさ / 128 ×（1 − t）+ 霧の色 × t、倍率 = ねらい × 128 / 平均（255 まで）
   ;   遠くの一色（平均 × 明るさを DPCS で霧へ）と同じ式なので、切りかわりで絵が飛ばない
   ; 倍率は表から（模様 × 向き × 霧の 17 段。data.mjs で、遠くの一色と同じ式で作ってある）
-  la t6, modtab
+  li t6, 11
+  bne t5, t6, @lit
+  lw t6, V_MODB(gp)          ; この段の表
+  la t6, modtab              ; たき火は自分で光る（昼の明るさの表のまま）
+@lit:
   li t7, 6
   mult a2, t7
   mflo t7
@@ -477,6 +518,15 @@ render:
   nop
 @flat:
   ; ---- 遠い: 霧にまぜた一色の四角（0x28）。色 = 模様の平均 × 明るさ を、遠さの割合で霧の色へ（GTE の DPCS）----
+  li t6, 11                  ; たき火は暗くしない
+  beq t5, t6, @nolight
+  nop
+  lw t6, V_LIGHT(gp)
+  nop
+  mult a3, t6
+  mflo a3
+  srl a3, a3, 8              ; 向きの明るさ × 段の明るさ
+@nolight:
   la t6, texavg
   sll t7, a2, 2
   addu t6, t6, t7
@@ -565,6 +615,8 @@ render:
   li t1, 0x01000000
   and t0, t0, t1
   bnez t0, @dma
+  nop
+  jal smoke
   nop
   jal outline
   nop
@@ -665,15 +717,16 @@ sky:
 @h2:
   sll t3, t3, 16             ; y を上の 16 ビットへ
   ; 空
-  li t0, 0x38e0a058          ; 上の色（青）
+  lw t0, V_SKYT(gp)          ; 上の色（段ごと）
+  lui t1, 0x3800
+  or t1, t1, t0
+  sw t1, GP0(s7)
+  li t1, 0xff88ff60
+  sw t1, GP0(s7)
   sw t0, GP0(s7)
-  li t0, 0xff88ff60
-  sw t0, GP0(s7)
-  li t0, 0x00e0a058
-  sw t0, GP0(s7)
-  li t0, 0xff8800a0
-  sw t0, GP0(s7)
-  li t0, (FOG_B << 16) | (FOG_G << 8) | FOG_R
+  li t1, 0xff8800a0
+  sw t1, GP0(s7)
+  lw t0, V_FOGRGB(gp)
   sw t0, GP0(s7)
   li t1, 0xff60
   or t1, t1, t3
@@ -682,7 +735,7 @@ sky:
   ori t1, t3, 0x00a0
   sw t1, GP0(s7)
   ; 海
-  li t0, (FOG_B << 16) | (FOG_G << 8) | FOG_R
+  lw t0, V_FOGRGB(gp)
   li t1, 0x38000000
   or t1, t1, t0
   sw t1, GP0(s7)
@@ -692,13 +745,83 @@ sky:
   sw t0, GP0(s7)
   ori t1, t3, 0x00a0
   sw t1, GP0(s7)
-  li t0, 0x00a06830          ; 手前の海の色
+  lw t0, V_SEA(gp)           ; 手前の海の色（段ごと）
   sw t0, GP0(s7)
   li t1, 0x0078ff60
   sw t1, GP0(s7)
   sw t0, GP0(s7)
   li t1, 0x007800a0
   sw t1, GP0(s7)
+  lw t0, V_WIN(gp)
+  nop
+  beqz t0, @noship
+  nop
+  sra t8, t3, 16             ; 水平線の y
+  lw a0, V_YAW(gp)
+  li t0, SHIPYAW
+  srl a0, a0, 8
+  subu a0, t0, a0
+  andi a0, a0, 255
+  slti t0, a0, 128
+  bnez t0, @sd
+  nop
+  addiu a0, a0, -256
+@sd:
+  slti t0, a0, 40            ; 見ている向きから ±56° の中だけ
+  beqz t0, @noship
+  nop
+  slti t0, a0, -39
+  bnez t0, @noship
+  nop
+  andi a0, a0, 255
+  jal sincos
+  nop
+  li t2, 160
+  mult t0, t2
+  mflo t0
+  div t0, t1
+  mflo t7                    ; 船の x
+  lw t5, V_WINT(gp)
+  nop
+  srl t5, t5, 8
+  addiu t5, t5, 2
+  slti t0, t5, 8
+  bnez t0, @ss
+  nop
+  li t5, 8                   ; 大きさ s（2 → 8）
+@ss:
+  li t0, 3                   ; 船体: 幅 6s・高さ s
+  mult t5, t0
+  mflo t0
+  subu t1, t7, t0
+  andi t1, t1, 0xffff
+  subu t2, t8, t5
+  sll t2, t2, 16
+  or a0, t1, t2
+  sll t0, t0, 1
+  sll t1, t5, 16
+  or a1, t0, t1
+  li a2, 0x60283040
+  sw a2, GP0(s7)
+  sw a0, GP0(s7)
+  sw a1, GP0(s7)
+  srl t0, t5, 1              ; 帆: 幅 s・高さ 3s
+  subu t1, t7, t0
+  andi t1, t1, 0xffff
+  sll t0, t5, 2
+  subu t2, t8, t0
+  sll t2, t2, 16
+  or a0, t1, t2
+  li t0, 3
+  mult t5, t0
+  mflo t0
+  sll t0, t0, 16
+  or a1, t0, t5
+  li a2, 0x60d8e0e8
+  sw a2, GP0(s7)
+  sw a0, GP0(s7)
+  sw a1, GP0(s7)
+@noship:
   jr t9
   nop
 
@@ -834,11 +957,12 @@ outline:
 ; ねらいの印（4 つの点）・置けなかった ×・持ち物の札（ブロック 2〜8: 土・石・砂・幹・葉・板・黒曜石）
 ;   腰袋: 持っている物だけを左下にたてに積む（元のゲームの下の横の列にしない）。札は角を落とした四角、選んでいる札だけ 4 点右へ出て明るい。数は絵の下のまん中
 hud:
-  addiu sp, sp, -16
+  addiu sp, sp, -24          ; 16 = いちばん上の札の y・20 = s3
   sw ra, 0(sp)
   sw s0, 4(sp)
   sw s1, 8(sp)
   sw s2, 12(sp)
+  sw s3, 20(sp)
   li a2, 0x60f0f0f0          ; ねらいの印: まわりに 2×2 の点を 4 つ、まん中に 1 点
   li a1, 0x00020002
   li a0, 0xfffbfffb          ; (−5, −5)
@@ -882,6 +1006,51 @@ hud:
   bnez t6, @dl
   addiu t6, t6, -1
 @nodeny:
+  lw t0, V_UPF(gp)           ; のろしを低い所に置いた: ねらいの上に ▲
+  nop
+  blez t0, @noupf
+  nop
+  li a2, 0x6040b0f0
+  li a0, 0xfff00000          ; (0, −16)
+  li a1, 0x00010001
+  bal rect
+  nop
+  li a0, 0xfff1ffff
+  li a1, 0x00010003
+  bal rect
+  nop
+  li a0, 0xfff2fffe
+  li a1, 0x00010005
+  bal rect
+  nop
+  li a0, 0xfff3fffd
+  li a1, 0x00010007
+  bal rect
+  nop
+@noupf:
+  lw t0, V_TGT(gp)           ; 夜にたき火をねらっている: ねらいの右上に月（X で休める）
+  la t1, world
+  bltz t0, @nomoon
+  addu t1, t1, t0
+  lbu t1, 0(t1)
+  li t2, 11
+  bne t1, t2, @nomoon
+  nop
+  lw t1, V_LVL(gp)
+  nop
+  slti t1, t1, 4
+  bnez t1, @nomoon
+  nop
+  li a2, 0x60e0d8c8
+  li a0, 0xfff70009          ; (9, −9)
+  li a1, 0x00040006
+  bal rect
+  nop
+  li a0, 0xfff6000a
+  li a1, 0x00060004
+  bal rect
+  nop
+@nomoon:
   li t0, 0xe100020a          ; スプライトは模様のページで（ディザも）
   sw t0, GP0(s7)
   ; 腰袋: 持っている物だけを、左下にたてに積む（上から ブロックの番号の順。いちばん下の札の上が y = 82）
@@ -893,7 +1062,7 @@ hud:
   lbu t3, 0(t3)
   addiu t1, t1, 1
   beqz t3, @cn
-  slti t4, t1, 9
+  slti t4, t1, 13
   addiu t2, t2, 1
 @cn:
   bnez t4, @cnt
@@ -919,11 +1088,18 @@ hud:
   b @pdone
   nop
 @some:
+  slti t3, t2, 7             ; 6 枚をこえたら 2 列目へ（高さは 6 枚まで）
+  bnez t3, @le6
+  nop
+  li t2, 6
+@le6:
   li t3, 30                  ; 札の間
   mult t2, t3
   mflo t3
-  li s1, 112
-  subu s1, s1, t3            ; いちばん上の札の y（82 − (数 − 1) × 30）
+  li t4, 112
+  subu t4, t4, t3            ; いちばん上の札の y（82 − (数 − 1) × 30）
+  sw t4, 16(sp)
+  li s3, 0                   ; 何枚目
   li s0, 2
 @slot:
   la t4, inv
@@ -932,12 +1108,25 @@ hud:
   nop
   beqz t4, @next
   nop
+  li s2, -152                ; 札の左の x（2 列目は 24 点右。選んでいる札は 4 点右へ出て明るい）
+  move t1, s3
+  slti t0, s3, 6
+  bnez t0, @c0
+  nop
+  li s2, -126
+  addiu t1, s3, -6
+@c0:
+  li t0, 30
+  mult t1, t0
+  mflo t1
+  lw t0, 16(sp)
+  nop
+  addu s1, t0, t1
   lw t0, V_SEL(gp)
-  li s2, -152                ; 札の左の x（選んでいる札は 4 点右へ出て明るい）
   li a2, 0x62202020
   bne t0, s0, @bg
   nop
-  li s2, -148
+  addiu s2, s2, 4
   li a2, 0x60c8dcd8
 @bg:
   ; 角を落とした札（20 × 28）: 横長の四角とたて長の四角を重ねる
@@ -964,16 +1153,12 @@ hud:
   sll t3, t3, 16
   or t2, t2, t3
   sw t2, GP0(s7)
-  la t5, texside
+  la t5, icontab
   addu t5, t5, s0
   lbu t5, 0(t5)
+  jal spruv
   nop
-  sll t6, t5, 4              ; u
-  addiu t7, t5, 20
-  ori t7, t7, 240 << 6       ; CLUT
-  sll t7, t7, 16
-  or t6, t6, t7
-  sw t6, GP0(s7)
+  sw v0, GP0(s7)
   ; 数は絵の下のまん中に（1 けたは 8 点、2 けたは 5 点右から）
   lw t0, V_SEL(gp)
   move a0, t4
@@ -993,19 +1178,434 @@ hud:
   sw t0, V_SCL(gp)
   jal num
   nop
-  addiu s1, s1, 30
+  addiu s3, s3, 1
 @next:
   addiu s0, s0, 1
-  slti t0, s0, 9
+  slti t0, s0, 13
   bnez t0, @slot
   nop
 @pdone:
+  ; ---- 上のまん中: 何日目（昼は太陽・夜は月の丸と、数）----
+  lw t0, V_LVL(gp)
+  li a2, 0x6040c8f0          ; 太陽
+  slti t0, t0, 4
+  bnez t0, @sun
+  nop
+  li a2, 0x60e0d8c8          ; 月
+@sun:
+  li a0, 0xff8dfff0          ; 角を落とした丸（7 × 5 と 5 × 7）
+  li a1, 0x00050007
+  bal rect
+  nop
+  li a0, 0xff8cfff1
+  li a1, 0x00070005
+  bal rect
+  nop
+  lw a0, V_DAY(gp)
+  li a1, -6
+  li a2, -116
+  li a3, 0x00f8f8f8
+  li t0, 1
+  sw t0, V_SCL(gp)
+  jal num
+  nop
+  lw t0, V_CRAFT(gp)         ; 作る帯
+  nop
+  beqz t0, @nocraft
+  nop
+  jal crafthud
+  nop
+  b @hdone
+  nop
+@nocraft:
+  ; ---- いまやることの札（下のまん中に 1 つだけ。中身はそのときやることに替える）----
+  ;   のろしを持っている → のろしの絵と ▲（いまの高さが頂上と同じなら緑）
+  ;   幹があり、作る帯を開いたことがない → [SELECT の形] [板]
+  ;   夕方・夜で、たき火を作れるのに持っていない → [SELECT の形] [たき火]
+  la t1, inv
+  lbu t0, 12(t1)
+  nop
+  beqz t0, @h2
+  nop
+  li t1, 0x7c808080          ; のろしの絵
+  sw t1, GP0(s7)
+  li t1, 0x005cffec          ; (−20, 92)
+  sw t1, GP0(s7)
+  li t5, 20
+  jal spruv
+  nop
+  sw v0, GP0(s7)
+  lw t0, V_CY(gp)            ; ▲: 足もとの高さが頂上の高さなら緑、まだなら白
+  li a2, 0x60e0e0e0
+  sra t0, t0, 8
+  slti t0, t0, SUMMIT
+  bnez t0, @tri
+  nop
+  li a2, 0x6060e070
+@tri:
+  li a0, 0x00600006          ; (6, 96) から 1・3・5・7 点の横線で ▲
+  li a1, 0x00010001
+  bal rect
+  nop
+  li a0, 0x00610005
+  li a1, 0x00010003
+  bal rect
+  nop
+  li a0, 0x00620004
+  li a1, 0x00010005
+  bal rect
+  nop
+  li a0, 0x00630003
+  li a1, 0x00010007
+  bal rect
+  nop
+  li a0, 0x00640005          ; ▲ の柱
+  li a1, 0x00040003
+  bal rect
+  nop
+  b @hdone
+  nop
+@h2:
+  lw t0, V_SEEN(gp)
+  lbu t2, 5(t1)
+  bnez t0, @h3
+  nop
+  beqz t2, @h3
+  nop
+  li t5, 8                   ; 板
+  b @hsel
+  nop
+@h3:
+  lw t0, V_LVL(gp)
+  lbu t2, 11(t1)             ; たき火を持っているか
+  beqz t0, @hdone            ; 昼は出さない
+  nop
+  bnez t2, @hdone
+  nop
+  li a0, 1
+  jal cancraft
+  nop
+  beqz v0, @hdone
+  nop
+  li t5, 16                  ; たき火
+@hsel:
+  ; [SELECT の形] → [できる物]（ボタンは左・結果は右）。ゆっくり点滅し、消えている間もうすく残す
+  lw t0, V_BLINK(gp)
+  li a2, 0x60c8c8c8
+  andi t0, t0, 64
+  bnez t0, @hb
+  nop
+  li a2, 0x62707070
+@hb:
+  li a0, 0x0061ffe8          ; (−24, 97) 細長い丸い札
+  li a1, 0x00060010
+  bal rect
+  nop
+  li a0, 0x0060ffe9
+  li a1, 0x0008000e
+  bal rect
+  nop
+  lw t0, V_BLINK(gp)
+  li t1, 0x7c808080
+  andi t0, t0, 64
+  bnez t0, @hb2
+  nop
+  li t1, 0x7c505050
+@hb2:
+  sw t1, GP0(s7)
+  li t1, 0x005c0000          ; (0, 92)
+  sw t1, GP0(s7)
+  jal spruv
+  nop
+  sw v0, GP0(s7)
+@hdone:
   lw ra, 0(sp)
   lw s0, 4(sp)
   lw s1, 8(sp)
   lw s2, 12(sp)
+  lw s3, 20(sp)
   jr ra
-  addiu sp, sp, 16
+  addiu sp, sp, 24
+
+; t5 = 模様の番号 → v0 = スプライトの uv と CLUT の語（2 段の模様にも）
+spruv:
+  andi v0, t5, 15
+  sll v0, v0, 4              ; u
+  srl t7, t5, 4
+  sll t7, t7, 12             ; v（16 点 × 段）<< 8
+  or v0, v0, t7
+  addiu t7, t5, 20
+  ori t7, t7, 240 << 6       ; CLUT
+  sll t7, t7, 16
+  jr ra
+  or v0, v0, t7
+
+; 作る帯: 下のまん中に 4 品（板・たき火・火山ガラスの刃・のろし）。絵の下に材料の小さな絵と数（足りなければ赤）
+;   作れる物は明るく、作れない物は暗く。選んでいる札は明るい地で 4 点上
+crafthud:
+  addiu sp, sp, -24
+  sw ra, 0(sp)
+  sw s0, 4(sp)
+  sw s1, 8(sp)
+  sw s2, 12(sp)
+  sw s3, 16(sp)
+  li a2, 0x62101010          ; 帯の下じき
+  li a0, 0x0032ff98          ; (−104, 50)
+  li a1, 0x004600d0          ; 208 × 70
+  bal rect
+  nop
+  li s0, 0
+@r:
+  move a0, s0
+  jal cancraft
+  nop
+  move s3, v0                ; 作れるか
+  sll t0, s0, 5
+  sll t1, s0, 4
+  addu t0, t0, t1
+  addiu s1, t0, -100         ; 札の左の x（48 ごと）
+  lw t0, V_CSEL(gp)
+  li s2, 56                  ; 札の上の y
+  bne t0, s0, @rb
+  nop
+  li a2, 0x60f0f0f0          ; 選んでいる札: 白い太わく（2 点）と、下に「A」の札
+  addiu t2, s2, -2
+  sll t2, t2, 16
+  addiu t3, s1, -2
+  andi t3, t3, 0xffff
+  or a0, t2, t3
+  li a1, 0x00320030          ; 48 × 50
+  bal rect
+  nop
+  li a2, 0x60c8dcd8
+  addiu t2, s2, 50
+  sll t2, t2, 16
+  addiu t3, s1, 16
+  andi t3, t3, 0xffff
+  or a0, t2, t3
+  li a1, 0x000b000c          ; 12 × 11
+  bal rect
+  nop
+  la a0, stra
+  addiu a1, s1, 20
+  addiu a2, s2, 52
+  li a3, 0x00283038
+  li t0, 1
+  sw t0, V_SCL(gp)
+  jal text
+  nop
+@rb:
+  li a2, 0x60282828
+  addiu t2, s2, 1            ; 角を落とした札（44 × 46）
+  sll t2, t2, 16
+  andi t3, s1, 0xffff
+  or a0, t2, t3
+  li a1, 0x002c002c
+  bal rect
+  nop
+  addiu t3, s1, 1
+  andi t3, t3, 0xffff
+  sll t2, s2, 16
+  or a0, t2, t3
+  li a1, 0x002e002a
+  bal rect
+  nop
+  ; できる物の絵（作れなければ暗く）
+  la t0, recipes
+  sll t1, s0, 3
+  addu t0, t0, t1
+  lbu t5, 0(t0)
+  li t1, 0x7c808080
+  bnez s3, @rl
+  nop
+  li t1, 0x7c383838
+@rl:
+  sw t1, GP0(s7)
+  addiu t2, s1, 14
+  andi t2, t2, 0xffff
+  addiu t3, s2, 4
+  sll t3, t3, 16
+  or t2, t2, t3
+  sw t2, GP0(s7)
+  la t1, icontab
+  addu t1, t1, t5
+  lbu t5, 0(t1)
+  jal spruv
+  nop
+  sw v0, GP0(s7)
+  ; できる数（2 つ以上なら、絵の右に）
+  la t0, recipes
+  sll t1, s0, 3
+  addu t0, t0, t1
+  lbu a0, 1(t0)
+  slti t1, a0, 2
+  bnez t1, @n1
+  nop
+  addiu a1, s1, 31            ; できる数は絵の右下に
+  addiu a2, s2, 14
+  li a3, 0x00f8f8f8
+  li t0, 1
+  sw t0, V_SCL(gp)
+  jal num
+  nop
+@n1:
+  ; 材料 2 つ: 8 × 8 の小さな絵と数
+  li s3, 0
+@ing:
+  la t0, recipes
+  sll t1, s0, 3
+  addu t0, t0, t1
+  sll t1, s3, 1
+  addu t0, t0, t1
+  lbu t4, 2(t0)              ; 材料
+  lbu t6, 3(t0)              ; 数
+  beqz t4, @ingn
+  nop
+  sw t6, 20(sp)
+  li t1, 0x74808080
+  sw t1, GP0(s7)
+  li t1, 21
+  mult s3, t1
+  mflo t1
+  addu t2, s1, t1
+  addiu t2, t2, 4
+  andi t2, t2, 0xffff
+  addiu t3, s2, 28
+  sll t3, t3, 16
+  or t2, t2, t3
+  sw t2, GP0(s7)
+  la t1, icontab
+  addu t1, t1, t4
+  lbu t5, 0(t1)
+  jal spruv
+  nop
+  sw v0, GP0(s7)
+  la t0, recipes             ; 足りるか（足りなければ赤い数）
+  sll t1, s0, 3
+  addu t0, t0, t1
+  sll t1, s3, 1
+  addu t0, t0, t1
+  lbu t4, 2(t0)
+  la t1, inv
+  addu t1, t1, t4
+  lbu t1, 0(t1)
+  lw a0, 20(sp)
+  li a3, 0x00f8f8f8
+  slt t1, t1, a0
+  beqz t1, @ok2
+  nop
+  li a3, 0x004858f8          ; 足りない数は赤
+@ok2:
+  li t1, 21
+  mult s3, t1
+  mflo t1
+  addu a1, s1, t1
+  addiu a1, a1, 14
+  addiu a2, s2, 29
+  li t0, 1
+  sw t0, V_SCL(gp)
+  jal num
+  nop
+@ingn:
+  addiu s3, s3, 1
+  slti t0, s3, 2
+  bnez t0, @ing
+  nop
+  addiu s0, s0, 1
+  slti t0, s0, 4
+  bnez t0, @r
+  nop
+  lw ra, 0(sp)
+  lw s0, 4(sp)
+  lw s1, 8(sp)
+  lw s2, 12(sp)
+  lw s3, 16(sp)
+  jr ra
+  addiu sp, sp, 24
+
+; のろしの煙: のろしの上に、6 つの灰色の丸（四角）がゆっくりのぼる（GTE で投げて、近いほど大きく）
+smoke:
+  lw t0, V_WIN(gp)
+  nop
+  beqz t0, @sx
+  nop
+  lw t0, V_WINP(gp)
+  lw t5, V_CX(gp)
+  andi t1, t0, 31
+  sll t1, t1, 8
+  addiu t1, t1, 128
+  subu t1, t1, t5            ; bx
+  srl t2, t0, 5
+  andi t2, t2, 31
+  sll t2, t2, 8
+  addiu t2, t2, 128
+  lw t5, V_CZ(gp)
+  nop
+  subu t2, t2, t5            ; bz
+  srl t3, t0, 10
+  addiu t3, t3, 1
+  sll t3, t3, 8              ; のろしの上の高さ
+  lw t4, V_BLINK(gp)
+  nop
+  andi t4, t4, 127           ; のぼる量（0〜127）
+  addu t3, t3, t4
+  li t6, 0
+@pf:
+  lw t5, V_EY(gp)
+  nop
+  subu t5, t5, t3            ; by（下が +）
+  mult t6, t6                ; 上ほど風に流れる（x へ 8 × 何番目の 2 乗）
+  mflo a3
+  sll a3, a3, 3
+  addu a3, a3, t1
+  andi t7, a3, 0xffff
+  sll t5, t5, 16
+  or t7, t7, t5
+  mtc2 t7, 0
+  mtc2 t2, 1
+  nop
+  cop2 0x0180001             ; RTPS
+  mfc2 t7, 19                ; 奥行き
+  mfc2 t8, 14                ; 画面の場所
+  slti t5, t7, 40
+  bnez t5, @pn
+  nop
+  li t5, 20000
+  addiu t9, t6, 3
+  mult t5, t9
+  mflo t5
+  div t5, t7
+  mflo t5                    ; 大きさ（遠いほど小さく、上ほど広がる）
+  srl t5, t5, 2
+  slti t9, t5, 2
+  beqz t9, @p1
+  nop
+  li t5, 2
+@p1:
+  slti t9, t5, 64
+  bnez t9, @p2
+  nop
+  li t5, 64
+@p2:
+  srl t9, t5, 1
+  sll a0, t9, 16
+  or a0, a0, t9
+  subu a0, t8, a0            ; 左上（x・y とも大きさの半分だけ）
+  sll a1, t5, 16
+  or a1, a1, t5
+  li a2, 0x62c8c8c8
+  sw a2, GP0(s7)
+  sw a0, GP0(s7)
+  sw a1, GP0(s7)
+@pn:
+  addiu t3, t3, 140          ; つぎの丸は上へ
+  addiu t6, t6, 1
+  slti t5, t6, 6
+  bnez t5, @pf
+  nop
+@sx:
+  jr ra
+  nop
 
 ; 四角を 1 つ（a0 = 位置 y << 16 | x、a1 = 大きさ h << 16 | w、a2 = 命令と色）
 rect:
@@ -1269,7 +1869,8 @@ readpad:
 
 ; ---- 変数と作業の場所 ----
 .align 4
-vars:    .space 128
+stra:    .byte 10, 0xff, 0, 0
+vars:    .space 256
 inv:     .space 16
 numbuf:  .space 8
 linebuf: .space 16

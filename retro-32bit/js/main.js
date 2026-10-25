@@ -1,6 +1,6 @@
 // 棚（トップ）と遊ぶ画面。画面・音・入力をつなぐ（ブラウザの係。8ビット互換機の main.js と同じ形）
 import { Console32 } from './psx.js';
-import { LIBRARY } from './library.js?v=3';
+import { LIBRARY } from './library.js?v=4';
 import { createCRT } from './crt/crt-gl.js';
 import { createInput, bindTouch, keyLabel } from './input.js';
 import { initSettings } from './settings.js';
