@@ -100,10 +100,21 @@ foreach ($f in $files) {
     if (-not $extrasOk -or $json -match '"(copyright|author)"|[A-Za-z]:[\\/]|/Users/|/home/') { [void]$hits.Add("$rel : glb に作者・付加情報・パスがある（書き出しの設定を見直す）") }
     continue
   }
+  if ($ext -eq '.wav') {
+    # 音のもと（retro-32bit/src/*/sound/。Stable Audio で作り ffmpeg で書き出す）: 作者・題・コメントなどの付加情報がないか（ffprobe）。中身は耳で確かめる
+    $probe = Get-Command ffprobe -ErrorAction SilentlyContinue
+    if (-not $probe) { [void]$hits.Add("$rel : ffprobe がなく付加情報を調べられない（目で確認）"); continue }
+    $tags = & $probe.Source -v error -show_entries 'format_tags:stream_tags' -of 'default=nw=1' $f
+    $extra = @($tags | Where-Object { $_ -and $_ -notmatch '^TAG:(encoder|ENCODER)=' })
+    if ($extra.Count) { [void]$hits.Add("$rel : wav に付加情報がある（$($extra -join ', ')）") }
+    continue
+  }
   if ($ext -eq '.nes' -or ($ext -eq '.exe' -and $rel -match '^retro-32bit[\\/]')) {
     # 8ビット互換機の ROM（retro-8bit/tools/build.mjs が src/ から作る）・32ビット互換機のソフト（retro-32bit/tools/build.mjs）: バイトの中に、メール・PC のパス・鍵・自分の言葉などがないか
     $ascii = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($f))
-    foreach ($r in $rules) { if ($ascii -match $r.r) { [void]$hits.Add("$rel : ROM の中に $($r.n)") } }
+    # 32ビット互換機のソフトには音のデータ（ADPCM）が入るので、たまたまの並びがメールに見えることがある。見てたしかめたものだけ外す
+    $romAllow = @('^m@E\.VI$')
+    foreach ($r in $rules) { foreach ($m in [regex]::Matches($ascii, $r.r)) { if (-not ($romAllow | Where-Object { $m.Value -match $_ })) { [void]$hits.Add("$rel : ROM の中に $($r.n) → $($m.Value)"); break } } }
     foreach ($w in $private) { if ($ascii -match $w) { [void]$hits.Add("$rel : ROM の中に 自分の言葉（.private-words.txt）") } }
     continue
   }

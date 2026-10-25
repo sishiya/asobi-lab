@@ -3,8 +3,9 @@
 //   none  = 何もしない（見つかるはず）
 //   match = 目が上がってきたら腹の光を合わせる（深さはそのまま）
 //   dvm   = 合わせる＋昼は深く・夜は浅く上がってプランクトンを追う（本物の日周鉛直移動）
+//   --wav=ファイル（SPU の音を 44100Hz の WAV に書く。場面ごとの大きさも出す）
 //   --react=こま（目が上がりはじめてから押しはじめるまで。人のおそさ）・--aim=段（これだけ合えばやめる。人のおおざっぱさ）
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Console32 } from '../js/psx.js';
 import { BTN } from '../js/pad.js';
@@ -19,8 +20,9 @@ const out = join(ROOT, '..', '_dev', 'retro-32bit');
 mkdirSync(out, { recursive: true });
 
 const { exe, syms } = await buildSoft('glow-belly');
-const m = new Console32();
+const m = new Console32(44100);
 m.loadExe(exe);
+const wav = opt('wav', ''), sndL = [], sndR = [], marks = [];
 const NAMES = ['T', 'FD', 'VY', 'L16', 'E', 'PST', 'PT', 'SUS', 'TH', 'CNT', 'LIVES', 'STATE'];
 const v = () => Object.fromEntries(NAMES.map((n, i) => [n, m.ram32[((syms.vars & 0x1fffff) >> 2) + i]]).concat([['I', m.ram32[((syms.vars & 0x1fffff) >> 2) + 16]], ['SKY', m.ram32[((syms.vars & 0x1fffff) >> 2) + 24]]]));
 const plk = () => { const b = (syms.plk & 0x1fffff) >> 2, a = []; for (let k = 0; k < 24; k++) if (m.ram32[b + k * 3 + 2]) a.push({ x: m.ram32[b + k * 3] >> 4, d: m.ram32[b + k * 3 + 1] >> 4 }); return a; };
@@ -51,7 +53,9 @@ for (let f = 1; f < limit; f++) {
   }
   m.sio.buttons[0] = b;
   m.runFrame();
+  if (wav) { const { L, R } = m.spu.take(); for (let i = 0; i < L.length; i++) { sndL.push(L[i]); sndR.push(R[i]); } } else m.spu.take();
   const t = v();
+  if (wav) { const tag = t.PST === 4 ? '見つかった' : t.PST === 2 ? '見ている' : (t.L16 >> 4) > 3 ? '腹の光' : 'ふだん'; marks.push(tag); }
   if (t.STATE === 1) frames++;
   if (lastPst !== 2 && t.PST === 2) stat.looks++;
   if (t.PST === 2) maxSus = Math.max(maxSus, t.SUS);
@@ -65,6 +69,19 @@ for (let f = 1; f < limit; f++) {
     console.log(`こま ${f}: 時刻 ${(t.T / 60).toFixed(1)}秒 深さ ${(t.FD >> 8) * 4}m 光 I=${t.I} L=${t.L16 >> 4} 疑い ${t.SUS} 状態 ${t.PST} 食べた ${t.CNT}`);
   }
   if (f > 40 && t.STATE !== 1) { endAt ??= f; if (f - endAt > 60) break; } // おわりの画面も 1 秒撮れるように
+}
+if (wav) {
+  const n = sndL.length, buf = Buffer.alloc(44 + n * 4);
+  buf.write('RIFF', 0); buf.writeUInt32LE(36 + n * 4, 4); buf.write('WAVEfmt ', 8); buf.writeUInt32LE(16, 16); buf.writeUInt16LE(1, 20); buf.writeUInt16LE(2, 22);
+  buf.writeUInt32LE(44100, 24); buf.writeUInt32LE(44100 * 4, 28); buf.writeUInt16LE(4, 32); buf.writeUInt16LE(16, 34); buf.write('data', 36); buf.writeUInt32LE(n * 4, 40);
+  let peak = 0;
+  for (let i = 0; i < n; i++) { buf.writeInt16LE(Math.round(Math.max(-1, Math.min(1, sndL[i])) * 32767), 44 + i * 4); buf.writeInt16LE(Math.round(Math.max(-1, Math.min(1, sndR[i])) * 32767), 46 + i * 4); peak = Math.max(peak, Math.abs(sndL[i]), Math.abs(sndR[i])); }
+  writeFileSync(wav, buf);
+  // 場面ごとの大きさ（RMS、dB）
+  const per = n / marks.length, acc = {};
+  marks.forEach((tag, f) => { const a = acc[tag] ||= { s: 0, c: 0 }; for (let i = Math.floor(f * per); i < Math.floor((f + 1) * per); i++) { a.s += sndL[i] * sndL[i]; a.c++; } });
+  const db = (x) => (20 * Math.log10(x || 1e-9)).toFixed(1);
+  console.log(`音: ${(n / 44100).toFixed(1)} 秒・ピーク ${db(peak)} dB・` + Object.entries(acc).map(([k, a]) => `${k} ${db(Math.sqrt(a.s / a.c))} dB`).join('・'));
 }
 const e = v();
 console.log(`ボット ${bot}: ${(frames / 60).toFixed(0)} 秒遊んだ・見上げ ${stat.looks} 回・見つかった ${stat.caught} 回・食べた ${e.CNT}・エネルギーのいちばん低い所 ${stat.minE}・おわりの時刻 ${(e.T / 60).toFixed(0)} 秒`);

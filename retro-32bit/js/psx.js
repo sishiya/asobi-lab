@@ -5,6 +5,7 @@ import { CPU } from './cpu.js';
 import { GPU } from './gpu.js';
 import { GTE } from './gte.js';
 import { SIO } from './pad.js';
+import { SPU } from './spu.js';
 import './raster.js';
 
 export const CLOCK = 33868800;               // 1秒のサイクル
@@ -14,7 +15,9 @@ const CPI = 2;                               // 1命令を 2 サイクルとみ�
 export const IRQ = { VBLANK: 0, GPU: 1, CDROM: 2, DMA: 3, TMR0: 4, TMR1: 5, TMR2: 6, PAD: 7, SPU: 9 };
 
 export class Console32 {
-  constructor() {
+  constructor(sampleRate = 48000) {
+    this.spu = new SPU(sampleRate);
+    this.spuFrac = 0;
     this.ram = new Uint8Array(2 * 1024 * 1024);
     this.ram32 = new Int32Array(this.ram.buffer);
     this.ram16 = new Uint16Array(this.ram.buffer);
@@ -45,6 +48,7 @@ export class Console32 {
     this.ram.fill(0); this.scratch.fill(0);
     this.ram.set(b.subarray(2048, 2048 + size), dst & 0x1fffff);
     this.gpu.vram.fill(0); this.gpu.reset();
+    this.spu = new SPU(this.spu.rate);
     this.istat = 0; this.imask = 0; this.dicr = 0;
     const c = this.cpu;
     c.reset(pc);
@@ -96,6 +100,7 @@ export class Console32 {
   read16(a) {
     const p = a & 0x1fffffff;
     if (p < 0x800000) return this.ram16[(p & 0x1fffff) >> 1];
+    if (p >= 0x1f801c00 && p < 0x1f801e00) return this.spu.read16(p & 0x1fe);
     if (p >= 0x1f800000 && p < 0x1f800400) return this.sdv.getUint16(p & 0x3ff, true);
     if (p >= 0x1f801000 && p < 0x1f803000) return (this.io32(p & ~3) >>> ((p & 2) * 8)) & 0xffff;
     return 0;
@@ -128,6 +133,7 @@ export class Console32 {
 
   // ---- I/O ----
   io32(p) {
+    if (p >= 0x1f801c00 && p < 0x1f801e00) return (this.spu.read16(p & 0x1fc) | (this.spu.read16((p & 0x1fc) + 2) << 16)) | 0;
     if (p === 0x1f801070) return this.istat;
     if (p === 0x1f801074) return this.imask;
     if (p >= 0x1f801080 && p < 0x1f801100) {
@@ -148,6 +154,7 @@ export class Console32 {
     return 0;
   }
   io32w(p, v) {
+    if (p >= 0x1f801c00 && p < 0x1f801e00) { this.spu.write16(p & 0x1fc, v & 0xffff); this.spu.write16((p & 0x1fc) + 2, v >>> 16); return; }
     if (p === 0x1f801070) { this.istat &= v; this.updIrq(); return; }
     if (p === 0x1f801074) { this.imask = v & 0x7ff; this.updIrq(); return; }
     if (p >= 0x1f801080 && p < 0x1f801100) {
@@ -176,6 +183,7 @@ export class Console32 {
   }
   io16w(p, v) {
     if (p >= 0x1f801040 && p < 0x1f801050) { this.sio.write16(p & 0xf, v); return; }
+    if (p >= 0x1f801c00 && p < 0x1f801e00) { this.spu.write16(p & 0x1fe, v); return; }
     if (p >= 0x1f801100 && p < 0x1f801130) { this.io32w(p & ~3, v); return; }
     if (p === 0x1f801070 || p === 0x1f801074) { this.io32w(p, v | (p === 0x1f801070 ? 0xffff0000 : 0)); return; }
     // SPU・パッドは段階B・C
@@ -213,8 +221,8 @@ export class Console32 {
       for (let k = 0; k < words; k++, a = (a + step) & 0x1ffffc) {
         if (n === 2) {
           if (fromRam) this.gpu.gp0(this.ram32[a >> 2]); else this.ram32[a >> 2] = this.gpu.read();
-        }
-        // ほかの口（MDEC・CD・SPU）は段階C・D
+        } else if (n === 4 && fromRam) this.spu.dmaWrite(this.ram32[a >> 2]);
+        // ほかの口（MDEC・CD）は段階D
       }
       if (sync === 1) ch.madr = a;
     }
@@ -249,6 +257,9 @@ export class Console32 {
       this.line = l;
       for (let k = 0; k < n; k++) cpu.step();
       this.tick(CYC_LINE);
+      this.spuFrac += 44100 / 60 / LINES;          // 1 行で 2.79 サンプル
+      const ns = Math.floor(this.spuFrac); this.spuFrac -= ns;
+      this.spu.run(ns);
       if (this.tmr[1].mode & 0x100) this.tmrAdd(1, 1);
       if (l === VBLANK_LINE) { this.raise(IRQ.VBLANK); this.gpu.odd ^= 1; }
     }

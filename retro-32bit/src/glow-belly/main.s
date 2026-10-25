@@ -64,6 +64,10 @@ V_AMB   = 124   ; 魚のまわりの光
 V_BASE  = 128   ; 見上げた光の円の色（昼は青・夜は寒い青）
 V_RIM   = 132   ; blob のふちの色
 V_CMD   = 136   ; blob の命令（0x32 加算・0x30 不透明）
+V_HUMON = 140   ; 腹の光の音が鳴っている
+V_WOOSH = 144   ; 捕食者のうねりが鳴っている
+V_THUMP = 148   ; つぎの鼓動まで
+V_EVT   = 152   ; 音の合図（sound.s の EV_〜）
 
 DIE_SUS = 160
 LOOKUP  = 48    ; 見上げるカメラのたおし（64 で真下。48 ≒ 67° でななめ下から＝魚の形と腹の点が見える）
@@ -99,6 +103,8 @@ start:
   li t0, 0x32
   sw t0, V_CMD(gp)
   jal fishinit
+  nop
+  jal sndinit
   nop
   jal snowinit
   nop
@@ -137,6 +143,8 @@ frame:
   nop
   li t0, 1
   sw t0, V_STATE(gp)
+  li t0, EV_START
+  sw t0, V_EVT(gp)
   b @end
   nop
 @title:
@@ -173,6 +181,8 @@ frame:
   nop
   li t0, 1
   sw t0, V_STATE(gp)
+  li t0, EV_START
+  sw t0, V_EVT(gp)
   b @end
   nop
 @play:
@@ -183,6 +193,8 @@ frame:
   jal hud
   nop
 @end:
+  jal sndframe
+  nop
   j frame
   nop
 
@@ -552,6 +564,10 @@ predator:
   nop
   li t2, 4                   ; 見つかった
   sw t2, V_PST(gp)
+  lw t2, V_EVT(gp)
+  nop
+  ori t2, t2, EV_CAUGHT
+  sw t2, V_EVT(gp)
   li t2, 60
   sw t2, V_PT(gp)
   b @pr
@@ -712,6 +728,10 @@ plankton:
   sw t4, V_E(gp)
   li t4, 12
   sw t4, V_FLASH(gp)
+  lw t4, V_EVT(gp)
+  nop
+  ori t4, t4, EV_EAT
+  sw t4, V_EVT(gp)
 @next:
   addiu t2, t2, -1
   bnez t2, @mv

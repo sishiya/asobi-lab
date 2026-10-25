@@ -1,4 +1,6 @@
 // ムネエソの腹あかり: main.s などのうしろにつなぐ表と形（ビルドのときに作る）
+import { readFileSync } from 'node:fs';
+import { encode } from '../../tools/adpcm.mjs';
 //   sin の表・光の弱まり（深さ）・空の明るさ（時刻）・水の色（明るさ → 色）・プランクトンの深さ・ムネエソの形・発光器・ドット字
 
 const words = (label, arr, per = 8) => [label + ':', ...chunk(arr, per).map((r) => '  .word ' + r.join(', '))];
@@ -110,6 +112,35 @@ const FONT = {
 };
 export const GLYPHS = '0123456789ABSTRm^v+-';
 
+// ---- 音（SPU の ADPCM。音の RAM の SND_BASE から順に置く。場所は 8 バイト単位の数で asm へ） ----
+const SND_BASE = 0x1010;
+function readWav(url) {
+  const b = readFileSync(url), dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  let o = 12;
+  while (o < b.length) {
+    const id = b.toString('latin1', o, o + 4), len = dv.getUint32(o + 4, true);
+    if (id === 'data') return Int16Array.from({ length: len / 2 }, (_, i) => dv.getInt16(o + 8 + i * 2, true));
+    o += 8 + len + (len & 1);
+  }
+  throw new Error('wav の data がありません');
+}
+const synth = (n, f) => Int16Array.from({ length: n }, (_, i) => Math.max(-32767, Math.min(32767, Math.round(f(i)))));
+function sounds() {
+  const TAU = Math.PI * 2;
+  return [
+    // 深い海の環境音（Stable Audio。11025Hz。くり返し）
+    ['AMB', readWav(new URL('./sound/ambience.wav', import.meta.url)), { loop: true }],
+    // 腹の光の音: やわらかい丸い音（基音＋少しの 2 倍音）。448 こに 8 周＝くり返しにぴったり。高さは光の段で変える
+    ['HUM', synth(448, (i) => 9000 * Math.sin((i / 56) * TAU) + 2200 * Math.sin((i / 28) * TAU) + 700 * Math.sin((i / 18.667) * TAU)), { loop: true }],
+    // 食べた音: 小さな鐘（22050Hz で 880Hz。倍音はずらして金物らしく）。0.7 秒で消える
+    ['PLINK', synth(15400, (i) => { const t = i / 22050, e = Math.exp(-t * 6); return 11000 * e * (Math.sin(TAU * 880 * t) + 0.35 * Math.sin(TAU * 2430 * t) * Math.exp(-t * 6) + 0.15 * Math.sin(TAU * 4750 * t) * Math.exp(-t * 12)); }), {}],
+    // 鼓動: 低い「どっ」（55Hz のまるい音と、はじめの小さなこすれ）
+    ['THUMP', synth(5500, (i) => { const t = i / 22050; return 20000 * Math.exp(-t * 22) * Math.sin(TAU * (70 - 30 * t) * t) + 3000 * Math.exp(-t * 300) * Math.sin(TAU * 400 * t); }), {}],
+    // 見つかった: 低く沈む「ぼうん」（80Hz → 30Hz、1.4 秒）
+    ['BOOM', synth(30800, (i) => { const t = i / 22050; return 22000 * Math.exp(-t * 2.4) * Math.sin(TAU * (80 * t - 18 * t * t)) + 2500 * Math.exp(-t * 5) * Math.sin(TAU * 161 * t); }), {}],
+  ];
+}
+
 export function gen() {
   const out = [];
   out.push(`DAY = ${DAY}`);
@@ -130,6 +161,19 @@ export function gen() {
   out.push('ftri:', ...f.tris.map((t) => `  .byte ${t.i.join(', ')}, 0\n  .half ${[...t.n, 0].map((x) => x & 0xffff).join(', ')}\n  .word 0`));
   out.push('photo:', ...ph.map((p) => `  .half ${[...p, 0].map((x) => x & 0xffff).join(', ')}`));
   out.push(...bytes('font', GLYPHS.split('').flatMap((c) => FONT[c].map((r) => parseInt(r, 2)))));
+  // 音: ADPCM を並べて sndbank に（64 バイトの倍数にそろえる＝DMA のかたまり）。S_〜 は音の RAM の場所（8 バイト単位）
+  let addr = SND_BASE; const blobs = [];
+  for (const [name, pcm, o] of sounds()) {
+    const enc = encode(pcm, o);
+    out.push(`S_${name} = ${addr / 8}`);
+    blobs.push(enc); addr += enc.length;
+  }
+  let total = blobs.reduce((a, b) => a + b.length, 0);
+  const pad = (64 - (total % 64)) % 64; total += pad;
+  out.push(`SNDSIZE = ${total}`, `SNDBASE = ${SND_BASE / 8}`);
+  const all = new Uint8Array(total); let o = 0; for (const b of blobs) { all.set(b, o); o += b.length; }
+  if (SND_BASE + total > 0x80000 - 0x10000) throw new Error('音が多すぎます（残響の作業場所とぶつかる）');
+  out.push('.align 64', ...bytes('sndbank', [...all], 32));
   out.push('.align 4');
   return out.join('\n') + '\n';
 }

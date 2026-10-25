@@ -18,7 +18,7 @@
     <div class="name">
       <small><span lang="ja">あそびラボ</span><span lang="en">Asobi Lab</span></small>
       <h1><span lang="ja">32ビット互換機</span><span lang="en">32-bit Console</span></h1>
-      <span class="ver">ver. 0.4</span>
+      <span class="ver">ver. 0.5</span>
     </div>
     <div class="langsw" role="group" aria-label="言語 Language"><button type="button" data-lang="ja" aria-label="日本語">JP</button><button type="button" data-lang="en" aria-label="English">EN</button></div>
   </header>
@@ -50,14 +50,15 @@
     <div class="discs" id="discs" role="group" aria-label="ソフト" data-en-label="Software"></div>
     <div class="ctl">
       <button type="button" class="tool" id="btnOpen"><span aria-hidden="true">⏏</span> <span lang="ja">自分のファイルを開く</span><span lang="en">Open your file</span></button>
+      <button type="button" class="tool" id="btnSound" aria-pressed="true" title="音を出す／消す" data-en-title="Sound on / off"><span aria-hidden="true">♪</span> <span id="soundLbl">音あり</span></button>
       <button type="button" class="tool icon" id="btnPause" aria-label="一時停止" data-en-label="Pause"><span aria-hidden="true">⏸</span></button>
       <button type="button" class="tool icon" id="btnReset" aria-label="はじめから" data-en-label="Restart"><span aria-hidden="true">↺</span></button>
       <input type="file" id="file" accept=".exe,application/octet-stream" hidden>
     </div>
-    <p class="note"><span lang="ja">試作（段階B: 3D の計算とコントローラー）。自分のファイルはこの端末の中だけで読み、どこにも送りません。権利を持っているファイルだけを開いてください。</span><span lang="en">Prototype (stage B: 3D math and controller). Your file is read only on this device and never sent anywhere. Open only files you have the rights to.</span>
+    <p class="note"><span lang="ja">試作（段階C: 音）。自分のファイルはこの端末の中だけで読み、どこにも送りません。権利を持っているファイルだけを開いてください。</span><span lang="en">Prototype (stage C: sound). Your file is read only on this device and never sent anywhere. Open only files you have the rights to.</span>
       <a href="../archive.html"><span lang="ja">あそびラボの保管庫へ</span><span lang="en">Asobi Lab archive</span></a></p>
   </footer>
 </div>
-<script type="module" src="js/main.js?v=4"></script>
+<script type="module" src="js/main.js?v=5"></script>
 </body>
 </html>

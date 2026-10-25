@@ -2,10 +2,11 @@
 import { Console32 } from './psx.js';
 import { TX, initLang } from './i18n.js';
 import { createInput, bindTouch } from './input.js';
+import { createAudio } from './audio.js';
 
 // 棚のソフト（あそびラボのオリジナルだけ。PLAN.md 0章）
 const DISCS = [
-  { id: 'glow-belly', name: TX('ムネエソの腹あかり', 'Glow Belly'), file: 'discs/glow-belly.exe?v=4' },
+  { id: 'glow-belly', name: TX('ムネエソの腹あかり', 'Glow Belly'), file: 'discs/glow-belly.exe?v=5' },
   { id: 'cube', name: TX('光るキューブ', 'Lit Cube'), file: 'discs/cube.exe?v=4' },
   { id: 'spin-tri', name: TX('回る三角形', 'Spinning Triangle'), file: 'discs/spin-tri.exe?v=1' },
 ];
@@ -16,6 +17,20 @@ const msg = $('msg');
 const m = new Console32();
 const off = document.createElement('canvas'), offCtx = off.getContext('2d');
 let img = null, running = false, paused = false, lastBuf = null, acc = 0, prev = 0;
+// 音（8ビット互換機と同じ: 音あり／音なしを覚える。鳴らしはじめは、さわったあと＝ブラウザの決まり）
+const read = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
+const save = (k, v) => { try { localStorage.setItem(k, v); } catch { /* 残せなくても遊べる */ } };
+let soundOn = read('retro32.sound', '1') === '1', audio = null;
+function setSound(on) {
+  soundOn = on; save('retro32.sound', on ? '1' : '0');
+  $('btnSound').setAttribute('aria-pressed', String(on));
+  $('soundLbl').textContent = on ? TX('音あり', 'Sound on') : TX('音なし', 'Muted');
+  if (audio) audio.setGain(on ? 0.8 : 0);
+}
+function startAudio() {
+  if (!audio) { audio = createAudio(); if (audio) { m.spu.setRate(audio.ctx.sampleRate); setSound(soundOn); } }
+  audio?.ctx.resume();
+}
 
 initLang();
 const input = createInput();
@@ -24,12 +39,14 @@ bindTouch($('pad'), input);
 function show(text) { msg.textContent = text; msg.hidden = !text; }
 
 function boot(buf) {
-  try { m.loadExe(buf); } catch (e) { running = false; show(TX('このファイルは動かせません: ', 'Cannot run this file: ') + e.message); return; }
+  startAudio();
+  try { m.loadExe(buf); if (audio) m.spu.setRate(audio.ctx.sampleRate); } catch (e) { running = false; show(TX('このファイルは動かせません: ', 'Cannot run this file: ') + e.message); return; }
   lastBuf = buf; running = true; acc = 0; setPause(false); show('');
 }
 
 function setPause(p) {
   paused = p;
+  if (audio) { if (p) audio.ctx.suspend(); else audio.ctx.resume(); }
   const b = $('btnPause');
   b.firstElementChild.textContent = p ? '▶' : '⏸';
   b.setAttribute('aria-label', p ? TX('つづける', 'Resume') : TX('一時停止', 'Pause'));
@@ -58,6 +75,10 @@ $('file').addEventListener('change', async (e) => {
   boot(await f.arrayBuffer()); // この端末の中だけで読む。送らない・残さない
 });
 $('btnPause').addEventListener('click', () => { if (running) setPause(!paused); });
+$('btnSound').addEventListener('click', () => { startAudio(); setSound(!soundOn); });
+addEventListener('keydown', () => startAudio(), { once: true });
+addEventListener('pointerdown', () => startAudio(), { once: true });
+setSound(soundOn);
 $('btnReset').addEventListener('click', () => { if (lastBuf) boot(lastBuf); });
 
 // 60 こま／秒で回す（画面の書きかえの速さに関係なく）
@@ -69,6 +90,8 @@ function loop(t) {
   try {
     while (acc >= 1000 / 60 && n < 4) { input.apply(m); m.runFrame(); acc -= 1000 / 60; n++; }
   } catch (e) { running = false; show(TX('止まりました: ', 'Stopped: ') + e.message); console.error(e); return; }
+  const snd = m.spu.take();
+  if (audio && n) audio.push(snd);
   if (n) draw();
 }
 function draw() {
