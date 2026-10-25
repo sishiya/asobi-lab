@@ -1,10 +1,10 @@
 // 名画の顔ハメ: 画面の流れ・看板の合成・シャッター・けっか。
 // カメラの映像はこの端末の中だけで使う。写真はけっかで「保存」を押したときだけファイルにする。
-import { PAINTINGS } from './paintings.js?v=5';
-import { createLandmarker, readFace, areaBox } from './face.js?v=5';
-import { createBlender, labStats } from './blend.js?v=5';
-import { scoreFace, averageFaces, mark } from './score.js?v=5';
-import { TX, initLang } from './i18n.js?v=5';
+import { PAINTINGS } from './paintings.js?v=6';
+import { createLandmarker, readFace, areaBox } from './face.js?v=6';
+import { createBlender, labStats } from './blend.js?v=6';
+import { scoreFace, averageFaces, mark } from './score.js?v=6';
+import { TX, initLang } from './i18n.js?v=6';
 
 const $ = s => document.querySelector(s);
 
@@ -127,15 +127,34 @@ function drawShade(g, map, x, y, w, h) {
 
 // ---- カメラと顔 ----
 let video = null, stream = null, lmk = null, blender = null;
-// 確かめ用: ?test=<絵の id> でカメラのかわりに、その絵の顔をゆらして映す（カメラのない所で動きを見る）
-const TEST = new URLSearchParams(location.search).get('test');
+// 確かめ用: ?test=<絵の id> でカメラのかわりに、その絵の顔をゆらして映す（カメラのない所で動きを見る）。
+// &path=align で、ゆらすかわりに「がんばって穴に合わせる」動き（動くサムネイル用。tools/motion-thumb.mjs）
+const QS = new URLSearchParams(location.search), TEST = QS.get('test'), PATH = QS.get('path');
+// 絵が出てからの秒 → カメラの中の顔のずれ（dx・dy は画素、k は大きさ、r は度）。行きすぎて、もどって、合う
+const ALIGN = [
+  [0, -26, 14, 0.86, -11], [4.0, -26, 14, 0.86, -11], [4.6, 72, -32, 1.18, 9], [5.2, -34, 24, 0.9, -6],
+  [5.75, 15, -10, 1.05, 3], [6.2, -4, 3, 0.99, -1], [6.55, 0, 0, 1, 0], [99, 0, 0, 1, 0]];
+function alignAt(t) {
+  let i = 0; while (i < ALIGN.length - 2 && t > ALIGN[i + 1][0]) i++;
+  const a = ALIGN[i], b = ALIGN[i + 1], u = Math.max(0, Math.min(1, (t - a[0]) / (b[0] - a[0]))), e = (1 - Math.cos(u * Math.PI)) / 2;
+  return a.slice(1).map((v, n) => v + (b[n + 1] - v) * e);
+}
 async function testStream() {
   const p = PAINTINGS.find(q => q.id === TEST) || PAINTINGS[1], img = await loadImg(p.src);
   const c = Object.assign(document.createElement('canvas'), { width: 640, height: 480 }), g = c.getContext('2d');
-  const f = p.face, W = img.width, s = 0.4 * 480 / ((f.right - f.left) * W);
+  const W = img.width, L = Object.fromEntries(Object.entries(p.face).map(([k, v]) => [k, k === 'rot' ? v : v * W]));
+  const box = areaBox(L, area()), s = 0.4 * 480 / (L.right - L.left); // 顔の「くり抜く所」の箱のまん中をカメラのまん中に
   const draw = () => {
-    const t = performance.now() / 1000;
-    g.setTransform(s, 0, 0, s, 320 + Math.sin(t * 0.7) * 40 - (f.nx + (f.left + f.right) / 2) * W * s, 240 + Math.cos(t * 0.5) * 20 - f.ny * W * s);
+    const now = performance.now(), t = now / 1000;
+    let dx = Math.sin(t * 0.7) * 40, dy = Math.cos(t * 0.5) * 20, k = 1, r = 0;
+    if (PATH === 'align') {
+      const since = run && run.introAt ? (now - run.introAt) / 1000 : 0;
+      [dx, dy, k, r] = alignAt(since);
+      r += (run && run.cur ? run.cur.p.face.rot : 0) - p.face.rot; // 合ったとき、絵の顔と同じかたむきに
+      dx += Math.sin(t * 9) * 1.5; dy += Math.cos(t * 7) * 1.2;      // 手持ちの小さなゆれ
+    }
+    g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#3a3230'; g.fillRect(0, 0, 640, 480);
+    g.translate(320 + dx, 240 + dy); g.rotate(r * Math.PI / 180); g.scale(s * k, s * k); g.translate(-box.x, -box.y);
     g.drawImage(img, 0, 0); g.setTransform(1, 0, 0, 1, 0, 0);
   };
   draw(); setInterval(draw, 33);
@@ -194,7 +213,11 @@ $('#start').onclick = async () => {
 $('#quit').onclick = () => { run = null; stopCamera(); show('title'); };
 
 function begin(i) {
-  run.i = i; run.cur = cache.get(keyOf(run.list[i])); run.phase = 'intro'; run.t0 = performance.now();
+  run.i = i; run.cur = cache.get(keyOf(run.list[i])); run.phase = 'intro'; run.t0 = run.introAt = performance.now();
+  if (TEST) { // 確かめ用: 絵が出た時刻と、穴のまん中（絵の中の割合）。動くサムネイルの切り出しに使う
+    (window.__begins = window.__begins || []).push(Date.now());
+    window.__hole = { x: run.cur.hx / run.cur.W, y: run.cur.hy / run.cur.H };
+  }
   run.lastNum = 0; srcStats = null; recent = [];
   const p = run.cur.p;
   $('#count').textContent = `${i + 1} / ${run.list.length}`;
@@ -271,6 +294,7 @@ function measureFace(gw, gh) {
 }
 
 function shoot() {
+  if (TEST) (window.__shots = window.__shots || []).push(Date.now()); // 確かめ用: シャッターの時刻
   const cur = run.cur, c = document.createElement('canvas');
   c.width = cur.W; c.height = cur.H;
   compose(c.getContext('2d'), cur, 1);

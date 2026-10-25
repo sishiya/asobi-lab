@@ -11,6 +11,7 @@
 - v003-nose（ver. 0.3）: くり抜く所を「鼻から下」に決めて、設定の切りかえを外した（ユーザー）。目から下・顔ぜんぶの箱は face.js の areaBox と tools/analyze.html に残す。
 - v004-en（ver. 0.4）: 日本語・英語。決め方は入口・ほかのゲームと同じ（?lang= → localStorage の manabi-lang → ブラウザの言語。index.html の頭の1行）。HTML は <span lang> の対、js は js/i18n.js の TX(日本語, 英語)、絵の英語の題・作者・ひとことは paintings.js の title_en・artist_en・hint_en。言語はタイトルの右上の JP / EN。確かめは LANG_Q=en node face-in-frame/tools/playtest.mjs …。入口のカードの絵は鼻から下の3枚に撮り直した（字は入れない）。
 - v005-mouth（ver. 0.5）: 採点を口と首だけにした（ユーザー「目は隠してるが目の判定がはいってるっぽい」）。目と眉は絵のまま隠れているので、お手本（goal）からも外した。写楽のひとことを「口をへの字に！」に。
+- v006-thumb（ver. 0.5 のまま）: 入口の動くサムネイル（ユーザー「頑張って位置調整している様子を動画でとって」）。
 
 ## しくみ
 - `js/main.js`: 画面の流れ（タイトル → 準備 → 1枚ずつ「出る 1.8秒 → 表情 5秒（のこり3秒で 3・2・1）→ シャッター → 止め 1.1秒」→ けっか）、看板の合成、保存、設定（localStorage `face-in-frame`、読めなくても動く）。
@@ -29,6 +30,7 @@
 ## 確かめ方
 - `node face-in-frame/tools/playtest.mjs <test の絵> <幅> <高さ> [出す絵]`: カメラのかわりに絵の顔（`?test=<id>`、ゆらして動かす）で1回遊び、タイトル・出る・表情・けっかを `_dev/face-in-frame/<日時>/` に撮る。点・部位・エラー・外への通信を出す。幅は 1280×720・375×740・812×375 で見る。
 - `?pick=pearl,monalisa` で出す絵を決められる。
+- 動くサムネイル: `node face-in-frame/tools/motion-thumb.mjs` → `thumbs/face-in-frame.mp4`（640×360・4秒）と最初のコマの `.jpg`。カメラのかわりにトカゲの少年の顔を `&path=align`（`main.js` の ALIGN。絵が出てからの秒ごとのずれ・大きさ・かたむき）で動かし、寄せる補正なしでモナ・リザに合わせる。縦長の窓で録って穴のまわりを 16:9 に切りぬき、録画の中のシャッターの白い光をさがして、その 0.5 秒あとで終わるように切る（録画の時計はページより1〜2秒おくれるため）。コマは `_dev/face-in-frame/motion/sheet.png`。
 - `tools/analyze.html`: 絵に Face Landmarker をかけて、顔の外わくと表情の数を出す（穴とお手本の下書き）。
 - 本物のカメラ（PC とスマホ）はユーザーに試してもらう。見るところ: 穴に合わせやすいか・寄せる強さの心地よさ・5秒は短くないか・点が表情の工夫で動くか・なじませの強さ。
 
