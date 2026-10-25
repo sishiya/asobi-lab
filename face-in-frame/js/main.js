@@ -1,9 +1,10 @@
 // 名画の顔ハメ: 画面の流れ・看板の合成・シャッター・けっか。
 // カメラの映像はこの端末の中だけで使う。写真はけっかで「保存」を押したときだけファイルにする。
-import { PAINTINGS } from './paintings.js?v=3';
-import { createLandmarker, readFace, areaBox } from './face.js?v=3';
-import { createBlender, labStats } from './blend.js?v=3';
-import { scoreFace, averageFaces, mark } from './score.js?v=3';
+import { PAINTINGS } from './paintings.js?v=4';
+import { createLandmarker, readFace, areaBox } from './face.js?v=4';
+import { createBlender, labStats } from './blend.js?v=4';
+import { scoreFace, averageFaces, mark } from './score.js?v=4';
+import { TX, initLang } from './i18n.js?v=4';
 
 const $ = s => document.querySelector(s);
 
@@ -24,6 +25,7 @@ for (const seg of document.querySelectorAll('.seg')) seg.addEventListener('click
   cfg[seg.dataset.key] = Number(b.dataset.v); saveCfg(); syncSeg();
 });
 syncSeg();
+initLang();
 $('#openSettings').onclick = () => { $('#settings').hidden = false; };
 $('#closeSettings').onclick = () => { $('#settings').hidden = true; };
 
@@ -168,7 +170,7 @@ let face = null, smooth = null, recent = [], srcStats = null, srcShade = null, l
 function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
 $('#start').onclick = async () => {
-  show('play'); $('#wait').hidden = false; $('#wait').textContent = 'カメラを準備しています…';
+  show('play'); $('#wait').hidden = false; $('#wait').textContent = TX('カメラを準備しています…', 'Getting the camera ready…');
   $('#hint').classList.remove('on'); $('#num').classList.remove('on'); $('#timer').style.width = '0';
   const pick = new URLSearchParams(location.search).get('pick'); // 確かめ用: ?pick=pearl,monalisa で絵を決める
   const list = pick ? pick.split(',').map(id => PAINTINGS.find(p => p.id === id)).filter(Boolean) : shuffle(PAINTINGS).slice(0, cfg.shots);
@@ -177,12 +179,12 @@ $('#start').onclick = async () => {
     blender = blender || createBlender();
     const [ , l] = await Promise.all([startCamera(), lmk ? lmk : createLandmarker('VIDEO')]);
     lmk = l;
-    $('#wait').textContent = '絵を用意しています…';
+    $('#wait').textContent = TX('絵を用意しています…', 'Hanging the paintings…');
     await Promise.all(list.map(prepare));
   } catch (e) {
     const denied = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
-    message(denied ? 'カメラが使えませんでした。ブラウザの設定でカメラを許可すると遊べます。'
-      : e && e.message === 'nocam' ? 'このブラウザではカメラが使えません。' : 'カメラか顔の読み取りの準備ができませんでした。ページを読みこみなおしてみてください。');
+    message(denied ? TX('カメラが使えませんでした。ブラウザの設定でカメラを許可すると遊べます。', 'The camera could not be used. Allow the camera in your browser settings to play.')
+      : e && e.message === 'nocam' ? TX('このブラウザではカメラが使えません。', 'This browser cannot use a camera.') : TX('カメラか顔の読み取りの準備ができませんでした。ページを読みこみなおしてみてください。', 'The camera or face tracking could not start. Please reload the page.'));
     run = null; return;
   }
   if (!run) return;
@@ -196,8 +198,9 @@ function begin(i) {
   run.lastNum = 0; srcStats = null; recent = [];
   const p = run.cur.p;
   $('#count').textContent = `${i + 1} / ${run.list.length}`;
-  $('#name').textContent = `${p.title}　${p.artist}`;
-  $('#hint').innerHTML = i === 0 ? `<small>顔を穴に合わせて</small>「${p.hint}」` : p.hint;
+  $('#name').textContent = TX(`${p.title}　${p.artist}`, `${p.title_en} · ${p.artist_en}`);
+  const hint = TX(p.hint, p.hint_en);
+  $('#hint').innerHTML = i === 0 ? TX(`<small>顔を穴に合わせて</small>「${hint}」`, `<small>Fit your face in the hole: </small>${hint}`) : hint;
   $('#hint').classList.add('on');
   fitStage();
 }
@@ -325,7 +328,7 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // ---- けっか ----
-const RANKS = [[90, '名画そのもの'], [75, '美術館にかざれる'], [55, 'なかなかの名優'], [35, 'あと少し、大げさに'], [0, 'もっと大げさに！']];
+const RANKS = [[90, TX('名画そのもの', 'A true masterpiece')], [75, TX('美術館にかざれる', 'Museum-worthy')], [55, TX('なかなかの名優', 'Quite the actor')], [35, TX('あと少し、大げさに', 'A little bigger!')], [0, TX('もっと大げさに！', 'Go bigger!')]];
 function finish() {
   const shots = run.shots; run = null; stopCamera();
   const total = Math.round(shots.reduce((a, s) => a + s.score.total, 0) / shots.length);
@@ -334,10 +337,10 @@ function finish() {
   const box = $('#shots'); box.textContent = '';
   shots.forEach((s, i) => {
     const el = document.createElement('div'); el.className = 'shot';
-    const img = new Image(); img.alt = s.p.title; img.src = s.canvas.toDataURL('image/jpeg', 0.9);
-    const parts = s.score.missing ? '顔が見つかりませんでした' : s.score.parts.map(q => `${q.name} ${mark(q.v)}`).join('　');
-    el.innerHTML = `<div class="t"></div><div class="parts"></div><div class="row"><span class="sc">${s.score.total}点</span><button class="sv">保存</button></div>`;
-    el.querySelector('.t').textContent = `${s.p.title}（${s.p.artist}）`;
+    const img = new Image(); img.alt = TX(s.p.title, s.p.title_en); img.src = s.canvas.toDataURL('image/jpeg', 0.9);
+    const parts = s.score.missing ? TX('顔が見つかりませんでした', 'No face was found') : s.score.parts.map(q => `${TX(q.name, q.name_en)} ${mark(q.v)}`).join(TX('　', '   '));
+    el.innerHTML = `<div class="t"></div><div class="parts"></div><div class="row"><span class="sc">${s.score.total}${TX('点', ' pts')}</span><button class="sv">${TX('保存', 'Save')}</button></div>`;
+    el.querySelector('.t').textContent = TX(`${s.p.title}（${s.p.artist}）`, `${s.p.title_en} (${s.p.artist_en})`);
     el.querySelector('.parts').textContent = parts;
     el.prepend(img);
     el.querySelector('.sv').onclick = () => download(s.canvas, `kaohame-${i + 1}-${s.p.id}.jpg`);
@@ -368,7 +371,7 @@ function sheet(shots, total) {
   const bg = g.createRadialGradient(W / 2, H * 0.3, 50, W / 2, H * 0.3, Math.max(W, H)); bg.addColorStop(0, '#2a241e'); bg.addColorStop(1, '#141210');
   g.fillStyle = bg; g.fillRect(0, 0, W, H);
   g.fillStyle = '#f1e9dc'; g.textAlign = 'center'; g.font = '800 54px "Shippori Mincho", serif';
-  g.fillText(`名画の顔ハメ　${total}点`, W / 2, 92);
+  g.fillText(TX(`名画の顔ハメ　${total}点`, `Masterpiece Face-in-Hole   ${total} pts`), W / 2, 92);
   tiles.forEach((t, i) => {
     const col = i % cols, row = i / cols | 0;
     const inRow = Math.min(cols, tiles.length - row * cols), shift = (cols - inRow) * (tw + gap) / 2; // 残りの段はまん中へ
@@ -376,22 +379,26 @@ function sheet(shots, total) {
     g.fillStyle = '#b8903f'; g.fillRect(x - 12, y - 12, t.w + 24, th + 24);
     g.fillStyle = '#5a3f14'; g.fillRect(x - 3, y - 3, t.w + 6, th + 6);
     g.drawImage(t.s.canvas, x, y, t.w, th);
+    const capText = TX(`${t.s.p.title}　${t.s.score.total}点`, `${t.s.p.title_en}   ${t.s.score.total} pts`);
     g.fillStyle = '#a99d8c'; g.font = '700 24px "Zen Kaku Gothic New", sans-serif';
-    g.fillText(`${t.s.p.title}　${t.s.score.total}点`, x + t.w / 2, y + th + 52);
+    const cw = g.measureText(capText).width, room = t.w + 24; // 長い題は額のはばに収まるよう字を小さく
+    if (cw > room) g.font = `700 ${Math.floor(24 * room / cw)}px "Zen Kaku Gothic New", sans-serif`;
+    g.fillText(capText, x + t.w / 2, y + th + 52);
   });
   // しるし: 右はしは額のふちにそろえ、下の段のまん中に。ライオン → しし屋（太く）→ あそびラボ
   const right = W - gap + 12, cy = H - foot / 2 - gap / 2, icon = 40, sp = 12;
   g.textAlign = 'left'; g.textBaseline = 'middle';
   const f1 = '700 24px "Zen Kaku Gothic New", sans-serif', f2 = '500 22px "Zen Kaku Gothic New", sans-serif';
-  g.font = f2; const w2 = g.measureText('あそびラボ').width;
-  g.font = f1; const w1 = g.measureText('しし屋').width;
+  g.font = f2; const w2 = g.measureText(LAB).width;
+  g.font = f1; const w1 = g.measureText(SHOP).width;
   let x = right - w2 - 10 - w1 - sp - icon;
   if (lion.complete && lion.naturalWidth) g.drawImage(lion, x, cy - icon / 2, icon, icon);
   x += icon + sp;
-  g.fillStyle = '#d8cdbd'; g.fillText('しし屋', x, cy + 1);
-  g.font = f2; g.fillStyle = '#a99d8c'; g.fillText('あそびラボ', x + w1 + 10, cy + 1);
+  g.fillStyle = '#d8cdbd'; g.fillText(SHOP, x, cy + 1);
+  g.font = f2; g.fillStyle = '#a99d8c'; g.fillText(LAB, x + w1 + 10, cy + 1);
   g.textBaseline = 'alphabetic';
   return c;
 }
+const SHOP = TX('しし屋', 'Shishiya'), LAB = TX('あそびラボ', 'Asobi Lab');
 // しるしのライオン（しし屋のアイコン。先に読んでおく）
 const lion = new Image(); lion.src = 'img/lion.svg';

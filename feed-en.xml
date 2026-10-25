@@ -5,8 +5,24 @@
   <link href="https://sishiya.github.io/asobi-lab/?lang=en"/>
   <link rel="self" href="https://sishiya.github.io/asobi-lab/feed-en.xml"/>
   <id>https://sishiya.github.io/asobi-lab/feed-en.xml</id>
-  <updated>2026-10-19T00:00:00+09:00</updated>
+  <updated>2026-10-25T00:00:00+09:00</updated>
   <author><name>Shishiya</name></author>
+  <entry>
+    <title>Masterpiece Face-in-Hole</title>
+    <link href="https://sishiya.github.io/asobi-lab/face-in-frame/?lang=en"/>
+    <id>https://sishiya.github.io/asobi-lab/face-in-frame/?lang=en</id>
+    <published>2026-10-25T00:00:00+09:00</published>
+    <updated>2026-10-25T00:00:00+09:00</updated>
+    <summary>The Mona Lisa, Munch’s The Scream, a Sharaku kabuki print. The lower half of each face is cut out like a face-in-hole board. Put your own face in with your camera, copy the expression in a few seconds, and snap. At the end you get a score for how well your mouth, brows, eyes and head matched. The camera video is never sent or saved.</summary>
+  </entry>
+  <entry>
+    <title>8-bit Console</title>
+    <link href="https://sishiya.github.io/asobi-lab/retro-8bit/?lang=en"/>
+    <id>https://sishiya.github.io/asobi-lab/retro-8bit/?lang=en</id>
+    <published>2026-10-25T00:00:00+09:00</published>
+    <updated>2026-10-25T00:00:00+09:00</updated>
+    <summary>An 8-bit game console written from scratch by Asobi Lab. Pick a cartridge from its clear case, and it clicks into the console and powers on. Three original games made for this machine. The screen can look like an old CRT TV.</summary>
+  </entry>
   <entry>
     <title>Dino Sprint Ranch</title>
     <link href="https://sishiya.github.io/asobi-lab/dino-race/?lang=en"/>

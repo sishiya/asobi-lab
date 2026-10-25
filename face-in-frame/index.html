@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
+<script>/* 言語 ja／en（まなびラボの I18N.md・dino-race と同じ決め方。localStorage の manabi-lang はまなびラボ・あそびラボで共通）: ?lang= → 前に選んだもの → ブラウザの言語。js は js/i18n.js の TX(日本語, 英語)、HTML は <span lang> の対 */(function(){var q=new URLSearchParams(location.search).get('lang'),s=null;try{s=localStorage.getItem('manabi-lang');}catch(e){}var l=q==='en'||q==='ja'?q:s==='en'||s==='ja'?s:/^ja/i.test(navigator.language||'ja')?'ja':'en';document.documentElement.lang=l;if(l==='en')document.title='Masterpiece Face-in-Hole';})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='2' width='26' height='28' rx='2' fill='%23b8862f'/%3E%3Crect x='6' y='5' width='20' height='22' fill='%235a4330'/%3E%3Cellipse cx='16' cy='14' rx='5' ry='6.4' fill='%23130f0c'/%3E%3C/svg%3E">
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
@@ -10,29 +11,30 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/no-quirks.css"><script src="../assets/no-quirks.js" defer></script>
-<link rel="stylesheet" href="css/style.css?v=3">
+<link rel="stylesheet" href="css/style.css?v=4">
 </head>
 <body>
 
 <!-- タイトル -->
 <section id="title" class="screen on">
+  <div class="langsw" role="group" aria-label="言語 Language"><button type="button" data-lang="ja" aria-label="日本語">JP</button><button type="button" data-lang="en" aria-label="English">EN</button></div>
   <div class="hall">
     <div class="frames" aria-hidden="true">
       <img src="art/monalisa.jpg" alt=""><img src="art/scream.jpg" alt=""><img src="art/sharaku.jpg" alt="">
     </div>
-    <h1>名画の顔ハメ</h1>
-    <p class="lead">顔をはめて、名画の表情をまねしよう</p>
-    <button class="big" id="start">はじめる</button>
-    <p class="privacy"><span class="cam" aria-hidden="true"></span>カメラを使います。映像はこの端末の中だけで使い、送ったり保存したりしません。</p>
-    <button class="link" id="openSettings">設定</button>
+    <h1><span lang="ja">名画の顔ハメ</span><span lang="en">Masterpiece<br>Face-in-Hole</span></h1>
+    <p class="lead"><span lang="ja">顔をはめて、名画の表情をまねしよう</span><span lang="en">Put your face in a masterpiece and copy its expression</span></p>
+    <button class="big" id="start"><span lang="ja">はじめる</span><span lang="en">Start</span></button>
+    <p class="privacy"><span class="cam" aria-hidden="true"></span><span lang="ja">カメラを使います。映像はこの端末の中だけで使い、送ったり保存したりしません。</span><span lang="en">This uses your camera. The video stays on this device and is never sent or saved.</span></p>
+    <div class="links"><button class="link" id="openSettings"><span lang="ja">設定</span><span lang="en">Settings</span></button><a class="link" href="../index.html"><span lang="ja">あそびラボのトップへ</span><span lang="en">Asobi Lab home</span></a></div>
   </div>
-  <span class="ver">ver. 0.3</span>
+  <span class="ver">ver. 0.4</span>
 </section>
 
 <!-- 遊ぶ -->
 <section id="play" class="screen">
   <div class="bar">
-    <button class="quit" id="quit" aria-label="やめる">×</button>
+    <button class="quit" id="quit" aria-label="やめる" data-en-label="Quit">×</button>
     <span class="count" id="count"></span>
     <span class="name" id="name"></span>
   </div>
@@ -42,7 +44,7 @@
       <div class="hint" id="hint"></div>
       <div class="num" id="num"></div>
       <div class="flash" id="flash"></div>
-      <div class="wait" id="wait">カメラを準備しています…</div>
+      <div class="wait" id="wait"></div>
     </div>
   </div>
   <div class="timer"><i id="timer"></i></div>
@@ -51,37 +53,37 @@
 <!-- けっか -->
 <section id="result" class="screen">
   <div class="res">
-    <p class="eyebrow">けっか</p>
-    <p class="total"><b id="total">0</b>点</p>
+    <p class="eyebrow"><span lang="ja">けっか</span><span lang="en">RESULT</span></p>
+    <p class="total"><b id="total">0</b><span lang="ja">点</span><span lang="en"> pts</span></p>
     <p class="rank" id="rank"></p>
     <div class="shots" id="shots"></div>
     <div class="acts">
-      <button class="big" id="saveAll">まとめて保存</button>
-      <button class="sub" id="again">もういちど</button>
+      <button class="big" id="saveAll"><span lang="ja">まとめて保存</span><span lang="en">Save all as one</span></button>
+      <button class="sub" id="again"><span lang="ja">もういちど</span><span lang="en">Play again</span></button>
     </div>
-    <p class="privacy">写真は「保存」を押したときだけ、この端末に保存されます。ページを閉じると消えます。</p>
+    <p class="privacy"><span lang="ja">写真は「保存」を押したときだけ、この端末に保存されます。ページを閉じると消えます。</span><span lang="en">Photos are saved to this device only when you press Save. They are gone when you close the page.</span></p>
   </div>
 </section>
 
 <!-- 設定 -->
 <div class="sheet" id="settings" hidden>
-  <div class="panel" role="dialog" aria-label="設定">
-    <h2>設定</h2>
-    <div class="opt"><span>顔を穴へ寄せる</span><div class="seg" data-key="assist"><button data-v="0">なし</button><button data-v="1">弱</button><button data-v="2">中</button><button data-v="3">強</button></div></div>
-    <div class="opt"><span>絵の色になじませる</span><div class="seg" data-key="blend"><button data-v="0">なし</button><button data-v="1">弱</button><button data-v="2">中</button><button data-v="3">強</button></div></div>
-    <div class="opt"><span>1枚の時間</span><div class="seg" data-key="secs"><button data-v="5">5秒</button><button data-v="8">8秒</button></div></div>
-    <div class="opt"><span>枚数</span><div class="seg" data-key="shots"><button data-v="3">3枚</button><button data-v="5">5枚</button></div></div>
-    <div class="opt"><span>音</span><div class="seg" data-key="sound"><button data-v="1">あり</button><button data-v="0">なし</button></div></div>
-    <button class="big" id="closeSettings">とじる</button>
-    <p class="credit">絵はどれもパブリックドメインです（<a href="CREDITS.md" target="_blank">出典</a>）。顔の読み取りに MediaPipe（Apache-2.0）を使っています。</p>
+  <div class="panel" role="dialog" aria-label="設定" data-en-label="Settings">
+    <h2><span lang="ja">設定</span><span lang="en">Settings</span></h2>
+    <div class="opt"><span><span lang="ja">顔を穴へ寄せる</span><span lang="en">Pull my face into the hole</span></span><div class="seg" data-key="assist"><button data-v="0"><span lang="ja">なし</span><span lang="en">Off</span></button><button data-v="1"><span lang="ja">弱</span><span lang="en">Low</span></button><button data-v="2"><span lang="ja">中</span><span lang="en">Mid</span></button><button data-v="3"><span lang="ja">強</span><span lang="en">High</span></button></div></div>
+    <div class="opt"><span><span lang="ja">絵の色になじませる</span><span lang="en">Blend into the painting</span></span><div class="seg" data-key="blend"><button data-v="0"><span lang="ja">なし</span><span lang="en">Off</span></button><button data-v="1"><span lang="ja">弱</span><span lang="en">Low</span></button><button data-v="2"><span lang="ja">中</span><span lang="en">Mid</span></button><button data-v="3"><span lang="ja">強</span><span lang="en">High</span></button></div></div>
+    <div class="opt"><span><span lang="ja">1枚の時間</span><span lang="en">Time per painting</span></span><div class="seg" data-key="secs"><button data-v="5"><span lang="ja">5秒</span><span lang="en">5 s</span></button><button data-v="8"><span lang="ja">8秒</span><span lang="en">8 s</span></button></div></div>
+    <div class="opt"><span><span lang="ja">枚数</span><span lang="en">Paintings</span></span><div class="seg" data-key="shots"><button data-v="3">3</button><button data-v="5">5</button></div></div>
+    <div class="opt"><span><span lang="ja">音</span><span lang="en">Sound</span></span><div class="seg" data-key="sound"><button data-v="1"><span lang="ja">あり</span><span lang="en">On</span></button><button data-v="0"><span lang="ja">なし</span><span lang="en">Off</span></button></div></div>
+    <button class="big" id="closeSettings"><span lang="ja">とじる</span><span lang="en">Close</span></button>
+    <p class="credit"><span lang="ja">絵はどれもパブリックドメインです（<a href="CREDITS.md" target="_blank">出典</a>）。顔の読み取りに MediaPipe（Apache-2.0）を使っています。</span><span lang="en">All paintings are in the public domain (<a href="CREDITS.md" target="_blank">sources</a>, in Japanese). Face tracking uses MediaPipe (Apache-2.0).</span></p>
   </div>
 </div>
 
 <!-- しらせ -->
 <div class="sheet" id="msg" hidden>
-  <div class="panel"><p id="msgText"></p><button class="big" id="msgOk">タイトルへ</button></div>
+  <div class="panel"><p id="msgText"></p><button class="big" id="msgOk"><span lang="ja">タイトルへ</span><span lang="en">Back to title</span></button></div>
 </div>
 
-<script type="module" src="js/main.js?v=3"></script>
+<script type="module" src="js/main.js?v=4"></script>
 </body>
 </html>

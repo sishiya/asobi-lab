@@ -21,8 +21,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 
 /* タイトル */
 #title{align-items:center;justify-content:center;padding:16px}
-.hall{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;max-width:520px}
-.frames{display:flex;justify-content:center;align-items:flex-end;height:min(34vh,240px);margin-bottom:8px}
+.hall{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;width:100%;max-width:520px;min-width:0}
+.frames{display:flex;justify-content:center;align-items:flex-end;height:min(34vh,240px,52vw);margin-bottom:8px;max-width:100%}
 .frames img{height:84%;width:auto;border:6px solid var(--gold);outline:2px solid var(--gold2);box-shadow:0 10px 24px rgba(0,0,0,.5);margin:0 -10px}
 .frames img:nth-child(1){transform:rotate(-7deg)}
 .frames img:nth-child(2){height:100%;z-index:1}
@@ -99,3 +99,12 @@ h1{font-family:"Shippori Mincho",serif;font-weight:800;font-size:clamp(34px,8vw,
   .hint small{display:none}
   .num{right:16px;bottom:16px;width:56px;height:56px;font-size:34px}
 }
+
+/* ことば: <span lang> の対のうち、いまのことばでないほうを隠す。タイトルの右上に JP / EN */
+:root[lang=en] [lang=ja],:root:not([lang=en]) [lang=en]{display:none!important}
+.langsw{position:absolute;right:16px;top:16px;display:flex;gap:2px;padding:3px;border-radius:999px;background:var(--panel);border:1px solid var(--line)}
+.langsw button{min-width:44px;min-height:38px;padding:2px 10px;border:0;border-radius:999px;background:none;color:var(--muted);font-size:13px;font-weight:700;letter-spacing:.06em}
+.langsw button[aria-pressed=true]{background:var(--acc);color:#241806}
+.links{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.links a.link{display:inline-flex;align-items:center}
+:root[lang=en] h1{font-family:"Shippori Mincho",Georgia,serif;letter-spacing:.02em;line-height:1.1;font-size:clamp(32px,7vw,46px)}

@@ -12,7 +12,7 @@ const errors = [];
 page.on('pageerror', e => errors.push(String(e)));
 page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
 await page.addInitScript(() => localStorage.setItem('face-in-frame', JSON.stringify({ sound: 0, secs: 5, shots: 3 })));
-await page.goto(`${srv.origin}/face-in-frame/?test=${id}${process.argv[5] ? '&pick=' + process.argv[5] : ''}`);
+await page.goto(`${srv.origin}/face-in-frame/?${process.env.LANG_Q ? 'lang=' + process.env.LANG_Q + '&' : ''}test=${id}${process.argv[5] ? '&pick=' + process.argv[5] : ''}`);
 const dir = outDir('face-in-frame');
 const shot = name => page.screenshot({ path: path.join(dir, `${w}x${h}-${name}.png`) });
 await page.waitForTimeout(800); await shot('0-title');
