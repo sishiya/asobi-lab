@@ -8,12 +8,11 @@ import { Console8 } from './nes.js';
 import { listCarts, addCart, renameCart, deleteCart } from './mycarts.js';
 
 const $ = (id) => document.getElementById(id);
-// カセットの色: 本体（クリーム・ミント・サンゴ）とかぶらない8色（濃さでも本体とはなす）
+// カセットの色: 本体（クリーム・ミント・サンゴ）とかぶらない8色（濃さでも本体とはなす）。ねずみは じぶんのカセットのはじめの色
 export const CART_COLORS = [
   ['#3f4f86', '藍'], ['#d4a03a', 'からし'], ['#7d4f78', 'すみれ'], ['#56636f', '鉄'],
-  ['#8c3a3f', 'えんじ'], ['#6f7a3a', 'オリーブ'], ['#3a3836', 'すみ'], ['#e0a26a', 'あんず'],
-  ['#8e8a84', 'ねずみ'],
-];
+  ['#8c3a3f', 'えんじ'], ['#6f7a3a', 'オリーブ'], ['#e0a26a', 'あんず'], ['#8e8a84', 'ねずみ'],
+];   // 4×2（v013 で「すみ」を外した。前に選んだ人のカセットはその色のまま）
 const MINE_COLOR = '#8e8a84';   // じぶんのカセットのはじめの色（目立たない灰色）
 const MINE_COUNT = 'retro8.mineCount';   // 読みこむ前にケースの場所をとるための本数
 const read = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
@@ -83,6 +82,7 @@ export function initShelf(o) {
     m.innerHTML = `<p>カセットの色</p><div class="sw">${CART_COLORS.map(([c, n]) => `<button role="menuitemradio" aria-checked="${c === now}" style="--s:${c}" data-c="${c}" aria-label="${n}" title="${n}"></button>`).join('')}</div>
       ${mine ? '<button class="row2" data-act="rename">なまえをかえる</button>' : ''}
       <a class="row2" data-act="dl">ROM をダウンロード</a>
+      ${read('retro8.save.' + entry.id) ? '<button class="row2 del" data-act="erase">セーブを消す</button>' : ''}
       ${mine ? '<button class="row2 del" data-act="del">すてる</button>' : ''}`;
     for (const b of m.querySelectorAll('[data-c]')) b.addEventListener('click', () => {
       save('retro8.cartColor.' + entry.id, b.dataset.c);
@@ -100,6 +100,12 @@ export function initShelf(o) {
       const n = prompt('カセットの なまえ（32字まで）', entry.title);
       if (n === null) return;
       await renameCart(entry.id, n); closeMenus(); await render();
+    });
+    // 電池のセーブ（セーブがあるカセットだけ出す）。2026-10-25 説明書の中から、そのカセットのメニューへ移した
+    m.querySelector('[data-act=erase]')?.addEventListener('click', () => {
+      if (!confirm(`「${entry.title}」のセーブを消します（はじめからになります）。もとにはもどせません。消しますか？`)) return;
+      try { localStorage.removeItem('retro8.save.' + entry.id); } catch { /* 残せない設定なら、もともとない */ }
+      closeMenus();
     });
     m.querySelector('[data-act=del]')?.addEventListener('click', async () => {
       if (!confirm(`「${entry.title}」をすてます（このブラウザから消え、セーブも消えます）。よいですか？`)) return;
@@ -141,7 +147,7 @@ export function initShelf(o) {
     s.fly.classList.add('front');
     it.classList.add('open'); await wait(200);
     await anim(s.fly, [{ transform: T(g.x, g.above + 40) }, { transform: T(g.sx, g.sy, g.s) }], 560, 'cubic-bezier(.4,0,.2,1)');
-    s.fly.remove(); it.querySelector('.cart').classList.remove('gone'); it.classList.remove('gone');
+    s.fly.remove(); it.querySelector('.cart').classList.remove('gone'); it.classList.remove('gone'); o.sfx.clack('tuck');
     await wait(150); it.classList.remove('open'); await wait(300);
   }
   async function insert(it, entry) {
@@ -150,7 +156,7 @@ export function initShelf(o) {
     try {
       await eject();
       const cart = it.querySelector('.cart');
-      it.classList.add('open'); await wait(330);
+      it.classList.add('open'); o.sfx.clack('lift'); await wait(330);
       const g = geo(cart);
       const fly = cart.cloneNode(true); fly.classList.add('fly', 'front'); fly.removeAttribute('aria-label'); fly.tabIndex = -1;
       fly.style.setProperty('--c', getComputedStyle(it).getPropertyValue('--c'));

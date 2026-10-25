@@ -286,7 +286,7 @@ html,body{overflow-x:clip}   /* 動き（ふた・飛ぶカセット）がはみ
 @media (pointer:coarse){ .menuBtn{opacity:.85} .menuBtn::before{content:"";position:absolute;inset:-6px} }
 .cmenu{position:absolute;right:-12px;top:30px;z-index:20;width:220px;padding:8px;border-radius:12px;background:var(--menu);color:var(--sh-ink);box-shadow:0 12px 30px rgba(0,0,0,.25);font-size:13px}
 .cmenu p{margin:2px 6px 6px;font-size:11px;font-weight:700;color:var(--sh-sub)}
-.cmenu .sw{display:grid;grid-template-columns:repeat(3,40px);gap:8px;padding:0 6px 8px}
+.cmenu .sw{display:grid;grid-template-columns:repeat(4,40px);gap:8px;padding:0 6px 8px}
 .cmenu .sw button{width:40px;height:40px;border-radius:8px;border:0;background:var(--s);box-shadow:inset 0 0 0 2px rgba(255,255,255,.4),0 1px 2px rgba(0,0,0,.25);cursor:pointer}
 .cmenu .sw button[aria-checked="true"]{box-shadow:0 0 0 2px var(--sh-ink),inset 0 0 0 2px rgba(255,255,255,.6)}
 .cmenu .row2{display:block;width:100%;text-align:left;border:0;background:transparent;border-top:1px solid rgba(0,0,0,.08);padding:10px 8px;font:inherit;color:var(--sh-ink);cursor:pointer;min-height:44px;text-decoration:none}
@@ -307,8 +307,6 @@ html,body{overflow-x:clip}   /* 動き（ふた・飛ぶカセット）がはみ
 .help p{margin:10px 0 0}
 .help a{color:#c0563f}
 .help .small{font-size:12px;color:#8a7a66}
-.help .erase{font:inherit;font-size:13px;color:#c0563f;background:transparent;border:1px solid rgba(0,0,0,.18);border-radius:6px;padding:4px 10px;cursor:pointer;min-height:32px}
-.help .erased{font-size:13px;color:#4a7a2a}
 .back{border:1px solid var(--line);background:transparent;border-radius:8px;min-width:44px;min-height:44px;font-size:18px;color:var(--ink);cursor:pointer}
 .back:hover{border-color:var(--muted)}
 @media (prefers-reduced-motion:reduce){ .case,.cart{transition:none!important} }
@@ -325,6 +323,6 @@ html,body{overflow-x:clip}   /* 動き（ふた・飛ぶカセット）がはみ
   .err{margin:8px 16px 12px}
   /* 「…」メニューは下からの板に（列のふちで切れないように） */
   .cmenu{position:fixed;left:12px;right:12px;top:auto;bottom:12px;width:auto;padding:12px}
-  .cmenu .sw{grid-template-columns:repeat(9,1fr);gap:6px;padding:0 0 10px}
-  .cmenu .sw button{width:100%;height:auto;aspect-ratio:1}
+  .cmenu .sw{grid-template-columns:repeat(4,48px);gap:10px;padding:0 0 10px}
+  .cmenu .sw button{width:48px;height:48px}
 }

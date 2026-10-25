@@ -26,10 +26,11 @@ async function loadRom(entry) {
   if (!romCache.has(entry.id)) romCache.set(entry.id, fetch(entry.file + '?v=5').then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
   return romCache.get(entry.id);
 }
-// 小さな音（カセットが入る・抜ける・スイッチ）。設定の音と大きさにしたがう
+// 小さな音（カセットが入る・抜ける・スイッチ・ケースから出す／もどす）。設定の音と大きさにしたがう
 let sfxCtx = null;
 function clack(kind) {
   if (!soundOn) return;
+  if (kind === 'lift' || kind === 'tuck') { caseTone(kind); return; }
   try {
     sfxCtx ||= new (window.AudioContext || window.webkitAudioContext)();
     const t = sfxCtx.currentTime, n = Math.floor(sfxCtx.sampleRate * 0.06), buf = sfxCtx.createBuffer(1, n, sfxCtx.sampleRate), d = buf.getChannelData(0);
@@ -38,6 +39,23 @@ function clack(kind) {
     f.type = 'bandpass'; f.frequency.value = kind === 'in' ? 900 : kind === 'out' ? 1400 : 2400; f.Q.value = 1.2;
     gn.gain.value = volume * 0.5;
     src.buffer = buf; src.connect(f).connect(gn).connect(sfxCtx.destination); src.start(t);
+  } catch { /* 音が出せなくても動く */ }
+}
+// ケースから出す（少し上がる）・ケースにもどす（少し下がる）: 小さく丸い音。高い音と立ち上がりのとがりを消して耳にやさしく
+function caseTone(kind) {
+  try {
+    sfxCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+    const t = sfxCtx.currentTime + 0.01, up = kind === 'lift';
+    const os = sfxCtx.createOscillator(), f = sfxCtx.createBiquadFilter(), gn = sfxCtx.createGain();
+    os.type = 'triangle';
+    os.frequency.setValueAtTime(up ? 440 : 560, t);
+    os.frequency.exponentialRampToValueAtTime(up ? 620 : 392, t + 0.09);
+    f.type = 'lowpass'; f.frequency.value = 1600;
+    gn.gain.setValueAtTime(0, t);
+    gn.gain.linearRampToValueAtTime(volume * 0.13, t + 0.012);
+    gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+    os.connect(f).connect(gn).connect(sfxCtx.destination);
+    os.start(t); os.stop(t + 0.18);
   } catch { /* 音が出せなくても動く */ }
 }
 // 棚（くわしくは shelf.js）
@@ -130,11 +148,6 @@ function saveBattery() {
 }
 setInterval(() => { if (running) saveBattery(); }, 3000);
 // とりあつかい説明書の「セーブを消す」（遊んでいないときだけ押せる。消したら、つぎに入れたとき牧場ははじめから）
-$('eraseDino').addEventListener('click', () => {
-  if (!confirm('恐竜かけっこ牧場のセーブ（牧場の恐竜と、勝ちすすんだ杯）を消します。もとにはもどせません。消しますか？')) return;
-  try { localStorage.removeItem('retro8.save.dino-ranch'); } catch { /* 保存できない設定なら、もともと残っていない */ }
-  $('erased').textContent = '消しました';
-});
 addEventListener('pagehide', () => { if (nes) saveBattery(); });
 
 // ---------- 画面の大きさ（なるべく整数倍で、ドットをそろえる） ----------
