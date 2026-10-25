@@ -9,6 +9,7 @@
 <script>/* 言語 ja／en（まなびラボの I18N.md・edge-falls・flat-history と同じ決め方。localStorage の manabi-lang はまなびラボ・あそびラボで共通）: ?lang= → 前に選んだもの → ブラウザの言語。js の中の文は TX(日本語, 英語)、HTML は <span lang> の対 */var LANG=(function(){var q=new URLSearchParams(location.search).get('lang'),s=null;if(new URLSearchParams(location.search).has('thumb'))q='ja';/* サムネイルは日本語 */try{s=localStorage.getItem('manabi-lang');}catch(e){}var l=q==='en'||q==='ja'?q:s==='en'||s==='ja'?s:/^ja/i.test(navigator.language||'ja')?'ja':'en';document.documentElement.lang=l;if(l==='en')document.title='Dino Sprint Ranch';return l;})();function TX(ja,en){return LANG==='en'?en:ja;}function setLang(l){try{localStorage.setItem('manabi-lang',l);}catch(e){}var u=new URL(location.href);u.searchParams.set('lang',l);location.href=u.href;}</script>
 <meta name="theme-color" content="#efe7d4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#16120d" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/no-quirks.css"><script src="../assets/no-quirks.js" defer></script>
 <link rel="stylesheet" href="css/style.css?v=16">
 </head>
 <body class="app" data-screen="ranch">
