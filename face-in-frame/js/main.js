@@ -1,14 +1,14 @@
 // 名画の顔ハメ: 画面の流れ・看板の合成・シャッター・けっか。
 // カメラの映像はこの端末の中だけで使う。写真はけっかで「保存」を押したときだけファイルにする。
-import { PAINTINGS } from './paintings.js';
-import { createLandmarker, readFace } from './face.js';
-import { createBlender, labStats } from './blend.js';
-import { scoreFace, averageFaces, mark } from './score.js';
+import { PAINTINGS } from './paintings.js?v=2';
+import { createLandmarker, readFace, areaBox, AREAS } from './face.js?v=2';
+import { createBlender, labStats } from './blend.js?v=2';
+import { scoreFace, averageFaces, mark } from './score.js?v=2';
 
 const $ = s => document.querySelector(s);
 
 // ---- 設定（覚えておけなくても動く） ----
-const DEF = { assist: 1, blend: 2, secs: 5, shots: 3, sound: 1 };
+const DEF = { assist: 1, blend: 2, secs: 5, shots: 3, sound: 1, area: 0 };
 const cfg = { ...DEF };
 try { Object.assign(cfg, JSON.parse(localStorage.getItem('face-in-frame') || '{}')); } catch (e) {}
 const saveCfg = () => { try { localStorage.setItem('face-in-frame', JSON.stringify(cfg)); } catch (e) {} };
@@ -57,10 +57,16 @@ function shutterSound() {
 // ---- 絵の用意: 穴をあけた絵と、穴の中の色 ----
 const loadImg = src => new Promise((ok, ng) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ng; i.src = src; });
 const cache = new Map();
+// くり抜く所（設定。ユーザーが3回目に「目が映らない範囲で」と言ったので、案を並べて選べるようにした。RULES 6章）
+const area = () => AREAS[cfg.area] || AREAS[0];
+const keyOf = p => p.id + ':' + area();
 async function prepare(p) {
-  if (cache.has(p.id)) return cache.get(p.id);
-  const img = await loadImg(p.src), W = img.width, H = img.height, h = p.hole;
-  const hx = h.x * W, hy = h.y * W, rx = h.rx * W, ry = h.ry * W, rot = h.rot * Math.PI / 180;
+  if (cache.has(keyOf(p))) return cache.get(keyOf(p));
+  const img = await loadImg(p.src), W = img.width, H = img.height;
+  // 顔の線を絵の画素にして、くり抜く所の箱 → だ円の穴（ふちのぼかしのまん中が箱のふちに来る大きさ）
+  const L = Object.fromEntries(Object.entries(p.face).map(([k, v]) => [k, k === 'rot' ? v : v * W]));
+  const box = areaBox(L, area());
+  const hx = box.x, hy = box.y, rx = box.w / 2 / 0.92, ry = box.h / 2 / 0.92, rot = box.rot * Math.PI / 180;
   // 穴の中の絵の色（はしの髪や背景をさけて、だ円の内がわ 8 割）
   const g0 = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
   g0.canvas.width = W; g0.canvas.height = H; g0.drawImage(img, 0, 0);
@@ -79,8 +85,8 @@ async function prepare(p) {
   g.fillStyle = grad; g.beginPath(); g.arc(0, 0, 1, 0, Math.PI * 2); g.fill(); g.restore();
   // 陰影: 穴の中の絵の明るさを 12×12 にならした地図（灰色 128 が明るさそのまま）。顔の光の当たり方だけが残る
   const shade = shadeMap(data, bw, bh, (x, y) => inside(x, y, 0.85), 12, false);
-  const out = { p, img, W, H, hx, hy, rx, ry, holed: c, dst, shade, sbox: [bx, by, bw, bh] };
-  cache.set(p.id, out);
+  const out = { p, img, W, H, hx, hy, rx, ry, box, faceW: L.right - L.left, holed: c, dst, shade, sbox: [bx, by, bw, bh] };
+  cache.set(keyOf(p), out);
   return out;
 }
 
@@ -124,10 +130,10 @@ const TEST = new URLSearchParams(location.search).get('test');
 async function testStream() {
   const p = PAINTINGS.find(q => q.id === TEST) || PAINTINGS[1], img = await loadImg(p.src);
   const c = Object.assign(document.createElement('canvas'), { width: 640, height: 480 }), g = c.getContext('2d');
-  const s = 0.4 * 480 / (p.hole.rx * 2 * img.width);
+  const f = p.face, W = img.width, s = 0.4 * 480 / ((f.right - f.left) * W);
   const draw = () => {
     const t = performance.now() / 1000;
-    g.setTransform(s, 0, 0, s, 320 + Math.sin(t * 0.7) * 40 - p.hole.x * img.width * s, 240 + Math.cos(t * 0.5) * 20 - p.hole.y * img.width * s);
+    g.setTransform(s, 0, 0, s, 320 + Math.sin(t * 0.7) * 40 - (f.nx + (f.left + f.right) / 2) * W * s, 240 + Math.cos(t * 0.5) * 20 - f.ny * W * s);
     g.drawImage(img, 0, 0); g.setTransform(1, 0, 0, 1, 0, 0);
   };
   draw(); setInterval(draw, 33);
@@ -186,7 +192,7 @@ $('#start').onclick = async () => {
 $('#quit').onclick = () => { run = null; stopCamera(); show('title'); };
 
 function begin(i) {
-  run.i = i; run.cur = cache.get(run.list[i].id); run.phase = 'intro'; run.t0 = performance.now();
+  run.i = i; run.cur = cache.get(keyOf(run.list[i])); run.phase = 'intro'; run.t0 = performance.now();
   run.lastNum = 0; srcStats = null; recent = [];
   const p = run.cur.p;
   $('#count').textContent = `${i + 1} / ${run.list.length}`;
@@ -209,12 +215,10 @@ addEventListener('resize', fitStage);
 
 // 顔の位置 → 看板の中での映像の置き方（絵の画素で）
 function placement(cur, gw, gh) {
-  const s = ASSIST[cfg.assist] || 0, holeW = cur.rx * 2;
-  const k0 = holeW / (0.4 * Math.min(gw, gh));           // 寄せないとき: カメラのまん中・ふつうの近さで穴に合う
-  // 寄せきったとき: 顔の外わく（ひたい〜あご）がたても横も穴の内がわに収まる大きさ。
-  // ふちのぼかしで眉がかくれないよう、fit（絵ごと。ふつう 0.84）だけ小さく
-  const fit = cur.p.hole.fit || 0.84;
-  const kf = smooth ? Math.min(holeW / smooth.w, cur.ry * 2 / smooth.h) * fit : k0;
+  const s = ASSIST[cfg.assist] || 0;
+  const k0 = cur.faceW / (0.4 * Math.min(gw, gh));       // 寄せないとき: カメラのまん中・ふつうの近さで、顔のはばが絵の顔のはばに合う
+  // 寄せきったとき: 自分の顔の「くり抜く所」の箱が、絵の穴の箱をおおう大きさ（髪・眉・耳は穴の外へ。ユーザー）
+  const kf = smooth ? Math.max(cur.box.w / smooth.w, cur.box.h / smooth.h) : k0;
   const k = k0 + (kf - k0) * s;
   const cx = gw / 2 + ((smooth ? smooth.x : gw / 2) - gw / 2) * s;
   const cy = gh / 2 + ((smooth ? smooth.y : gh / 2) - gh / 2) * s;
@@ -287,7 +291,7 @@ function frame(now) {
     lastVT = video.currentTime;
     try { face = readFace(lmk.detectForVideo(video, now), gw, gh, true); } catch (e) { face = null; }
     if (face) {
-      const b = face.box;
+      const b = areaBox(face.lines, area());
       smooth = smooth ? { x: smooth.x + (b.x - smooth.x) * 0.35, y: smooth.y + (b.y - smooth.y) * 0.35, w: smooth.w + (b.w - smooth.w) * 0.25, h: smooth.h + (b.h - smooth.h) * 0.25 } : { ...b };
       recent.push({ t: now, f: face }); while (recent.length && now - recent[0].t > 1000) recent.shift();
       if (now - lastStat > 300 || !srcStats) { lastStat = now; measureFace(gw, gh); }

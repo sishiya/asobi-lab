@@ -43,7 +43,33 @@ export function readFace(result, w, h, mirror) {
   const bs = {};
   const cats = result.faceBlendshapes && result.faceBlendshapes[0];
   if (cats) for (const c of cats.categories) bs[c.categoryName] = c.score;
-  return { box: { x: (x0 + x1) / 2, y: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 }, roll, yaw, ex: expression(bs) };
+  return { box: { x: (x0 + x1) / 2, y: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 }, lines: faceLines(P, roll), roll, yaw, ex: expression(bs) };
+}
+
+// 顔の線: 鼻先 (nx, ny) を中心に、首のかたむき rot だけ回した向きで、鼻先からの
+// 眉の下（brow）・上まぶた（lidTop）・下まぶた（lidBot）・あご（chin）の高さと、ほお（left・right）の横の位置
+function faceLines(P, roll) {
+  const t = -roll * Math.PI / 180, c = Math.cos(t), s = Math.sin(t), o = P(1);
+  const R = i => { const p = P(i), dx = p.x - o.x, dy = p.y - o.y; return { x: dx * c - dy * s, y: dx * s + dy * c }; };
+  const xs = [234, 454, 33, 263, 61, 291].map(i => R(i).x); // ほお・目じり・口の角（横を向いた顔は向こうのほおが隠れるので）
+  return { nx: o.x, ny: o.y, rot: roll,
+    brow: Math.min(R(65).y, R(295).y), lidTop: Math.min(R(159).y, R(386).y), lidBot: Math.max(R(145).y, R(374).y),
+    chin: R(152).y, left: Math.min(...xs), right: Math.max(...xs) };
+}
+
+// くり抜く所ごとの箱（顔の線と同じ単位）。絵の穴と、映像の顔の両方をこれで決めて、箱どうしを重ねる。
+//   nose: 鼻から下（目は絵のまま） / eyes: 目から下（眉・髪・耳は絵のまま） / face: 顔ぜんぶ
+export const AREAS = ['nose', 'eyes', 'face'];
+export function areaBox(L, area) {
+  const span = L.chin - L.brow;
+  const top = area === 'nose' ? L.lidBot + (0 - L.lidBot) * 0.3
+    : area === 'eyes' ? L.lidTop - (L.lidTop - L.brow) * 0.45
+    : L.brow - span * 0.45;
+  const bottom = L.chin + span * (area === 'face' ? 0.04 : 0.02);
+  const wide = area === 'nose' ? 0.78 : area === 'eyes' ? 0.9 : 1.02;
+  const cx = (L.left + L.right) / 2, half = (L.right - L.left) / 2 * wide, left = cx - half, right = cx + half;
+  const mx = (left + right) / 2, my = (top + bottom) / 2, t = L.rot * Math.PI / 180, c = Math.cos(t), s = Math.sin(t);
+  return { x: L.nx + mx * c - my * s, y: L.ny + mx * s + my * c, w: right - left, h: bottom - top, rot: L.rot };
 }
 
 const avg = (bs, a, b) => ((bs[a] || 0) + (bs[b] || 0)) / 2;

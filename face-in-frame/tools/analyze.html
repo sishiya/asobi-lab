@@ -16,7 +16,7 @@ pre{white-space:pre-wrap;margin:0;max-width:560px}
 <div id="out"></div>
 <script type="module">
 // 開発用: 絵ごとの穴とお手本の数の下書きを作る（手で直して js/paintings.js へ）
-import { createLandmarker, readFace } from '../js/face.js';
+import { createLandmarker, readFace, areaBox, AREAS } from '../js/face.js';
 import { PAINTINGS } from '../js/paintings.js';
 const lmk = await createLandmarker('IMAGE');
 window.RESULTS = {};
@@ -37,10 +37,10 @@ for (const p of PAINTINGS) {
     window.RESULTS[p.id] = { size: [img.width, img.height], box: f.box, roll: r(f.roll), yaw: r(f.yaw), ex: Object.fromEntries(Object.entries(f.ex).map(([k, v]) => [k, r(v)])) };
     pre.textContent = p.id + '\n' + JSON.stringify(window.RESULTS[p.id], null, 1);
   } else { pre.textContent = p.id + '\n顔が見つからない'; window.RESULTS[p.id] = null; }
-  if (p.hole) { // いまの穴
-    const h = p.hole; g.save(); g.translate(h.x * img.width, h.y * img.width); g.rotate(h.rot * Math.PI / 180);
-    g.strokeStyle = '#f0f'; g.beginPath(); g.ellipse(0, 0, h.rx * img.width, h.ry * img.width, 0, 0, Math.PI * 2); g.stroke(); g.restore();
-  }
+  // くり抜く所の3つの箱（鼻から下・目から下・顔ぜんぶ）
+  const L = Object.fromEntries(Object.entries(p.face).map(([k, v]) => [k, k === 'rot' ? v : v * img.width]));
+  AREAS.forEach((ar, n) => { const b = areaBox(L, ar); g.save(); g.translate(b.x, b.y); g.rotate(b.rot * Math.PI / 180);
+    g.strokeStyle = ['#f0f', '#ff0', '#0ff'][n]; g.lineWidth = 3; g.strokeRect(-b.w / 2, -b.h / 2, b.w, b.h); g.restore(); });
   row.append(c, pre); out.append(row);
 }
 document.title += ' 完了';
