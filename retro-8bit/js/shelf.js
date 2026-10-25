@@ -138,17 +138,17 @@ export function initShelf(o) {
   async function eject() {
     if (!seated) return;
     const s = seated; seated = null;
-    setPower(false);
+    if (con.classList.contains('on')) { setPower(false); o.sfx.clack('sw'); }
     const it = row.querySelector(`.item[data-id="${CSS.escape(s.id)}"]`);
     if (!it) { s.fly.remove(); return; }
     const g = geo(it.querySelector('.cart'));
     o.sfx.clack('out');
     await anim(s.fly, [{ transform: T(g.x, g.rest) }, { transform: T(g.x, g.rest + 2), offset: 0.15 }, { transform: T(g.x, g.above + 40) }], 420, 'cubic-bezier(.2,1.3,.5,1)');
     s.fly.classList.add('front');
-    it.classList.add('open'); await wait(200);
+    it.classList.add('open'); o.sfx.clack('caseOpen'); await wait(200);
     await anim(s.fly, [{ transform: T(g.x, g.above + 40) }, { transform: T(g.sx, g.sy, g.s) }], 560, 'cubic-bezier(.4,0,.2,1)');
-    s.fly.remove(); it.querySelector('.cart').classList.remove('gone'); it.classList.remove('gone'); o.sfx.clack('tuck');
-    await wait(150); it.classList.remove('open'); await wait(300);
+    s.fly.remove(); it.querySelector('.cart').classList.remove('gone'); it.classList.remove('gone'); o.sfx.clack('intoCase');
+    await wait(260); it.classList.remove('open'); o.sfx.clack('caseClose'); await wait(300);
   }
   async function insert(it, entry) {
     if (busy) return;
@@ -156,7 +156,7 @@ export function initShelf(o) {
     try {
       await eject();
       const cart = it.querySelector('.cart');
-      it.classList.add('open'); o.sfx.clack('lift'); await wait(330);
+      it.classList.add('open'); o.sfx.clack('caseOpen'); await wait(330);
       const g = geo(cart);
       const fly = cart.cloneNode(true); fly.classList.add('fly', 'front'); fly.removeAttribute('aria-label'); fly.tabIndex = -1;
       fly.style.setProperty('--c', getComputedStyle(it).getPropertyValue('--c'));
@@ -165,13 +165,15 @@ export function initShelf(o) {
       fly.style.transform = T(g.sx, g.sy, g.s);
       await anim(fly, [{ transform: T(g.sx, g.sy, g.s) }, { transform: T(g.x, g.above) }], 560, 'cubic-bezier(.3,.7,.4,1)');
       fly.classList.remove('front');           // ここから本体の前の面のうしろ（穴から見える）
-      it.classList.remove('open');             // 出したあとはふたをしめる
-      await anim(fly, [{ transform: T(g.x, g.above) }, { transform: T(g.x, g.rest + 3), offset: 0.82, easing: 'cubic-bezier(.55,0,.85,.5)' }, { transform: T(g.x, g.rest), easing: 'ease-out' }], 520);
-      o.sfx.clack('in');
+      it.classList.remove('open'); o.sfx.clack('caseClose');   // 出したあとはふたをしめる
+      const down = anim(fly, [{ transform: T(g.x, g.above) }, { transform: T(g.x, g.rest + 3), offset: 0.82, easing: 'cubic-bezier(.55,0,.85,.5)' }, { transform: T(g.x, g.rest), easing: 'ease-out' }], 520);
+      setTimeout(() => o.sfx.clack('in'), still() ? 0 : 400);   // 音の頭（すべる音）が底に着く少し前から。カチャッが着いたところに合う
+      await down;
       con.classList.add('bump'); setTimeout(() => con.classList.remove('bump'), 240);
       seated = { id: entry.id, entry, fly };
+      await wait(300);                          // 入ったのを見てから、電源
       setPower(true); o.sfx.clack('sw');
-      await wait(380);
+      await wait(420);
       o.open(entry);
     } finally { busy = false; }
   }
@@ -236,9 +238,9 @@ export function initShelf(o) {
 
   return {
     render,
-    // 遊ぶ画面から棚へ: カセットは入ったまま、電源だけ切る
+    // 遊ぶ画面から棚へ: 電源を切って、カセットをケースへ
     back() {
-      setPower(false);
+      if (con.classList.contains('on')) { setPower(false); o.sfx.clack('sw'); }
       if (!seated || busy) return;
       busy = true;
       setTimeout(() => eject().finally(() => { busy = false; }), still() ? 0 : 250);

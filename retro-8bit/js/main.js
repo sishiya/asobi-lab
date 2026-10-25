@@ -26,36 +26,38 @@ async function loadRom(entry) {
   if (!romCache.has(entry.id)) romCache.set(entry.id, fetch(entry.file + '?v=5').then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
   return romCache.get(entry.id);
 }
-// 小さな音（カセットが入る・抜ける・スイッチ・ケースから出す／もどす）。設定の音と大きさにしたがう
-let sfxCtx = null;
-function clack(kind) {
-  if (!soundOn) return;
-  if (kind === 'lift' || kind === 'tuck') { caseTone(kind); return; }
-  try {
-    sfxCtx ||= new (window.AudioContext || window.webkitAudioContext)();
-    const t = sfxCtx.currentTime, n = Math.floor(sfxCtx.sampleRate * 0.06), buf = sfxCtx.createBuffer(1, n, sfxCtx.sampleRate), d = buf.getChannelData(0);
-    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, kind === 'in' ? 6 : kind === 'out' ? 4 : 10);
-    const src = sfxCtx.createBufferSource(), f = sfxCtx.createBiquadFilter(), gn = sfxCtx.createGain();
-    f.type = 'bandpass'; f.frequency.value = kind === 'in' ? 900 : kind === 'out' ? 1400 : 2400; f.Q.value = 1.2;
-    gn.gain.value = volume * 0.5;
-    src.buffer = buf; src.connect(f).connect(gn).connect(sfxCtx.destination); src.start(t);
-  } catch { /* 音が出せなくても動く */ }
+// 棚の手ざわりの音（sfx/。Stable Audio で作って、いちばんよいところを切り出した）。設定の音と大きさにしたがう。
+// 流れ: ケースを開ける → カセットを本体へ（カチャッ）→ ケースを閉める → 電源を入れる。もどると 電源を切る → 抜く → ケースを開ける → しまう → 閉める
+// 高い音を少し落として耳にやさしく（ローパス 5kHz）。小さめに鳴らす（ゲームの音よりずっと小さく）
+const SFX = { caseOpen: ['case_open', 0.32], caseClose: ['case_close', 0.3], in: ['cart_insert', 0.5], out: ['cart_pull', 0.36], sw: ['power', 0.3], intoCase: ['into_case', 0.3] };
+const sfxBytes = {}, sfxBuf = {};
+for (const [k, [f]] of Object.entries(SFX)) fetch(`sfx/${f}.ogg`).then((r) => r.ok ? r.arrayBuffer() : null).then((b) => { if (b) sfxBytes[k] = b; }).catch(() => {});
+let sfxCtx = null, sfxOut = null;
+function sfxInit() {
+  if (sfxCtx) return;
+  sfxCtx = new (window.AudioContext || window.webkitAudioContext)();
+  sfxOut = sfxCtx.createBiquadFilter(); sfxOut.type = 'lowpass'; sfxOut.frequency.value = 5000; sfxOut.connect(sfxCtx.destination);
 }
-// ケースから出す（少し上がる）・ケースにもどす（少し下がる）: 小さく丸い音。高い音と立ち上がりのとがりを消して耳にやさしく
-function caseTone(kind) {
+async function sfxGet(kind) {
+  if (sfxBuf[kind]) return sfxBuf[kind];
+  const b = sfxBytes[kind];
+  if (!b) return null;
+  sfxBuf[kind] = sfxCtx.decodeAudioData(b.slice(0));
+  return sfxBuf[kind];
+}
+function clack(kind) {
+  if (!soundOn || !SFX[kind]) return;
   try {
-    sfxCtx ||= new (window.AudioContext || window.webkitAudioContext)();
-    const t = sfxCtx.currentTime + 0.01, up = kind === 'lift';
-    const os = sfxCtx.createOscillator(), f = sfxCtx.createBiquadFilter(), gn = sfxCtx.createGain();
-    os.type = 'triangle';
-    os.frequency.setValueAtTime(up ? 440 : 560, t);
-    os.frequency.exponentialRampToValueAtTime(up ? 620 : 392, t + 0.09);
-    f.type = 'lowpass'; f.frequency.value = 1600;
-    gn.gain.setValueAtTime(0, t);
-    gn.gain.linearRampToValueAtTime(volume * 0.13, t + 0.012);
-    gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
-    os.connect(f).connect(gn).connect(sfxCtx.destination);
-    os.start(t); os.stop(t + 0.18);
+    sfxInit();
+    if (sfxCtx.state === 'suspended') sfxCtx.resume();
+    // はじめて鳴らすときに、ほかの音もまとめて用意しておく（次から遅れない）
+    for (const k of Object.keys(SFX)) sfxGet(k)?.catch?.(() => {});
+    Promise.resolve(sfxGet(kind)).then((buf) => {
+      if (!buf) return;
+      const src = sfxCtx.createBufferSource(), gn = sfxCtx.createGain();
+      gn.gain.value = volume * SFX[kind][1];
+      src.buffer = buf; src.connect(gn).connect(sfxOut); src.start();
+    }).catch(() => {});
   } catch { /* 音が出せなくても動く */ }
 }
 // 棚（くわしくは shelf.js）
