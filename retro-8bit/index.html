@@ -10,7 +10,7 @@
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 <link rel="stylesheet" href="../assets/no-quirks.css"><script src="../assets/no-quirks.js" defer></script>
-<link rel="stylesheet" href="css/style.css?v=25">
+<link rel="stylesheet" href="css/style.css?v=26">
 </head>
 <body>
 
@@ -62,7 +62,9 @@
       <p lang="en">Your own cassettes (your .nes files) stay only in this browser and are never sent anywhere. Please add only files you have the rights to.</p>
       <p lang="ja">電池つきのカセット（恐竜かけっこ牧場 8bit）のセーブは、このブラウザの中に残ります。消すときは、そのカセットの「…」から「セーブを消す」（牧場はタイトルで SELECT（Shift）を押しながら START（Enter）でも、はじめからにできます）。</p>
       <p lang="en">Cassettes with a battery (Dino Sprint Ranch 8bit, Pillbug Path) keep their saves in this browser. To erase one, use "Erase save" in that cassette's "…" menu.</p>
-      <p class="small">ver. 0.9.14<span lang="ja">（試作）</span><span lang="en"> (prototype)</span>・<a href="launcher.html"><span lang="ja">過去の版</span><span lang="en">Past versions</span></a>・<a href="../index.html"><span lang="ja">あそびラボのトップへ</span><span lang="en">Asobi Lab home</span></a></p>
+      <p lang="ja">遊ぶ画面の上の「▦ 基板」で、本体の中をのぞけます。ゆっくり動かすと、どの部品が働いて、部品のあいだを何が通っているのかが、光と一行の説明で見えます（止めて1命令ずつも）。</p>
+      <p lang="en">Press "▦ Inside" above the game screen to look inside the console. Slow it down to see which parts are working and what passes between them, as light and a one-line note (or pause and go one step at a time).</p>
+      <p class="small">ver. 0.9.15<span lang="ja">（試作）</span><span lang="en"> (prototype)</span>・<a href="launcher.html"><span lang="ja">過去の版</span><span lang="en">Past versions</span></a>・<a href="../index.html"><span lang="ja">あそびラボのトップへ</span><span lang="en">Asobi Lab home</span></a></p>
   </div>
 </dialog>
 
@@ -73,6 +75,7 @@
     <div class="name"><button class="back" id="btnBack" aria-label="棚へもどる" data-en-label="Back to the shelf">←</button><span class="cartname" id="cartName"></span></div>
     <div class="tools">
       <button class="tool" id="btnSound" aria-pressed="true" title="音を出す／消す" data-en-title="Sound on / off"><span class="snd">♪</span><span class="lbl" id="soundLbl">音あり</span></button>
+      <button class="tool" id="btnBoard" aria-pressed="false" title="基板をのぞく（ゆっくり動かして、本体の中を見る）" data-en-title="Look inside (slow down and watch the board)"><span class="ic" aria-hidden="true">▦</span> <span lang="ja">基板</span><span lang="en">Inside</span></button>
       <button class="tool" id="btnSettings" aria-haspopup="dialog" title="設定（画面・音・キー）" data-en-title="Settings (screen, sound, keys)">⚙ <span lang="ja">設定</span><span lang="en">Settings</span></button>
       <button class="tool" id="btnRoom" aria-pressed="false" hidden title="部屋で遊ぶ（机の上のテレビで）" data-en-title="Play in the room (on the TV on the desk)">▣ <span lang="ja">部屋</span><span lang="en">Room</span></button>
       <button class="tool" id="btnFull" title="全画面" data-en-title="Full screen">⛶</button>
@@ -84,8 +87,11 @@
     <div class="bezel" id="bezel">
       <canvas id="screen" width="256" height="240" aria-label="ゲームの画面" data-en-label="Game screen"></canvas>
       <canvas id="crt" aria-hidden="true" hidden></canvas>
+      <canvas id="beam" width="256" height="240" aria-hidden="true" hidden></canvas>
       <button class="power" id="power"><span class="dot"></span><span lang="ja">電源を入れる</span><span lang="en">Power on</span></button>
     </div>
+    <!-- 基板をのぞく（js/board.js。PLAN 8章）: 速さ・本体の中の図・いまの出来事の一行 -->
+    <section class="board" id="board" hidden aria-label="本体の中" data-en-label="Inside the console"></section>
   </main>
   <!-- 下: 指の操作（スマホ）と、キーの案内（PC） -->
   <section class="pad" id="pad" aria-label="コントローラー" data-en-label="Controller">
@@ -132,6 +138,6 @@
   </section>
 </dialog>
 
-<script type="module" src="js/main.js?v=31"></script>
+<script type="module" src="js/main.js?v=32"></script>
 </body>
 </html>

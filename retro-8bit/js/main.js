@@ -6,6 +6,8 @@ import { createInput, keyLabel } from './input.js';
 import { initSettings } from './settings.js';
 import { initShelf } from './shelf.js?v=23';
 import { TX, initLang, setRomLang } from './i18n.js';
+import { createBoard } from './board.js?v=1';
+import { CPU_HZ } from './apu.js';
 
 const FRAME_MS = 1000 / 60.0988;
 const $ = (id) => document.getElementById(id);
@@ -90,6 +92,7 @@ if (ROOM_OK) {
 } else document.documentElement.classList.remove('room3d');   // 2D の本体にもどす
 // 遊ぶ画面で: 部屋のテレビで遊ぶ（ふつうの画面は隠す）／ふつうの画面にもどす
 function setRoomPlay(on) {
+  if (on && boardOn) setBoard(false);   // 部屋のテレビと基板は、どちらか一方
   roomPlay = on; save('retro8.roomPlay', on ? '1' : '0');
   $('btnRoom').setAttribute('aria-pressed', String(on));
   if (!room) return;
@@ -98,6 +101,37 @@ function setRoomPlay(on) {
   else { room.attach($('roombox'), 'shelf'); fit(); if (nes) draw(); }
 }
 $('btnRoom').addEventListener('click', () => setRoomPlay(!roomPlay));
+
+// ---------- 基板をのぞく（js/board.js。PLAN 8章）: 画面の横（せまい画面は下）に本体の中の図。ゆっくりのあいだは音を止める ----------
+let boardOn = false, slowBudget = 0;
+const board = createBoard($('board'), $('beam'));
+function setBoard(on) {
+  if (on && room && roomPlay) setRoomPlay(false);
+  boardOn = on;
+  $('btnBoard').setAttribute('aria-pressed', String(on));
+  $('board').hidden = !on; $('beam').hidden = !on;
+  $('stage').classList.toggle('boardon', on); $('player').classList.toggle('boardon', on);
+  if (on) { if (nes) board.attach(nes); }
+  else { board.detach(); board.setSpeed(1); }
+  fit();
+}
+$('btnBoard').addEventListener('click', () => setBoard(!boardOn));
+new ResizeObserver(() => { if (boardOn) fit(); }).observe($('board'));   // 説明の行数が変わったら、画面の大きさを合わせなおす
+board.onSpeed = (s) => {
+  slowBudget = 0;
+  if (!audio || !running) return;
+  if (s === 1) audio.ctx.resume(); else audio.ctx.suspend();
+};
+// 止めているとき: 1命令・1こま
+board.onStep = (kind) => {
+  if (!nes) return;
+  if (!running) power();
+  input.apply(nes);
+  if (kind === 'op') { const d = board.beginStep(); nes.step(); board.endStep(d); }
+  else nes.runFrame();
+  nes.apu.take();
+  draw();
+};
 
 // ---------- 棚 ⇄ 遊ぶ画面（部屋のとき） ----------
 // テレビの画面の上に見えない四角（ghost）を置き、遊ぶ画面の画面と同じ名前にする。View Transitions で、テレビの画面が遊ぶ画面の画面へのびる（もどるときは縮む）。
@@ -124,6 +158,7 @@ async function bootEntry(e) {
   try { bytes = e.bytes || await loadRom(e); } catch { return; }
   if (current !== e || nes) return;
   nes = new Console8(bytes, audio ? audio.ctx.sampleRate : 48000);
+  if (boardOn) board.attach(nes);
   loadBattery();
   setRomLang(nes);
   power();
@@ -154,6 +189,7 @@ async function openEntry(e, gesture) {
   let bytes;
   try { bytes = e.bytes || await loadRom(e); } catch { backToShelf(); return; }
   nes = new Console8(bytes, audio ? audio.ctx.sampleRate : 48000);
+  if (boardOn) board.attach(nes);
   loadBattery();
   setRomLang(nes); // ソフトのことば（かな／英語）は、このページのことばに合わせる
   if (room && roomPlay) setRoomPlay(true);
@@ -170,6 +206,7 @@ function stopPlayer() {
   if (nes) saveBattery();
   running = false;
   audio?.ctx.suspend();
+  board.detach();
   nes = null;
   // 遊ぶ画面の画面に前のソフトの絵を残さない（つぎの絵が描けるまで見せない）
   canvas.style.visibility = glCanvas.style.visibility = 'hidden';
@@ -253,14 +290,22 @@ function fit() {
   if ($('player').hidden || (room && roomPlay)) return;
   const stage = $('stage'), bez = $('bezel');
   const pad = parseFloat(getComputedStyle(bez).paddingLeft) * 2;
-  const w = stage.clientWidth - pad, h = stage.clientHeight - pad - 8;
+  let w = stage.clientWidth - pad, h = stage.clientHeight - pad - 8;
+  if (boardOn) {   // 基板の図のぶんをあける（横ならび＝幅から、たてならび＝高さから）
+    const bd = $('board'), gap = 16, cs = getComputedStyle(stage);
+    w -= parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    if (cs.flexDirection === 'row') w -= bd.offsetWidth + gap; else h -= bd.offsetHeight + gap;
+  }
   // デバイスのピクセルで1ドットが整数になるように（Windows の 125%・150% でも走査線がゆがまない。crt-pixels と同じ決め方）
   const dpr = window.devicePixelRatio || 1;
-  let sd = Math.max(1, Math.min(w / 256, h / 240)) * dpr;
+  let sd = Math.max(boardOn ? 0.4 : 1, Math.min(w / 256, h / 240)) * dpr;   // 基板をのぞくときは、せまい画面で 1 倍より小さくてよい
   if (Math.floor(sd) / sd >= 0.85) sd = Math.floor(sd);
   const css = sd / dpr;
   for (const el of [canvas, glCanvas]) { el.style.width = 256 * css + 'px'; el.style.height = 240 * css + 'px'; }
   glCanvas.width = Math.round(256 * sd); glCanvas.height = Math.round(240 * sd);
+  // ビームの点は画面にぴったり重ねる
+  const bm = $('beam'), at = canvas.hidden ? glCanvas : canvas;
+  Object.assign(bm.style, { width: 256 * css + 'px', height: 240 * css + 'px', left: at.offsetLeft + 'px', top: at.offsetTop + 'px' });
   if (nes && screenMode !== 'lcd' && crt) crtDraw();
 }
 addEventListener('resize', fit);
@@ -426,7 +471,7 @@ const settings = initSettings({
   volume: { get: () => volume, set: setVolume },
   vibrate: { get: () => vibrateOn, set: (v) => { vibrateOn = v; save('retro8.vibrate', v ? '1' : '0'); }, can: COARSE && !!navigator.vibrate },
   pause: () => { if (running) { running = false; pausedBySettings = true; audio?.ctx.suspend(); } },
-  resume: () => { renderGuide(); if (pausedBySettings) { pausedBySettings = false; running = true; last = 0; acc = 0; audio?.ctx.resume(); requestAnimationFrame(loop); } },
+  resume: () => { renderGuide(); if (pausedBySettings) { pausedBySettings = false; running = true; last = 0; acc = 0; audioResume(); requestAnimationFrame(loop); } },
 });
 $('btnSettings').addEventListener('click', () => settings.open('view'));
 
@@ -438,8 +483,10 @@ let acc = 0, last = 0;
 function loop(t) {
   if (!running || !nes) return;
   if (!last) last = t;
-  acc = Math.min(acc + (t - last), FRAME_MS * 4);
+  const dt = t - last;
+  acc = Math.min(acc + dt, FRAME_MS * 4);
   last = t;
+  if (boardOn && board.speed < 1) { slowTick(dt); requestAnimationFrame(loop); return; }
   let n = 0;
   while (acc >= FRAME_MS) {
     input.apply(nes);
@@ -450,15 +497,31 @@ function loop(t) {
     stats.frames++;
   }
   if (n) draw();
+  if (boardOn) board.update(dt);
   requestAnimationFrame(loop);
 }
+// ゆっくり: 時間に合わせたサイクルのぶんだけ、1命令ずつ進める（こまの途中でも絵を見せる。描いた行までが新しい絵）
+function slowTick(dt) {
+  acc = 0;
+  const sp = board.speed;
+  if (sp > 0) {
+    slowBudget = Math.min(slowBudget + (dt / 1000) * CPU_HZ * sp, CPU_HZ * sp * 0.25 + 8);
+    input.apply(nes);
+    while (slowBudget > 0) slowBudget -= nes.step();
+    nes.apu.take();   // ゆっくりの音は鳴らさない
+    draw();
+  }
+  board.update(dt);
+}
+// ゆっくり（基板をのぞく）のあいだは音を出さない
+function audioResume() { if (audio && !(boardOn && board.speed < 1)) audio.ctx.resume(); }
 function power() {
   if (running || !nes) return;
   running = true;
   $('power').hidden = true;
   canvas.style.opacity = ''; glCanvas.style.opacity = '';
   if (!audio) audio = setupAudio();
-  if (audio) { audio.ctx.resume(); nes.apu.setRate(audio.ctx.sampleRate); }
+  if (audio) { audioResume(); nes.apu.setRate(audio.ctx.sampleRate); }
   last = 0; acc = 0;
   requestAnimationFrame(loop);
 }
@@ -485,7 +548,7 @@ $('player').addEventListener('contextmenu', (e) => { if (!e.target.closest('inpu
 document.addEventListener('visibilitychange', () => {
   if (!nes || !$('power').hidden || $('player').hidden) return;   // 棚で止めているあいだは、もどっても動かさない
   if (document.hidden) { saveBattery(); running = false; audio?.ctx.suspend(); }
-  else { running = true; last = 0; acc = 0; audio?.ctx.resume(); requestAnimationFrame(loop); keepAwake(true); }
+  else { running = true; last = 0; acc = 0; audioResume(); requestAnimationFrame(loop); keepAwake(true); }
 });
 
 shelf.render();

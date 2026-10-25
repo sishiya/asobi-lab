@@ -67,6 +67,15 @@ export class Console8 {
       apu.step(c);
     }
   }
+  // 1命令だけ進める（基板をのぞく ゆっくりのとき。js/board.js）。使ったサイクルを返す
+  step() {
+    if (this.strobe) { this.shift[0] = this.pad[0]; this.shift[1] = this.pad[1]; }
+    const c = this.cpu.step();
+    this.ppu.step(c * 3);
+    if (this.cart.clock) this.cart.clock(c);
+    this.apu.step(c);
+    return c;
+  }
   setButton(player, btn, down) {
     if (down) this.pad[player] |= 1 << btn; else this.pad[player] &= ~(1 << btn);
   }

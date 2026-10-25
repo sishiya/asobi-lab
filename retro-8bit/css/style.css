@@ -365,3 +365,60 @@ html.room3d #roombox[hidden]{display:block!important;background:#5a4c3f}   /* [h
 .fly.fixed{position:fixed;left:0;top:0;z-index:60;width:160px;height:208px;transform-origin:0 0}
 @media (max-width:600px){ .roombox{flex:none;height:min(320px,42vh);margin-top:0} #btnRoom span{display:none} }
 @media (max-width:420px){ #btnFull{display:none} }   /* スマホのせまい幅: ソフトの名前が読めるように、全画面は外す（部屋のボタンが増えたので） */
+
+/* ---------- 基板をのぞく（v031。js/board.js。PLAN 8章）。区割り: 画面の横（せまい・たての画面は下）に、上＝速さと1命令／1こま、まん中＝本体の中の図、下＝いまの出来事の一行。
+   線の色の組: CPU の線＝こはく・絵の線＝水色・合図＝もも・コントローラー＝緑・音＝むらさき・テレビへ＝白。光るのは働いたぶんだけ（--a） ---------- */
+.stage.boardon{gap:16px;flex-direction:column;justify-content:flex-start}
+.board{flex:none;width:min(620px,100%);display:grid;grid-template-columns:1fr auto;grid-template-areas:'spd spd' 'pcb pcb' 'cap step';align-items:center;gap:8px 12px}
+.stage:not(.boardon) .board{display:none}
+@media (min-aspect-ratio:5/4){ .stage.boardon{flex-direction:row;justify-content:center} .board{width:min(620px,46vw)} }
+/* せまい・たて: 図は高さを決めて、画面に場所を残す。スマホの横: 十字キーと A・B の上に重ならないように左右をあける */
+@media (max-aspect-ratio:5/4){ .board .pcb{max-height:34vh} }
+@media (pointer:coarse) and (orientation:landscape){ .stage.boardon{padding:4px 168px 0 160px;align-items:flex-start} .board{width:calc((100vw - 328px) * .68)} .board .cap{font-size:12px;line-height:1.5} .board .pcb{max-height:calc(100dvh - 170px)}
+  .app.boardon .pad .mid{position:fixed;right:max(16px,env(safe-area-inset-right));top:60px;flex-direction:column;align-items:flex-end;gap:8px} }
+.board .spd{grid-area:spd;display:flex;gap:4px}
+.board .spd button{flex:1 1 0;padding:6px 4px}
+.board .stepper{grid-area:step;display:flex;gap:4px}
+.board button{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;min-height:40px;min-width:40px;padding:6px 10px;font:600 12px/1 ui-monospace,"Yu Gothic UI",monospace;cursor:pointer}
+.board button:hover:not(:disabled){color:var(--ink);border-color:var(--muted)}
+.board .spd button[aria-pressed="true"]{color:#10200a;background:var(--acc);border-color:var(--acc)}
+.board .stepper button{color:var(--ink)}
+.board .stepper button:disabled{opacity:.3;cursor:default}
+@media (pointer:coarse){ .board button{min-height:44px;min-width:44px} }
+.board .pcb{grid-area:pcb;width:100%;height:auto;display:block}
+.board .cap{grid-area:cap;min-height:3.4em;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;font-size:13px;line-height:1.6;color:var(--ink)}
+.board .cap .op{font:12px/1.6 ui-monospace,monospace;color:var(--acc)}
+.board .cap .op:empty{display:none}
+.board .cap .txt{flex:1 1 16em}
+.pcb .where{fill:#9fb3a8;font:600 11px/1 "Yu Gothic UI",system-ui,sans-serif}
+#beam{position:absolute;pointer-events:none;image-rendering:pixelated}
+
+.pcb .base{fill:#10291f;stroke:#21493a;stroke-width:2}
+.pcb .vias{fill:url(#vias);pointer-events:none}
+.pcb .cartpcb{fill:#182437;stroke:#30425f;stroke-width:2}
+.pcb .finger{fill:#b38e3c}
+.pcb .area{fill:rgba(214,232,222,.42);font:700 11px/1 "Yu Gothic UI",system-ui,sans-serif;letter-spacing:.12em}
+.pcb .wire{--c:#fff;fill:none}
+.pcb .wire.cpu,.pcb .chip.cpu,.pcb .pk.cpu{--c:#ffb44c}
+.pcb .wire.ppu,.pcb .chip.ppu,.pcb .pk.ppu{--c:#5fd8ff}
+.pcb .wire.sig,.pcb .pk.sig{--c:#ff7eaa}
+.pcb .wire.ctl,.pcb .jack.ctl,.pcb .pk.ctl{--c:#a6e05a}
+.pcb .wire.out,.pcb .jack.tv,.pcb .pk.out{--c:#eef0ff}
+.pcb .chip.apu{--c:#c99cff}
+.pcb .wire path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.pcb .wire .under{stroke:#1d3d31;stroke-width:7}
+.pcb .wire .glow{stroke:var(--c);stroke-width:3;opacity:calc(.16 + var(--a,0) * .84);filter:drop-shadow(0 0 calc(var(--a,0) * 5px) var(--c))}
+.pcb .wire.sig .glow{stroke-dasharray:6 5;stroke-width:2}
+.pcb .wire.out .glow{stroke-width:2}
+.pcb .wlbl{fill:var(--c);font:600 10px/1 "Yu Gothic UI",system-ui,sans-serif;opacity:.75}
+.pcb .wlbl.cpu{--c:#ffb44c}.pcb .wlbl.ppu{--c:#5fd8ff}.pcb .wlbl.sig{--c:#ff7eaa}
+.pcb .chip .body,.pcb .jack .body{fill:#15181f;stroke:color-mix(in srgb,var(--c) calc(var(--a,0) * 100%),#3a4152);stroke-width:2;filter:drop-shadow(0 0 calc(var(--a,0) * 9px) var(--c))}
+.pcb .chip.sub .body{fill:#1d1a26}
+.pcb .chip .name,.pcb .jack .name{fill:#e9ecf5;font:700 14px/1 "Yu Gothic UI",system-ui,sans-serif}
+.pcb .name.small{font-size:11px}
+.pcb .chip .sub{fill:#8d97b8;font:600 10px/1 "Yu Gothic UI",system-ui,sans-serif;letter-spacing:.04em}
+.pcb .legs rect{fill:#8790a3}
+.pcb .pin1{fill:#2a2f3b}
+.pcb .jack .hole{fill:#06080c}
+.pcb .off{opacity:.22}
+.pcb .pk{fill:#fff;filter:drop-shadow(0 0 4px var(--c)) drop-shadow(0 0 8px var(--c))}
