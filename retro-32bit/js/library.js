@@ -12,6 +12,13 @@ export const LIBRARY = [
     frames: 40,
   },
   {
+    id: 'dig32', file: 'discs/dig32.exe', title: TX('ほって つんで 3D（試作）', 'Dig and Stack 3D (prototype)'), color: '#6f7a3a',
+    desc: TX('ブロックの島を、自分の目で歩く。掘ったブロックは持ち物に入り、好きな所に積める。',
+      'Walk a block island with your own eyes. Blocks you dig go into your pack, and you can stack them anywhere.'),
+    keys: [['B', TX('掘る（おしつづける）', 'dig (hold)')], ['X', TX('置く', 'place')], ['PAD', TX('↑↓ 前・うしろ ←→ 向き', '↑↓ walk ←→ turn')], ['L', TX('上を見る', 'look up')], ['R', TX('下を見る', 'look down')], ['A', TX('ジャンプ', 'jump')], ['Y', TX('持ち物をかえる', 'next item')]],
+    frames: 50,
+  },
+  {
     id: 'cube', file: 'discs/cube.exe', title: TX('光るキューブ', 'Lit Cube'), color: '#7d4f78',
     desc: TX('3D の計算をする係（GTE）の確かめ。十字キーで回す。', 'A test of the 3D math chip (GTE). Turn it with the D-pad.'),
     keys: [['PAD', TX('回す', 'turn')]],

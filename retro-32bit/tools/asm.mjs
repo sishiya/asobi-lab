@@ -27,7 +27,7 @@ export function assemble(src, { origin = 0x80010000 } = {}) {
   const lines = src.split(/\r?\n/);
   const syms = {};
   const liLong = new Map(); // 行 → li を2語にするか（1回目で決めて2回目もそのまま）
-  let pc, global = '';
+  let pc, global = '', passNo = 0;
   const fail = (ln, msg) => { throw new Error(`${ln + 1}行目: ${msg}\n  ${lines[ln].trim()}`); };
   const local = (name) => name.startsWith('@') ? global + name : name;
 
@@ -93,7 +93,7 @@ export function assemble(src, { origin = 0x80010000 } = {}) {
       while ((m = line.match(/^(@?[A-Za-z_][\w.]*):\s*/))) {
         if (!m[1].startsWith('@')) global = m[1];
         const name = local(m[1]);
-        if (!final && name in syms) fail(ln, '同じラベルが2回: ' + m[1]);
+        if (passNo === 0 && name in syms) fail(ln, '同じラベルが2回: ' + m[1]);
         syms[name] = pc;
         line = line.slice(m[0].length);
       }
@@ -190,7 +190,15 @@ export function assemble(src, { origin = 0x80010000 } = {}) {
     return bytes;
   }
 
-  pass(false);
+  // 番地が決まるまで読みなおす（うしろで決まる名前を .space などの大きさに使っても、ずれないように）
+  passNo = 0; let before = '';
+  for (; passNo < 6; passNo++) {
+    pass(false);
+    const now = JSON.stringify(syms);
+    if (now === before) break;
+    before = now;
+  }
+  passNo = 99;
   const bytes = pass(true);
   if (!bytes.size) return { bytes: new Uint8Array(0), origin: origin >>> 0, syms };
   let lo = Infinity, hi = 0;
