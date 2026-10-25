@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='2' width='26' height='28' rx='2' fill='%23b8862f'/%3E%3Crect x='6' y='5' width='20' height='22' fill='%235a4330'/%3E%3Cellipse cx='16' cy='14' rx='5' ry='6.4' fill='%23130f0c'/%3E%3C/svg%3E">
+<title>名画の顔ハメ</title>
+<meta name="description" content="名画の顔がくり抜かれた顔ハメ看板。カメラで自分の顔をはめて、時間のうちに絵の表情をまねして撮る。最後にどれだけ似ていたかの点が出るゲームの試作。">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/no-quirks.css"><script src="../../../assets/no-quirks.js" defer></script>
+<link rel="stylesheet" href="css/style.css?v=1">
+</head>
+<body>
+
+<!-- タイトル -->
+<section id="title" class="screen on">
+  <div class="hall">
+    <div class="frames" aria-hidden="true">
+      <img src="art/monalisa.jpg" alt=""><img src="art/scream.jpg" alt=""><img src="art/sharaku.jpg" alt="">
+    </div>
+    <h1>名画の顔ハメ</h1>
+    <p class="lead">顔をはめて、名画の表情をまねしよう</p>
+    <button class="big" id="start">はじめる</button>
+    <p class="privacy"><span class="cam" aria-hidden="true"></span>カメラを使います。映像はこの端末の中だけで使い、送ったり保存したりしません。</p>
+    <button class="link" id="openSettings">設定</button>
+  </div>
+  <span class="ver">ver. 0.1</span>
+</section>
+
+<!-- 遊ぶ -->
+<section id="play" class="screen">
+  <div class="bar">
+    <button class="quit" id="quit" aria-label="やめる">×</button>
+    <span class="count" id="count"></span>
+    <span class="name" id="name"></span>
+  </div>
+  <div class="stagebox" id="stagebox">
+    <div class="frame" id="frame">
+      <canvas id="stage"></canvas>
+      <div class="hint" id="hint"></div>
+      <div class="num" id="num"></div>
+      <div class="flash" id="flash"></div>
+      <div class="wait" id="wait">カメラを準備しています…</div>
+    </div>
+  </div>
+  <div class="timer"><i id="timer"></i></div>
+</section>
+
+<!-- けっか -->
+<section id="result" class="screen">
+  <div class="res">
+    <p class="eyebrow">けっか</p>
+    <p class="total"><b id="total">0</b>点</p>
+    <p class="rank" id="rank"></p>
+    <div class="shots" id="shots"></div>
+    <div class="acts">
+      <button class="big" id="saveAll">まとめて保存</button>
+      <button class="sub" id="again">もういちど</button>
+    </div>
+    <p class="privacy">写真は「保存」を押したときだけ、この端末に保存されます。ページを閉じると消えます。</p>
+  </div>
+</section>
+
+<!-- 設定 -->
+<div class="sheet" id="settings" hidden>
+  <div class="panel" role="dialog" aria-label="設定">
+    <h2>設定</h2>
+    <div class="opt"><span>顔を穴へ寄せる</span><div class="seg" data-key="assist"><button data-v="0">なし</button><button data-v="1">弱</button><button data-v="2">中</button><button data-v="3">強</button></div></div>
+    <div class="opt"><span>絵の色になじませる</span><div class="seg" data-key="blend"><button data-v="0">なし</button><button data-v="1">弱</button><button data-v="2">中</button><button data-v="3">強</button></div></div>
+    <div class="opt"><span>1枚の時間</span><div class="seg" data-key="secs"><button data-v="5">5秒</button><button data-v="8">8秒</button></div></div>
+    <div class="opt"><span>枚数</span><div class="seg" data-key="shots"><button data-v="3">3枚</button><button data-v="5">5枚</button></div></div>
+    <div class="opt"><span>音</span><div class="seg" data-key="sound"><button data-v="1">あり</button><button data-v="0">なし</button></div></div>
+    <button class="big" id="closeSettings">とじる</button>
+    <p class="credit">絵はどれもパブリックドメインです（<a href="CREDITS.md" target="_blank">出典</a>）。顔の読み取りに MediaPipe（Apache-2.0）を使っています。</p>
+  </div>
+</div>
+
+<!-- しらせ -->
+<div class="sheet" id="msg" hidden>
+  <div class="panel"><p id="msgText"></p><button class="big" id="msgOk">タイトルへ</button></div>
+</div>
+
+<script type="module" src="js/main.js?v=1"></script>
+</body>
+</html>

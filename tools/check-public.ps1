@@ -30,7 +30,7 @@ $rules = @(
   @{ n = 'Artifact の URL（PUBLISH.local.md に書く）'; r = 'claude\.ai/(code/)?artifacts?/[A-Za-z0-9-]{8,}' }
 )
 # GitHub's no-reply commit address is meant to be public (it is on every commit anyway)
-$allow = @('(?i)@example\.(com|org|net)$', '(?i)^noreply@', '(?i)@users\.noreply\.github\.com$')
+$allow = @('(?i)@example\.(com|org|net)$', '(?i)^noreply@', '(?i)@users\.noreply\.github\.com$', '^/hom[e]/web_user$')   # wasm（Emscripten）の中の仮の家フォルダ web_user（[e] はこの行が自分に当たらないように）
 
 $private = @()
 $pw = Join-Path $root '.private-words.txt'
@@ -116,6 +116,15 @@ foreach ($f in $files) {
     $romAllow = @('^m@E\.VI$')
     foreach ($r in $rules) { foreach ($m in [regex]::Matches($ascii, $r.r)) { if (-not ($romAllow | Where-Object { $m.Value -match $_ })) { [void]$hits.Add("$rel : ROM の中に $($r.n) → $($m.Value)"); break } } }
     foreach ($w in $private) { if ($ascii -match $w) { [void]$hits.Add("$rel : ROM の中に 自分の言葉（.private-words.txt）") } }
+    continue
+  }
+  if ($textExt -notcontains $ext -and $rel -match '^[a-z0-9-]+[\\/]vendor[\\/]') {
+    # ゲームが入れた外のライブラリ（face-in-frame/vendor/ の MediaPipe の wasm とモデルなど）: バイトの中に、メール・PC のパス・鍵・自分の言葉などがないか
+    $ascii = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($f))
+    # MediaPipe の wasm に入っている Google のビルドの記録（社内のメール・ビルドした人のフォルダ）は公開の配布物のまま。2026-10-25 ユーザーが許可
+    $vendorAllow = $allow + @('(?i)@[a-z0-9.-]+\.corp\.google\.com$', '^/hom[e]/vrabaud$')
+    foreach ($r in $rules) { foreach ($m in [regex]::Matches($ascii, $r.r)) { if (-not ($vendorAllow | Where-Object { $m.Value -match $_ })) { [void]$hits.Add("$rel : ライブラリの中に $($r.n) → $($m.Value)"); break } } }
+    foreach ($w in $private) { if ($ascii -match $w) { [void]$hits.Add("$rel : ライブラリの中に 自分の言葉（.private-words.txt）") } }
     continue
   }
   if ($textExt -notcontains $ext) { [void]$hits.Add("$rel : テキスト以外のファイル（画像なら撮影情報・写り込みを目で確認）"); continue }

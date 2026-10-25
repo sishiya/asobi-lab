@@ -2,7 +2,7 @@
 # Usage: powershell -NoProfile -ExecutionPolicy Bypass -File .claude/serve.ps1 [-Port 8765]
 param([int]$Port = 8765)
 $root = Split-Path -Parent $PSScriptRoot
-$mime = @{ '.html'='text/html; charset=utf-8'; '.js'='text/javascript; charset=utf-8'; '.css'='text/css; charset=utf-8';
+$mime = @{ '.html'='text/html; charset=utf-8'; '.js'='text/javascript; charset=utf-8'; '.mjs'='text/javascript; charset=utf-8'; '.wasm'='application/wasm'; '.css'='text/css; charset=utf-8';
   '.json'='application/json'; '.png'='image/png'; '.jpg'='image/jpeg'; '.svg'='image/svg+xml'; '.md'='text/plain; charset=utf-8' }
 $l = New-Object System.Net.HttpListener
 $l.Prefixes.Add("http://localhost:$Port/")

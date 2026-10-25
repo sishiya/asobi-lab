@@ -10,7 +10,7 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const LIBS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.jsdelivr.net'];
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
-  '.mp4': 'video/mp4', '.webp': 'image/webp', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json' };
+  '.mp4': 'video/mp4', '.wasm': 'application/wasm', '.webp': 'image/webp', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json' };
 
 // 127.0.0.1 だけ・GET だけ・フォルダの中だけ・「.」で始まるもの（.private-words.txt・.env・.git）は出さない
 export async function serve() {
