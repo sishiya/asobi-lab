@@ -216,6 +216,8 @@ export function createRoom() {
     const fz = 1.201;   // 名前と電源の明かりは前の面の y 0.6 前後＝下の箱
     const nm = decal(pixText('ASOBI-LAB 8', 62, 12, '#ffffff', '700 10px "Hiragino Sans","Yu Gothic UI",sans-serif'), 0.99, 0.19);
     nm.position.set(-0.45, 0.6, fz); con.add(nm);
+    const cpu = decal(pixText('CPU 6502', 48, 10, '#dfe9e3', '700 8px "Hiragino Sans","Yu Gothic UI",sans-serif'), 0.77, 0.16);
+    cpu.position.set(-0.56, 0.45, fz); con.add(cpu);
     conLed = new THREE.Mesh(new THREE.BoxGeometry(V * 0.8, V * 0.8, V * 0.8), new THREE.MeshStandardMaterial({ color: 0x5a1a14, emissive: 0xff3a2a, emissiveIntensity: 0 })); conLed.position.set(0.95, 0.65, fz + 0.02); con.add(conLed);
   }
   // カセット（幅 1.2・高さ 1.5（下の 0.1 は差しこみ口）・厚さ 0.2。棚のカセット 160×208 とほぼ同じ形。入ると上 0.7 が見える）

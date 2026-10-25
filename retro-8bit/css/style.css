@@ -232,6 +232,7 @@ html,body{overflow-x:clip}   /* 動き（ふた・飛ぶカセット）がはみ
 .con .cface .shade{display:none}
 .con .logo{position:absolute;z-index:4;left:30px;top:62px;white-space:nowrap;font-weight:800;font-size:19px;letter-spacing:.1em;color:var(--logo);line-height:1.15}
 .con .logo small{display:block;font-size:10px;font-weight:700;letter-spacing:.3em;opacity:.75}
+.con .logo .cpu{display:block;margin-top:3px;font-size:9px;font-weight:700;letter-spacing:.18em;opacity:.6}
 .con .stripe{position:absolute;z-index:4;left:30px;width:calc(50% - var(--W) / 2 - 60px);top:122px;height:6px;border-radius:3px;background:linear-gradient(90deg,#9fcdb8,#e98a7a)}
 .con .jacks{position:absolute;z-index:4;left:30px;bottom:34px;display:flex;gap:12px}
 .con .jacks span{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:800;color:var(--logo)}
