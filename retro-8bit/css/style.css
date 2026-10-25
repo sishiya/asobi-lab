@@ -166,9 +166,6 @@ body.playing .pad, body.playing .stage{touch-action:none}
 @media (pointer:coarse){ .addkey{min-height:44px;min-width:44px} .chip button{min-width:40px;min-height:40px} }
 /* リセットは右はしに離して置く。2回押しの案内 */
 .tools #btnReset{margin-left:10px}
-.tip{position:absolute;right:0;top:calc(100% + 8px);z-index:20;padding:6px 10px;border-radius:8px;background:#f3e6c0;color:#2a1a10;font-size:12px;white-space:nowrap;box-shadow:0 6px 14px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .15s}
-.back .tip{left:0;right:auto}
-.tip.show{opacity:1}
 /* キー設定: ＋ はキーの札のうしろに。2列 */
 .krow{grid-template-columns:64px 1fr}
 .addkey{min-width:36px;font-size:14px;padding:4px 10px}
@@ -203,21 +200,26 @@ html,body{overflow-x:clip}   /* 動き（ふた・飛ぶカセット）がはみ
 .room h1{margin:4px 0 0;font-size:30px;font-weight:800;letter-spacing:.08em;color:var(--sh-ink)}
 /* 本体 */
 .conbox{position:relative;height:calc(270px * var(--kc, 1));margin:34px 0 0}
-.con{--W:184px;--depth:214px;position:relative;width:600px;height:270px;margin-left:calc(50% - 300px);scale:var(--kc, 1);transform-origin:50% 0}
+/* さしこみ口（v015。ユーザー「遊びが大きい」「上が開いていない」「下の盛り上がりはいらない」）:
+   溝の幅はカセット 160px ＋ 左右 4px ずつ（ぴったり入って動かない）。溝は本体の上のふちまで欠けていて、上からまっすぐ入る。
+   前の面は溝のきわまで平らで、ラベルが見える窓だけ抜く（窓のまわりは内側の影だけ。下の盛り上がりなし） */
+.con{--W:168px;--depth:214px;--win:184px;position:relative;width:600px;height:270px;margin-left:calc(50% - 300px);scale:var(--kc, 1);transform-origin:50% 0}
 .con .shell{position:absolute;inset:0;border-radius:34px 34px 40px 40px;background:linear-gradient(var(--body1),var(--body2));
   box-shadow:0 5px 0 rgba(0,0,0,.08),0 10px 4px rgba(0,0,0,.18),0 34px 44px rgba(0,0,0,.22),inset 0 3px 0 rgba(255,255,255,.7),inset 0 -10px 0 rgba(0,0,0,.08)}
 .con .topface{position:absolute;left:10px;right:10px;top:0;height:34px;border-radius:30px 30px 6px 6px;background:linear-gradient(var(--top),var(--top2));box-shadow:inset 0 2px 0 rgba(255,255,255,.5)}
-.con .well{position:absolute;z-index:1;left:calc(50% - var(--W) / 2);width:var(--W);top:6px;height:var(--depth);border-radius:14px 14px 10px 10px;
-  background:linear-gradient(90deg,rgba(0,0,0,.22),rgba(0,0,0,0) 14%,rgba(0,0,0,0) 86%,rgba(0,0,0,.22)),linear-gradient(#b9b0a4,#d4cbbe 40%,#c8bfb2);box-shadow:inset 0 14px 18px rgba(0,0,0,.28)}
-.con .well::after{content:"";position:absolute;left:10px;right:10px;bottom:6px;height:12px;border-radius:5px;background:linear-gradient(#08080a,#24242a);box-shadow:inset 0 3px 4px #000}
+.con .well{position:absolute;z-index:1;left:calc(50% - var(--W) / 2);width:var(--W);top:0;height:var(--depth);border-radius:0 0 8px 8px;
+  background:linear-gradient(90deg,rgba(0,0,0,.3),rgba(0,0,0,0) 8%,rgba(0,0,0,0) 92%,rgba(0,0,0,.3)),linear-gradient(#a99f93,#cbc2b5 40%,#c0b7aa);box-shadow:inset 0 10px 12px rgba(0,0,0,.25)}
+.con .well::after{content:"";position:absolute;left:8px;right:8px;bottom:4px;height:12px;border-radius:4px;background:linear-gradient(#08080a,#24242a);box-shadow:inset 0 3px 4px #000}
 .con .cface{position:absolute;z-index:3;inset:0;pointer-events:none}
-.con .cface .l,.con .cface .r{position:absolute;top:34px;bottom:0;background:linear-gradient(var(--body1),var(--body2))}
-.con .cface .l{left:0;right:calc(50% + var(--W) / 2 + 8px);border-radius:0 0 0 40px}
-.con .cface .r{right:0;left:calc(50% + var(--W) / 2 + 8px);border-radius:0 0 40px 0}
-.con .cface .lo{position:absolute;left:calc(50% - var(--W) / 2 - 8px);width:calc(var(--W) + 16px);top:178px;bottom:0;background:linear-gradient(var(--body1),var(--body2));border-radius:14px 14px 12px 12px;box-shadow:inset 0 3px 0 rgba(255,255,255,.6),0 -2px 0 rgba(0,0,0,.08)}
-.con .cface .frame{position:absolute;left:calc(50% - var(--W) / 2 - 8px);width:calc(var(--W) + 16px);top:34px;height:150px;border-radius:14px 14px 18px 18px;
-  box-shadow:inset 0 0 0 8px var(--body1),inset 0 0 0 9px rgba(0,0,0,.10),inset 0 14px 14px -8px rgba(0,0,0,.30),inset 10px 0 12px -8px rgba(0,0,0,.2),inset -10px 0 12px -8px rgba(0,0,0,.2),0 1px 0 rgba(255,255,255,.7)}
-.con .cface .shade{position:absolute;left:0;right:0;top:34px;height:6px;background:linear-gradient(rgba(0,0,0,.12),transparent)}
+.con .cface .l,.con .cface .r{position:absolute;top:34px;bottom:0;background:linear-gradient(var(--body1),var(--body2));box-shadow:inset 0 6px 6px -6px rgba(0,0,0,.14)}
+.con .cface .l{left:0;right:calc(50% + var(--W) / 2);border-radius:0 0 0 40px}
+.con .cface .r{right:0;left:calc(50% + var(--W) / 2);border-radius:0 0 40px 0}
+/* 窓の下: 前の面と同じ平らな面（同じグラデーションの続き） */
+.con .cface .lo{position:absolute;left:calc(50% - var(--W) / 2);width:var(--W);top:var(--win);bottom:0;background:linear-gradient(var(--body1),var(--body2)) 0 calc(34px - var(--win)) / 100% 236px no-repeat;box-shadow:0 -1px 0 rgba(0,0,0,.14)}
+/* 窓と溝のきわ: 内側に落ちる影だけ（上は欠けているので、ふちは左右と下） */
+.con .cface .frame{position:absolute;left:calc(50% - var(--W) / 2);width:var(--W);top:0;height:var(--win);
+  box-shadow:inset 1px 0 0 rgba(0,0,0,.18),inset -1px 0 0 rgba(0,0,0,.18),inset 8px 0 10px -6px rgba(0,0,0,.25),inset -8px 0 10px -6px rgba(0,0,0,.25),inset 0 -8px 10px -6px rgba(0,0,0,.2)}
+.con .cface .shade{display:none}
 .con .logo{position:absolute;z-index:4;left:30px;top:62px;white-space:nowrap;font-weight:800;font-size:19px;letter-spacing:.1em;color:var(--logo);line-height:1.15}
 .con .logo small{display:block;font-size:10px;font-weight:700;letter-spacing:.3em;opacity:.75}
 .con .stripe{position:absolute;z-index:4;left:30px;width:calc(50% - var(--W) / 2 - 60px);top:122px;height:6px;border-radius:3px;background:linear-gradient(90deg,#9fcdb8,#e98a7a)}

@@ -26,10 +26,10 @@ async function loadRom(entry) {
   if (!romCache.has(entry.id)) romCache.set(entry.id, fetch(entry.file + '?v=5').then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
   return romCache.get(entry.id);
 }
-// 棚の手ざわりの音（sfx/。Stable Audio で作って、いちばんよいところを切り出した）。設定の音と大きさにしたがう。
-// 流れ: ケースを開ける → カセットを本体へ（カチャッ）→ ケースを閉める → 電源を入れる。もどると 電源を切る → 抜く → ケースを開ける → しまう → 閉める
-// 高い音を少し落として耳にやさしく（ローパス 5kHz）。小さめに鳴らす（ゲームの音よりずっと小さく）
-const SFX = { caseOpen: ['case_open', 0.32], caseClose: ['case_close', 0.3], in: ['cart_insert', 0.5], out: ['cart_pull', 0.36], sw: ['power', 0.3], intoCase: ['into_case', 0.3] };
+// 棚の手ざわりの音（sfx/。Stable Audio で作って、カチッが1つだけの所を切り出した）。設定の音と大きさにしたがう。
+// 音は動きの説得力をそっと足すだけ（主役にしない。v015 ユーザー）。入れる: ケースを開ける（うすいプラスチック）→ 溝で シャッ → 底で カチャッ1回 →
+// ケースを閉める → 電源。もどる: 電源を切る → シャッ（少し速く）→ ケースを開ける → 閉める。高い音を少し落として（ローパス 5kHz）小さく
+const SFX = { caseOpen: ['case_open', 0.16], caseClose: ['case_close', 0.14], slide: ['slide', 0.22], click: ['click', 0.3], out: ['slide', 0.18, 1.15], sw: ['power', 0.16] };
 const sfxBytes = {}, sfxBuf = {};
 for (const [k, [f]] of Object.entries(SFX)) fetch(`sfx/${f}.ogg`).then((r) => r.ok ? r.arrayBuffer() : null).then((b) => { if (b) sfxBytes[k] = b; }).catch(() => {});
 let sfxCtx = null, sfxOut = null;
@@ -56,6 +56,7 @@ function clack(kind) {
       if (!buf) return;
       const src = sfxCtx.createBufferSource(), gn = sfxCtx.createGain();
       gn.gain.value = volume * SFX[kind][1];
+      src.playbackRate.value = SFX[kind][2] || 1;
       src.buffer = buf; src.connect(gn).connect(sfxOut); src.start();
     }).catch(() => {});
   } catch { /* 音が出せなくても動く */ }
@@ -103,19 +104,8 @@ function backToShelf() {
   document.body.classList.remove('playing');
   if (location.hash) history.pushState(null, '', location.pathname);
 }
-// まちがえて押すと遊んでいた所が消えるボタンは、遊んでいる途中なら2回押す（1回目でボタンの下に案内）
-function twoTap(btn, text, act) {
-  let armed = 0;
-  const tip = document.createElement('span');
-  tip.className = 'tip'; tip.setAttribute('role', 'status');
-  btn.style.position = 'relative'; btn.append(tip);
-  btn.addEventListener('click', () => {
-    if (!running || Date.now() - armed < 2000) { armed = 0; tip.classList.remove('show'); act(); return; }
-    armed = Date.now(); tip.textContent = text; tip.classList.add('show');
-    setTimeout(() => { if (Date.now() - armed >= 1990) tip.classList.remove('show'); }, 2000);
-  });
-}
-twoTap($('btnBack'), 'もう一度押すと棚へ', backToShelf);
+// ← とリセットは1回で効く（2026-10-25 ユーザー「2回押さないと効かないのはストレス」。棚へもどるときもセーブは残す）
+$('btnBack').addEventListener('click', backToShelf);
 function route() {
   const id = location.hash.slice(1);
   const e = LIBRARY.find((x) => x.id === id);
@@ -362,7 +352,7 @@ function power() {
 }
 $('power').addEventListener('click', power);
 $('btnSound').addEventListener('click', () => setSound(!soundOn));
-twoTap($('btnReset'), 'もう一度押すとリセット', () => { if (nes) { saveBattery(); nes.reset(); if (!running) power(); } });
+$('btnReset').addEventListener('click', () => { if (nes) { saveBattery(); nes.reset(); if (!running) power(); } });
 $('btnFull').addEventListener('click', () => {
   if (document.fullscreenElement) document.exitFullscreen();
   else document.documentElement.requestFullscreen?.().catch(() => {});

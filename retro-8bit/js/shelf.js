@@ -147,7 +147,7 @@ export function initShelf(o) {
     s.fly.classList.add('front');
     it.classList.add('open'); o.sfx.clack('caseOpen'); await wait(200);
     await anim(s.fly, [{ transform: T(g.x, g.above + 40) }, { transform: T(g.sx, g.sy, g.s) }], 560, 'cubic-bezier(.4,0,.2,1)');
-    s.fly.remove(); it.querySelector('.cart').classList.remove('gone'); it.classList.remove('gone'); o.sfx.clack('intoCase');
+    s.fly.remove(); it.querySelector('.cart').classList.remove('gone'); it.classList.remove('gone');
     await wait(260); it.classList.remove('open'); o.sfx.clack('caseClose'); await wait(300);
   }
   async function insert(it, entry) {
@@ -165,13 +165,16 @@ export function initShelf(o) {
       fly.style.transform = T(g.sx, g.sy, g.s);
       await anim(fly, [{ transform: T(g.sx, g.sy, g.s) }, { transform: T(g.x, g.above) }], 560, 'cubic-bezier(.3,.7,.4,1)');
       fly.classList.remove('front');           // ここから本体の前の面のうしろ（穴から見える）
-      it.classList.remove('open'); o.sfx.clack('caseClose');   // 出したあとはふたをしめる
+      // 溝をすべって（シャッ）、底で カチャッ1回。底に着くのは 520ms の 82%
       const down = anim(fly, [{ transform: T(g.x, g.above) }, { transform: T(g.x, g.rest + 3), offset: 0.82, easing: 'cubic-bezier(.55,0,.85,.5)' }, { transform: T(g.x, g.rest), easing: 'ease-out' }], 520);
-      setTimeout(() => o.sfx.clack('in'), still() ? 0 : 400);   // 音の頭（すべる音）が底に着く少し前から。カチャッが着いたところに合う
+      setTimeout(() => o.sfx.clack('slide'), still() ? 0 : 150);
+      setTimeout(() => o.sfx.clack('click'), still() ? 0 : 425);
       await down;
       con.classList.add('bump'); setTimeout(() => con.classList.remove('bump'), 240);
       seated = { id: entry.id, entry, fly };
-      await wait(300);                          // 入ったのを見てから、電源
+      await wait(160);
+      it.classList.remove('open'); o.sfx.clack('caseClose');   // 入れおわってから、からのケースのふたをしめる
+      await wait(260);                          // それから電源
       setPower(true); o.sfx.clack('sw');
       await wait(420);
       o.open(entry);
