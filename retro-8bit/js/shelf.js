@@ -1,8 +1,8 @@
 // 棚（トップ）: 机の上のケースに入ったカセットと、本体。
 // カセットを押す → ケースのふたが開く → 本体の手前を通って溝の真上 → 溝の中をまっすぐ下へ（穴から見える）→
 // 底で すとん（3px 沈んでもどる）・カチッ・本体も受けとめる → 電源が入って遊ぶ画面へ。ケースのふたはしめる。
-// 棚にもどると、カセットは本体に入ったまま（電源は切れる）。ほかのカセットを押すと、入っているものを ぴょんと抜いて
-// 自分のケースへもどしてから、新しいものを入れる。POWER は入っているカセットでもう一度あそぶ。
+// 棚にもどると、電源が切れて、カセットは ぴょんと抜けて自分のケースへもどる（2026-10-25 ユーザー。入ったままだと
+// POWER でまた遊べることに気づきにくい）。じぶんのカセットを足しても、すぐには入れない（並べるだけ）。
 // 色・なまえ・ダウンロード・すてるは「…」のメニュー。色はブラウザに残す（retro8.cartColor.<id>）
 import { Console8 } from './nes.js';
 import { listCarts, addCart, renameCart, deleteCart } from './mycarts.js';
@@ -12,7 +12,10 @@ const $ = (id) => document.getElementById(id);
 export const CART_COLORS = [
   ['#3f4f86', '藍'], ['#d4a03a', 'からし'], ['#7d4f78', 'すみれ'], ['#56636f', '鉄'],
   ['#8c3a3f', 'えんじ'], ['#6f7a3a', 'オリーブ'], ['#3a3836', 'すみ'], ['#e0a26a', 'あんず'],
+  ['#8e8a84', 'ねずみ'],
 ];
+const MINE_COLOR = '#8e8a84';   // じぶんのカセットのはじめの色（目立たない灰色）
+const MINE_COUNT = 'retro8.mineCount';   // 読みこむ前にケースの場所をとるための本数
 const read = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 const save = (k, v) => { try { localStorage.setItem(k, v); } catch { /* 残せなくても遊べる */ } };
 const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -22,6 +25,18 @@ export function initShelf(o) {
   const row = $('carts'), con = $('console'), well = $('slot'), add = $('drop'), led = $('led');
   let seated = null;   // { id, entry, fly } 本体に入っているカセット
   let busy = false;    // 動いているあいだは次を受けつけない
+
+  // 本体は形のまま縮める（--kc）。スマホのカセットは2列に入る大きさ（--kd）
+  let kc = 1, kd = 1;
+  function fit() {
+    const w = document.documentElement.clientWidth;
+    kc = Math.min(1, (w - 32) / 600);
+    kd = w <= 600 ? Math.min(1, w / 390) : 1;
+    document.documentElement.style.setProperty('--kc', kc);
+    document.documentElement.style.setProperty('--kd', kd);
+  }
+  fit(); addEventListener('resize', fit);
+  $('btnHelp').addEventListener('click', () => $('help').showModal());
 
   function colorOf(id, def) { return read('retro8.cartColor.' + id, def ?? CART_COLORS[0][0]); }
   function paint(canvas, bytes, frames) {
@@ -54,7 +69,7 @@ export function initShelf(o) {
 
   // ---------- 「…」メニュー ----------
   function closeMenus(except) {
-    for (const m of document.querySelectorAll('.cmenu')) if (m !== except) { m.parentElement.querySelector('.menuBtn')?.setAttribute('aria-expanded', 'false'); m.remove(); }
+    for (const m of document.querySelectorAll('.cmenu')) if (m !== except) { m.parentElement.classList.remove('menuOpen'); m.parentElement.querySelector('.menuBtn')?.setAttribute('aria-expanded', 'false'); m.remove(); }
   }
   document.addEventListener('click', (e) => { if (!e.target.closest('.cmenu')) closeMenus(); });
   addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenus(); });
@@ -91,32 +106,21 @@ export function initShelf(o) {
       if (seated?.id === entry.id) { seated.fly.remove(); seated = null; setPower(false); }
       await deleteCart(entry.id); closeMenus(); await render();
     });
-    it.append(m);
+    it.append(m); it.classList.add('menuOpen');   // 開いているあいだは傾けず、となりのケースより手前に
     it.querySelector('.menuBtn').setAttribute('aria-expanded', 'true');
     m.querySelector('[aria-checked="true"]')?.focus();
   }
 
   // ---------- 本体 ----------
   function setPower(on) { con.classList.toggle('on', on); led.classList.toggle('on', on); }
-  let bubbleTimer = 0;
-  function bubble(text) {
-    const b = $('bubble'); b.textContent = text; b.classList.add('show');
-    clearTimeout(bubbleTimer); bubbleTimer = setTimeout(() => b.classList.remove('show'), 3500);
-  }
-  function playSeated() { if (seated && !busy) { setPower(true); o.sfx.clack('sw'); setTimeout(() => o.open(seated.entry), 260); } }
-  $('powerSw').addEventListener('click', () => {
-    if (seated) { playSeated(); return; }
-    o.sfx.clack('sw');
-    led.classList.remove('blink'); void led.offsetWidth; led.classList.add('blink');
-    bubble('カセットが入っていません。\n下のカセットを押してね');
-  });
-  $('resetSw').addEventListener('click', () => { if (seated) playSeated(); else bubble('カセットが入っていません'); });
 
   // ---------- さしこむ・抜く ----------
-  const T = (x, y) => `translate(${x}px, ${y}px)`;
+  // 飛ぶカセットは本体の中の座標（本体を縮めていれば、その縮めた単位）。机のカセットの大きさから本体の中の大きさへ s で変える
+  const T = (x, y, s = 1) => `translate(${x}px, ${y}px) scale(${s})`;
   function geo(cart) {
     const cr = con.getBoundingClientRect(), wr = well.getBoundingClientRect(), kr = cart.getBoundingClientRect();
-    return { sx: kr.left - cr.left, sy: kr.top - cr.top, x: wr.left - cr.left + (wr.width - kr.width) / 2, above: -kr.height - 30, rest: wr.top - cr.top + 4 };
+    const s = kr.width / 160 / kc;   // 机のカセットの見た目 ÷ 本体の中の 160px の見た目
+    return { s, sx: (kr.left - cr.left) / kc, sy: (kr.top - cr.top) / kc, x: (wr.left - cr.left) / kc + (wr.width / kc - 160) / 2, above: -208 - 30, rest: (wr.top - cr.top) / kc + 4 };
   }
   const anim = (el, frames, ms, ease = 'linear') => new Promise((ok) => {
     if (still()) { el.style.transform = frames[frames.length - 1].transform; ok(); return; }
@@ -136,14 +140,13 @@ export function initShelf(o) {
     await anim(s.fly, [{ transform: T(g.x, g.rest) }, { transform: T(g.x, g.rest + 2), offset: 0.15 }, { transform: T(g.x, g.above + 40) }], 420, 'cubic-bezier(.2,1.3,.5,1)');
     s.fly.classList.add('front');
     it.classList.add('open'); await wait(200);
-    await anim(s.fly, [{ transform: T(g.x, g.above + 40) }, { transform: T(g.sx, g.sy) }], 560, 'cubic-bezier(.4,0,.2,1)');
+    await anim(s.fly, [{ transform: T(g.x, g.above + 40) }, { transform: T(g.sx, g.sy, g.s) }], 560, 'cubic-bezier(.4,0,.2,1)');
     s.fly.remove(); it.querySelector('.cart').classList.remove('gone'); it.classList.remove('gone');
     await wait(150); it.classList.remove('open'); await wait(300);
   }
   async function insert(it, entry) {
     if (busy) return;
-    if (seated?.id === entry.id) { playSeated(); return; }
-    busy = true; closeMenus(); $('bubble').classList.remove('show');
+    busy = true; closeMenus();
     try {
       await eject();
       const cart = it.querySelector('.cart');
@@ -153,7 +156,8 @@ export function initShelf(o) {
       fly.style.setProperty('--c', getComputedStyle(it).getPropertyValue('--c'));
       fly.querySelector('canvas').getContext('2d').drawImage(cart.querySelector('canvas'), 0, 0);
       con.append(fly); cart.classList.add('gone'); it.classList.add('gone');
-      await anim(fly, [{ transform: T(g.sx, g.sy) }, { transform: T(g.x, g.above) }], 560, 'cubic-bezier(.3,.7,.4,1)');
+      fly.style.transform = T(g.sx, g.sy, g.s);
+      await anim(fly, [{ transform: T(g.sx, g.sy, g.s) }, { transform: T(g.x, g.above) }], 560, 'cubic-bezier(.3,.7,.4,1)');
       fly.classList.remove('front');           // ここから本体の前の面のうしろ（穴から見える）
       it.classList.remove('open');             // 出したあとはふたをしめる
       await anim(fly, [{ transform: T(g.x, g.above) }, { transform: T(g.x, g.rest + 3), offset: 0.82, easing: 'cubic-bezier(.55,0,.85,.5)' }, { transform: T(g.x, g.rest), easing: 'ease-out' }], 520);
@@ -177,10 +181,10 @@ export function initShelf(o) {
       try { new Console8(bytes, 8000); } catch (e) { err.textContent = '開けませんでした: ' + e.message; err.hidden = false; return; }
       let c;
       try { c = await addCart(file.name, bytes); } catch (e) { err.textContent = e.message; err.hidden = false; return; }
-      save('retro8.cartColor.' + c.id, CART_COLORS[(row.querySelectorAll('.item.mine').length + 6) % 8][0]);
       await render();
+      // すぐには入れない。棚に並んだことがわかるように、そこまで動かして ぽんと出す
       const it = row.querySelector(`.item[data-id="${CSS.escape(c.id)}"]`);
-      if (it) insert(it, { id: c.id, title: c.name, keys: [], bytes, frames: 60 });
+      if (it) { it.scrollIntoView({ block: 'nearest', behavior: still() ? 'auto' : 'smooth' }); it.classList.add('fresh'); setTimeout(() => it.classList.remove('fresh'), 600); }
     });
   }
   $('file').addEventListener('change', (e) => { addFile(e.target.files[0]); e.target.value = ''; });
@@ -196,14 +200,28 @@ export function initShelf(o) {
       row.insertBefore(it, add);
       o.loadRom(e).then((bytes) => paint(it.querySelector('canvas'), bytes, e.frames)).catch(() => {});
     }
-    for (const c of await listCarts()) {
-      const entry = { id: c.id, title: c.name, keys: [], bytes: c.bytes, frames: 60 };
+    // じぶんのカセットはブラウザの中から読むので少しおくれる。前の本数だけ、からのケースで先に場所をとる
+    const n = +read(MINE_COUNT, 0) || 0, ghosts = [];
+    for (let i = 0; i < n; i++) {
+      const g = document.createElement('div');
+      g.className = 'item loading'; g.setAttribute('aria-hidden', 'true');
+      g.innerHTML = '<span class="ghost">よみこみ中…</span><span class="case"></span>';
+      row.insertBefore(g, add); ghosts.push(g);
+    }
+    const mine = await listCarts();
+    if (!read('retro8.mineGray')) {   // v011 までは足したときに色を自動で残していた。いちどだけ消して灰色に
+      for (const c of mine) { try { localStorage.removeItem('retro8.cartColor.' + c.id); } catch { /* */ } }
+      save('retro8.mineGray', '1');
+    }
+    for (const g of ghosts) g.remove();
+    for (const old of row.querySelectorAll('.item.mine')) old.remove();   // 続けて呼ばれたときの重なりを消す
+    save(MINE_COUNT, mine.length);
+    for (const c of mine) {
+      const entry = { id: c.id, title: c.name, color: MINE_COLOR, keys: [], bytes: c.bytes, frames: 60 };
       const it = makeItem(entry, true); it.classList.add('mine');
       row.insertBefore(it, add);
-      paint(it.querySelector('canvas'), c.bytes, 60);
+      setTimeout(() => paint(it.querySelector('canvas'), c.bytes, 60), 0);   // ラベルの絵は並べたあとで
     }
-    // スマホの横の列: カセットを前に足すと、はじめにあった「じぶんのカセット」に吸いついたままになるので、頭にもどす
-    row.scrollLeft = 0;
     if (seated) {   // 本体に入っているカセットは、棚では空のケース
       const it = row.querySelector(`.item[data-id="${CSS.escape(seated.id)}"]`);
       if (it) { it.classList.add('gone'); it.querySelector('.cart').classList.add('gone'); }
@@ -213,7 +231,12 @@ export function initShelf(o) {
   return {
     render,
     // 遊ぶ画面から棚へ: カセットは入ったまま、電源だけ切る
-    back() { setPower(false); },
+    back() {
+      setPower(false);
+      if (!seated || busy) return;
+      busy = true;
+      setTimeout(() => eject().finally(() => { busy = false; }), still() ? 0 : 250);
+    },
     // 確かめ用
     get seated() { return seated?.id || null; },
   };
