@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>いま光れ 過去の版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='5' width='28' height='22' rx='5' fill='%231b1c1c'/%3E%3Crect x='5' y='8' width='22' height='16' rx='3' fill='%23070808'/%3E%3Ccircle cx='19' cy='14' r='2.4' fill='%23d8ecff'/%3E%3Cpath d='M8 14h8' stroke='%23ffb347' stroke-width='1.6' stroke-dasharray='2 2'/%3E%3C/svg%3E">
+<style>
+/* 1段組み: 節目の版はカード、ほかの版は表 */
+:root{--bg:#1a130e;--ink:#efe9dc;--muted:#a99c88;--line:#3a2e24;--panel:#241b14;--acc:#ffb347;color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:48px 16px 64px;display:flex;flex-direction:column;gap:28px}
+.eyebrow{font-size:11px;letter-spacing:.2em;color:var(--muted)}
+h1{font-weight:800;font-size:30px;margin:6px 0 0;color:var(--acc)}
+h2{font-size:12px;letter-spacing:.18em;color:var(--muted);font-weight:700;margin:0 0 10px}
+.cards{display:flex;flex-direction:column;gap:12px}
+.card{display:grid;grid-template-columns:auto 1fr auto;gap:6px 18px;align-items:start;padding:16px 18px;background:var(--panel);border:1px solid var(--line);border-radius:12px;text-decoration:none;color:inherit}
+.card:hover,.latest{border-color:var(--acc)}
+.ver{font-size:13px;color:var(--acc);padding-top:3px;font-weight:700}
+.card b{font-size:17px}
+.card p{margin:4px 0 0;font-size:13px;line-height:1.75;color:var(--muted)}
+.date{font-size:11px;color:var(--muted);white-space:nowrap;padding-top:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{padding:8px 6px;border-top:1px solid var(--line);vertical-align:top}
+td:first-child{color:var(--muted);white-space:nowrap}
+td a,.foot a{color:var(--ink)}
+.foot{font-size:13px;display:flex;gap:16px}
+@media (max-width:520px){.card{grid-template-columns:1fr}.date{padding:0}h1{font-size:26px}}
+</style>
+</head>
+<body>
+<main>
+  <header><div class="eyebrow">IMA-HIKARE · VERSIONS</div><h1>いま光れ</h1></header>
+  <section>
+    <h2>ターニングポイント</h2>
+    <div class="cards">
+      <a class="card latest" href="index.html"><span class="ver">最新</span><div><b>いまの版</b><p>作業フォルダにある index.html。</p></div><span class="date">—</span></a>
+      <a class="card" href="versions/v001-a1/index.html"><span class="ver">v001</span><div><b>はじめの試作（A-1: 30秒＋段0〜2）</b>
+        <p>本物と同じ細かさ（横455こま×縦262行）で1こまずつ動く回路の計算と、白黒のブラウン管。端子をつないで縞・縦の線・点を光らせる。管のふちの▼でくらべる部品の数を合わせ、速さを「1行ずつ」から「本当」まで変えられる。</p></div><span class="date">2026-10-25</span></a>
+    </div>
+  </section>
+  <section>
+    <h2>すべての版</h2>
+    <table>
+      <tr><td>v001-a1</td><td>はじめの試作: 段0「縞」・段1「縦の線」・段2「点」。線をつなぐ（ドラッグ・タップ2回）・戻す・線をはずす・管のふちの▼・速さの5つの止まり・助け（ver. 0.1）</td></tr>
+    </table>
+  </section>
+  <p class="foot"><a href="index.html">ゲームへ</a><a href="../archive.html">あそびラボの保管庫へ</a></p>
+</main>
+</body>
+</html>

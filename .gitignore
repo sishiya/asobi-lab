@@ -54,3 +54,6 @@ dusk-diorama/look/
 
 # 8ビット互換機: ROM を画面なしで動かした絵（retro-8bit/tools/run.mjs・build.mjs --preview）
 _dev/retro-8bit/
+
+# いま光れ: 見くらべのページ（ルック・音の板）は手元だけ
+ima-hikare/look/

@@ -205,6 +205,18 @@
   - **生き物監修役に確かめてもらうこと:** 壊血病はふつう数週間〜数か月かかるので、3〜5日の段階Aでは出せない。生水で腹をこわすまでの日数、塩不足で足がつる条件も、ゲームの時間に合うか。
   - 主な出典: [80 Days](https://en.wikipedia.org/wiki/80_Days_(2014_video_game))・[Death Stranding](https://en.wikipedia.org/wiki/Death_Stranding)・[PEAK](https://en.wikipedia.org/wiki/Peak_(video_game))・[Loop Hero](https://en.wikipedia.org/wiki/Loop_Hero)・[Squire for Hire](https://boardgamegeek.com/boardgame/287780/squire-for-hire)・[Esquire](https://lost-path-studios.itch.io/esquire)・[勇者の飯（4Gamer）](https://www.4gamer.net/games/510/G051043/20200601065/)・[勇者パーティーの荷物持ち](https://bookwalker.jp/series/512752/)・[とんでもスキルで異世界放浪メシ](https://anime.eiga.com/program/110820/)
 
+## ユーザーの案: 回路でテレビのテニスを組む（2026-10-24。retro-8bit の会話から。題は未定 → 企画中 `ima-hikare/`）
+- **2026-10-24 ユーザーが芯を「ブラウン管のビームと、回路が光らせるタイミングを見せる」に決め、制作チームで企画した** → `ima-hikare/PLAN.md`・`DISCUSSION.md`。
+- **出どころ:** 「ほかにエミュレートできるもの」の話で、ユーザーは「回路のポン」と「自作機」に興味。ただし「Claude で何でも作れる時代に、ハードを新しく作る意義がピンとこない」。Claude の答え: 自作機は遊ぶ人に見えないので弱い。意味があるのは**遊ぶ人が回路に触れるとき**。2つを合わせて「遊ぶ人が回路を組んで、1972年のテレビのテニスを動かす」。
+- **芯（案）:** プログラムなし・回路だけでゲームが動く。光るだけ→動く→はね返る→点を数える、と自分の回路でゲームが育ち、最後にその回路で対戦する。
+- **別ゲーム調査の結果（2026-10-24。年などは一部記憶で、確かめていない）:**
+  - **この形のものは見つからなかった。** いちばん近いのは [Falstad の Pong 回路シミュレーション](https://www.falstad.com/pong/)（2021。本物の回路をブラウザで動かし16ページで解説。**読むだけで組まない**、回路図の見た目、ブラウン管はない）。ほかの回路ゲーム（Turing Complete・NandGame・nand2tetris・Chip Builder・Hard Chip・MHRD・Silicon Zeroes・Zachtronics）は**目標が汎用CPUか真理値表**。回路だけでポンを動かした作例はマニアの作品にある（Logisim の Circuit Pong・Digital Logic Sim の作例＝ただし自作CPUのプログラム）ので、「プログラムなしの驚き」だけでは弱い。
+  - **差の候補（強い順）:** ①**「画面は時間」を見せる**＝ブラウン管のビームをゆっくり走らせ、自分の回路が光らせる所だけ光る。玉が動く＝くらべる数がずれる（どこにもなかった）②**育つ途中の各段でその場で遊べる**（既存作は合否だけ）③**配線の「くせ」が台の個性になり、「おれの台」で対戦**④NAND からでなく**当時のICのかたまり**（カウンタ・くらべる部品・タイマー）で組む⑤実物の基板とブラウン管の質感（単独では弱い。SHENZHEN I/O・The Signal State に先例。①〜④と組んで効く）。
+  - **学べる所:** Falstad の分け方（クロック→ネット→パドル→点数→玉→音）を段の順に。The Signal State は「本物の機材に見える」で間口を広げた。1面1つの新しい部品で教える。自由な砂場だと完成まで数週間かかる（Digital Logic Sim の作例）→筋が要る。
+  - **気になる点:** 本物は IC 66個→かたまりの部品で1面1〜2本の線まで抽象化し、ずれても動く幅を先に測る。最初の30秒で「線1本で光が動きだす」。**「PONG」は商標と思われる**ので題・画面に出さない（retro-8bit と同じ方針）。当時の回路図の写し・筐体・ロゴの絵は使わない。宣伝は「回路を組むパズル」でなく「テレビの光を回路で動かす」側に。
+  - **ほかのセクションに聞くこと:** 芯を①のビームまで進めるか（ディレクター）、かたまりかゲートか・くせを許すか（ゲームデザイン）、何面・1面の線の数（レベルデザイン）、最初の30秒（遊び手UX）、基板とブラウン管の作りこみ（アート）、単純化の線（手本の監修）。
+  - 主な出典: [Falstad Pong](https://www.falstad.com/pong/)・[Edwards: Reconstructing Pong on an FPGA](http://www.cs.columbia.edu/~sedwards/papers/edwards2012reconstructing.pdf)・[Circuit Pong](https://wosette.itch.io/circuit-pong)・[Digital Logic Sim](https://sebastian.itch.io/digital-logic-sim)・[Turing Complete](https://thinkygames.com/games/turing-complete/)・[NandGame](https://nandgame.com/)・[The Signal State](https://store.steampowered.com/app/1577620/The_Signal_State/)・[Chip Builder](https://store.steampowered.com/app/5095670)・[Hard Chip](https://store.steampowered.com/app/2844290/Hard_Chip/)
+
 ## ストック（2026-10-09 に出した案。反応はまだ）
 1. **品種改良の畑** — 野菜や小さな生き物をかけ合わせて、注文（甘い・大きい・寒さに強い）に合う品種を作る。アストロノーカ風。
 2. **見つかったら食べられる** — 自分は鳥。虫をクリックで食べると、生き残りが子を残して背景に溶けこむように進化する。1回数分。まなびラボの `resistance/` の考え方をゲームに。

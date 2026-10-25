@@ -1,0 +1,99 @@
+/* いま光れ: 画面の区割り（PLAN 2章「区割りと見た目」。PC は左に管・右に基板、たて画面は 管→基板→速さ） */
+:root { --amber: #ffb347; --tube: #d8ecff; --ink: #e9e4d8; --ui: #f3efe6; --uiink: #2a2620; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif; color: var(--ink); overflow: hidden;
+  -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+  /* 夜の作業机（傷のついた合板）とランプのあたたかい光 */
+  background:
+    radial-gradient(ellipse 60% 55% at 78% 8%, rgba(255,196,120,0.22), transparent 70%),
+    radial-gradient(ellipse 90% 70% at 50% 120%, rgba(0,0,0,0.75), transparent 60%),
+    repeating-linear-gradient(92deg, rgba(255,255,255,0.012) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(1deg, rgba(0,0,0,0.05) 0 1px, transparent 1px 23px),
+    linear-gradient(180deg, #3a2c20, #261c14 60%, #1a130e);
+}
+button { font: inherit; }
+
+/* 上の1行: 題・段・ひとこと */
+.top { position: absolute; top: 0; left: 0; right: 0; height: 48px; display: flex; align-items: center; gap: 14px; padding: 0 20px; pointer-events: none; }
+.top .title { font-size: 15px; letter-spacing: 0.1em; color: rgba(243,239,230,0.75); font-weight: 700; }
+.top .stage { font-size: 12px; color: rgba(243,239,230,0.55); }
+.top .line { flex: 1; text-align: center; font-size: 15px; color: rgba(243,239,230,0.92); }
+.top .ver { font-size: 11px; color: rgba(243,239,230,0.4); }
+
+.rig { position: absolute; inset: 0; display: grid; grid-template-columns: 45fr 55fr; grid-template-rows: 1fr auto auto 1fr; gap: 12px 22px; padding: 52px 28px 22px; }
+.tubebox { grid-column: 1; grid-row: 2; display: flex; align-items: center; justify-content: center; min-height: 0; }
+/* むき出しのブラウン管（自分で組んだ骨組み）。4:3 */
+.bezel { position: relative; width: 100%; max-height: 100%; aspect-ratio: 4 / 3; border-radius: 22px; padding: 4.2%;
+  background: radial-gradient(ellipse at 30% 20%, #3b3d3c, #1b1c1c 70%); box-shadow: 0 18px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -2px 6px rgba(0,0,0,0.6); }
+.bezel::before { content: ''; position: absolute; inset: 2.2%; border-radius: 18px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05), inset 0 6px 18px rgba(0,0,0,0.8); pointer-events: none; }
+.bezel .screw { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #c8c8c0, #55554f); box-shadow: 0 1px 2px #000; }
+#tube { display: block; width: 100%; height: 100%; border-radius: 3.5% / 4.5%; background: #070808; }
+
+/* 管のふちのものさし（くらべる部品の数。▼を動かす） */
+.ruler { position: absolute; pointer-events: none; }
+.ruler.h { left: 4.2%; right: 4.2%; top: 0; height: 4.2%; }
+.ruler.v { top: 4.2%; bottom: 4.2%; left: 0; width: 3.2%; }
+.ruler .tick { position: absolute; background: rgba(232,226,200,0.25); }
+.ruler.h .tick { width: 1px; height: 30%; bottom: 18%; }
+.ruler.v .tick { height: 1px; width: 30%; right: 18%; }
+.knob { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; pointer-events: auto; touch-action: none; cursor: grab; display: flex; align-items: center; justify-content: center; }
+.knob::after { content: ''; width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 10px solid var(--amber); filter: drop-shadow(0 0 4px rgba(255,179,71,0.6)); }
+.ruler.v .knob::after { border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 10px solid var(--amber); border-right: 0; }
+.knob.pulse::before { content: ''; position: absolute; width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(216,236,255,0.8); animation: ring 1.2s infinite; }
+@keyframes ring { from { transform: scale(0.5); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+
+.boardbox { grid-column: 2; grid-row: 1 / span 4; min-height: 0; position: relative; }
+#board { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+#over { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+
+/* 速さの5つの止まり（管のすぐ下） */
+.ctl { grid-column: 1; grid-row: 3; justify-self: center; align-self: start; display: flex; align-items: center; gap: 16px; }
+.ctl .tool { position: static; }
+.next { appearance: none; border: 0; background: #2a2620; color: var(--amber); border-radius: 12px; min-height: 54px; padding: 0 22px; font-size: 15px; box-shadow: 0 6px 18px rgba(0,0,0,0.45); cursor: pointer; animation: pop 0.35s ease-out; }
+.next[hidden] { display: none; }
+.cheer { position: fixed; z-index: 6; transform: translate(-50%, -100%); background: rgba(243,239,230,0.96); color: var(--uiink); border-radius: 10px; padding: 6px 14px; font-size: 15px; font-weight: 700; box-shadow: 0 6px 16px rgba(0,0,0,0.45); opacity: 0; transition: opacity 0.25s; pointer-events: none; }
+.cheer.show { opacity: 1; }
+.speed { display: flex; background: var(--ui); border-radius: 14px; padding: 5px; box-shadow: 0 6px 18px rgba(0,0,0,0.45); position: relative; }
+.speed button { white-space: nowrap; appearance: none; border: 0; background: transparent; color: var(--uiink); font-size: 12px; padding: 7px 12px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 56px; min-height: 44px; cursor: pointer; }
+.speed button.on { background: #2a2620; color: var(--amber); }
+.speed button.pulse { box-shadow: 0 0 0 2px rgba(216,236,255,0.85); animation: glow 1.2s infinite; }
+@keyframes glow { from { opacity: 1; } to { opacity: 0.15; } }
+
+/* 基板の上の小さな操作（ひとつ戻す・線をはずす・できた） */
+.tool { position: absolute; z-index: 4; appearance: none; border: 0; background: var(--ui); color: var(--uiink); border-radius: 12px; font-size: 13px; min-height: 44px; min-width: 44px; padding: 0 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.45); cursor: pointer; }
+#undo[disabled] { opacity: 0.4; cursor: default; }
+#cut { display: none; transform: translate(-50%, -130%); background: #2a2620; color: var(--ui); }
+#cut.show { display: block; }
+#answer { right: 8px; bottom: 8px; display: none; background: rgba(243,239,230,0.85); }
+#answer.show { display: block; }
+@keyframes pop { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+.toast { position: absolute; left: 50%; top: 56px; transform: translateX(-50%); z-index: 6; background: rgba(42,38,32,0.92); color: var(--ui); padding: 8px 16px; border-radius: 10px; font-size: 13px; opacity: 0; transition: opacity 0.25s; pointer-events: none; }
+.toast.show { opacity: 1; }
+
+/* スマホのたて: 管 → 基板 → 下の帯（速さ） */
+@media (max-aspect-ratio: 1/1) {
+  .top { height: 40px; padding: 0 12px; gap: 8px; }
+  .top .title { font-size: 12px; } .top .stage, .top .ver { display: none; }
+  .top .line { font-size: 13px; text-align: right; }
+  .rig { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; padding: 40px 12px 10px; gap: 10px; }
+  .tubebox { grid-column: 1; grid-row: 1; }
+  .bezel { width: min(100%, 300px); border-radius: 14px; }
+  .boardbox { grid-column: 1; grid-row: 2; }
+  .ctl { grid-column: 1; grid-row: 3; width: 100%; display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: 'undo . next' 'speed speed speed'; gap: 8px; align-self: auto; }
+  #undo { grid-area: undo; } .next { grid-area: next; min-height: 44px; } .ctl .speed { grid-area: speed; }
+  .speed { width: 100%; justify-content: space-between; }
+  .speed button { flex: 1; min-width: 0; padding: 6px 2px; }
+}
+
+/* 横向きのスマホ（背が低い）: 上の行と余白をつめて、基板に高さを回す */
+@media (min-aspect-ratio: 1/1) and (max-height: 460px) {
+  .top { height: 32px; } .top .line { font-size: 13px; }
+  .rig { padding: 32px 12px 8px; gap: 8px 12px; }
+  .rig { grid-template-columns: 40fr 60fr; }
+  .speed button { min-height: 40px; padding: 4px 6px; min-width: 46px; font-size: 11px; }
+  .ctl { gap: 8px; }
+}
+.tool, .next { white-space: nowrap; }
+body.thumb #undo, body.thumb #next { display: none; }
