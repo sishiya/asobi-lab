@@ -9,11 +9,11 @@ import { listCarts, addCart, renameCart, deleteCart } from './mycarts.js';
 import { TX, setRomLang } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
-// カセットの色: 本体（クリーム・ミント・サンゴ）とかぶらない8色（濃さでも本体とはなす）。ねずみは じぶんのカセットのはじめの色
+// カセットの色: 本体（2D はクリーム・ミント・サンゴ、部屋はだいだいと白）とかぶらない8色。ねずみは じぶんのカセットのはじめの色
 export const CART_COLORS = [
   ['#3f4f86', TX('藍', 'Indigo')], ['#d4a03a', TX('からし', 'Mustard')], ['#7d4f78', TX('すみれ', 'Violet')], ['#56636f', TX('鉄', 'Iron')],
-  ['#8c3a3f', TX('えんじ', 'Crimson')], ['#6f7a3a', TX('オリーブ', 'Olive')], ['#e0a26a', TX('あんず', 'Apricot')], ['#8e8a84', TX('ねずみ', 'Gray')],
-];   // 4×2（v013 で「すみ」を外した。前に選んだ人のカセットはその色のまま）
+  ['#8c3a3f', TX('えんじ', 'Crimson')], ['#6f7a3a', TX('オリーブ', 'Olive')], ['#3f8a8c', TX('あさぎ', 'Teal')], ['#8e8a84', TX('ねずみ', 'Gray')],
+];   // 4×2（v013 で「すみ」、v021 で だいだいの本体に近い「あんず」を外して「あさぎ」に。前に選んだ人のカセットはその色のまま）
 const MINE_COLOR = '#8e8a84';   // じぶんのカセットのはじめの色（目立たない灰色）
 const MINE_COUNT = 'retro8.mineCount';   // 読みこむ前にケースの場所をとるための本数
 const read = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
@@ -23,7 +23,8 @@ const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 // o: { library, loadRom(entry), open(entry), sfx: { clack(kind) } }
 export function initShelf(o) {
   const row = $('carts'), con = $('console'), well = $('slot'), add = $('drop'), led = $('led');
-  let seated = null;   // { id, entry, fly } 本体に入っているカセット
+  let seated = null;   // { id, entry, fly } 本体に入っているカセット（部屋のときは fly なし）
+  let room = null;     // 部屋（3D）。あれば本体はそちら（useRoom）
   let busy = false;    // 動いているあいだは次を受けつけない
 
   // 本体は形のまま縮める（--kc）。スマホのカセットは2列に入る大きさ（--kd）
@@ -89,7 +90,7 @@ export function initShelf(o) {
     for (const b of m.querySelectorAll('[data-c]')) b.addEventListener('click', () => {
       save('retro8.cartColor.' + entry.id, b.dataset.c);
       it.style.setProperty('--c', b.dataset.c);
-      if (seated?.id === entry.id) seated.fly.style.setProperty('--c', b.dataset.c);
+      if (seated?.id === entry.id) seated.fly?.style.setProperty('--c', b.dataset.c);
       for (const x of m.querySelectorAll('[data-c]')) x.setAttribute('aria-checked', String(x === b));
     });
     const dl = m.querySelector('[data-act=dl]');
@@ -111,7 +112,7 @@ export function initShelf(o) {
     });
     m.querySelector('[data-act=del]')?.addEventListener('click', async () => {
       if (!confirm(TX(`「${entry.title}」をすてます（このブラウザから消え、セーブも消えます）。よいですか？`, `Remove "${entry.title}" from this browser, along with its save?`))) return;
-      if (seated?.id === entry.id) { seated.fly.remove(); seated = null; setPower(false); }
+      if (seated?.id === entry.id) { seated.fly?.remove(); room?.removeCart(); seated = null; setPower(false); }
       await deleteCart(entry.id); closeMenus(); await render();
     });
     it.append(m); it.classList.add('menuOpen');   // 開いているあいだは傾けず、となりのケースより手前に
@@ -120,7 +121,7 @@ export function initShelf(o) {
   }
 
   // ---------- 本体 ----------
-  function setPower(on) { con.classList.toggle('on', on); led.classList.toggle('on', on); }
+  function setPower(on) { con.classList.toggle('on', on); led.classList.toggle('on', on); room?.setPower(on); }
 
   // ---------- さしこむ・抜く ----------
   // 飛ぶカセットは本体の中の座標（本体を縮めていれば、その縮めた単位）。机のカセットの大きさから本体の中の大きさへ s で変える
@@ -137,8 +138,63 @@ export function initShelf(o) {
   });
   const wait = (ms) => new Promise((ok) => setTimeout(ok, still() ? 0 : ms));
 
+  // ---------- 部屋（3D）のとき: 棚のカセットを口の真上まで飛ばし、そこで 3D のカセットに入れかえる ----------
+  const fixedFly = (cart, it) => {
+    const fly = cart.cloneNode(true); fly.classList.add('fly', 'fixed'); fly.removeAttribute('aria-label'); fly.tabIndex = -1;
+    fly.style.setProperty('--c', getComputedStyle(it).getPropertyValue('--c'));
+    fly.querySelector('canvas').getContext('2d').drawImage(cart.querySelector('canvas'), 0, 0);
+    document.body.append(fly); return fly;
+  };
+  const TF = (x, y, s) => `translate(${x}px, ${y}px) scale(${s})`;
+  const atSlot = () => { const r = room.slotRect(), s = r.w / 160; return { x: r.cx - 80 * s, y: r.bottom - 208 * s, s }; };
+  function frameOf(canvas) {   // ラベルの絵（棚のカセットの canvas）→ テレビに映す 256×240 の絵
+    const d = canvas.getContext('2d').getImageData(0, 0, 256, 240).data;
+    return new Uint32Array(d.buffer.slice(0));
+  }
+  async function ejectRoom() {
+    const s = seated; seated = null;
+    if (con.classList.contains('on')) { setPower(false); o.sfx.clack('sw'); await wait(200); }
+    await room.focusTV(false, 0);
+    const it = row.querySelector(`.item[data-id="${CSS.escape(s.id)}"]`);
+    o.sfx.clack('out');
+    await room.ejectCart();
+    if (!it) return;
+    const cart = it.querySelector('.cart'), a = atSlot(), kr = cart.getBoundingClientRect();
+    const fly = fixedFly(cart, it);
+    it.classList.add('open'); o.sfx.clack('caseOpen');
+    await anim(fly, [{ transform: TF(a.x, a.y, a.s) }, { transform: TF(kr.left, kr.top, kr.width / 160) }], 560, 'cubic-bezier(.4,0,.2,1)');
+    fly.remove(); cart.classList.remove('gone'); it.classList.remove('gone');
+    await wait(260); it.classList.remove('open'); o.sfx.clack('caseClose'); await wait(300);
+  }
+  async function insertRoom(it, entry) {
+    await eject();
+    const cart = it.querySelector('.cart');
+    it.classList.add('open'); o.sfx.clack('caseOpen'); await wait(330);
+    const kr = cart.getBoundingClientRect(), a = atSlot();
+    const fly = fixedFly(cart, it);
+    fly.style.transform = TF(kr.left, kr.top, kr.width / 160);
+    cart.classList.add('gone'); it.classList.add('gone');
+    await anim(fly, [{ transform: TF(kr.left, kr.top, kr.width / 160) }, { transform: TF(a.x, a.y, a.s) }], 560, 'cubic-bezier(.3,.7,.4,1)');
+    const label = cart.querySelector('canvas');
+    const down = room.insertCart({ color: getComputedStyle(it).getPropertyValue('--c').trim(), label, title: entry.title });
+    fly.remove();
+    setTimeout(() => o.sfx.clack('slide'), still() ? 0 : 150);
+    setTimeout(() => o.sfx.clack('click'), still() ? 0 : 425);
+    await down;
+    seated = { id: entry.id, entry, fly: null };
+    await wait(160);
+    it.classList.remove('open'); o.sfx.clack('caseClose');
+    await wait(260);
+    setPower(true); o.sfx.clack('sw');
+    room.show(frameOf(label));   // テレビにタイトルが映る
+    await wait(380);
+    await room.focusTV(true, still() ? 0 : 750);   // テレビに寄ってから、遊ぶ画面へ
+    o.open(entry);
+  }
+
   async function eject() {
     if (!seated) return;
+    if (room) return ejectRoom();
     const s = seated; seated = null;
     if (con.classList.contains('on')) { setPower(false); o.sfx.clack('sw'); }
     const it = row.querySelector(`.item[data-id="${CSS.escape(s.id)}"]`);
@@ -156,6 +212,7 @@ export function initShelf(o) {
     if (busy) return;
     busy = true; closeMenus();
     try {
+      if (room) { await insertRoom(it, entry); return; }
       await eject();
       const cart = it.querySelector('.cart');
       it.classList.add('open'); o.sfx.clack('caseOpen'); await wait(330);
@@ -249,6 +306,11 @@ export function initShelf(o) {
       if (!seated || busy) return;
       busy = true;
       setTimeout(() => eject().finally(() => { busy = false; }), still() ? 0 : 250);
+    },
+    // 部屋（3D）を使う。入っているカセットがあれば、そのまま部屋へ
+    useRoom(r) {
+      room = r;
+      if (seated) { const it = row.querySelector(`.item[data-id="${CSS.escape(seated.id)}"]`); seated.fly?.remove(); seated.fly = null; if (it) room.seatCart({ color: getComputedStyle(it).getPropertyValue('--c').trim(), label: it.querySelector('canvas'), title: seated.entry.title }); }
     },
     // 確かめ用
     get seated() { return seated?.id || null; },

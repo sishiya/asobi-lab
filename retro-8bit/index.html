@@ -7,8 +7,9 @@
 <script>/* 言語 ja／en（まなびラボの I18N.md・dino-race と同じ決め方。localStorage の manabi-lang はまなびラボ・あそびラボで共通）: ?lang= → 前に選んだもの → ブラウザの言語。js は js/i18n.js の TX(日本語, 英語)、HTML は <span lang> の対 */(function(){var q=new URLSearchParams(location.search).get('lang'),s=null;try{s=localStorage.getItem('manabi-lang');}catch(e){}var l=q==='en'||q==='ja'?q:s==='en'||s==='ja'?s:/^ja/i.test(navigator.language||'ja')?'ja':'en';document.documentElement.lang=l;if(l==='en')document.title='8-bit Console (prototype)';})();</script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23141b2e'/><rect x='12' y='16' width='40' height='30' rx='4' fill='%230b0f1c' stroke='%237d8bb3' stroke-width='3'/><path d='M24 34h4v4h-4zM28 30h4v4h-4zM32 34h4v4h-4zM36 30h4v4h-4z' fill='%2388d800'/></svg>">
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 <link rel="stylesheet" href="../assets/no-quirks.css"><script src="../assets/no-quirks.js" defer></script>
-<link rel="stylesheet" href="css/style.css?v=20">
+<link rel="stylesheet" href="css/style.css?v=21">
 </head>
 <body>
 
@@ -22,6 +23,8 @@
     <button class="helpBtn" id="btnHelp" aria-haspopup="dialog" aria-label="とりあつかい説明書" data-en-label="User manual">？</button>
   </header>
   <!-- スイッチは飾り（カセットを押せば電源が入る。2026-10-25 ユーザー「POWER は押せなくていい」）。本体は形のまま縮める（スマホでもつぶさない）。大きさは shelf.js の fit が --kc に -->
+  <!-- 部屋（3D。js/room3d.js）。使えないブラウザ・動きを減らす設定では、下の 2D の本体 -->
+  <div class="roombox" id="roombox" hidden></div>
   <div class="conbox" id="conbox">
   <div class="con" id="console">
     <div class="shell" aria-hidden="true"></div><div class="topface" aria-hidden="true"></div>
@@ -58,7 +61,7 @@
       <p lang="en">Your own cassettes (your .nes files) stay only in this browser and are never sent anywhere. Please add only files you have the rights to.</p>
       <p lang="ja">電池つきのカセット（恐竜かけっこ牧場 8bit）のセーブは、このブラウザの中に残ります。消すときは、そのカセットの「…」から「セーブを消す」（牧場はタイトルで SELECT（Shift）を押しながら START（Enter）でも、はじめからにできます）。</p>
       <p lang="en">Cassettes with a battery (Dino Sprint Ranch 8bit, Pillbug Path) keep their saves in this browser. To erase one, use "Erase save" in that cassette's "…" menu.</p>
-      <p class="small">ver. 0.9.5<span lang="ja">（試作）</span><span lang="en"> (prototype)</span>・<a href="launcher.html"><span lang="ja">過去の版</span><span lang="en">Past versions</span></a>・<a href="../archive.html"><span lang="ja">あそびラボの保管庫へ</span><span lang="en">Asobi Lab archive</span></a></p>
+      <p class="small">ver. 0.9.6<span lang="ja">（試作）</span><span lang="en"> (prototype)</span>・<a href="launcher.html"><span lang="ja">過去の版</span><span lang="en">Past versions</span></a>・<a href="../archive.html"><span lang="ja">あそびラボの保管庫へ</span><span lang="en">Asobi Lab archive</span></a></p>
   </div>
 </dialog>
 
@@ -70,6 +73,7 @@
     <div class="tools">
       <button class="tool" id="btnSound" aria-pressed="true" title="音を出す／消す" data-en-title="Sound on / off"><span class="snd">♪</span><span class="lbl" id="soundLbl">音あり</span></button>
       <button class="tool" id="btnSettings" aria-haspopup="dialog" title="設定（画面・音・キー）" data-en-title="Settings (screen, sound, keys)">⚙ <span lang="ja">設定</span><span lang="en">Settings</span></button>
+      <button class="tool" id="btnRoom" aria-pressed="false" hidden title="部屋で遊ぶ（机の上のテレビで）" data-en-title="Play in the room (on the TV on the desk)">▣ <span lang="ja">部屋</span><span lang="en">Room</span></button>
       <button class="tool" id="btnFull" title="全画面" data-en-title="Full screen">⛶</button>
       <button class="tool danger" id="btnReset" title="リセット（本体のリセットボタン。2回押す）" data-en-title="Reset (the console's reset button)">↺ <span lang="ja">リセット</span><span lang="en">Reset</span></button>
     </div>
@@ -127,6 +131,6 @@
   </section>
 </dialog>
 
-<script type="module" src="js/main.js?v=21"></script>
+<script type="module" src="js/main.js?v=22"></script>
 </body>
 </html>

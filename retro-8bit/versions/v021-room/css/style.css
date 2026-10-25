@@ -1,0 +1,360 @@
+/* 8ビット互換機。区割り: 上 = 機械の名前とカートリッジ（右にめったに使わない道具）、まん中 = 画面、
+   下 = 指の操作（スマホ）／キーの案内（PC）。目立たせるのは、はじめの「電源を入れる」だけ */
+:root{--bg:#0b0f1a;--panel:#151c30;--line:#27304d;--ink:#e3e8f8;--muted:#8d97b8;--acc:#88d800;--btn:#232c48;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif}
+body{min-height:100vh}
+button{font:inherit;color:inherit}
+
+.app{height:100vh;height:100dvh;display:grid;grid-template-rows:auto 1fr auto;grid-template-columns:minmax(0,1fr);padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px}
+.name{display:flex;align-items:baseline;gap:12px;min-width:0}
+.name b{font-size:15px;letter-spacing:.06em;white-space:nowrap}
+.cartname{font-size:17px;font-weight:700;color:var(--ink);white-space:nowrap}   /* 枠なしで大きく（v019 ユーザー） */
+.tools{display:flex;gap:8px}
+.tool{background:transparent;border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--muted);cursor:pointer;min-height:40px}
+.tool:hover{color:var(--ink);border-color:var(--muted)}
+.tool[aria-pressed="false"] .snd{color:var(--muted);position:relative}
+.tool[aria-pressed="false"] .snd::after{content:"";position:absolute;left:-2px;right:-2px;top:50%;height:2px;background:currentColor;transform:rotate(-40deg)}
+.tool .lbl{margin-left:4px}
+
+/* 画面: 外の枠（ベゼル）に入れて、ドットのまま大きくする */
+.stage{min-height:0;display:flex;align-items:center;justify-content:center;padding:12px 0}
+.bezel{position:relative;padding:14px;border-radius:18px;background:linear-gradient(#1a2238,#10162a);box-shadow:0 0 0 1px #2b3555,0 18px 50px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.06)}
+#screen{display:block;image-rendering:pixelated;image-rendering:crisp-edges;background:#000;border-radius:6px;box-shadow:inset 0 0 0 1px #000}
+.bezel::after{content:"";position:absolute;inset:14px;border-radius:6px;pointer-events:none;
+  background:repeating-linear-gradient(to bottom,rgba(0,0,0,.10) 0 1px,transparent 1px 3px),radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,.28));}
+
+.power{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;display:flex;align-items:center;gap:10px;
+  padding:14px 26px;border:0;border-radius:999px;background:var(--acc);color:#10200a;font-size:17px;white-space:nowrap;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(136,216,0,.35)}
+.power .dot{width:10px;height:10px;border-radius:50%;background:#10200a;box-shadow:0 0 0 3px rgba(16,32,10,.25)}
+.power:hover{filter:brightness(1.08)}
+.power[hidden]{display:none}
+
+/* キーの案内（PC） */
+.keys{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 20px;font-size:13px;color:var(--muted);padding:4px 0}
+.keys .dim{opacity:.7}
+kbd{display:inline-block;min-width:22px;padding:1px 6px;margin-right:3px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;background:var(--panel);color:var(--ink);font:12px/1.5 ui-monospace,monospace;text-align:center}
+
+/* 指の操作（スマホ）。ふだんは隠す */
+.pad{display:none;grid-template-columns:auto 1fr auto;grid-template-areas:'dpad . ab' 'mid mid mid';align-items:center;gap:6px 12px;padding:4px 0;user-select:none;-webkit-user-select:none;touch-action:none}
+.dpad{grid-area:dpad;position:relative;width:132px;height:132px}
+.dpad span{position:absolute;background:var(--btn);border:1px solid var(--line)}
+.dpad .u,.dpad .d{left:44px;width:44px;height:46px}
+.dpad .u{top:0;border-radius:8px 8px 0 0;border-bottom:0}
+.dpad .d{bottom:0;border-radius:0 0 8px 8px;border-top:0}
+.dpad .l,.dpad .r{top:44px;width:46px;height:44px}
+.dpad .l{left:0;border-radius:8px 0 0 8px;border-right:0}
+.dpad .r{right:0;border-radius:0 8px 8px 0;border-left:0}
+.dpad i{position:absolute;left:44px;top:44px;width:44px;height:44px;background:var(--btn)}
+.dpad span.on{background:#3a4673}
+.mid{grid-area:mid;display:flex;justify-content:center;gap:12px}
+.pill{border:1px solid var(--line);background:var(--btn);border-radius:999px;padding:8px 12px;font-size:11px;letter-spacing:.08em;color:var(--muted);min-height:36px}
+.ab{grid-area:ab;display:flex;gap:14px;align-items:center;transform:rotate(-12deg);margin-right:4px}
+.round{width:64px;height:64px;border-radius:50%;border:0;background:#b8283a;color:#fff;font-weight:800;font-size:18px;box-shadow:0 4px 0 #6d1220}
+.round.on,.pill.on{filter:brightness(1.3);transform:translateY(2px)}
+
+/* この機械について（画面の下。スクロールで見る） */
+.about{color:var(--muted);font-size:14px;line-height:1.8}
+.about summary{cursor:pointer;color:var(--ink);padding:8px 0}
+.about b{color:var(--ink)}
+.about a{color:var(--acc)}
+.about .small{font-size:12px}
+
+@media (pointer:coarse){
+  .pad{display:grid}
+  .keys{display:none}
+}
+/* スマホの横: 画面を広く、操作は左右の下に重ねる */
+@media (pointer:coarse) and (orientation:landscape){
+  .app{grid-template-rows:auto 1fr;padding:6px 16px}
+  .top{min-height:36px}
+  .stage{padding:4px 0}
+  .bezel{padding:6px;border-radius:10px}
+  .bezel::after{inset:6px}
+  .pad{position:fixed;left:max(16px,env(safe-area-inset-left));right:max(16px,env(safe-area-inset-right));bottom:12px;padding:0;pointer-events:none}
+  .pad>*{pointer-events:auto}
+  .dpad{transform:scale(.9);transform-origin:left bottom}
+  .pad{grid-template-areas:'dpad mid ab'}
+  .mid{align-self:end;opacity:.85}
+}
+@media (max-width:520px){
+  .name{gap:8px}
+  .name b{font-size:14px}
+  .cartname{font-size:15px}
+  .tools{gap:6px}
+  .tool{padding:8px 10px;min-width:40px}
+  #btnReset{font-size:0}
+  #btnReset::before{content:"↺";font-size:15px}
+  #btnSound .lbl{display:none}
+  #btnSound .snd{font-size:15px}
+  .bezel{padding:8px;border-radius:12px}
+  .bezel::after{inset:8px}
+}
+@media (max-height:420px){
+  .power{padding:10px 18px;font-size:15px}
+}
+
+/* 上の帯: 名前は縮めて、道具とぶつけない */
+.top .name{flex:1;min-width:0}
+.top .cartname{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.top .tools{flex:none}
+/* キーの案内: コントローラーのボタン（指の操作と同じ形）→ キー → すること */
+.keys span{display:inline-flex;align-items:center;gap:4px}
+.keys em{font-style:normal;margin-left:4px}
+.face{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#b8283a;color:#fff;font-size:12px;font-weight:800;margin-right:4px}
+.face.word{width:auto;padding:0 8px;border-radius:999px;background:var(--btn);color:var(--muted);font-size:11px;letter-spacing:.06em;border:1px solid var(--line)}
+@media (max-height:420px){ .keys .dim{display:none} .keys{gap:4px 14px} }
+.cart.blank:focus-within .shell{outline:3px solid #ffe14f;outline-offset:4px}
+
+/* ---------- 設定（⚙）。区割り: 上 = 題と ✕、その下にタブ（画面と音／キー）、中身。めったに使わないので、開いたときだけ ---------- */
+.settings{width:min(560px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:0;border:1px solid var(--line);border-radius:16px;background:var(--panel);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.settings::backdrop{background:rgba(5,8,15,.65)}
+.set-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 6px}
+.set-head h2{margin:0;font-size:17px}
+.set-tabs{display:flex;gap:4px;padding:0 16px;border-bottom:1px solid var(--line)}
+.set-tabs button{border:0;background:transparent;color:var(--muted);font-size:14px;padding:10px 14px;min-height:44px;cursor:pointer;border-bottom:3px solid transparent}
+.set-tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--acc)}
+.settings section{padding:12px 16px 18px;overflow:auto;max-height:calc(100dvh - 160px)}
+.settings h3{margin:14px 0 8px;font-size:13px;color:var(--muted);font-weight:600}
+.settings h3 small{font-weight:400;margin-left:6px}
+.radios{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.radios button{text-align:left;border:1px solid var(--line);background:transparent;border-radius:10px;padding:10px 12px;font-size:14px;min-height:56px;cursor:pointer}
+.radios button small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+.radios button[aria-checked="true"]{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc);background:rgba(136,216,0,.07)}
+.radios button:disabled{opacity:.4;cursor:not-allowed}
+.set-note{margin:8px 0 0;font-size:12px;line-height:1.7;color:var(--muted)}
+.opt{display:flex;align-items:center;gap:10px;min-height:40px;font-size:14px}
+.opt input[type=checkbox]{width:20px;height:20px;accent-color:var(--acc)}
+.opt input[type=range]{flex:1;max-width:240px;accent-color:var(--acc)}
+.krows{display:flex;flex-direction:column;gap:6px}
+.krow{display:grid;grid-template-columns:76px 1fr auto;align-items:center;gap:8px;min-height:40px}
+.krow .face{margin:0 auto 0 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:2px;padding:2px 4px 2px 8px;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;background:var(--bg);font:12px/1.6 ui-monospace,monospace}
+.chip button{border:0;background:transparent;color:var(--muted);font-size:14px;line-height:1;padding:4px 6px;cursor:pointer;min-width:28px;min-height:28px}
+.chip button:hover{color:#ff8a7a}
+.none{font-size:12px;color:var(--muted)}
+.addkey{border:1px dashed var(--line);background:transparent;border-radius:8px;padding:6px 10px;font-size:12px;color:var(--muted);cursor:pointer;min-height:36px;white-space:nowrap}
+.addkey:hover{color:var(--ink);border-color:var(--muted)}
+.addkey.wait{border-style:solid;border-color:var(--acc);color:var(--acc);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.55}}
+.keynote{min-height:1.6em;margin:12px 0 8px;font-size:13px;color:var(--acc)}
+.keyedit{border:0;background:transparent;color:var(--muted);font-size:12px;text-decoration:underline;cursor:pointer;padding:6px}
+.keyedit:hover{color:var(--ink)}
+/* A と B をいっしょに（指） */
+.ab{position:relative}
+.both{position:absolute;left:50%;top:-40px;transform:translateX(-50%);width:52px;height:30px;border-radius:15px;border:0;background:#7d2030;color:#fff;font-size:11px;font-weight:800;box-shadow:0 3px 0 #4a1018}
+.both.on{filter:brightness(1.3);transform:translate(-50%,2px)}
+/* 遊んでいるあいだはページを動かさない（引っぱって再読み込み・ダブルタップの拡大をさける） */
+/* スマホのブラウザのくせをおさえる（v020。ユーザー「ダブルタップで変に拡大する」）:
+   どこでもダブルタップの拡大をしない（指で広げる拡大は棚ではできる）・引っぱって再読みこみ／はねかえりをしない・
+   押したところの青いハイライトを出さない・遊ぶ画面と本体・カセットは長押しで文字えらびや画像のメニューを出さない */
+html{touch-action:manipulation;overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+button,.cart,.item,label{-webkit-tap-highlight-color:transparent}
+.app,.con,.cart,.item{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.cart canvas,.app canvas{-webkit-user-drag:none;pointer-events:none}
+body.playing{overflow:hidden;overscroll-behavior:none}
+body.playing .app{touch-action:none}
+body.playing .pad, body.playing .stage{touch-action:none}
+.pad button,.dpad{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+@media (max-width:520px){
+  .radios{grid-template-columns:1fr}
+  #btnSettings{font-size:0}
+  #btnSettings::before{content:"⚙";font-size:16px}
+  .krow{grid-template-columns:64px 1fr auto}
+}
+
+/* ---------- UX の見なおし（2026-10-24。遊び手・UX 役の指摘） ---------- */
+/* 指で押す所は 44px 以上 */
+.tool,.back{min-height:44px;min-width:44px}
+.pill{min-height:44px;padding:0 18px;font-size:12px}
+.mid{gap:16px}
+.both::before{content:"";position:absolute;inset:-8px}
+@media (pointer:coarse){ .addkey{min-height:44px;min-width:44px} .chip button{min-width:40px;min-height:40px} }
+/* リセットは右はしに離して置く。2回押しの案内 */
+.tools #btnReset{margin-left:10px}
+/* キー設定: ＋ はキーの札のうしろに。2列 */
+.krow{grid-template-columns:64px 1fr}
+.addkey{min-width:36px;font-size:14px;padding:4px 10px}
+.coarse-only{display:none}
+@media (pointer:coarse){ .coarse-only{display:block;color:var(--ink)} }
+.p2{margin-top:14px}
+.p2 summary{cursor:pointer;font-size:13px;color:var(--muted);font-weight:600;min-height:40px;display:flex;align-items:center;gap:6px}
+.p2 summary small{font-weight:400}
+.p2 .krows{margin-top:6px}
+/* PC のキーの案内: ボタン ＝ キー */
+.keys{gap:8px 28px}
+.keys i{font-style:normal;opacity:.5;margin:0 2px}
+
+
+/* ---------- 棚（トップ）。2026-10-25 ユーザーと決めた形（見くらべ look/ の 3〜6 から）:
+   配色「クリームとミント」・本体はカセットをおさめる深い溝（上のふちは本体の上面とそろう。ぶつけても折れない）・
+   ラベルは本体を型で抜いた穴から見える（ガラスなし。端子は本体の中）・カセットの色は本体とかぶらない8色・
+   机の上ではケース（すっきり。内側のまわりだけ少しくもる）に入れておく。出したらふたはしめる・
+   色・なまえ・ダウンロード・すてるは「…」のメニュー（ふだんは見えない。主役はカセット）・字はシステムのゴシック1つだけ。
+   区割り: 上 = 名前（右上に ？ とりあつかい説明書）、まん中 = 本体（さすところ）、下 = 机の上のカセット（えらぶのが主役）。
+   本体は 600×270 の形のまま縮める（--kc。スマホでもつぶさない）。スマホのカセットは2列で、列の中だけ上下に動かす（--kd） ---------- */
+[hidden]{display:none!important}
+html,body{overflow-x:clip}   /* 動き（ふた・飛ぶカセット）がはみ出しても、ページのスクロールの幅をふやさない */
+.shelf{--room1:#efe6d6;--room2:#e7dcc8;--sh-ink:#3b3128;--sh-sub:#8a7a66;--top:#b6dcca;--top2:#9fcdb8;--body1:#f7f0e3;--body2:#ebe1cf;
+  --logo:#5d7c6e;--knob1:#ee9282;--knob2:#d4705f;--desk1:#dcb98f;--desk2:#c99f72;--deskInk:#5a3f26;--menu:#fffaf0;--acc:#c0563f;
+  min-height:100vh;color:var(--sh-ink);background:linear-gradient(var(--room1),var(--room2));font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif}
+.room{position:relative;padding:40px 16px 0;text-align:center}
+.helpBtn{position:absolute;right:16px;top:16px;width:44px;height:44px;border-radius:50%;border:0;background:var(--menu);color:var(--sh-ink);font:inherit;font-size:18px;font-weight:800;box-shadow:0 2px 6px rgba(0,0,0,.18);cursor:pointer}
+.helpBtn:hover{box-shadow:0 3px 10px rgba(0,0,0,.25)}
+.helpBtn:focus-visible{outline:3px solid var(--knob2);outline-offset:3px}
+.room .eyebrow{margin:0;font-size:12px;font-weight:700;letter-spacing:.28em;color:var(--sh-sub)}
+.room h1{margin:4px 0 0;font-size:30px;font-weight:800;letter-spacing:.08em;color:var(--sh-ink)}
+/* 本体 */
+.conbox{position:relative;height:calc(270px * var(--kc, 1));margin:34px 0 0}
+/* さしこみ口（v016〜017。ユーザー「遊びが大きい」「上が開いていない」「下の盛り上がりはいらない」
+   「窓があると抜け落ちそう。ラベルは見えなくていい。カセットの上が少し見えるだけでいい」）:
+   溝の幅はカセット 160px ＋ 左右 4px（ぴったり入って動かない）。上のふちの帯（34px）だけを欠いて、そこから上が少し見える。
+   その下は前の面がふさぐ（本体の中にしっかり入っている） */
+.con{--W:168px;--depth:214px;--win:34px;position:relative;width:600px;height:270px;margin-left:calc(50% - 300px);scale:var(--kc, 1);transform-origin:50% 0}
+.con .shell{position:absolute;inset:0;border-radius:34px 34px 40px 40px;background:linear-gradient(var(--body1),var(--body2));
+  box-shadow:0 5px 0 rgba(0,0,0,.08),0 10px 4px rgba(0,0,0,.18),0 34px 44px rgba(0,0,0,.22),inset 0 3px 0 rgba(255,255,255,.7),inset 0 -10px 0 rgba(0,0,0,.08)}
+/* 上の帯は本体のかどの丸みにそのまま合わせる（v017。前は内側に寄せていて、かどが中途半端に欠けて見えた） */
+.con .topface{position:absolute;left:0;right:0;top:0;height:34px;border-radius:34px 34px 0 0;background:linear-gradient(var(--top),var(--top2));box-shadow:inset 0 2px 0 rgba(255,255,255,.5)}
+.con .well{position:absolute;z-index:1;left:calc(50% - var(--W) / 2);width:var(--W);top:0;height:var(--depth);border-radius:0 0 8px 8px;
+  background:linear-gradient(90deg,rgba(0,0,0,.3),rgba(0,0,0,0) 8%,rgba(0,0,0,0) 92%,rgba(0,0,0,.3)),linear-gradient(#a99f93,#cbc2b5 40%,#c0b7aa);box-shadow:inset 0 10px 12px rgba(0,0,0,.25)}
+.con .well::after{content:"";position:absolute;left:8px;right:8px;bottom:4px;height:12px;border-radius:4px;background:linear-gradient(#08080a,#24242a);box-shadow:inset 0 3px 4px #000}
+.con .cface{position:absolute;z-index:3;inset:0;pointer-events:none}
+.con .cface .l,.con .cface .r{position:absolute;top:34px;bottom:0;background:linear-gradient(var(--body1),var(--body2));box-shadow:inset 0 6px 6px -6px rgba(0,0,0,.14)}
+.con .cface .l{left:0;right:calc(50% + var(--W) / 2);border-radius:0 0 0 40px}
+.con .cface .r{right:0;left:calc(50% + var(--W) / 2);border-radius:0 0 40px 0}
+/* 欠きの下: 前の面と同じ平らな面（同じグラデーションの続き）。カセットはこの奥 */
+.con .cface .lo{position:absolute;left:calc(50% - var(--W) / 2);width:var(--W);top:var(--win);bottom:0;background:linear-gradient(var(--body1),var(--body2)) 0 calc(34px - var(--win)) / 100% 236px no-repeat;box-shadow:inset 0 6px 6px -6px rgba(0,0,0,.14),0 -1px 0 rgba(0,0,0,.18)}
+/* 欠きのきわ: 内側に落ちる影だけ */
+.con .cface .frame{position:absolute;left:calc(50% - var(--W) / 2);width:var(--W);top:0;height:var(--win);
+  box-shadow:inset 1px 0 0 rgba(0,0,0,.18),inset -1px 0 0 rgba(0,0,0,.18),inset 8px 0 10px -6px rgba(0,0,0,.25),inset -8px 0 10px -6px rgba(0,0,0,.25),inset 0 -8px 10px -6px rgba(0,0,0,.2)}
+.con .cface .shade{display:none}
+.con .logo{position:absolute;z-index:4;left:30px;top:62px;white-space:nowrap;font-weight:800;font-size:19px;letter-spacing:.1em;color:var(--logo);line-height:1.15}
+.con .logo small{display:block;font-size:10px;font-weight:700;letter-spacing:.3em;opacity:.75}
+.con .stripe{position:absolute;z-index:4;left:30px;width:calc(50% - var(--W) / 2 - 60px);top:122px;height:6px;border-radius:3px;background:linear-gradient(90deg,#9fcdb8,#e98a7a)}
+.con .jacks{position:absolute;z-index:4;left:30px;bottom:34px;display:flex;gap:12px}
+.con .jacks span{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:800;color:var(--logo)}
+.con .jacks span::before{content:"";width:26px;height:14px;border-radius:7px;background:rgba(0,0,0,.4);box-shadow:inset 0 2px 3px #000}
+.con .ctl{position:absolute;z-index:4;right:30px;top:58px;display:flex;flex-direction:column;align-items:flex-end;gap:18px}
+.con .btn{position:relative;display:flex;align-items:center;gap:10px;min-height:44px;font-size:10px;font-weight:800;letter-spacing:.18em;color:var(--logo)}
+.con .btn i{display:block;width:58px;height:30px;border-radius:15px;background:linear-gradient(var(--knob1),var(--knob2));box-shadow:0 4px 0 rgba(0,0,0,.25),inset 0 2px 0 rgba(255,255,255,.4);transition:transform .08s}
+.con .btn.pw i{position:relative;background:rgba(0,0,0,.18);box-shadow:inset 0 2px 4px rgba(0,0,0,.35)}
+.con .btn.pw i::after{content:"";position:absolute;left:4px;top:4px;width:26px;height:22px;border-radius:11px;background:linear-gradient(var(--knob1),var(--knob2));transition:left .2s cubic-bezier(.3,1.6,.5,1)}
+.con.on .btn.pw i::after{left:28px}
+.con .led{position:absolute;z-index:4;right:30px;bottom:38px;display:flex;align-items:center;gap:8px;font-size:10px;font-weight:800;letter-spacing:.18em;color:var(--logo)}
+.con .led i{width:12px;height:12px;border-radius:50%;background:#7a2a22;box-shadow:inset 0 1px 2px #000;transition:.2s}
+.con .led i.on{background:#ff4a3d;box-shadow:0 0 14px #ff4a3d}
+.con.bump{animation:bump .22s ease-out}
+@keyframes bump{40%{transform:translateY(2px)}}
+/* 机と、カセットの列（PC はならべるだけ。スマホは横に流す1列） */
+.shelf:not([hidden]){display:flex;flex-direction:column}
+.desk{flex:1;margin-top:48px;padding:30px 0 56px;background:repeating-linear-gradient(178deg,rgba(0,0,0,.05) 0 2px,transparent 2px 22px),linear-gradient(var(--desk1),var(--desk2))}
+.desk-lead{margin:0 16px 18px;text-align:center;font-size:14px;color:var(--deskInk);text-wrap:balance}
+.row{position:relative;display:flex;justify-content:center;flex-wrap:wrap;gap:30px 26px;padding:16px 24px 26px;max-width:1040px;margin:0 auto}
+/* カセット 160×208（どこでも同じ。ラベルの字は下から 40px より上。上のふちに指をかけるくぼみ） */
+.item{position:relative;flex:none;width:160px;height:208px}
+.cart{position:relative;display:block;width:160px;height:208px;border:0;padding:0;cursor:pointer;background:none;font:inherit;color:inherit;text-align:left}
+.cart:focus-visible{outline:3px solid var(--knob2);outline-offset:10px;border-radius:12px}
+.cart .body{position:absolute;inset:0;border-radius:12px 12px 6px 6px;background:var(--c);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),inset 0 -6px 0 rgba(0,0,0,.16),0 6px 10px rgba(0,0,0,.18);overflow:hidden}
+.cart .body::before{content:"";position:absolute;left:44px;right:44px;top:6px;height:8px;border-radius:0 0 8px 8px;background:rgba(0,0,0,.14)}
+.cart .body::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,transparent 20%,rgba(255,255,255,.14) 32%,transparent 50%)}
+.cart .label{position:absolute;left:12px;right:12px;top:18px;height:148px;border-radius:5px;background:#f8f3e8;padding:6px;box-shadow:inset 0 0 0 3px rgba(120,90,60,.1)}
+.cart .label canvas{display:block;width:100%;aspect-ratio:256/240;image-rendering:pixelated;background:#000;border-radius:2px}
+.cart .label b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:5px;font-size:12px;line-height:1.3;color:#2a1a10;height:31px;word-break:break-all}
+.cart .pins{position:absolute;left:22px;right:22px;bottom:0;height:22px;border-radius:5px 5px 0 0;background:rgba(0,0,0,.28);box-shadow:inset 0 3px 4px rgba(0,0,0,.35)}
+.cart .pins::after{content:"";position:absolute;left:6px;right:6px;bottom:0;height:12px;background:repeating-linear-gradient(90deg,#d9b44a 0 3px,#a87f1e 3px 4px,transparent 4px 6px)}
+/* 指をのせると、ケースごと少し持ち上がる（さわれるとわかる） */
+@media (hover:hover){
+  .item:not(.add):not(.loading){transition:transform .18s cubic-bezier(.3,1.4,.5,1)}
+  .item:not(.add):not(.loading):not(.gone):hover{transform:translateY(-8px) rotate(-1.2deg)}
+  .item:not(.add):not(.loading):not(.gone):hover .case{box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.85),inset 0 0 0 2.5px rgba(0,0,0,.06),inset 0 0 18px 6px rgba(255,255,255,.36),inset 0 0 4px 1px rgba(255,255,255,.42),0 18px 22px rgba(0,0,0,.18)}
+}
+.item.menuOpen{z-index:30;transform:none!important}
+/* 足したばかりのカセット */
+.item.fresh{animation:fresh .5s cubic-bezier(.3,1.5,.5,1)}
+@keyframes fresh{0%{transform:translateY(-30px) scale(.9);opacity:0}}
+/* 読みこみ中: ケースだけ先に場所をとる */
+.item.loading .ghost{position:absolute;inset:0;border-radius:12px 12px 6px 6px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--deskInk);animation:ghost 1.2s ease-in-out infinite alternate}
+@keyframes ghost{to{background:rgba(255,255,255,.08)}}
+.cart.gone{visibility:hidden}
+.item.gone .menuBtn,.item.open .menuBtn{display:none}
+/* ケース（すっきり）: ほぼ透明・細いふち・うすい光の線1本・内側のまわりだけ少しくもる。押すとふたが開き、出したあとはしめる */
+.case{position:absolute;left:-7px;right:-7px;top:-7px;height:222px;border-radius:15px;z-index:2;pointer-events:none;
+  background:linear-gradient(115deg,rgba(255,255,255,0) 0 62%,rgba(255,255,255,.16) 64% 66%,rgba(255,255,255,0) 68%);
+  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.75),inset 0 0 0 2.5px rgba(0,0,0,.06),inset 0 0 18px 6px rgba(255,255,255,.36),inset 0 0 4px 1px rgba(255,255,255,.42),0 8px 14px rgba(0,0,0,.12);
+  transform-origin:left center;transition:transform .35s,opacity .35s}
+.item.open .case{transform:perspective(1400px) rotateY(-62deg);opacity:.4}
+/* じぶんのカセットを入れる（からのケース） */
+.item.add{cursor:pointer}
+.addcart{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:2px dashed rgba(90,63,38,.35);border-radius:12px;color:var(--deskInk);font-size:13px;font-weight:700;text-align:center;line-height:1.5}
+.addcart b{font-size:28px;line-height:1;font-weight:400}
+.addcart small{font-size:11px;font-weight:400;opacity:.8}
+.item.add:hover .addcart,.item.add.over .addcart{background:rgba(255,255,255,.2);border-color:var(--deskInk)}
+.item.add:focus-within .addcart{outline:3px solid var(--knob2);outline-offset:8px}
+/* 「…」メニュー（ふだんは見えない） */
+.menuBtn{position:absolute;right:-12px;top:-12px;z-index:5;width:36px;height:36px;border-radius:50%;border:0;background:var(--menu);color:var(--sh-ink);font-size:16px;font-weight:800;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer;opacity:0;transition:opacity .15s}
+.item:hover .menuBtn,.item:focus-within .menuBtn,.menuBtn[aria-expanded="true"]{opacity:1}
+@media (pointer:coarse){ .menuBtn{opacity:.85} .menuBtn::before{content:"";position:absolute;inset:-6px} }
+.cmenu{position:absolute;right:-12px;top:30px;z-index:20;width:220px;padding:8px;border-radius:12px;background:var(--menu);color:var(--sh-ink);box-shadow:0 12px 30px rgba(0,0,0,.25);font-size:13px}
+.cmenu p{margin:2px 6px 6px;font-size:11px;font-weight:700;color:var(--sh-sub)}
+.cmenu .sw{display:grid;grid-template-columns:repeat(4,40px);gap:8px;padding:0 6px 8px}
+.cmenu .sw button{width:40px;height:40px;border-radius:8px;border:0;background:var(--s);box-shadow:inset 0 0 0 2px rgba(255,255,255,.4),0 1px 2px rgba(0,0,0,.25);cursor:pointer}
+.cmenu .sw button[aria-checked="true"]{box-shadow:0 0 0 2px var(--sh-ink),inset 0 0 0 2px rgba(255,255,255,.6)}
+.cmenu .row2{display:block;width:100%;text-align:left;border:0;background:transparent;border-top:1px solid rgba(0,0,0,.08);padding:10px 8px;font:inherit;color:var(--sh-ink);cursor:pointer;min-height:44px;text-decoration:none}
+.cmenu .row2:hover{background:rgba(0,0,0,.04)}
+.cmenu .row2.del{color:var(--acc)}
+.fly{position:absolute;z-index:2;left:0;top:0;pointer-events:none;transform-origin:0 0}
+.fly.front{z-index:6}
+/* 共通の小物 */
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.err{max-width:520px;margin:20px auto 0;padding:10px 14px;border-radius:8px;background:#fbe3dc;color:#8a2a18;font-size:14px;text-align:center}
+.help{width:min(560px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:0;border:0;border-radius:14px;background:#fffaf0;color:#3b3128;box-shadow:0 20px 60px rgba(0,0,0,.35);font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif;font-size:14px;line-height:1.85}
+.help::backdrop{background:rgba(40,30,20,.45)}
+.help-head{display:flex;align-items:center;justify-content:space-between;padding:10px 10px 0 20px}
+.help-head h2{margin:0;font-size:16px}
+.help-head .x{width:44px;height:44px;border:0;border-radius:50%;background:transparent;font-size:18px;cursor:pointer;color:inherit}
+.help-head .x:hover{background:rgba(0,0,0,.06)}
+.help-body{padding:0 20px 18px;overflow:auto;max-height:calc(100dvh - 100px)}
+.help p{margin:10px 0 0}
+.help a{color:#c0563f}
+.help .small{font-size:12px;color:#8a7a66}
+.back{border:1px solid var(--line);background:transparent;border-radius:8px;min-width:44px;min-height:44px;font-size:18px;color:var(--ink);cursor:pointer}
+.back:hover{border-color:var(--muted)}
+@media (prefers-reduced-motion:reduce){ .case,.cart{transition:none!important} }
+@media (max-width:600px){
+  /* スマホ: ページは動かさず、カセットの列の中だけ上下に動かす。1行に2本（大きさは --kd でそろえて縮める） */
+  .shelf{height:100vh;height:100dvh;min-height:0;display:flex;flex-direction:column}
+  .room{padding:62px 16px 0}   /* 右上に JP/EN と ？ が並ぶので、名前はその下 */
+  .room h1{font-size:24px}
+  .helpBtn{right:10px;top:10px}
+  .conbox{margin-top:16px;flex:none}
+  .desk{flex:1;min-height:0;display:flex;flex-direction:column;margin-top:22px;padding:12px 0 0}
+  .desk-lead{margin-bottom:6px;font-size:13px}
+  .row{flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,160px);justify-content:center;align-content:start;gap:30px 32px;padding:24px 19px 40px;margin:0;max-width:none;overflow-y:auto;overscroll-behavior:contain;zoom:var(--kd, 1);
+    -webkit-mask-image:linear-gradient(transparent,#000 18px);mask-image:linear-gradient(transparent,#000 18px)}   /* 上へ流れたカセットが文にかぶらない */
+  .err{margin:8px 16px 12px}
+  /* 「…」メニューは下からの板に（列のふちで切れないように） */
+  .cmenu{position:fixed;left:12px;right:12px;top:auto;bottom:12px;width:auto;padding:12px}
+  .cmenu .sw{grid-template-columns:repeat(4,48px);gap:10px;padding:0 0 10px}
+  .cmenu .sw button{width:48px;height:48px}
+}
+
+/* ことば（v018）: <span lang> の対のうち、いまのことばでないほうを隠す。棚の左上に JP / EN（右上の ？ と対に）。ソフトの字も かな／英語 に合わせる */
+:root[lang=en] [lang=ja],:root:not([lang=en]) [lang=en]{display:none!important}
+.langsw{position:absolute;right:70px;top:16px;display:flex;gap:2px;padding:3px;border-radius:999px;background:var(--menu);box-shadow:0 2px 6px rgba(0,0,0,.18)}
+.langsw button{min-width:44px;min-height:38px;padding:2px 10px;border:0;border-radius:999px;background:none;color:var(--sh-sub);font:inherit;font-size:13px;font-weight:800;letter-spacing:.06em;cursor:pointer}
+.langsw button[aria-pressed=true]{background:var(--sh-ink);color:var(--menu)}
+.langsw button:focus-visible{outline:3px solid var(--knob2);outline-offset:2px}
+@media (max-width:600px){.langsw{right:60px;top:10px}.langsw button{min-width:40px;padding:2px 6px}}
+
+/* 部屋（3D。v021。案A: トップの上半分・案C: 遊ぶ画面の「部屋で遊ぶ」） */
+.roombox{position:relative;height:clamp(300px,52vh,520px);margin:18px 0 0;overflow:hidden;border-radius:0}
+.shelf:has(.roombox:not([hidden])) .desk{margin-top:0}   /* 部屋の机と、カセットの机をつなげる */
+.roombox .room3d,.stage .room3d{display:block;width:100%;height:100%;touch-action:none;cursor:grab;outline:none}
+.roombox .room3d:active{cursor:grabbing}
+.stage.roomon{position:relative;padding:0;align-items:stretch}
+.stage.roomon .room3d{position:absolute;inset:0;cursor:default}
+.fly.fixed{position:fixed;left:0;top:0;z-index:60;width:160px;height:208px;transform-origin:0 0}
+@media (max-width:600px){ .roombox{flex:none;height:min(300px,40vh);margin-top:10px} #btnRoom span{display:none} }
+@media (max-width:420px){ #btnFull{display:none} }   /* スマホのせまい幅: ソフトの名前が読めるように、全画面は外す（部屋のボタンが増えたので） */

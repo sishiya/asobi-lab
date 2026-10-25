@@ -347,3 +347,14 @@ html,body{overflow-x:clip}   /* 動き（ふた・飛ぶカセット）がはみ
 .langsw button[aria-pressed=true]{background:var(--sh-ink);color:var(--menu)}
 .langsw button:focus-visible{outline:3px solid var(--knob2);outline-offset:2px}
 @media (max-width:600px){.langsw{right:60px;top:10px}.langsw button{min-width:40px;padding:2px 6px}}
+
+/* 部屋（3D。v021。案A: トップの上半分・案C: 遊ぶ画面の「部屋で遊ぶ」） */
+.roombox{position:relative;height:clamp(300px,52vh,520px);margin:18px 0 0;overflow:hidden;border-radius:0}
+.shelf:has(.roombox:not([hidden])) .desk{margin-top:0}   /* 部屋の机と、カセットの机をつなげる */
+.roombox .room3d,.stage .room3d{display:block;width:100%;height:100%;touch-action:none;cursor:grab;outline:none}
+.roombox .room3d:active{cursor:grabbing}
+.stage.roomon{position:relative;padding:0;align-items:stretch}
+.stage.roomon .room3d{position:absolute;inset:0;cursor:default}
+.fly.fixed{position:fixed;left:0;top:0;z-index:60;width:160px;height:208px;transform-origin:0 0}
+@media (max-width:600px){ .roombox{flex:none;height:min(300px,40vh);margin-top:10px} #btnRoom span{display:none} }
+@media (max-width:420px){ #btnFull{display:none} }   /* スマホのせまい幅: ソフトの名前が読めるように、全画面は外す（部屋のボタンが増えたので） */

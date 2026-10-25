@@ -4,7 +4,7 @@ import { LIBRARY } from './library.js?v=15';
 import { createCRT } from './crt/crt-gl.js';
 import { createInput, keyLabel } from './input.js';
 import { initSettings } from './settings.js';
-import { initShelf } from './shelf.js';
+import { initShelf } from './shelf.js?v=22';
 import { TX, initLang, setRomLang } from './i18n.js';
 
 const FRAME_MS = 1000 / 60.0988;
@@ -66,6 +66,31 @@ function clack(kind) {
 initLang();
 const shelf = initShelf({ library: LIBRARY, loadRom, open: (e) => openEntry(e, true), sfx: { clack } });
 
+// ---------- 部屋（3D。js/room3d.js。案A: トップの上半分・案C: 遊ぶ画面の「部屋で遊ぶ」） ----------
+// WebGL2 がない・動きを減らす設定 では使わない（トップは 2D の本体のまま）
+let room = null, roomPlay = read('retro8.roomPlay', '0') === '1';
+const ROOM_OK = !matchMedia('(prefers-reduced-motion: reduce)').matches && (() => { try { return !!document.createElement('canvas').getContext('webgl2'); } catch { return false; } })();
+if (ROOM_OK) {
+  import('./room3d.js?v=2').then((m) => {
+    room = m.createRoom();
+    $('roombox').hidden = false; $('conbox').hidden = true;
+    room.attach($('roombox'), 'shelf');
+    shelf.useRoom(room);
+    $('btnRoom').hidden = false; $('btnRoom').setAttribute('aria-pressed', String(roomPlay));
+    if (current && roomPlay) setRoomPlay(true);
+  }).catch((e) => console.warn('room', e));
+}
+// 遊ぶ画面で: 部屋のテレビで遊ぶ（ふつうの画面は隠す）／ふつうの画面にもどす
+function setRoomPlay(on) {
+  roomPlay = on; save('retro8.roomPlay', on ? '1' : '0');
+  $('btnRoom').setAttribute('aria-pressed', String(on));
+  if (!room) return;
+  $('bezel').hidden = on; $('stage').classList.toggle('roomon', on);
+  if (on) { room.attach($('stage'), 'play'); room.setPower(true); if (nes) room.show(nes.ppu.frame); }
+  else { room.attach($('roombox'), 'shelf'); fit(); if (nes) draw(); }
+}
+$('btnRoom').addEventListener('click', () => setRoomPlay(!roomPlay));
+
 // ---------- 遊ぶ画面へ ----------
 async function openEntry(e, gesture) {
   stopPlayer();
@@ -83,6 +108,7 @@ async function openEntry(e, gesture) {
   nes = new Console8(bytes, audio ? audio.ctx.sampleRate : 48000);
   loadBattery();
   setRomLang(nes); // ソフトのことば（かな／英語）は、このページのことばに合わせる
+  if (room && roomPlay) setRoomPlay(true);
   if (gesture) power();
   else {
     // 直接ひらいたとき: 音を出すには一度押してもらう
@@ -100,6 +126,7 @@ function stopPlayer() {
 }
 function backToShelf() {
   stopPlayer();
+  if (room) { $('bezel').hidden = false; $('stage').classList.remove('roomon'); room.attach($('roombox'), 'shelf'); }
   shelf.back();
   current = null;
   $('player').hidden = true;
@@ -147,7 +174,7 @@ addEventListener('pagehide', () => { if (nes) saveBattery(); });
 
 // ---------- 画面の大きさ（なるべく整数倍で、ドットをそろえる） ----------
 function fit() {
-  if ($('player').hidden) return;
+  if ($('player').hidden || (room && roomPlay)) return;
   const stage = $('stage'), bez = $('bezel');
   const pad = parseFloat(getComputedStyle(bez).paddingLeft) * 2;
   const w = stage.clientWidth - pad, h = stage.clientHeight - pad - 8;
@@ -191,6 +218,7 @@ function crtDraw() {
 // worker が使えないときだけ、ここで RGB の信号を作る（にじみは はじめの 1 回だけ）
 let glowTick = 0;
 function draw() {
+  if (room && roomPlay) { room.show(nes.ppu.frame); return; }   // 部屋のテレビに映す
   if (screenMode === 'lcd') { px.set(nes.ppu.frame); g.putImageData(img, 0, 0); return; }
   const f = nes.ppu.frame;
   if (worker) {
