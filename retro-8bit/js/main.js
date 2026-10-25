@@ -4,7 +4,7 @@ import { LIBRARY } from './library.js';
 import { createCRT } from './crt/crt-gl.js';
 import { createInput, keyLabel } from './input.js';
 import { initSettings } from './settings.js';
-import { listCarts, addCart, renameCart, deleteCart } from './mycarts.js';
+import { initShelf } from './shelf.js';
 
 const FRAME_MS = 1000 / 60.0988;
 const $ = (id) => document.getElementById(id);
@@ -26,170 +26,22 @@ async function loadRom(entry) {
   if (!romCache.has(entry.id)) romCache.set(entry.id, fetch(entry.file + '?v=5').then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
   return romCache.get(entry.id);
 }
-// ラベルの絵: 音なしでタイトルまで進めて1枚描く
-function paintLabel(canvas, bytes, frames) {
-  try {
-    const m = new Console8(bytes, 8000);
-    for (let i = 0; i < frames; i++) m.runFrame();
-    const c = canvas.getContext('2d'), im = c.createImageData(256, 240);
-    new Uint32Array(im.data.buffer).set(m.ppu.frame);
-    c.putImageData(im, 0, 0);
-  } catch { /* 描けないカセットは黒いまま */ }
-}
-function renderShelf() {
-  const box = $('carts'), blank = $('drop');
-  for (const old of box.querySelectorAll('.cart:not(.blank)')) old.remove();
-  for (const e of LIBRARY) {
-    const cart = document.createElement('article');
-    cart.className = 'cart';
-    cart.style.setProperty('--c', e.color || '#8f8d88');
-    cart.innerHTML = `<button class="shell"><span class="label"><canvas width="256" height="240"></canvas><b></b><small>ROM CASSETTE</small></span><span class="grip"></span></button>
-      <a class="tag" download>ROM ↓</a><p class="desc"></p>`;
-    const shell = cart.querySelector('.shell');
-    shell.setAttribute('aria-label', `${e.title} であそぶ`);
-    cart.querySelector('b').textContent = e.title;
-    cart.querySelector('.desc').textContent = e.desc;
-    const dl = cart.querySelector('.tag');
-    dl.href = e.file; dl.download = e.id + '.nes';
-    dl.title = `${e.id}.nes をダウンロード`;
-    shell.addEventListener('click', () => insertCart(cart, () => openEntry(e, true)));
-    // PC: 本体のさしこみ口へドラッグしても入る
-    if (!COARSE) {
-      shell.draggable = true;
-      shell.addEventListener('dragstart', (ev) => { ev.dataTransfer.setData('text/plain', e.id); ev.dataTransfer.effectAllowed = 'move'; cart.classList.add('dragging'); });
-      shell.addEventListener('dragend', () => cart.classList.remove('dragging'));
-    }
-    box.insertBefore(cart, blank);
-    // ラベルの絵: 音なしでタイトルまで進めて1枚描く
-    loadRom(e).then((bytes) => {
-      paintLabel(cart.querySelector('canvas'), bytes, e.frames);
-      dl.textContent = `ROM ↓ ${Math.round(bytes.length / 1024)}KB`;
-    }).catch(() => { dl.textContent = 'ROM ↓'; });
-  }
-  renderMine();
-}
-
-// じぶんのカセット（このブラウザの IndexedDB にだけ残っているもの）: 灰色のカセットに手書きの名前。なまえを変える・すてる
-async function renderMine() {
-  const box = $('carts'), blank = $('drop');
-  for (const old of box.querySelectorAll('.cart.mine')) old.remove();
-  for (const c of await listCarts()) {
-    const cart = document.createElement('article');
-    cart.className = 'cart mine';
-    cart.style.setProperty('--c', '#8f8d88');
-    cart.innerHTML = `<button class="shell"><span class="label"><canvas width="256" height="240"></canvas><b></b><small>じぶんのカセット</small></span><span class="grip"></span></button>
-      <span class="mine-tools"><button class="mt" data-act="rename">なまえ</button><button class="mt" data-act="del">すてる</button></span>`;
-    cart.querySelector('b').textContent = c.name;
-    const shell = cart.querySelector('.shell');
-    shell.setAttribute('aria-label', `${c.name} であそぶ`);
-    const entry = { id: c.id, title: c.name, keys: [], bytes: c.bytes, frames: 60 };
-    shell.addEventListener('click', () => insertCart(cart, () => openEntry(entry, true)));
-    cart.querySelector('[data-act=rename]').addEventListener('click', async () => {
-      const n = prompt('カセットの なまえ（32字まで）', c.name);
-      if (n === null) return;
-      await renameCart(c.id, n); renderMine();
-    });
-    cart.querySelector('[data-act=del]').addEventListener('click', async () => {
-      if (!confirm(`「${c.name}」をすてます（このブラウザから消え、セーブも消えます）。よいですか？`)) return;
-      await deleteCart(c.id); renderMine();
-    });
-    box.insertBefore(cart, blank);
-    paintLabel(cart.querySelector('canvas'), c.bytes, 60);
-  }
-}
-
-// カセットを本体のさしこみ口へ: 口の上まで飛んで、口の線より下が見えなくなりながら入っていく
-// （動きを減らす設定や、本体が画面の外なら、すぐ次へ）
-function insertCart(cart, then) {
-  const slot = $('slot').getBoundingClientRect(), shell = cart.querySelector('.shell'), c = shell.getBoundingClientRect();
-  const led = $('led'), con = $('console');
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches || slot.bottom < 0 || slot.top > innerHeight || !shell.animate) {
-    led.classList.add('on'); con.classList.add('on'); then(); return;
-  }
-  const k = Math.min(0.55, (slot.width * 0.9) / c.width);          // 口の幅に合わせて縮める
-  const dx = slot.left + slot.width / 2 - (c.left + c.width / 2);
-  const above = slot.top + slot.height / 2 - c.height * k / 2 - (c.top + c.height / 2) - 40; // 口の 40px 上
-  const into = above + c.height * k;                                  // 口へ入りきる
-  cart.classList.add('flying');
-  shell.animate([
-    { transform: 'none', clipPath: 'inset(0 0 0 0)' },
-    { transform: `translate(${dx}px, ${above}px) scale(${k})`, clipPath: 'inset(0 0 0 0)', offset: 0.7 },
-    { transform: `translate(${dx}px, ${into}px) scale(${k})`, clipPath: 'inset(0 0 100% 0)' },
-  ], { duration: 600, easing: 'cubic-bezier(.45,0,.3,1)', fill: 'forwards' });
-  setTimeout(() => clack('in'), 380);
-  setTimeout(() => { clack('sw'); led.classList.add('on'); con.classList.add('on'); }, 560);
-  setTimeout(then, 760);
-}
-// ---------- トップの本体: 電源スイッチ・さしこみ口・ふきだし・小さな音 ----------
+// 小さな音（カセットが入る・抜ける・スイッチ）。設定の音と大きさにしたがう
 let sfxCtx = null;
 function clack(kind) {
   if (!soundOn) return;
   try {
     sfxCtx ||= new (window.AudioContext || window.webkitAudioContext)();
     const t = sfxCtx.currentTime, n = Math.floor(sfxCtx.sampleRate * 0.06), buf = sfxCtx.createBuffer(1, n, sfxCtx.sampleRate), d = buf.getChannelData(0);
-    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, kind === 'in' ? 6 : 10);
-    const src = sfxCtx.createBufferSource(), f = sfxCtx.createBiquadFilter(), g = sfxCtx.createGain();
-    f.type = 'bandpass'; f.frequency.value = kind === 'in' ? 900 : 2400; f.Q.value = 1.2;
-    g.gain.value = volume * 0.5;
-    src.buffer = buf; src.connect(f).connect(g).connect(sfxCtx.destination); src.start(t);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, kind === 'in' ? 6 : kind === 'out' ? 4 : 10);
+    const src = sfxCtx.createBufferSource(), f = sfxCtx.createBiquadFilter(), gn = sfxCtx.createGain();
+    f.type = 'bandpass'; f.frequency.value = kind === 'in' ? 900 : kind === 'out' ? 1400 : 2400; f.Q.value = 1.2;
+    gn.gain.value = volume * 0.5;
+    src.buffer = buf; src.connect(f).connect(gn).connect(sfxCtx.destination); src.start(t);
   } catch { /* 音が出せなくても動く */ }
 }
-let bubbleTimer = 0;
-function bubble(text, atSwitch) {
-  const b = $('bubble'); b.textContent = text; b.classList.toggle('at-sw', !!atSwitch); b.classList.add('show');
-  clearTimeout(bubbleTimer); bubbleTimer = setTimeout(() => b.classList.remove('show'), 3500);
-}
-$('powerSw').addEventListener('click', () => {
-  clack('sw');
-  const led = $('led'); led.classList.remove('blink'); void led.offsetWidth; led.classList.add('blink');
-  bubble('カセットが入っていません。\n下のカセットを押してね', true);
-  // 次にすることを指す: 1枚目のカセットが1回だけはねる（目立たせるのはこれ1つ）
-  const first = document.querySelector('.cart:not(.blank)');
-  if (first && !matchMedia('(prefers-reduced-motion: reduce)').matches) { first.classList.remove('hop'); void first.offsetWidth; first.classList.add('hop'); }
-});
-{
-  const slot = $('slot');
-  slot.addEventListener('click', () => bubble(COARSE ? 'カセットを押すと入ります' : 'カセットを押すか、ここへドラッグ'));
-  slot.addEventListener('dragover', (ev) => { ev.preventDefault(); slot.classList.add('over'); });
-  slot.addEventListener('dragleave', () => slot.classList.remove('over'));
-  slot.addEventListener('drop', (ev) => {
-    ev.preventDefault(); slot.classList.remove('over');
-    const id = ev.dataTransfer.getData('text/plain'), e = LIBRARY.find((x) => x.id === id);
-    if (e) insertCart([...document.querySelectorAll('.cart:not(.blank)')][LIBRARY.indexOf(e)], () => openEntry(e, true));
-  });
-}
-
-function resetShelf() {
-  $('led').classList.remove('on'); $('console').classList.remove('on');
-  for (const c of document.querySelectorAll('.cart.flying')) { c.classList.remove('flying'); for (const an of c.querySelector('.shell').getAnimations()) an.cancel(); }
-}
-
-// 自分のファイルを開く（この端末の中だけ。fetch も送信もしない）
-function openLocal(file) {
-  const err = $('openErr');
-  err.hidden = true;
-  if (!file) return;
-  if (file.size > 1024 * 1024) { err.textContent = '大きすぎるファイルです（1MB まで）'; err.hidden = false; return; }
-  file.arrayBuffer().then((buf) => {
-    const bytes = new Uint8Array(buf);
-    try { new Console8(bytes, 8000); } catch (e) { err.textContent = '開けませんでした: ' + e.message; err.hidden = false; return; }
-    // このブラウザの中にだけ残す（残せなくても遊べる）
-    addCart(file.name, bytes).then((c) => {
-      renderMine();
-      insertCart($('drop'), () => openEntry({ id: c.id, title: c.name, keys: [], bytes, frames: 60 }, true));
-    }).catch((e2) => {
-      err.textContent = e2.message + '（今回は残さずに遊びます）'; err.hidden = false;
-      insertCart($('drop'), () => openEntry({ id: null, title: file.name, keys: [], bytes }, true));
-    });
-  });
-}
-$('file').addEventListener('change', (e) => { openLocal(e.target.files[0]); e.target.value = ''; });
-{
-  const drop = $('drop');
-  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
-  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
-  drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); openLocal(e.dataTransfer.files[0]); });
-}
+// 棚（くわしくは shelf.js）
+const shelf = initShelf({ library: LIBRARY, loadRom, open: (e) => openEntry(e, true), sfx: { clack } });
 
 // ---------- 遊ぶ画面へ ----------
 async function openEntry(e, gesture) {
@@ -224,7 +76,7 @@ function stopPlayer() {
 }
 function backToShelf() {
   stopPlayer();
-  resetShelf();
+  shelf.back();
   current = null;
   $('player').hidden = true;
   $('shelf').hidden = false;
@@ -248,7 +100,7 @@ function route() {
   const id = location.hash.slice(1);
   const e = LIBRARY.find((x) => x.id === id);
   if (e) { if (current !== e) openEntry(e, false); }
-  else if (current) { stopPlayer(); resetShelf(); current = null; $('player').hidden = true; $('shelf').hidden = false; document.body.classList.remove('playing'); }
+  else if (current) { stopPlayer(); shelf.back(); current = null; $('player').hidden = true; $('shelf').hidden = false; document.body.classList.remove('playing'); }
 }
 addEventListener('popstate', route);
 
@@ -509,6 +361,6 @@ document.addEventListener('visibilitychange', () => {
   else { running = true; last = 0; acc = 0; audio?.ctx.resume(); requestAnimationFrame(loop); }
 });
 
-renderShelf();
+shelf.render();
 setScreen(screenMode);
 route();

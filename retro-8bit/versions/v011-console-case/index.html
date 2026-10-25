@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>8ビット互換機（試作）</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23141b2e'/><rect x='12' y='16' width='40' height='30' rx='4' fill='%230b0f1c' stroke='%237d8bb3' stroke-width='3'/><path d='M24 34h4v4h-4zM28 30h4v4h-4zM32 34h4v4h-4zM36 30h4v4h-4z' fill='%2388d800'/></svg>">
+<link rel="stylesheet" href="css/style.css?v=10">
+</head>
+<body>
+
+<!-- 棚（トップ）: 本体（カセットをおさめる深い溝・型で抜いた穴）と、机の上のケースに入ったカセット。
+     カセットを押すと、ケースが開いて本体へさしこまれ、電源が入る。色・なまえ・ダウンロード・すてるは「…」のメニュー -->
+<div class="shelf" id="shelf">
+  <header class="room">
+    <p class="eyebrow">あそびラボ</p>
+    <h1>8ビット互換機</h1>
+  </header>
+  <div class="con" id="console">
+    <div class="shell" aria-hidden="true"></div><div class="topface" aria-hidden="true"></div>
+    <div class="well" id="slot" aria-hidden="true"></div>
+    <div class="cface" aria-hidden="true"><div class="l"></div><div class="r"></div><div class="lo"></div><div class="frame"></div><div class="shade"></div></div>
+    <div class="logo" aria-hidden="true"><small>あそびラボ</small>ASOBI-LAB 8</div><div class="stripe" aria-hidden="true"></div>
+    <div class="jacks" aria-hidden="true"><span>1P</span><span>2P</span></div>
+    <div class="ctl"><button class="btn" id="resetSw">RESET<i></i></button><button class="btn pw" id="powerSw" aria-label="電源スイッチ">POWER<i></i></button></div>
+    <div class="led" aria-hidden="true">POWER<i id="led"></i></div>
+    <p class="bubble" id="bubble" role="status"></p>
+  </div>
+
+  <main class="desk">
+    <p class="desk-lead">カセットを押すと、本体にさしこんで電源が入ります</p>
+    <div class="row" id="carts">
+      <label class="item add" id="drop">
+        <input type="file" id="file" accept=".nes" class="vh">
+        <span class="addcart" aria-hidden="true"><b>＋</b>じぶんのカセット<small>.nes をえらぶ・ここへドロップ</small></span>
+        <span class="case" aria-hidden="true"></span>
+      </label>
+    </div>
+    <p class="err" id="openErr" role="alert" hidden></p>
+
+    <details class="memo">
+      <summary>とりあつかい説明書</summary>
+      <p>CPU（6502）・絵・音（矩形波2・三角波・ノイズ）・カートリッジのしくみ（マッパー 0・1・2・3・7）を、あそびラボが JavaScript で書きました。メーカーのプログラムやデータは入っていません。カセットのソフトは、自作のアセンブラで作ったオリジナルです。ROM のファイルは、カセットの「…」からダウンロードできます（ゲームの中身は CC BY-NC 4.0）。</p>
+      <p>じぶんのカセット（自分の .nes ファイル）は、このブラウザの中にだけ残り、どこにも送りません。権利を持っているファイルだけを入れてください。</p>
+      <p>電池つきのカセット（恐竜かけっこ牧場 8bit）のセーブは、このブラウザの中に残ります。牧場をはじめからにするには、タイトルで SELECT（Shift）を押しながら START（Enter）。または <button class="erase" id="eraseDino">恐竜かけっこ牧場のセーブを消す</button> <span class="erased" id="erased" role="status"></span></p>
+      <p class="small">ver. 0.5（試作）・<a href="../../launcher.html">過去の版</a>・<a href="../../../archive.html">あそびラボの保管庫へ</a></p>
+    </details>
+  </main>
+</div>
+
+<!-- 遊ぶ画面 -->
+<div class="app" id="player" hidden>
+  <!-- 上: いまの状態（機械とカートリッジ）と、めったに使わない道具 -->
+  <header class="top">
+    <div class="name"><button class="back" id="btnBack" aria-label="棚へもどる">←</button><span class="cartname" id="cartName"></span></div>
+    <div class="tools">
+      <button class="tool" id="btnSound" aria-pressed="true" title="音を出す／消す"><span class="snd">♪</span><span class="lbl" id="soundLbl">音あり</span></button>
+      <button class="tool" id="btnSettings" aria-haspopup="dialog" title="設定（画面・音・キー）">⚙ 設定</button>
+      <button class="tool" id="btnFull" title="全画面">⛶</button>
+      <button class="tool danger" id="btnReset" title="リセット（本体のリセットボタン。2回押す）">↺ リセット</button>
+    </div>
+  </header>
+  <!-- まん中: 画面 -->
+  <main class="stage" id="stage">
+    <div class="bezel" id="bezel">
+      <canvas id="screen" width="256" height="240" aria-label="ゲームの画面"></canvas>
+      <canvas id="crt" aria-hidden="true" hidden></canvas>
+      <button class="power" id="power"><span class="dot"></span>電源を入れる</button>
+    </div>
+  </main>
+  <!-- 下: 指の操作（スマホ）と、キーの案内（PC） -->
+  <section class="pad" id="pad" aria-label="コントローラー">
+    <div class="dpad" id="dpad"><span class="u"></span><span class="d"></span><span class="l"></span><span class="r"></span><i></i></div>
+    <div class="mid"><button class="pill" data-btn="SELECT">SELECT</button><button class="pill" data-btn="START">START</button></div>
+    <div class="ab"><button class="round" data-btn="B" aria-label="B ボタン">B</button><button class="round" data-btn="A" aria-label="A ボタン">A</button><button class="both" data-btn="A B" aria-label="A と B をいっしょに">A+B</button></div>
+  </section>
+  <footer class="keys" id="keys"></footer>
+</div>
+
+<!-- 設定: 画面と音・キー（開いているあいだはゲームを止める） -->
+<dialog class="settings" id="settings" aria-labelledby="setTitle">
+  <form method="dialog" class="set-head"><h2 id="setTitle">設定</h2><button class="tool close" value="close" aria-label="閉じる">✕</button></form>
+  <div class="set-tabs" role="tablist">
+    <button type="button" role="tab" data-tab="view" aria-controls="tabView" aria-selected="true">画面と音</button>
+    <button type="button" role="tab" data-tab="keys" aria-controls="tabKeys" aria-selected="false">キー</button>
+  </div>
+  <section id="tabView" role="tabpanel">
+    <h3>画面の見え方</h3>
+    <div class="radios">
+      <button type="button" role="menuitemradio" data-screen="lcd">くっきり<small>いまの画面のドット</small></button>
+      <button type="button" role="menuitemradio" data-screen="rgb">ブラウン管・RGB<small>走査線と光る点</small></button>
+      <button type="button" role="menuitemradio" data-screen="composite">ブラウン管・ビデオ端子<small>色が横ににじむ。当時の家のテレビ</small></button>
+      <button type="button" role="menuitemradio" data-screen="rf">ブラウン管・アンテナ線<small>さらににじみ、ざらつく</small></button>
+    </div>
+    <p class="set-note">ブラウン管は、まなびラボ「ブラウン管のドット絵」の計算です（推定をふくみます）。</p>
+    <h3>音</h3>
+    <label class="opt"><input type="checkbox" id="optSound"> 音を出す</label>
+    <label class="opt">大きさ <input type="range" id="optVolume" min="0" max="100" step="5"></label>
+    <label class="opt" id="rowVibrate"><input type="checkbox" id="optVibrate"> 画面のボタンを押したら ふるえる</label>
+  </section>
+  <section id="tabKeys" role="tabpanel" hidden>
+    <p class="set-note coarse-only">キーボードやゲームパッドをつないだとき用です。</p>
+    <p class="set-note">＋ を押して、使いたいキーを押す（× で外す）。</p>
+    <h3>1P コントローラー</h3>
+    <div class="krows" id="keys1"></div>
+    <details class="p2">
+      <summary>2P コントローラー <small>SELECT・START のかわりにマイク（当時の 2P と同じ）</small></summary>
+      <div class="krows" id="keys2"></div>
+    </details>
+    <p class="set-note">ゲームパッドは 1 台目が 1P、2 台目が 2P（Y ボタンがマイク）。</p>
+    <p class="keynote" id="keyNote" role="status"></p>
+    <button type="button" class="tool" id="keysReset">はじめのキーにもどす</button>
+  </section>
+</dialog>
+
+<script type="module" src="js/main.js?v=14"></script>
+</body>
+</html>
