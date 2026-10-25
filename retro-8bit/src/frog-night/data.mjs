@@ -42,28 +42,50 @@ export function build() {
     pal(s, 0, 26, 32, 4, 2);
   }
 
-  const title = screen();
-  scenery(title, (col, r) => (r >= 1 && r <= 3) || (r >= 5 && r <= 14) || r === 17 || r === 21);
-  ['ka', 'e', 'ru', 'no', 'yo', 'ru2'].forEach((k, i) => put(title, 7 + i * 3, 6, 'k_' + k, 2, 2));
-  pal(title, 6, 6, 20, 2, 1);
-  text(title, 11, 10, 'FROG NIGHT');
-  text(title, 10, 13, '10');
-  text(title, 16, 13, '30');
-  text(title, 22, 13, 'NO!');
-  text(title, 11, 17, 'PUSH START');
-  text(title, 12, 2, 'HI');
-  text(title, 15, 2, '000000');
-  text(title, 9, 21, 'ASOBI LAB 2026');
-  sym.ADDR_HI = addr(15, 2);
+  // タイトルとあそぶ画面は、ことば（0 かな・1 英語。ページが $7FFF に入れる）ごとに1枚ずつ
+  const titles = [], plays = [];
+  for (const en of [false, true]) {
+    const T = (ja, e) => (en ? e : ja);
+    const title = screen();
+    scenery(title, (col, r) => (r >= 1 && r <= 3) || (r >= 5 && r <= 14) || r === 17 || r === 21);
+    ['ka', 'e', 'ru', 'no', 'yo', 'ru2'].forEach((k, i) => put(title, 7 + i * 3, 6, 'k_' + k, 2, 2));
+    pal(title, 6, 6, 20, 2, 1);
+    text(title, 11, 10, 'FROG NIGHT');
+    text(title, 10, 13, '10');
+    text(title, 16, 13, '30');
+    text(title, 22, 13, T('だめ!', 'NO!'));
+    text(title, 12, 2, 'HI');
+    text(title, 15, 2, '000000');
+    text(title, 9, 21, 'ASOBI LAB 2026');
+    titles.push(title);
 
-  const play = screen();
-  scenery(play, (col, r) => r <= 3 || (r >= 11 && r <= 13) || r === 17);
-  text(play, 2, 2, 'SCORE');
-  text(play, 8, 2, '000000');
-  text(play, 22, 2, 'TIME');
-  text(play, 27, 2, '90');
+    const play = screen();
+    scenery(play, (col, r) => r <= 3 || (r >= 11 && r <= 13) || r === 17);
+    text(play, 2, 2, T('てん', 'SCORE'));
+    text(play, 8, 2, '000000');
+    text(play, 21, 2, T('のこり', 'TIME'));
+    text(play, 27, 2, '90');
+    plays.push(play);
+  }
+  sym.ADDR_HI = addr(15, 2);
   sym.ADDR_SCORE = addr(8, 2);
   sym.ADDR_TIME = addr(27, 2);
+
+  // 字（0 かな・1 英語）。同じ場所に同じ長さで（短いほうを空白でうめる）。M_名前 が番号、game.s の say_ptr がことばで選ぶ
+  const MSGS = [];
+  const len = (t) => [...t].length;
+  const bi = (name, col, row, ja, en) => {
+    const w = Math.max(len(ja), len(en));
+    MSGS.push([name, col, row, ja + ' '.repeat(w - len(ja)), en + ' '.repeat(w - len(en))]);
+  };
+  bi('push', 9, 17, 'START を おしてね', '  PUSH START');
+  bi('push_off', 9, 17, ' '.repeat(14), '');
+  bi('pause', 13, 12, 'ひとやすみ', 'PAUSE');
+  bi('pause_off', 13, 12, '     ', '');
+  bi('morning', 9, 12, '   おはよう!', 'GOOD MORNING!');
+  bi('over', 11, 12, ' おしまい', 'GAME OVER');
+  MSGS.forEach(([name], i) => { sym['M_' + name.toUpperCase()] = i; });
+  sym.MSG_N = MSGS.length;
 
   // 曲: 夜の池の子守歌（3拍子、ラの長調。はじめはラの短調で書いて、下の major() で長調に移す）。A・A'・B・B'・A と、ベースだけの4小節の息つぎ ＝ 44 小節・約 44 秒で1周
   const A = ['A4:1 C5:1 E5:1 | Am', 'D5:2 C5:1 | F', 'B4:1 C5:1 D5:1 | G', 'E5:3 | E',
@@ -98,16 +120,11 @@ export function build() {
 ; ---- ここから下はビルドが作ったデータ ----
 palette:
   .byte ${PALETTES.flat().map(hex).join(',')}
-nt_title:
-  .byte ${packNt(title).join(',')}
-nt_play:
-  .byte ${packNt(play).join(',')}
-${msg('txt_push', 11, 17, 'PUSH START')}
-${msg('txt_push_off', 11, 17, '          ')}
-${msg('txt_pause', 13, 12, 'PAUSE')}
-${msg('txt_pause_off', 13, 12, '     ')}
-${msg('txt_morning', 9, 12, 'GOOD MORNING!')}
-${msg('txt_over', 11, 12, 'GAME OVER')}
+${titles.map((s, i) => `nt_title_${i}:\n  .byte ${packNt(s).join(',')}`).join('\n')}
+${plays.map((s, i) => `nt_play_${i}:\n  .byte ${packNt(s).join(',')}`).join('\n')}
+${MSGS.map(([name, col, row, ja, en]) => `${msg(`m_${name}_0`, col, row, ja)}\n${msg(`m_${name}_1`, col, row, en)}`).join('\n')}
+msg_lo: .byte ${[0, 1].flatMap((l) => MSGS.map(([n]) => `<m_${n}_${l}`)).join(', ')}
+msg_hi: .byte ${[0, 1].flatMap((l) => MSGS.map(([n]) => `>m_${n}_${l}`)).join(', ')}
 ${periodData()}
 wave: .byte ${wave.join(',')}
 wave_off: .byte 0, 64, 128

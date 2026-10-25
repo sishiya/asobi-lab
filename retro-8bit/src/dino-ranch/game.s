@@ -103,6 +103,10 @@ r_place = $68
 r_tl = $6C
 r_th = $70
 r_kmh = $74
+lang = $7E          ; 0 かな・1 英語（タイトルのたびに $7FFF から）
+cheer_t = $7F       ; ゴールの歓声の のこりフレーム
+CHEER_LEN = 156
+LANG = $7FFF
 
 OAM = $0200
 BUF = $0300
@@ -170,6 +174,7 @@ main:
   lda state_tab+1,x
   sta ptr+1
   jsr @call
+  jsr cheer_update
   jsr music_update
   jsr wait_frame
   jmp main
@@ -287,6 +292,7 @@ load_palette:
 
 ; ptr の 1024 バイトを、A = $20 か $24 の画面へ
 draw_nt:
+  jsr lang_fix
   bit PPUSTATUS
   sta PPUADDR
   lda #$00
@@ -311,8 +317,53 @@ show_nt:
   jsr clear_oam
   rts
 
+; ことばが かなのとき、英語の字・画面を指す ptr を、かなの写しへずらす（英語 → かなの順に同じ形で入っている）
+;   字: msg_start〜msg_end → MSG_SIZE バイトあと。画面: nt_title〜nt_ja → 4096 バイトあと。A・X・Y はこわさない
+lang_fix:
+  pha
+  lda lang
+  bne @r
+  lda ptr
+  cmp #<msg_start
+  lda ptr+1
+  sbc #>msg_start
+  bcc @nt
+  lda ptr
+  cmp #<msg_end
+  lda ptr+1
+  sbc #>msg_end
+  bcs @nt
+  lda ptr
+  clc
+  adc #<MSG_SIZE
+  sta ptr
+  lda ptr+1
+  adc #>MSG_SIZE
+  sta ptr+1
+  pla
+  rts
+@nt:
+  lda ptr
+  cmp #<nt_title
+  lda ptr+1
+  sbc #>nt_title
+  bcc @r
+  lda ptr
+  cmp #<nt_ja
+  lda ptr+1
+  sbc #>nt_ja
+  bcs @r
+  lda ptr+1
+  clc
+  adc #$10
+  sta ptr+1
+@r:
+  pla
+  rts
+
 ; ptr の字（番地・長さ・中身）を、画面を消したまま書く
 text_now:
+  jsr lang_fix
   bit PPUSTATUS
   ldy #0
   lda (ptr),y
@@ -333,6 +384,7 @@ text_now:
 
 ; ptr の字の中身だけを、いまの番地へ（番地は呼ぶ前に PPUADDR へ）
 text_here:
+  jsr lang_fix
   ldy #2
   lda (ptr),y
   tax
@@ -432,6 +484,7 @@ buf_byte:
 
 ; ptr のデータ（番地・長さ・中身）を書くものへ
 buf_data:
+  jsr lang_fix
   ldy #2
   lda (ptr),y
   clc
@@ -743,6 +796,14 @@ starters:
 
 ; ================= タイトル =================
 go_title:
+  ; ことば（ページが電源を入れる前に $7FFF へ。1 だけが英語、ほかは かな）
+  ldx #0
+  lda LANG
+  cmp #1
+  bne @lj
+  inx
+@lj:
+  stx lang
   lda #<nt_title
   sta ptr
   lda #>nt_title
@@ -750,6 +811,11 @@ go_title:
   jsr show_nt
   jsr check_save
   jsr title_cup_text
+  lda #<t_push
+  sta ptr
+  lda #>t_push
+  sta ptr+1
+  jsr text_now
   lda #ST_TITLE
   sta state
   lda #0
@@ -2180,6 +2246,7 @@ run_step:
   sta r_th,x
   cpx #0
   bne @r
+  jsr cheer_start    ; じぶんがゴール: 歓声
   lda #<m_finish
   sta ptr
   lda #>m_finish
@@ -2738,5 +2805,55 @@ sfx_fall:
   lda #$20
   sta $400F
   rts
+
+; ゴールの歓声（ワーワー。2026-10-25 ユーザー「ゴールしたときにワーワー歓声 SE がほしい」）
+;   ノイズの大きさを 16 フレームごとに ゆらし（人の声のかたまりの うねり）、音の高さも 4 フレームごとに少し変える。
+;   はじめに ぐっと大きく、2.6 秒かけて小さく（cheer_env）。曲は矩形波2と三角波なので、ぶつからない
+cheer_start:
+  lda #CHEER_LEN
+  sta cheer_t
+  lda #$08
+  sta $400F
+  rts
+
+cheer_update:
+  lda cheer_t
+  beq @r
+  dec cheer_t
+  beq @off
+  lda cheer_t
+  lsr a
+  lsr a
+  lsr a
+  tay
+  lda frame
+  lsr a
+  and #7
+  tax
+  lda cheer_env,y
+  sec
+  sbc cheer_wob,x
+  bcs @v
+  lda #0
+@v:
+  ora #%00110000
+  sta $400C
+  lda frame
+  lsr a
+  lsr a
+  and #3
+  tax
+  lda cheer_per,x
+  sta $400E
+@r:
+  rts
+@off:
+  lda #%00110000
+  sta $400C
+  rts
+
+cheer_env: .byte 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 7, 4   ; のこり/8 → 大きさ（うしろが はじまり）
+cheer_wob: .byte 0, 1, 2, 3, 3, 2, 1, 0
+cheer_per: .byte 6, 7, 5, 7
 
 ; 曲の係（music_play・music_stop・music_update）は src/music.s（build がつなぐ）

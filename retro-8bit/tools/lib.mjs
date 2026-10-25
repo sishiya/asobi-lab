@@ -52,11 +52,13 @@ export function makeChr() {
   function kana(ch) {
     if (CH[ch] === undefined) {
       if (!KANA[ch]) return undefined;
-      CH[ch] = tile(0, shadow([...KANA[ch].map((r) => r + '.'), '........'], () => '1'));
+      const rows = [...KANA[ch].map((r) => r + '.'), '........'];
+      CH[ch] = tile(0, api.kanaShadow ? shadow(rows, () => '1') : rows);
     }
     return CH[ch];
   }
-  return { chr, count, sym, CH, tile, big, font, kana };
+  const api = { chr, count, sym, CH, tile, big, font, kana, kanaShadow: true }; // kanaShadow = false で影なし（恐竜の牧場のように紙に刷った字）
+  return api;
 }
 
 // 影（右下に 3）をつけ、1 を ink(y) の色にする

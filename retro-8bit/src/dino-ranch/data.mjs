@@ -46,6 +46,7 @@ export function build() {
     const o = n * 16;
     for (let y = 0; y < 8; y++) { const both = c.chr[o + y] & c.chr[o + 8 + y]; c.chr[o + y] &= ~both; c.chr[o + 8 + y] &= ~both; }
   }
+  c.kanaShadow = false; // かなも影なし
   for (const k of Object.keys(BG)) if (k !== 'blank') c.big(0, k, BG[k]);
   // 題字のかな: 8×8 を 2 倍にして 16×16（赤 2、右下にインクの影 1）
   for (const [k, rows] of Object.entries(KANA8)) {
@@ -68,9 +69,17 @@ export function build() {
     for (let yy = y + 2; yy < 32; yy++) if ((x * 3 + yy * 5) % 11 === 0) hills[yy][x] = '2';
   }
   for (let x = 162; x < 179; x++) if (x % 3 === 0) hills[(x * 7) % 3][x] = '2'; // 火山のけむり
-  const hillFirst = c.count[0];
-  for (let ty = 0; ty < 4; ty++) for (let tx = 0; tx < 32; tx++) c.tile(0, hills.slice(ty * 8, ty * 8 + 8).map((r) => r.slice(tx * 8, tx * 8 + 8).join('')));
-  sym.T_HILLS = hillFirst;
+  // 同じ絵（空だけ・同じ点の並び）は1枚にまとめる（128 枚 → 53 枚。かなの字を入れる場所をあけるため。v018）。hillAt[段][列] が絵の番号
+  const hillAt = [], seen = new Map([['........'.repeat(8), 0]]); // 空は blank（0 番）
+  for (let ty = 0; ty < 4; ty++) {
+    hillAt.push([]);
+    for (let tx = 0; tx < 32; tx++) {
+      const rows = hills.slice(ty * 8, ty * 8 + 8).map((r) => r.slice(tx * 8, tx * 8 + 8).join(''));
+      const key = rows.join('');
+      if (!seen.has(key)) seen.set(key, c.tile(0, rows));
+      hillAt[ty].push(seen.get(key));
+    }
+  }
 
   sym.T_DOT = c.CH['.']; sym.T_S = c.CH.S; sym.T_DASH = c.CH['-'];
   // ---- スプライトの絵 ----
@@ -90,99 +99,119 @@ export function build() {
   };
   const kana = (s, col, row, list) => list.forEach((k, i) => put(s, col + i * 2, row, 'k_' + k, 2, 2));
 
-  // タイトル
-  const title = screen();
-  frame(title, 1, 1, 30, 28);
-  kana(title, 10, 5, ['ki', 'yo_s', 'u', 'ri', 'yu_s', 'u']);
-  kana(title, 7, 8, ['ka', 'ke', 'tsu_s', 'ko', 'bo', 'ku', 'ji', 'yo_s', 'u']);
-  pal(title, 6, 4, 20, 6, 2);
-  text(title, 10, 11, 'DINO RACE RANCH');
-  text(title, 14, 13, '8BIT');
-  text(title, 11, 22, 'PUSH START');
-  text(title, 7, 25, 'ASOBI LAB 2026');
-  // 牧場（2×2 の囲い）
-  const ranch = screen();
-  text(ranch, 2, 1, 'DINO RANCH');
-  for (let k = 0; k < 4; k++) {
-    const c0 = (k & 1) * 16, r0 = 3 + (k >> 1) * 12;
-    frame(ranch, c0, r0, 16, 12);
-    text(ranch, c0 + 2, r0 + 1, 'NO.' + (k + 1));
-    ['SIZE', 'LEGS', 'MUSC', 'TAIL', 'PACE'].forEach((t, i) => { text(ranch, c0 + 2, r0 + 5 + i, t); for (let b = 0; b < 4; b++) put(ranch, c0 + 7 + b, r0 + 5 + i, 'bar0'); });
+  // タイトル・牧場・卵・かけっこの画面は、ことばごとに1枚ずつ（英語 → かな の順。かなの写しは 4096 バイトあと。game.s の lang_fix）
+  const T = (en, ja, lang) => (lang === 'ja' ? ja : en);
+  const scr = {};
+  for (const lang of ['en', 'ja']) {
+    const title = screen();
+    frame(title, 1, 1, 30, 28);
+    kana(title, 10, 5, ['ki', 'yo_s', 'u', 'ri', 'yu_s', 'u']);
+    kana(title, 7, 8, ['ka', 'ke', 'tsu_s', 'ko', 'bo', 'ku', 'ji', 'yo_s', 'u']);
+    pal(title, 6, 4, 20, 6, 2);
+    text(title, 10, 11, 'DINO RACE RANCH');
+    text(title, 14, 13, '8BIT');
+    text(title, 7, 25, 'ASOBI LAB 2026');
+    // 牧場（2×2 の囲い）
+    const ranch = screen();
+    text(ranch, 2, 1, T('DINO RANCH', 'ぼくじょう', lang));
+    for (let k = 0; k < 4; k++) {
+      const c0 = (k & 1) * 16, r0 = 3 + (k >> 1) * 12;
+      frame(ranch, c0, r0, 16, 12);
+      text(ranch, c0 + 2, r0 + 1, 'NO.' + (k + 1));
+      T(['SIZE', 'LEGS', 'MUSC', 'TAIL', 'PACE'], ['からだ', 'あし', 'きんにく', 'しっぽ', 'はやさ'], lang).forEach((t, i) => { text(ranch, c0 + 2, r0 + 5 + i, t); for (let b = 0; b < 4; b++) put(ranch, c0 + 7 + b, r0 + 5 + i, 'bar0'); });
+    }
+    // 卵（3 つの列）
+    const eggs = screen();
+    text(eggs, T(6, 7, lang), 2, T('THREE EGGS HATCHED!', 'たまごが 3つ かえった!', lang));
+    for (let k = 0; k < 3; k++) {
+      const c0 = 1 + k * 10;
+      frame(eggs, c0, 5, 10, 17);
+      T(['S', 'L', 'M', 'T', 'P'], ['か', 'あ', 'き', 'し', 'は'], lang).forEach((t, i) => { text(eggs, c0 + 1, 13 + i * 1, t); });
+    }
+    text(eggs, 4, 24, T('A:KEEP THIS ONE', 'A:この こを のこす', lang));
+    text(eggs, 4, 26, T('B:LET ALL GO', 'B:ぜんぶ にがす', lang));
+    // かけっこ（2 枚の画面に同じ絵: 横に 256 ドットごとにくり返す）
+    const race = screen();
+    for (let x = 0; x < 32; x++) put(race, x, 3, 'rule');
+    for (let ty = 0; ty < 4; ty++) for (let tx = 0; tx < 32; tx++) race.nt[6 + ty][tx] = hillAt[ty][tx];
+    for (const col of [0, 16]) { put(race, col, 10, 'poleTop'); put(race, col, 11, 'pole'); put(race, col, 12, 'pole'); }
+    for (let i = 0; i < 4; i++) for (let x = 0; x < 32; x++) put(race, x, 13 + i * 4, 'lane');
+    for (let y = 14; y < 30; y++) for (let x = 0; x < 32; x++) if ((y % 4 !== 1) && ((x * 13 + y * 7) % 9 === 0)) put(race, x, y, 'ground');
+    pal(race, 0, 6, 32, 4, 1);
+    text(race, 2, 1, T('CUP', 'たいかい', lang));
+    text(race, T(8, 9, lang), 1, T('RACE', 'しあい', lang));
+    text(race, 22, 1, T('TIME', 'じかん', lang));
+    scr[lang] = { title, ranch, eggs, race };
   }
   sym.PEN0 = addr(0, 3); sym.PEN1 = addr(16, 3); sym.PEN2 = addr(0, 15); sym.PEN3 = addr(16, 15);
   sym.ADDR_CUP = addr(18, 1);
   sym.ADDR_MENU = addr(2, 28);
-  // 卵（3 つの列）
-  const eggs = screen();
-  text(eggs, 6, 2, 'THREE EGGS HATCHED!');
-  for (let k = 0; k < 3; k++) {
-    const c0 = 1 + k * 10;
-    frame(eggs, c0, 5, 10, 17);
-    ['S', 'L', 'M', 'T', 'P'].forEach((t, i) => { text(eggs, c0 + 1, 13 + i * 1, t); });
-  }
-  text(eggs, 4, 24, 'A:KEEP THIS ONE');
-  text(eggs, 4, 26, 'B:LET ALL GO');
   sym.KID0 = addr(1, 5); sym.KID1 = addr(11, 5); sym.KID2 = addr(21, 5);
-  // かけっこ（2 枚の画面に同じ絵: 横に 256 ドットごとにくり返す）
-  const race = screen();
-  for (let x = 0; x < 32; x++) put(race, x, 3, 'rule');
-  for (let ty = 0; ty < 4; ty++) for (let tx = 0; tx < 32; tx++) race.nt[6 + ty][tx] = hillFirst + ty * 32 + tx;
-  for (const col of [0, 16]) { put(race, col, 10, 'poleTop'); put(race, col, 11, 'pole'); put(race, col, 12, 'pole'); }
-  for (let i = 0; i < 4; i++) for (let x = 0; x < 32; x++) put(race, x, 13 + i * 4, 'lane');
-  for (let y = 14; y < 30; y++) for (let x = 0; x < 32; x++) if ((y % 4 !== 1) && ((x * 13 + y * 7) % 9 === 0)) put(race, x, y, 'ground');
-  pal(race, 0, 6, 32, 4, 1);
-  text(race, 2, 1, 'CUP');
-  text(race, 8, 1, 'RACE');
-  text(race, 22, 1, 'TIME');
   sym.ADDR_RCUP = addr(6, 1); sym.ADDR_RRACE = addr(13, 1); sym.ADDR_RTIME = addr(27, 1); sym.ADDR_RMSG = addr(10, 2);
   // 結果・おわり（大きなわくだけ）
   const plain = screen();
   frame(plain, 1, 1, 30, 28);
 
   // ---- 字 ----
-  const pad = (s, n = 28) => s.padEnd(n, ' ');
-  const msgs = [
-    msg('m_help', 2, 28, pad('A:CHOOSE A DINO')),
-    msg('m_act', 2, 28, pad('   RACE    BREED   LET GO')),
-    msg('m_partner', 2, 28, pad('CHOOSE A PARTNER    B:BACK')),
-    msg('m_full', 2, 28, pad('NO EMPTY PEN. LET ONE GO.')),
-    msg('m_letgo', 2, 28, pad('LET IT GO?   A:YES  B:NO')),
-    msg('m_last', 2, 28, pad('KEEP AT LEAST ONE DINO.')),
-    msg('m_same', 2, 28, pad('CHOOSE ANOTHER DINO.')),
-    msg('m_cup', 18, 1, 'CUP 1 RACE 1'),
-    msg('m_allcups', 18, 1, 'ALL CUPS WON'),
-    msg('m_empty', 0, 0, 'EMPTY'),
-    msg('m_kmh', 0, 0, 'KM/H'),
-    msg('m_wobbly', 0, 0, 'WOBBLY'),
-    msg('m_ready', 10, 2, '   READY   '),
-    msg('m_3', 10, 2, '     3     '),
-    msg('m_2', 10, 2, '     2     '),
-    msg('m_1', 10, 2, '     1     '),
-    msg('m_go', 10, 2, 'GO! PUSH A '),
-    msg('m_good', 10, 2, 'GOOD START!'),
-    msg('m_false', 10, 2, 'FALSE START'),
-    msg('m_clear', 10, 2, '           '),
-    msg('m_finish', 10, 2, '  FINISH!  '),
-    msg('r_title', 12, 4, 'RESULT'),
-    msg('r_you', 0, 0, 'YOU   '),
-    msg('r_blue', 0, 0, 'BLUE  '),
-    msg('r_green', 0, 0, 'GREEN '),
-    msg('r_red', 0, 0, 'RED   '),
-    msg('r_top', 6, 17, 'TOP SPEED   KM/H'),
-    msg('r_win', 11, 20, 'YOU WIN!'),
-    msg('r_lose', 10, 20, 'TRY AGAIN!'),
-    msg('r_cupwon', 9, 22, 'CUP COMPLETE!'),
-    msg('r_back', 7, 25, 'A:BACK TO RANCH'),
-    msg('e_1', 11, 6, 'CHAMPION!'),
-    msg('e_2', 5, 10, 'YOUR DINOS WON ALL'),
-    msg('e_3', 5, 12, 'THREE CUPS.'),
-    msg('e_4', 5, 15, 'SCIENTISTS ALSO RAN'),
-    msg('e_5', 5, 17, 'DINO SKELETONS IN'),
-    msg('e_6', 5, 19, 'COMPUTERS. 2007'),
-    msg('e_7', 5, 24, 'THANK YOU FOR PLAYING'),
-    msg('t_new', 8, 18, 'NEW RANCH STARTED'),
-    msg('t_cont', 11, 18, 'CUP 1 RACE 1'),
+  // [ラベル, 列, 行, 英語, かな]。英語のまとまり（msg_start〜msg_end）のあとに、同じ長さのかなの写し（MSG_SIZE バイトあと）。
+  // 長さは長いほうに空白でそろえる。数字を書く場所（CUP 1 RACE 1 の 1 など）と、なにをするの矢印の列（arrow_x）は、かなでも同じ字の位置に
+  const pad = (s, n = 28) => s + ' '.repeat(Math.max(0, n - [...s].length));
+  const at = (n, words) => { const a = Array(n).fill(' '); for (const [i, w] of words) [...w].forEach((ch, k) => { a[i + k] = ch; }); return a.join(''); };
+  const M = [
+    ['m_help', 2, 28, pad('A:CHOOSE A DINO'), pad('A:きょうりゅうを えらぶ')],
+    ['m_act', 2, 28, pad('   RACE    BREED   LET GO'), pad(at(28, [[3, 'かけっこ'], [11, 'かけあわせ'], [19, 'にがす']]))],
+    ['m_partner', 2, 28, pad('CHOOSE A PARTNER    B:BACK'), pad('あいてを えらぶ     B:もどる')],
+    ['m_full', 2, 28, pad('NO EMPTY PEN. LET ONE GO.'), pad('かこいが いっぱい。1とう にがして')],
+    ['m_letgo', 2, 28, pad('LET IT GO?   A:YES  B:NO'), pad('にがす?      A:はい B:いいえ')],
+    ['m_last', 2, 28, pad('KEEP AT LEAST ONE DINO.'), pad('1とうは のこしてね。')],
+    ['m_same', 2, 28, pad('CHOOSE ANOTHER DINO.'), pad('ちがう きょうりゅうを えらんで')],
+    ['m_cup', 18, 1, 'CUP 1 RACE 1', at(12, [[0, 'たいかい'], [4, '1'], [7, 'しあい'], [11, '1']])],
+    ['m_allcups', 18, 1, 'ALL CUPS WON', 'ぜんぶ かった'],
+    ['m_empty', 0, 0, 'EMPTY', 'あき'],
+    ['m_kmh', 0, 0, 'KM/H', 'KM/H'],
+    ['m_wobbly', 0, 0, 'WOBBLY', 'ふらふら'],
+    ['m_ready', 10, 2, '   READY   ', '   よーい  '],
+    ['m_3', 10, 2, '     3     ', '     3     '],
+    ['m_2', 10, 2, '     2     ', '     2     '],
+    ['m_1', 10, 2, '     1     ', '     1     '],
+    ['m_go', 10, 2, 'GO! PUSH A ', 'いけ! Aを おす'],
+    ['m_good', 10, 2, 'GOOD START!', ' いい でだし!'],
+    ['m_false', 10, 2, 'FALSE START', '  はやすぎ!'],
+    ['m_clear', 10, 2, '           ', '           '],
+    ['m_finish', 10, 2, '  FINISH!  ', '   ゴール!  '],
+    ['r_title', 12, 4, 'RESULT', ' けっか'],
+    ['r_you', 0, 0, 'YOU   ', 'きみ'],
+    ['r_blue', 0, 0, 'BLUE  ', 'あお'],
+    ['r_green', 0, 0, 'GREEN ', 'みどり'],
+    ['r_red', 0, 0, 'RED   ', 'あか'],
+    ['r_top', 6, 17, 'TOP SPEED   KM/H', at(16, [[0, 'さいこう そくど'], [12, 'KM/H']])],
+    ['r_win', 11, 20, 'YOU WIN!', ' かった!'],
+    ['r_lose', 10, 20, 'TRY AGAIN!', 'まけちゃった'],
+    ['r_cupwon', 9, 22, 'CUP COMPLETE!', 'たいかい ゆうしょう!'],
+    ['r_back', 7, 25, 'A:BACK TO RANCH', 'A:ぼくじょうへ もどる'],
+    ['e_1', 11, 6, 'CHAMPION!', 'ゆうしょう!'],
+    ['e_2', 5, 10, 'YOUR DINOS WON ALL', 'きみの きょうりゅうが'],
+    ['e_3', 5, 12, 'THREE CUPS.', '3つの たいかいで かった。'],
+    ['e_4', 5, 15, 'SCIENTISTS ALSO RAN', 'かがくしゃも けいさんきで'],
+    ['e_5', 5, 17, 'DINO SKELETONS IN', 'きょうりゅうの ほねを'],
+    ['e_6', 5, 19, 'COMPUTERS. 2007', 'はしらせた。2007ねん'],
+    ['e_7', 5, 24, 'THANK YOU FOR PLAYING', 'あそんでくれて ありがとう'],
+    ['t_new', 8, 18, 'NEW RANCH STARTED', 'あたらしい ぼくじょう'],
+    ['t_cont', 11, 18, 'CUP 1 RACE 1', at(12, [[0, 'たいかい'], [4, '1'], [7, 'しあい'], [11, '1']])],
+    ['t_push', 9, 22, '  PUSH START', 'START を おしてね'],
   ];
+  const fixed = new Set(['m_cup', 't_cont', 'r_top', 'm_act', 'm_empty', 'm_kmh', 'm_wobbly', 'r_you', 'r_blue', 'r_green', 'r_red']); // かなを英語より長くしない
+  const enMsgs = [], jaMsgs = [];
+  let msgSize = 0;
+  for (const [label, col, row, en, ja] of M) {
+    const le = [...en].length, lj = [...ja].length;
+    if (fixed.has(label) && lj > le) throw new Error(label + ': かなが英語より長い（となりを消してしまう）');
+    const w = Math.max(le, lj);
+    enMsgs.push(msg(label, col, row, en + ' '.repeat(w - le)));
+    jaMsgs.push(msg('ja_' + label, col, row, ja + ' '.repeat(w - lj)));
+    msgSize += 3 + w;
+  }
+  sym.MSG_SIZE = msgSize;
   sym.ADDR_TCUP = addr(15, 18); sym.ADDR_TRACE = addr(22, 18);
   sym.ADDR_RTOP = addr(16, 17);
 
@@ -218,16 +247,21 @@ export function build() {
 palette:
   .byte ${PALETTES.flat().map(hex).join(',')}
 nt_title:
-  .byte ${packNt(title).join(',')}
+  .byte ${packNt(scr.en.title).join(',')}
 nt_ranch:
-  .byte ${packNt(ranch).join(',')}
+  .byte ${packNt(scr.en.ranch).join(',')}
 nt_eggs:
-  .byte ${packNt(eggs).join(',')}
+  .byte ${packNt(scr.en.eggs).join(',')}
 nt_race:
-  .byte ${packNt(race).join(',')}
+  .byte ${packNt(scr.en.race).join(',')}
+nt_ja:
+${['title', 'ranch', 'eggs', 'race'].map((k) => `  .byte ${packNt(scr.ja[k]).join(',')}`).join('\n')}
 nt_plain:
   .byte ${packNt(plain).join(',')}
-${msgs.join('\n')}
+msg_start:
+${enMsgs.join('\n')}
+msg_end:
+${jaMsgs.join('\n')}
 ; ライバル: 9 回 × 3 頭 × 5 つの能力（大きさ・脚・筋肉・しっぽ・足の速さ）
 rival_genes:
 ${rivals.map((g, i) => `  .byte ${g.join(', ')}   ; ${Math.floor(i / 9) + 1}-${Math.floor(i / 3) % 3 + 1} ${derive(...g).kmh}km/h`).join('\n')}

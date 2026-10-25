@@ -77,6 +77,8 @@ bug_si = $64
 bug_dir = $6A      ; 0 右へ・1 左へ
 bug_st = $70       ; 0 飛ぶ・1 舌にくっついた
 bug_dy = $76       ; いまの高さ
+lang = $7E          ; 0 かな・1 英語（タイトルのたびに $7FFF から）
+LANG = $7FFF
 
 OAM = $0200
 BUF = $0300        ; 帰線のあいだに画面へ書くもの: 番地の上・下・長さ・中身…、0 でおわり
@@ -426,11 +428,24 @@ rand:
 
 ; ================= タイトル =================
 go_title:
+  ; ことば（ページが電源を入れる前に $7FFF へ。1 だけが英語、ほかは かな）
+  ldx #0
+  lda LANG
+  cmp #1
+  bne @lj
+  inx
+@lj:
+  stx lang
   jsr screen_off
-  lda #<nt_title
+  lda #<nt_title_0
+  ldx #>nt_title_0
+  ldy lang
+  beq @t0
+  lda #<nt_title_1
+  ldx #>nt_title_1
+@t0:
   sta ptr
-  lda #>nt_title
-  sta ptr+1
+  stx ptr+1
   jsr draw_nt
   bit PPUSTATUS
   lda #>ADDR_HI
@@ -466,16 +481,12 @@ title_update:
   sta blink_old
   cmp #0
   bne @off
-  lda #<txt_push
-  sta ptr
-  lda #>txt_push
-  sta ptr+1
+  lda #M_PUSH
+  jsr say_ptr
   jmp @put
 @off:
-  lda #<txt_push_off
-  sta ptr
-  lda #>txt_push_off
-  sta ptr+1
+  lda #M_PUSH_OFF
+  jsr say_ptr
 @put:
   jsr buf_data
 @same:
@@ -542,10 +553,15 @@ title_sprites:
 ; ================= あそぶ =================
 start_game:
   jsr screen_off
-  lda #<nt_play
+  lda #<nt_play_0
+  ldx #>nt_play_0
+  ldy lang
+  beq @p0
+  lda #<nt_play_1
+  ldx #>nt_play_1
+@p0:
   sta ptr
-  lda #>nt_play
-  sta ptr+1
+  stx ptr+1
   jsr draw_nt
   lda #0
   ldx #5
@@ -593,16 +609,12 @@ play_update:
   eor #1
   sta paused
   beq @poff
-  lda #<txt_pause
-  sta ptr
-  lda #>txt_pause
-  sta ptr+1
+  lda #M_PAUSE
+  jsr say_ptr
   jmp @pput
 @poff:
-  lda #<txt_pause_off
-  sta ptr
-  lda #>txt_pause_off
-  sta ptr+1
+  lda #M_PAUSE_OFF
+  jsr say_ptr
 @pput:
   jsr buf_data
   lda paused
@@ -1279,19 +1291,15 @@ go_end:
 @nohi:
   lda end_kind
   beq @over
-  lda #<txt_morning
-  sta ptr
-  lda #>txt_morning
-  sta ptr+1
+  lda #M_MORNING
+  jsr say_ptr
   jsr buf_data
   lda #SONG_MORNING
   jsr music_play
   rts
 @over:
-  lda #<txt_over
-  sta ptr
-  lda #>txt_over
-  sta ptr+1
+  lda #M_OVER
+  jsr say_ptr
   jsr buf_data
   lda #SONG_OVER
   jsr music_play
@@ -1308,10 +1316,8 @@ end_update:
   lda end_t
   cmp #90
   bne @np
-  lda #<txt_push
-  sta ptr
-  lda #>txt_push
-  sta ptr+1
+  lda #M_PUSH
+  jsr say_ptr
   jsr buf_data
 @np:
   lda end_t
@@ -1374,6 +1380,20 @@ sfx_hurt:
   sta $4002
   lda #$11
   sta $4003
+  rts
+
+; A = 字の番号（M_…）→ ptr にことばの字（buf_data で書く）
+say_ptr:
+  ldx lang
+  beq @j
+  clc
+  adc #MSG_N
+@j:
+  tax
+  lda msg_lo,x
+  sta ptr
+  lda msg_hi,x
+  sta ptr+1
   rts
 
 ; 曲の係（music_play・music_stop・music_update）は src/music.s（build がつなぐ）
