@@ -1,21 +1,60 @@
-// 入力: キー・指・ゲームパッドを、口 1 のパッドにまとめる（8ビット互換機の input.js を小さくしたもの。キーの割り当ての変更は段階E）。
-//   ボタンの名前は pad.js の BTN（A＝右・B＝下・X＝左・Y＝上、L・R、START・SELECT）
+// 入力: キー・指・ゲームパッドを、口 1 のパッドにまとめる（8ビット互換機の input.js と同じ形。こちらは 1P だけ＝口 2 には何もつながっていない）。
+//   ボタンの名前は pad.js の BTN（A＝右・B＝下・X＝左・Y＝上、L・R、START・SELECT）。キーの割り当ては変えられる（localStorage の retro32.keys。設定の画面から）
 import { BTN } from './pad.js';
+import { TX } from './i18n.js';
 
+export const P1_BUTTONS = ['UP', 'DOWN', 'LEFT', 'RIGHT', 'A', 'B', 'X', 'Y', 'L', 'R', 'SELECT', 'START'];
+export const BUTTON_NAME = { UP: TX('上', 'Up'), DOWN: TX('下', 'Down'), LEFT: TX('左', 'Left'), RIGHT: TX('右', 'Right'), A: 'A', B: 'B', X: 'X', Y: 'Y', L: 'L', R: 'R', SELECT: 'SELECT', START: 'START' };
 export const DEFAULT_KEYS = {
-  UP: ['ArrowUp'], DOWN: ['ArrowDown'], LEFT: ['ArrowLeft'], RIGHT: ['ArrowRight'],
-  A: ['KeyX', 'Space'], B: ['KeyZ', 'Backspace'], X: ['KeyA'], Y: ['KeyS'],
-  L: ['KeyQ'], R: ['KeyW'], START: ['Enter'], SELECT: ['ShiftLeft', 'ShiftRight'],
+  p1: { UP: ['ArrowUp'], DOWN: ['ArrowDown'], LEFT: ['ArrowLeft'], RIGHT: ['ArrowRight'], A: ['KeyX', 'Space'], B: ['KeyZ'], X: ['KeyA'], Y: ['KeyS'],
+    L: ['KeyQ'], R: ['KeyW'], SELECT: ['ShiftLeft', 'ShiftRight'], START: ['Enter'] },
 };
-// 標準のゲームパッドの番号 → ボタン（下・右・左・上の順は、ひし形の B・A・X・Y と同じ場所）
+// 標準のゲームパッドの番号 → ボタン（下・右・左・上は、ひし形の B・A・X・Y と同じ場所）
 const GAMEPAD = { 0: 'B', 1: 'A', 2: 'X', 3: 'Y', 4: 'L', 5: 'R', 6: 'L2', 7: 'R2', 8: 'SELECT', 9: 'START', 12: 'UP', 13: 'DOWN', 14: 'LEFT', 15: 'RIGHT' };
 
+const SPECIAL = {
+  ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Space: 'Space', Enter: 'Enter', NumpadEnter: TX('テンキー Enter', 'Numpad Enter'),
+  ShiftLeft: TX('左 Shift', 'L Shift'), ShiftRight: TX('右 Shift', 'R Shift'), ControlLeft: TX('左 Ctrl', 'L Ctrl'), ControlRight: TX('右 Ctrl', 'R Ctrl'), AltLeft: TX('左 Alt', 'L Alt'), AltRight: TX('右 Alt', 'R Alt'),
+  Tab: 'Tab', Backspace: 'BS', Period: '.', Comma: ',', Slash: '/', Semicolon: ';', Quote: "'", BracketLeft: '[', BracketRight: ']',
+  Minus: '-', Equal: '^', Backslash: '\\', IntlRo: 'ろ', IntlYen: '¥', Backquote: '半/全',
+};
+export function keyLabel(code) {
+  if (SPECIAL[code]) return SPECIAL[code];
+  let m;
+  if ((m = code.match(/^Key([A-Z])$/))) return m[1];
+  if ((m = code.match(/^Digit(\d)$/))) return m[1];
+  if ((m = code.match(/^Numpad(.+)$/))) return TX('テンキー ', 'Numpad ') + m[1];
+  return code;
+}
+const RESERVED = new Set(['Escape', 'F5', 'F11', 'F12', 'MetaLeft', 'MetaRight']);
+function read(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } }
+function save(k, v) { try { localStorage.setItem(k, v); } catch { /* 保存できなくても遊べる */ } }
+const clone = (o) => JSON.parse(JSON.stringify(o));
+
 export function createInput() {
-  const index = new Map();
-  for (const [b, codes] of Object.entries(DEFAULT_KEYS)) for (const c of codes) index.set(c, b);
+  let keys = clone(DEFAULT_KEYS);
+  try {
+    const s = JSON.parse(read('retro32.keys', 'null'));
+    if (s && s.p1) for (const b of Object.keys(keys.p1)) if (Array.isArray(s.p1[b])) keys.p1[b] = s.p1[b].filter((c) => typeof c === 'string');
+  } catch { /* こわれた設定は使わない */ }
+  let index = new Map();
+  const rebuild = () => { index = new Map(); for (const [b, codes] of Object.entries(keys.p1)) for (const c of codes) index.set(c, [0, b]); };
+  rebuild();
   const held = new Set(), tapped = new Set(), touch = new Set();
   const api = {
     enabled: true,
+    capture: null,     // 設定でキーを待っているときの関数（code を受けとる）
+    onPress: null,     // なにか押したとき。(player, button)
+    get keys() { return keys; },
+    bind(p, b, code) {
+      for (const bb of Object.keys(keys.p1)) keys.p1[bb] = keys.p1[bb].filter((c) => c !== code);
+      keys.p1[b].push(code);
+      rebuild(); save('retro32.keys', JSON.stringify(keys));
+    },
+    unbind(p, b, code) { keys.p1[b] = keys.p1[b].filter((c) => c !== code); rebuild(); save('retro32.keys', JSON.stringify(keys)); },
+    resetKeys() { keys = clone(DEFAULT_KEYS); rebuild(); save('retro32.keys', JSON.stringify(keys)); },
+    whoUses(code) { return index.get(code) || null; },
+    reserved: (code) => RESERVED.has(code),
     touchDown(names) { for (const n of names) { touch.add(n); tapped.add(n); } },
     touchUp(names) { for (const n of names) touch.delete(n); },
     clear() { held.clear(); tapped.clear(); touch.clear(); },
@@ -38,20 +77,22 @@ export function createInput() {
     },
   };
   addEventListener('keydown', (e) => {
+    if (api.capture) { e.preventDefault(); api.capture(e.code); return; }
     if (!api.enabled || e.ctrlKey || e.metaKey || e.altKey) return;
-    const b = index.get(e.code);
-    if (!b) return;
+    const hit = index.get(e.code);
+    if (!hit) return;
     e.preventDefault();
-    held.add(b); tapped.add(b);
+    if (!e.repeat) api.onPress?.(0, hit[1]);
+    held.add(hit[1]); tapped.add(hit[1]);
   });
-  addEventListener('keyup', (e) => { const b = index.get(e.code); if (b) held.delete(b); });
+  addEventListener('keyup', (e) => { const hit = index.get(e.code); if (hit) held.delete(hit[1]); });
   addEventListener('blur', () => api.clear());
   return api;
 }
 
-// 指のボタン（data-btn。"UP RIGHT" のように2つ同時も）。指をすべらせたら押すボタンも替える
-export function bindTouch(root, input) {
-  const active = new Map(); // pointerId → 押している名前
+// 指のボタン（data-btn。"UP RIGHT" のように2つ同時も）。指をすべらせたら押すボタンも替える。押したら onDown（ふるえる・電源を入れる）
+export function bindTouch(root, input, onDown) {
+  const active = new Map();
   const namesAt = (x, y) => { const el = document.elementFromPoint(x, y)?.closest('[data-btn]'); return el && root.contains(el) ? el.dataset.btn.split(' ') : []; };
   const mark = () => {
     const on = new Set([...active.values()].flat());
@@ -62,14 +103,16 @@ export function bindTouch(root, input) {
     const prev = active.get(e.pointerId), next = namesAt(e.clientX, e.clientY);
     if (prev.join() === next.join()) return;
     input.touchUp(prev); input.touchDown(next); active.set(e.pointerId, next); mark();
+    if (next.length) onDown?.();
   };
   const up = (e) => { if (!active.has(e.pointerId)) return; input.touchUp(active.get(e.pointerId)); active.delete(e.pointerId); mark(); };
   root.addEventListener('pointerdown', (e) => {
     const n = namesAt(e.clientX, e.clientY);
     if (!n.length) return;
     e.preventDefault();
-    active.set(e.pointerId, n); input.touchDown(n); mark();
+    active.set(e.pointerId, n); input.touchDown(n); mark(); onDown?.();
   });
+  root.addEventListener('contextmenu', (e) => e.preventDefault());
   addEventListener('pointermove', move);
   addEventListener('pointerup', up);
   addEventListener('pointercancel', up);

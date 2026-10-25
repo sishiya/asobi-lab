@@ -5,33 +5,89 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>32ビット互換機（試作）</title>
 <script>/* 言語 ja／en（8ビット互換機と同じ決め方）: ?lang= → 前に選んだもの → ブラウザの言語。js は js/i18n.js の TX(日本語, 英語)、HTML は <span lang> の対 */(function(){var q=new URLSearchParams(location.search).get('lang'),s=null;try{s=localStorage.getItem('manabi-lang');}catch(e){}var l=q==='en'||q==='ja'?q:s==='en'||s==='ja'?s:/^ja/i.test(navigator.language||'ja')?'ja':'en';document.documentElement.lang=l;if(l==='en')document.title='32-bit Console (prototype)';})();</script>
+<script>/* 部屋（3D）を使えそうなら、読みこむまで 2D の本体を出さず、部屋の場所だけとっておく（8ビット互換機と同じ）。使えなかったら main.js が外す */(function(){try{if(window.WebGL2RenderingContext&&!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('room3d');}catch(e){}})();</script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%2311141f'/><path d='M32 12 52 48H12z' fill='%23e8483c'/><path d='M32 12 52 48 32 40z' fill='%233c7ce8'/><path d='M32 12 12 48 32 40z' fill='%2346d070'/></svg>">
 <script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="robots" content="noindex">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 <link rel="stylesheet" href="../assets/no-quirks.css"><script src="../assets/no-quirks.js" defer></script>
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=6">
 </head>
 <body>
-<!-- 区割り: 上 = 機械の名前（右にめったに使わない道具: ことば）、まん中 = 画面、下 = ソフトの札と操作（開く・止める・はじめから） -->
-<div class="app">
-  <header class="top">
-    <div class="name">
-      <small><span lang="ja">あそびラボ</span><span lang="en">Asobi Lab</span></small>
-      <h1><span lang="ja">32ビット互換機</span><span lang="en">32-bit Console</span></h1>
-      <span class="ver">ver. 0.5</span>
-    </div>
-    <div class="langsw" role="group" aria-label="言語 Language"><button type="button" data-lang="ja" aria-label="日本語">JP</button><button type="button" data-lang="en" aria-label="English">EN</button></div>
-  </header>
 
-  <main class="stage">
-    <div class="bezel">
-      <canvas id="screen" width="640" height="480" aria-label="画面" data-en-label="Screen"></canvas>
-      <p class="msg" id="msg" hidden></p>
+<!-- 棚（トップ）: 本体（前にディスクを差しこむ口）と、机の上のケースに入ったディスク（8ビット互換機の棚と同じ形）。
+     ケースを押すと、表紙が開いてディスクが本体の口へ入り、電源が入る。色・なまえ・ダウンロード・すてるは「…」のメニュー -->
+<div class="shelf" id="shelf">
+  <header class="room">
+    <p class="eyebrow"><span lang="ja">あそびラボ</span><span lang="en">Asobi Lab</span></p>
+    <h1><span lang="ja">32ビット互換機</span><span lang="en">32-bit Console</span></h1>
+    <div class="langsw" role="group" aria-label="言語 Language"><button type="button" data-lang="ja" aria-label="日本語">JP</button><button type="button" data-lang="en" aria-label="English">EN</button></div>
+    <button class="helpBtn" id="btnHelp" aria-haspopup="dialog" aria-label="とりあつかい説明書" data-en-label="User manual">？</button>
+  </header>
+  <!-- 部屋（3D。js/room3d.js）。使えないブラウザ・動きを減らす設定では、下の 2D の本体 -->
+  <div class="roombox" id="roombox" hidden></div>
+  <div class="conbox" id="conbox">
+    <div class="con" id="console">
+      <div class="shell" aria-hidden="true"></div><div class="topface" aria-hidden="true"></div>
+      <div class="logo" aria-hidden="true"><small>あそびラボ</small>ASOBI-LAB 32</div>
+      <div class="slot" id="slot" aria-hidden="true"></div>
+      <div class="stripe" aria-hidden="true"></div>
+      <div class="ctl" aria-hidden="true"><span class="btn ej">OPEN<i></i></span><span class="btn pw">POWER<i></i></span></div>
+      <div class="led" aria-hidden="true">POWER<i id="led"></i></div>
+      <div class="jacks" aria-hidden="true"><span>1</span><span>2</span></div>
+    </div>
+  </div>
+
+  <main class="desk">
+    <p class="desk-lead"><span lang="ja">ケースを押すと、ディスクを本体に入れて電源が入ります</span><span lang="en">Tap a case to load the disc and switch on</span></p>
+    <div class="row" id="discs">
+      <label class="item add" id="drop">
+        <input type="file" id="file" accept=".exe" class="vh">
+        <span class="adddisc" aria-hidden="true"><b>＋</b><span lang="ja">じぶんのディスク</span><span lang="en">Your disc</span><small><span lang="ja">.exe をえらぶ・ここへドロップ</span><span lang="en">Pick an .exe or drop it here</span></small></span>
+        <span class="case" aria-hidden="true"></span>
+      </label>
+    </div>
+    <p class="err" id="openErr" role="alert" hidden></p>
+  </main>
+</div>
+
+<!-- とりあつかい説明書（棚の右上の ？ から） -->
+<dialog class="help" id="help" aria-labelledby="helpTitle">
+  <form method="dialog" class="help-head"><h2 id="helpTitle"><span lang="ja">とりあつかい説明書</span><span lang="en">User manual</span></h2><button class="x" value="close" aria-label="閉じる" data-en-label="Close">✕</button></form>
+  <div class="help-body">
+    <p lang="ja">CPU（MIPS R3000A）・絵（三角形や四角を塗る係）・3D の計算をする係（GTE）・音（ADPCM の 24 の声と残響）・コントローラーのしくみを、あそびラボが JavaScript で書きました。メーカーのプログラム（BIOS）やデータは入っていません。ディスクの中のソフトを直接置いて動かします。棚のディスクは、自作のアセンブラで作ったオリジナルです。ソフトのファイルは、ケースの「…」からダウンロードできます（ゲームの中身は CC BY-NC 4.0）。</p>
+    <p lang="en">Asobi Lab wrote the CPU (MIPS R3000A), the picture chip (it paints triangles and rectangles), the 3D math chip (GTE), sound (24 ADPCM voices with reverb) and the controller logic in JavaScript. No maker's programs (BIOS) or data are included; the software on a disc is placed and run directly. The discs on the shelf are originals made with our own assembler. You can download each one from its "…" menu (the games are CC BY-NC 4.0).</p>
+    <p lang="ja">じぶんのディスク（自分の .exe ファイル）は、このブラウザの中にだけ残り、どこにも送りません。権利を持っているファイルだけを入れてください。</p>
+    <p lang="en">Your own discs (your .exe files) stay only in this browser and are never sent anywhere. Please add only files you have the rights to.</p>
+    <p lang="ja">遊ぶ画面の上の「▣ 部屋」で、机の上のテレビで遊べます。「⚙ 設定」で、画面の見え方（ブラウン管）・音・キーを変えられます。</p>
+    <p lang="en">Press "▣ Room" above the game to play on the TV on the desk. "⚙ Settings" changes the screen look (CRT), sound and keys.</p>
+    <p class="small">ver. 0.6<span lang="ja">（試作）</span><span lang="en"> (prototype)</span>・<a href="launcher.html"><span lang="ja">過去の版</span><span lang="en">Past versions</span></a>・<a href="../archive.html"><span lang="ja">あそびラボの保管庫へ</span><span lang="en">Asobi Lab archive</span></a></p>
+  </div>
+</dialog>
+
+<!-- 遊ぶ画面 -->
+<div class="app" id="player" hidden>
+  <!-- 上: いまの状態（ディスクの名前）と、めったに使わない道具 -->
+  <header class="top">
+    <div class="name"><button class="back" id="btnBack" aria-label="棚へもどる" data-en-label="Back to the shelf">←</button><span class="discname" id="discName"></span></div>
+    <div class="tools">
+      <button class="tool" id="btnSound" aria-pressed="true" title="音を出す／消す" data-en-title="Sound on / off"><span class="snd">♪</span><span class="lbl" id="soundLbl">音あり</span></button>
+      <button class="tool" id="btnSettings" aria-haspopup="dialog" title="設定（画面・音・キー）" data-en-title="Settings (screen, sound, keys)">⚙ <span lang="ja">設定</span><span lang="en">Settings</span></button>
+      <button class="tool" id="btnRoom" aria-pressed="false" hidden title="部屋で遊ぶ（机の上のテレビで）" data-en-title="Play in the room (on the TV on the desk)">▣ <span lang="ja">部屋</span><span lang="en">Room</span></button>
+      <button class="tool" id="btnFull" title="全画面" data-en-title="Full screen">⛶</button>
+      <button class="tool danger" id="btnReset" title="はじめから（ディスクを入れなおす）" data-en-title="Restart">↺ <span lang="ja">はじめから</span><span lang="en">Restart</span></button>
+    </div>
+  </header>
+  <!-- まん中: 画面 -->
+  <main class="stage" id="stage">
+    <div class="bezel" id="bezel">
+      <canvas id="screen" width="320" height="240" aria-label="ゲームの画面" data-en-label="Game screen"></canvas>
+      <canvas id="crt" aria-hidden="true" hidden></canvas>
+      <button class="power" id="power" hidden><span class="dot"></span><span lang="ja">電源を入れる</span><span lang="en">Power on</span></button>
     </div>
   </main>
-
-  <!-- 指のパッド（スマホだけ）。左手＝L・十字キー・SELECT、右手＝R・ひし形の4つ・START -->
-  <div class="pad" id="pad" aria-hidden="true">
+  <!-- 下: 指のパッド（スマホ。左手＝L・十字キー・SELECT、右手＝R・ひし形の4つ・START）と、キーの案内（PC） -->
+  <section class="pad" id="pad" aria-label="コントローラー" data-en-label="Controller">
     <div class="hand">
       <span class="sh" data-btn="L">L</span>
       <div class="dpad"><span class="u" data-btn="UP"></span><span class="d" data-btn="DOWN"></span><span class="l" data-btn="LEFT"></span><span class="r" data-btn="RIGHT"></span>
@@ -40,25 +96,45 @@
     </div>
     <div class="hand right">
       <span class="sh" data-btn="R">R</span>
-      <div class="face"><span class="y" data-btn="Y">Y</span><span class="x" data-btn="X">X</span><span class="a" data-btn="A">A</span><span class="b" data-btn="B">B</span></div>
+      <div class="face4"><span class="y" data-btn="Y">Y</span><span class="x" data-btn="X">X</span><span class="a" data-btn="A">A</span><span class="b" data-btn="B">B</span></div>
       <span class="pill" data-btn="START">START</span>
     </div>
-  </div>
-
-  <footer class="deck">
-    <p class="keys"><span><kbd>←↑↓→</kbd></span><span><kbd>X</kbd>A</span><span><kbd>Z</kbd>B</span><span><kbd>A</kbd>X</span><span><kbd>S</kbd>Y</span><span><kbd>Q</kbd>L</span><span><kbd>W</kbd>R</span><span><kbd>Enter</kbd>START</span><span><kbd>Shift</kbd>SELECT</span></p>
-    <div class="discs" id="discs" role="group" aria-label="ソフト" data-en-label="Software"></div>
-    <div class="ctl">
-      <button type="button" class="tool" id="btnOpen"><span aria-hidden="true">⏏</span> <span lang="ja">自分のファイルを開く</span><span lang="en">Open your file</span></button>
-      <button type="button" class="tool" id="btnSound" aria-pressed="true" title="音を出す／消す" data-en-title="Sound on / off"><span aria-hidden="true">♪</span> <span id="soundLbl">音あり</span></button>
-      <button type="button" class="tool icon" id="btnPause" aria-label="一時停止" data-en-label="Pause"><span aria-hidden="true">⏸</span></button>
-      <button type="button" class="tool icon" id="btnReset" aria-label="はじめから" data-en-label="Restart"><span aria-hidden="true">↺</span></button>
-      <input type="file" id="file" accept=".exe,application/octet-stream" hidden>
-    </div>
-    <p class="note"><span lang="ja">試作（段階C: 音）。自分のファイルはこの端末の中だけで読み、どこにも送りません。権利を持っているファイルだけを開いてください。</span><span lang="en">Prototype (stage C: sound). Your file is read only on this device and never sent anywhere. Open only files you have the rights to.</span>
-      <a href="../archive.html"><span lang="ja">あそびラボの保管庫へ</span><span lang="en">Asobi Lab archive</span></a></p>
-  </footer>
+  </section>
+  <footer class="keys" id="keys"></footer>
 </div>
-<script type="module" src="js/main.js?v=5"></script>
+
+<!-- 設定: 画面と音・キー（開いているあいだはゲームを止める） -->
+<dialog class="settings" id="settings" aria-labelledby="setTitle">
+  <form method="dialog" class="set-head"><h2 id="setTitle"><span lang="ja">設定</span><span lang="en">Settings</span></h2><button class="tool close" value="close" aria-label="閉じる" data-en-label="Close">✕</button></form>
+  <div class="set-tabs" role="tablist">
+    <button type="button" role="tab" data-tab="view" aria-controls="tabView" aria-selected="true"><span lang="ja">画面と音</span><span lang="en">Screen &amp; sound</span></button>
+    <button type="button" role="tab" data-tab="keys" aria-controls="tabKeys" aria-selected="false"><span lang="ja">キー</span><span lang="en">Keys</span></button>
+  </div>
+  <section id="tabView" role="tabpanel">
+    <h3><span lang="ja">画面の見え方</span><span lang="en">Screen</span></h3>
+    <div class="radios">
+      <button type="button" role="menuitemradio" data-screen="lcd"><span lang="ja">くっきり</span><span lang="en">Sharp</span><small><span lang="ja">いまの画面のドット</span><span lang="en">Crisp pixels</span></small></button>
+      <button type="button" role="menuitemradio" data-screen="rgb"><span lang="ja">ブラウン管・RGB</span><span lang="en">CRT · RGB</span><small><span lang="ja">走査線と光る点</span><span lang="en">Scanlines and glowing dots</span></small></button>
+      <button type="button" role="menuitemradio" data-screen="composite"><span lang="ja">ブラウン管・ビデオ端子</span><span lang="en">CRT · composite</span><small><span lang="ja">色が横ににじむ。当時の家のテレビ</span><span lang="en">Colors bleed sideways, like a home TV of the time</span></small></button>
+      <button type="button" role="menuitemradio" data-screen="rf"><span lang="ja">ブラウン管・アンテナ線</span><span lang="en">CRT · RF</span><small><span lang="ja">さらににじみ、ざらつく</span><span lang="en">More bleeding and grain</span></small></button>
+    </div>
+    <p class="set-note"><span lang="ja">ブラウン管は、まなびラボ「ブラウン管のドット絵」の計算です（8ビット互換機と同じ。推定をふくみます）。</span><span lang="en">The CRT look uses the model from Manabi Lab's "CRT Pixel Art" (same as the 8-bit console; partly estimated).</span></p>
+    <h3><span lang="ja">音</span><span lang="en">Sound</span></h3>
+    <label class="opt"><input type="checkbox" id="optSound"> <span lang="ja">音を出す</span><span lang="en">Sound on</span></label>
+    <label class="opt"><span lang="ja">大きさ</span><span lang="en">Volume</span> <input type="range" id="optVolume" min="0" max="100" step="5"></label>
+    <label class="opt" id="rowVibrate"><input type="checkbox" id="optVibrate"> <span lang="ja">画面のボタンを押したら ふるえる</span><span lang="en">Vibrate when on-screen buttons are pressed</span></label>
+  </section>
+  <section id="tabKeys" role="tabpanel" hidden>
+    <p class="set-note coarse-only"><span lang="ja">キーボードやゲームパッドをつないだとき用です。</span><span lang="en">For when a keyboard or gamepad is connected.</span></p>
+    <p class="set-note"><span lang="ja">＋ を押して、使いたいキーを押す（× で外す）。</span><span lang="en">Press ＋, then the key you want (× removes it).</span></p>
+    <h3><span lang="ja">コントローラー（口 1）</span><span lang="en">Controller (port 1)</span></h3>
+    <div class="krows" id="keys1"></div>
+    <p class="set-note"><span lang="ja">ゲームパッドは 1 台目を使います（下・右・左・上のボタンが B・A・X・Y）。</span><span lang="en">The first gamepad is used (its bottom, right, left and top buttons are B, A, X and Y).</span></p>
+    <p class="keynote" id="keyNote" role="status"></p>
+    <button type="button" class="tool" id="keysReset"><span lang="ja">はじめのキーにもどす</span><span lang="en">Reset to default keys</span></button>
+  </section>
+</dialog>
+
+<script type="module" src="js/main.js?v=6"></script>
 </body>
 </html>
