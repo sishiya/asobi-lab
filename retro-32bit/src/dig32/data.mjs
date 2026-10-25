@@ -188,7 +188,39 @@ function island(seed = 7) {
     const d = Math.hypot(x - 16, z - 20);
     if (!best || d < best.d) best = { d, x, y: h + 1, z };
   }
-  return { world, start: best, summit };   // summit: のろしを置くと勝ちになる高さ（島のいちばん高い地面）
+  // 海への向き: 海（いちばん上が水）の柱から広げて、陸の柱ごとにいちばん近い海の柱への向き（×100）。子ガメが「低く明るい海の方」へ歩く手がかり
+  const top = (x, z) => { for (let y = H - 1; y >= 0; y--) if (world[at(x, y, z)] !== 0) return world[at(x, y, z)]; return 0; };
+  const near = new Array(W * D).fill(null), q = [];
+  for (let z = 0; z < D; z++) for (let x = 0; x < W; x++) if (top(x, z) === 9) { near[z * W + x] = [x, z]; q.push([x, z]); }
+  for (let i = 0; i < q.length; i++) {
+    const [x, z] = q[i], src = near[z * W + x];
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const xx = x + dx, zz = z + dz;
+      if (xx < 0 || zz < 0 || xx >= W || zz >= D || near[zz * W + xx]) continue;
+      near[zz * W + xx] = src; q.push([xx, zz]);
+    }
+  }
+  const seadir = [];
+  for (let z = 0; z < D; z++) for (let x = 0; x < W; x++) {
+    const [sx, sz] = near[z * W + x] || [x, z];
+    let vx = sx - x, vz = sz - z;
+    if (!vx && !vz) { vx = x - 15.5; vz = z - 15.5; }   // 海の中は沖へ
+    const l = Math.hypot(vx, vz);
+    seadir.push(Math.round((vx / l) * 100), Math.round((vz / l) * 100));
+  }
+  // 浜（いちばん上が砂で、となりが海）の柱
+  const beach = [];
+  for (let z = 1; z < D - 1; z++) for (let x = 1; x < W - 1; x++) if (top(x, z) === 4 && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => top(x + dx, z + dz) === 9)) beach.push([x, z]);
+  // 子ガメの巣: はじめの場所から 5 ます以上はなれた、いちばん近い浜
+  const sd = ([x, z]) => Math.hypot(x - best.x, z - best.z);
+  const nest = beach.filter((b) => sd(b) >= 5).sort((a, b) => sd(a) - sd(b))[0];
+  // ヤシガニの出てくる所: 巣から 8 ます以上はなれた浜を 2 つ（たがいに 8 ます以上）
+  const crabs = [];
+  for (const b of beach.filter((b) => Math.hypot(b[0] - nest[0], b[1] - nest[1]) >= 8).sort((a, b) => sd(a) - sd(b))) {
+    if (crabs.every((c) => Math.hypot(c[0] - b[0], c[1] - b[1]) >= 8)) crabs.push(b);
+    if (crabs.length === 2) break;
+  }
+  return { world, start: best, summit, seadir, nest, crabs };   // summit: のろしを置くと勝ちになる高さ（島のいちばん高い地面）
 }
 
 // 面の向き: 0 +x・1 −x・2 +y（上）・3 −y（下）・4 +z・5 −z。4 すみは 左上・右上・左下・右下（外から見て。模様の上が上）
@@ -228,6 +260,7 @@ const FONT = {
   6: ['00110', '01000', '10000', '11110', '10001', '10001', '01110'], 7: ['11111', '00001', '00010', '00100', '01000', '01000', '01000'],
   8: ['01110', '10001', '10001', '01110', '10001', '10001', '01110'], 9: ['01110', '10001', '10001', '01111', '00001', '00010', '01100'],
   A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],   // 10 番（作る帯の「A で作る」の札）
+  B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],   // 11 番（ヤシガニが近いときの「B でつつく」の札）
 };
 
 // ---- 音（SPU の ADPCM。音の RAM の SND_BASE から順に置く。場所は 8 バイト単位の数で asm へ） ----
@@ -309,6 +342,14 @@ export function gen() {
   out.push(...bytes('hardness', HARD, 16), ...bytes('dropof', DROP, 16));
   out.push(...bytes('icontab', TEX_SIDE.map((t, i) => (i === 12 ? 20 : t)), 16));   // 腰袋と作る帯の絵（のろしだけ煙つきの絵）
   out.push(...bytes('recipes', RECIPES.flatMap((r) => [...r, 0, 0]), 32), `SUMMIT = ${isl.summit}`);
+  // 夜の生き物: 巣・ヤシガニの出てくる所（ブロック）・海への向き（柱ごとに x, z）・形（箱の表）
+  out.push(`NEST_X = ${isl.nest[0]}`, `NEST_Z = ${isl.nest[1]}`, `CRAB0_X = ${isl.crabs[0][0]}`, `CRAB0_Z = ${isl.crabs[0][1]}`, `CRAB1_X = ${isl.crabs[1][0]}`, `CRAB1_Z = ${isl.crabs[1][1]}`);
+  out.push(...bytes('seadir', isl.seadir, 32));
+  //   箱: 半分の大きさ hx, hy, hz・まん中のずれ ox, oy（足もとから）, oz（前が +z）・色。丸っこく、こわく見えない形（はさみは出さない）
+  const box = (hx, hy, hz, ox, oy, oz, c, glow = 0) => `  .half ${[hx, hy, hz, ox, oy, oz].map((v) => v & 0xffff).join(', ')}\n  .word ${(bgr(c) | (glow << 24)) >>> 0}`;   // glow: 夜でも暗くしない
+  out.push('.align 4', 'shapes:',
+    '; 子ガメ（4 つ）: 平たいこうら・せなかの盛り上がり・前ひれ・頭（アートディレクター役の直し）', '  .word 4', box(44, 10, 54, 0, 0, 0, [112, 128, 92]), box(30, 7, 38, 0, 20, 0, [112, 128, 92]), box(40, 3, 10, 0, 2, 26, [86, 100, 70]), box(12, 10, 12, 0, 6, 62, [170, 180, 136]),
+    '; ヤシガニ（4 つ）: 横に広い足の板・平たいからだ・からだの上の前に小さな目柄 2 つ（立方体に見えないように）', '  .word 4', box(96, 4, 22, 0, 4, 4, [176, 104, 70]), box(60, 16, 40, 0, 10, 0, [84, 70, 140]), box(5, 9, 5, -16, 34, 30, [255, 190, 90], 1), box(5, 9, 5, 16, 34, 30, [255, 190, 90], 1));   // 目は夜でも光る（見つけやすく）
   out.push('.align 4', ...halves('corners', CORNERS.flat(2).map((v) => v * 256), 12));
   out.push(...bytes('shadeof', SHADE, 8));
   // すみの陰: 向き × 4 すみ × 3 つ（横・たて・ななめ）の (dx, dy, dz)。面の前のます＋すみの側へ 1 つずつ

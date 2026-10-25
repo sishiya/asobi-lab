@@ -83,6 +83,19 @@ V_WINT  = 172    ; のろしをあげてからのこま
 V_SEEN  = 176    ; 作る帯を一度でも開いた（開くまでは、幹を持つと案内が光る）
 V_ACAM  = 180    ; のろしのあと、カメラを水平にして船へ向けるのこりのこま
 V_UPF   = 184    ; のろしを低い所に置いたとき、ねらいの上に ▲ を出すのこりのこま
+V_SPAWND = 188   ; 夜の生き物を出した日（1 晩に 1 回）
+V_TSAVE = 192    ; この夜に守った子ガメ
+V_TALL  = 196    ; これまでに守った子ガメ
+V_TSPAWN = 200   ; この夜に出た子ガメ
+V_TSHOW = 204    ; 朝のあと、守った数を見せるのこりのこま
+V_TMP   = 208    ; 生き物の計算の置き場（crits.s）
+V_TMP2  = 212
+V_TMP3  = 216
+V_TMP4  = 220
+V_TMP5  = 224
+V_TMP6  = 228
+V_TMP7  = 232
+V_CRABN = 236    ; ヤシガニが近い（ねらいの横に [B] の札）
 
 EYE_H   = 410    ; 目の高さ（1.6 ブロック）
 BODY_H  = 461    ; 体の高さ（1.8）
@@ -186,6 +199,8 @@ newworld:
   sw zero, V_UPF(gp)
   li t1, 1
   sw t1, V_DAY(gp)
+  jal critinit
+  nop
   li t0, 0xffff
   sw t0, V_DIRTY(gp)
   jal rebuildall
@@ -337,6 +352,8 @@ update:
   addiu t1, t1, 1
   sw t1, V_WINT(gp)
 @nowin:
+  jal critframe              ; 夜の生き物
+  nop
   lw t0, V_UPF(gp)
   nop
   blez t0, @noupf
@@ -639,6 +656,14 @@ update:
   move a0, t0
   jal markdirty
   nop
+  lw t0, V_EVM(gp)           ; たき火を掘ったら、一覧から消す
+  li t1, 11
+  bne t0, t1, @nofd
+  nop
+  lw a0, V_DIGI(gp)
+  jal firedel
+  nop
+@nofd:
   b @digdone
   nop
 @nodig:                       ; 指を離しても、掘りぐあいは少しずつもどる（同じブロックならつづきから）
@@ -668,6 +693,16 @@ update:
   slti t1, t1, 4
   bnez t1, @nofire
   nop
+  la t1, crits               ; 子ガメが陸を歩いている間は休めない（見ないまま朝にならないように）
+  li t2, 4
+@tl:
+  lw t3, 0(t1)
+  li t4, 1
+  beq t3, t4, @deny
+  nop
+  addiu t2, t2, -1
+  bnez t2, @tl
+  addiu t1, t1, 32
   li t1, DAWNT
   sw t1, V_TIME(gp)
   lw t1, V_EVT(gp)
@@ -750,6 +785,14 @@ update:
   li t3, 40
   sw t3, V_UPF(gp)
 @placeok:
+  lw t0, V_SEL(gp)           ; たき火を置いたら、子ガメとヤシガニのためにたき火の一覧へ
+  li t1, 11
+  bne t0, t1, @nofa
+  nop
+  lw a0, V_PLC(gp)
+  jal fireadd
+  nop
+@nofa:
   lw a0, V_PLC(gp)
   jal markdirty
   nop

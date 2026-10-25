@@ -604,6 +604,8 @@ render:
   bnez t0, @chunk
   nop
 @done:
+  jal drawcrits              ; 夜の生き物（同じ並べ表へ）
+  nop
   sw s3, V_NFACE(gp)
   la t0, ot + (OTN - 1) * 4
   sw t0, D2MADR(s7)
@@ -727,6 +729,7 @@ sky:
   li t1, 0xff8800a0
   sw t1, GP0(s7)
   lw t0, V_FOGRGB(gp)
+  nop
   sw t0, GP0(s7)
   li t1, 0xff60
   or t1, t1, t3
@@ -746,6 +749,7 @@ sky:
   ori t1, t3, 0x00a0
   sw t1, GP0(s7)
   lw t0, V_SEA(gp)           ; 手前の海の色（段ごと）
+  nop
   sw t0, GP0(s7)
   li t1, 0x0078ff60
   sw t1, GP0(s7)
@@ -1051,6 +1055,24 @@ hud:
   bal rect
   nop
 @nomoon:
+  lw t0, V_CRABN(gp)         ; ヤシガニが近い: ねらいの右に [B] の札
+  nop
+  beqz t0, @nob
+  nop
+  li a2, 0x60c8dcd8
+  li a0, 0xfffd000c          ; (12, −3)
+  li a1, 0x000b000b
+  bal rect
+  nop
+  la a0, strb
+  li a1, 15
+  li a2, -1
+  li a3, 0x00283038
+  li t0, 1
+  sw t0, V_SCL(gp)
+  jal text
+  nop
+@nob:
   li t0, 0xe100020a          ; スプライトは模様のページで（ディザも）
   sw t0, GP0(s7)
   ; 腰袋: 持っている物だけを、左下にたてに積む（上から ブロックの番号の順。いちばん下の札の上が y = 82）
@@ -1209,6 +1231,60 @@ hud:
   sw t0, V_SCL(gp)
   jal num
   nop
+  lw t0, V_LVL(gp)           ; 子ガメ: 左上に、出た数だけの小さなこうら（守れた子は緑）。夜と、朝のあと少しのあいだ
+  lw t1, V_TSHOW(gp)
+  slti t0, t0, 7
+  beqz t0, @tsh
+  nop
+  blez t1, @notur
+  nop
+@tsh:
+  lw t2, V_TSPAWN(gp)
+  li s0, 0
+@tu:
+  slt t0, s0, t2
+  beqz t0, @notur
+  nop
+  lw t1, V_TSAVE(gp)
+  li a2, 0x62707070          ; まだの子: うすい灰（半透明）
+  slt t1, s0, t1
+  beqz t1, @tg
+  nop
+  li a2, 0x6070d060          ; 守れた子: 緑（上に白い点も）
+@tg:
+  sll t0, s0, 3
+  sll t1, s0, 1
+  addu t0, t0, t1            ; 10 点ごと
+  addiu t0, t0, -150
+  andi t0, t0, 0xffff
+  li t1, 0xff8e0000          ; y = −114
+  or a0, t0, t1
+  li a1, 0x00040008
+  sw t2, 16(sp)
+  bal rect
+  nop
+  addiu a0, a0, 1             ; 右へ 1・上へ 1（丸く見せる）
+  li a1, 0x00060006
+  lui t0, 0xffff
+  addu a0, a0, t0
+  bal rect
+  nop
+  lw t1, V_TSAVE(gp)
+  nop
+  slt t1, s0, t1
+  beqz t1, @nodot
+  nop
+  addiu a0, a0, 2            ; 守れた子のしるし（白い点）
+  li a1, 0x00020002
+  li a2, 0x60f0f0f0
+  bal rect
+  nop
+@nodot:
+  lw t2, 16(sp)
+  addiu s0, s0, 1
+  b @tu
+  nop
+@notur:
   lw t0, V_CRAFT(gp)         ; 作る帯
   nop
   beqz t0, @nocraft
@@ -1438,6 +1514,7 @@ crafthud:
   sll t1, s0, 3
   addu t0, t0, t1
   lbu a0, 1(t0)
+  nop
   slti t1, a0, 2
   bnez t1, @n1
   nop
@@ -1870,6 +1947,7 @@ readpad:
 ; ---- 変数と作業の場所 ----
 .align 4
 stra:    .byte 10, 0xff, 0, 0
+strb:    .byte 11, 0xff, 0, 0
 vars:    .space 256
 inv:     .space 16
 numbuf:  .space 8

@@ -13,6 +13,7 @@ EV_DENY  = 16
 EV_LAND  = 32
 EV_MADE  = 64
 EV_WIN   = 128
+; 256 以上は crits.s（EV_SAVE・EV_STEAL・EV_POKE・EV_CRAB）
 
 sndinit:
   move t9, ra
@@ -173,6 +174,46 @@ sndframe:
   jal shot
   nop
 @nw:
+  andi t0, s0, EV_SAVE       ; 子ガメが海に入った: 高い「ころん」
+  beqz t0, @nsv
+  nop
+  li a0, 7
+  li a1, S_MADE
+  li a2, 0x0c00
+  li a3, 0x2000
+  jal shot
+  nop
+@nsv:
+  andi t0, s0, EV_STEAL | EV_POKE   ; ヤシガニが持っていった・つついた: 高い「こつっ」
+  beqz t0, @nst
+  nop
+  li a0, 2
+  li a1, S_POP
+  li a2, 0x0c00
+  li a3, 0x2800
+  jal shot
+  nop
+@nst:
+  andi t0, s0, EV_CRAB       ; ヤシガニの足音（かさかさ）
+  beqz t0, @ncr
+  nop
+  li a0, 5
+  li a1, S_STEP
+  li a2, 0x0e00
+  li a3, 0x1400
+  jal shot
+  nop
+@ncr:
+  andi t0, s0, EV_HATCH      ; 子ガメが出てきた: やわらかく低い「ころん」
+  beqz t0, @nh
+  nop
+  li a0, 7
+  li a1, S_MADE
+  li a2, 0x0500
+  li a3, 0x1c00
+  jal shot
+  nop
+@nh:
   andi t0, s0, EV_LAND
   beqz t0, @end
   nop

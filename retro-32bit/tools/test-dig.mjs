@@ -45,6 +45,8 @@ function boot() {
   t.set('TIME', 250 * 64); t.run(3);
   t.setBlock(t.V('TGT'), 11); t.run(3);
   ok('夜（段 7）', t.V('LVL') === 7);
+  t.press('X'); ok('子ガメが陸にいる間は休めない', (t.V('TIME') >> 6) < 316, `時刻 ${t.V('TIME') >> 6}`);
+  for (let i = 0; i < 4; i++) t.m.ram32[((syms.crits & 0x1fffff) >> 2) + i * 8] = 0; // 子ガメが海へ帰ったあと
   t.press('X'); ok('たき火で明け方へ', (t.V('TIME') >> 6) === 316, `時刻 ${t.V('TIME') >> 6}`);
   t.shot('night-fire');
   t.run(22 * 64); ok('朝になって 2 日目', t.V('LVL') === 0 && t.V('DAY') === 2, `段 ${t.V('LVL')} 日 ${t.V('DAY')}`);
@@ -65,6 +67,70 @@ function boot() {
   t.press('X'); ok('頂上に置くと船を呼べる', t.V('WIN') === 1 && t.inv(12) === 0, `置いた高さ ${t.V('WINP') >> 10}`);
   t.set('WIN', 1); t.set('WINP', 11 * 1024 + 13 * 32 + 21); t.set('WINT', 1500); t.run(20);
   t.shot('win-smoke'); t.set('YAW', 196 << 8); t.run(4); t.shot('win-ship');
+}
+// 夜の生き物: 子ガメは海へ（たき火で迷い、壁で灯りをかくすと海へ）・ヤシガニは持っていき、つつくと落とす
+{
+  const crit = (t, i) => { const b = ((syms.crits & 0x1fffff) >> 2) + i * 8, r = t.m.ram32; return { type: r[b], x: r[b + 1] | 0, y: r[b + 2] | 0, z: r[b + 3] | 0, carry: r[b + 6], flee: r[b + 7] | 0 }; };
+  const OFFX = { TSAVE: 48, TSPAWN: 50, CX: 0, CY: 1, CZ: 2, SEL: 15 };
+  const night = (t) => { t.set('TIME', 231 * 64); t.run(4); };
+  // そのまま
+  let t = boot(); night(t);
+  const types = [0, 1, 2, 3, 4, 5].map((i) => crit(t, i).type).join('');
+  ok('はじめの夜は子ガメ 4 匹・ヤシガニ 1 匹', types === '111120', types);
+  const nest = crit(t, 0);
+  t.run(900);
+  const r32 = (t, k) => t.m.ram32[((syms.vars & 0x1fffff) >> 2) + OFFX[k]] | 0;
+  ok('たき火がなければ子ガメは海へ', r32(t, 'TSAVE') === 4, `守れた ${r32(t, 'TSAVE')}`);
+  // 巣から内へ 4 ブロックの地面にたき火
+  const sea = [nest.x >> 8, nest.z >> 8];
+  const inland = (t) => { // 巣から島のまん中の向きへ 3〜6 ブロックの、草か砂の地面の上（木の上にしない）
+    const dx = Math.sign(15.5 - sea[0]), dz = Math.sign(15.5 - sea[1]);
+    for (let k = 3; k <= 6; k++) for (const [ax, az] of [[dx, dz], [dx, 0], [0, dz]]) {
+      const fx = sea[0] + ax * k, fz = sea[1] + az * k;
+      let y = 15; while (y > 0 && t.block(y * 1024 + fz * 32 + fx) === 0) y--;
+      if ([1, 4].includes(t.block(y * 1024 + fz * 32 + fx))) return { fx, fz, y: y + 1, idx: (y + 1) * 1024 + fz * 32 + fx };
+    }
+    throw new Error('たき火を置く地面がない');
+  };
+  t = boot();
+  const f = inland(t);
+  t.setBlock(f.idx, 11);
+  const fl = (syms.fires & 0x1fffff) >> 2; t.m.ram32[fl] = f.idx;
+  night(t); t.run(900);
+  const near = [0, 1, 2, 3].map((i) => crit(t, i)).filter((c) => c.type === 1).map((c) => Math.hypot((c.x >> 8) - f.fx, (c.z >> 8) - f.fz).toFixed(1));
+  ok('たき火が見えると子ガメは陸へ迷う', r32(t, 'TSAVE') < 4, `守れた ${r32(t, 'TSAVE')}・たき火までの距離 ${near.join(' ')}`);
+  t.shot('turtles-fire');
+  // 壁でかくす: たき火のまわり 4 方に 2 段の壁
+  t = boot();
+  t.setBlock(f.idx, 11); t.m.ram32[fl] = f.idx;
+  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) for (let k = 0; k < 2; k++) { const i = f.idx + k * 1024 + dz * 32 + dx; if (t.block(i) === 0) t.setBlock(i, 3); }
+  night(t); t.run(900);
+  ok('壁で灯りをかくすと海へ', r32(t, 'TSAVE') === 4, `守れた ${r32(t, 'TSAVE')}`);
+  // ヤシガニ: 人をヤシガニの横へ。ふれると持っていく → つつくと落とす
+  t = boot(); night(t);
+  t.setInv([0, 0, 5]);
+  const c0 = crit(t, 4), vb = (syms.vars & 0x1fffff) >> 2;
+  const ux = Math.sign(15.5 * 256 - c0.x), uz = Math.sign(15.5 * 256 - c0.z); // 島の内がわ 2 ブロックに立つ
+  t.m.ram32[vb + 0] = c0.x + ux * 512; t.m.ram32[vb + 2] = c0.z + uz * 512; t.m.ram32[vb + 1] = c0.y + 512; t.run(30);
+  let k = 0; while (crit(t, 4).carry === 0 && k++ < 600) t.run(1);
+  ok('ヤシガニがふれると 1 つ持っていく', crit(t, 4).carry === 2 && t.inv(2) === 4, `持っている ${crit(t, 4).carry}・土 ${t.inv(2)}・${k} こま`);
+  const c1 = crit(t, 4); // 向きをヤシガニへ（歩く向き = sin・cos）
+  const yaw = Math.round((Math.atan2(c1.x - (t.m.ram32[vb] | 0), c1.z - (t.m.ram32[vb + 2] | 0)) / (Math.PI * 2)) * 256) & 255;
+  t.set('YAW', yaw << 8); t.set('PIT', (-20 * 256) >>> 0); t.run(1); t.shot('crab-near'); t.press('B');
+  ok('B でつつくと落として逃げる', crit(t, 4).carry === 0 && t.inv(2) === 5 && crit(t, 4).flee > 0, `土 ${t.inv(2)}`);
+  // 持っていかれたまま海へ → 朝に浜へ打ち上がってもどる
+  t = boot(); night(t); t.setInv([0, 0, 5]);
+  const c2 = crit(t, 4), u2x = Math.sign(15.5 * 256 - c2.x), u2z = Math.sign(15.5 * 256 - c2.z);
+  t.m.ram32[vb + 0] = c2.x + u2x * 512; t.m.ram32[vb + 2] = c2.z + u2z * 512; t.m.ram32[vb + 1] = c2.y + 512; t.run(30);
+  k = 0; while (crit(t, 4).carry === 0 && k++ < 600) t.run(1);
+  t.m.ram32[vb + 0] = 16 * 256; t.m.ram32[vb + 2] = 16 * 256; t.m.ram32[vb + 1] = 15 * 256; // 人は島のまん中へ
+  k = 0; while (crit(t, 4).type && k++ < 1500) t.run(1);
+  ok('ヤシガニが海へ入る', crit(t, 4).type === 0 && t.inv(2) === 4, `${k} こま・土 ${t.inv(2)}`);
+  t.set('TIME', 336 * 64 - 10); t.run(30);
+  ok('朝に浜へ打ち上がってもどる', t.inv(2) === 5, `土 ${t.inv(2)}`);
+  // 2 日目の夜はヤシガニ 2 匹
+  t = boot(); t.set('DAY', 2); night(t);
+  ok('2 日目の夜はヤシガニ 2 匹', crit(t, 4).type === 2 && crit(t, 5).type === 2);
 }
 console.log(fails ? `${fails} こ NG` : 'ぜんぶ ok');
 process.exitCode = fails ? 1 : 0;
