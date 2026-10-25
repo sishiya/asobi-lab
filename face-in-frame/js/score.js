@@ -1,9 +1,8 @@
 // 似ているかの点。部位ごとに 0〜1、合計は 0〜100。
 // きびしくしすぎない: 表情の数で 0.35、首で 25 度・向き 0.6 ずれると 0 になる（それより近ければ点が入る）。
+// 見るのは、穴からのぞく口と、首のかたむき・向きだけ（目と眉は絵のまま隠れているので点にしない。v005 ユーザー）
 export const PARTS = [
   { id: 'mouth', name: '口', name_en: 'Mouth', keys: ['jaw', 'smile', 'frown', 'round'] },
-  { id: 'brow', name: '眉', name_en: 'Brows', keys: ['browUp', 'browDown'] },
-  { id: 'eye', name: '目', name_en: 'Eyes', keys: ['eyeWide', 'eyeNarrow'] },
   { id: 'head', name: '首', name_en: 'Head' },
 ];
 

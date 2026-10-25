@@ -3,31 +3,31 @@
 //   絵のよこはばを 1 とした割合、rot は首のかたむきの度）。くり抜く穴は、設定の「くり抜く所」に合わせてここから作る（face.js の areaBox）。
 //   顔が見つかる絵（モナ・リザ・真珠・トカゲ）は Face Landmarker の結果、見つからない絵（叫び・写楽・ゴッホ）は目で測った。
 // title_en・artist_en・hint_en: 英語のときの題・作者・ひとこと。
-// goal: お手本の表情（face.js の expression と同じ名前、0〜1）。部位の中で書かなかった名前は 0 として軽く見る。
+// goal: お手本の口の形（face.js の expression の jaw・smile・frown・round、0〜1）。書かなかった名前は 0 として軽く見る。
 // roll: 首のかたむき（度。右に倒すと＋）、yaw: 顔の向き（画面の右向きが＋、-1〜1）。null なら見ない。
 export const PAINTINGS = [
   { id: 'scream', src: 'art/scream.jpg', title: '叫び', artist: 'エドヴァルド・ムンク', year: 1893, hint: 'さけべ！',
     title_en: 'The Scream', artist_en: 'Edvard Munch', hint_en: 'Scream!',
     face: { nx: 0.525, ny: 0.717, rot: 3, brow: -0.043, lidTop: -0.035, lidBot: -0.022, chin: 0.08, left: -0.053, right: 0.058 },
-    goal: { jaw: 0.6, round: 0.55, eyeWide: 0.5, browUp: 0.5 }, roll: 0, yaw: null },
+    goal: { jaw: 0.6, round: 0.55 }, roll: 0, yaw: null },
   { id: 'monalisa', src: 'art/monalisa.jpg', title: 'モナ・リザ', artist: 'レオナルド・ダ・ヴィンチ', year: 1503, hint: 'ほんのり、ほほえむ',
     title_en: 'Mona Lisa', artist_en: 'Leonardo da Vinci', hint_en: 'A faint smile',
     face: { nx: 0.4346, ny: 0.4329, rot: 0, brow: -0.1083, lidTop: -0.0952, lidBot: -0.0783, chin: 0.0985, left: -0.0666, right: 0.1631 },
-    goal: { smile: 0.35, eyeNarrow: 0.3, browDown: 0.1 }, roll: 0, yaw: -0.4 },
+    goal: { smile: 0.35 }, roll: 0, yaw: -0.4 },
   { id: 'pearl', src: 'art/pearl.jpg', title: '真珠の耳飾りの少女', artist: 'ヨハネス・フェルメール', year: 1665, hint: 'ふりむいて、はっ',
     title_en: 'Girl with a Pearl Earring', artist_en: 'Johannes Vermeer', hint_en: 'Glance back… oh!',
     face: { nx: 0.346, ny: 0.5551, rot: 11, brow: -0.1417, lidTop: -0.1209, lidBot: -0.0945, chin: 0.1341, left: -0.0421, right: 0.2481 },
-    goal: { jaw: 0.2, eyeWide: 0.3, browUp: 0.25 }, roll: 11, yaw: -0.6 },
+    goal: { jaw: 0.2 }, roll: 11, yaw: -0.6 },
   { id: 'lizard', src: 'art/lizard.jpg', title: 'トカゲに噛まれる少年', artist: 'カラヴァッジョ', year: 1594, hint: 'いたっ！',
     title_en: 'Boy Bitten by a Lizard', artist_en: 'Caravaggio', hint_en: 'Ouch!',
     face: { nx: 0.5249, ny: 0.3897, rot: 15, brow: -0.0885, lidTop: -0.0618, lidBot: -0.0438, chin: 0.1185, left: -0.1336, right: 0.1002 },
-    goal: { jaw: 0.35, round: 0.3, browUp: 0.6, eyeNarrow: 0.5 }, roll: 15, yaw: null },
-  { id: 'sharaku', src: 'art/sharaku.jpg', title: '三代目大谷鬼次の江戸兵衛', artist: '東洲斎写楽', year: 1794, hint: 'にらみつける',
-    title_en: 'Ōtani Oniji III as Yakko Edobei', artist_en: 'Tōshūsai Sharaku', hint_en: 'Glare!',
+    goal: { jaw: 0.35, round: 0.3 }, roll: 15, yaw: null },
+  { id: 'sharaku', src: 'art/sharaku.jpg', title: '三代目大谷鬼次の江戸兵衛', artist: '東洲斎写楽', year: 1794, hint: '口をへの字に！',
+    title_en: 'Ōtani Oniji III as Yakko Edobei', artist_en: 'Tōshūsai Sharaku', hint_en: 'Frown hard!',
     face: { nx: 0.856, ny: 0.6875, rot: 0, brow: -0.195, lidTop: -0.165, lidBot: -0.1315, chin: 0.1955, left: -0.236, right: 0.02 },
-    goal: { frown: 0.6, browDown: 0.6, eyeWide: 0.3 }, roll: 0, yaw: 0.5 },
+    goal: { frown: 0.6 }, roll: 0, yaw: 0.5 },
   { id: 'gogh', src: 'art/gogh.jpg', title: '麦わら帽子の自画像', artist: 'フィンセント・ファン・ゴッホ', year: 1887, hint: 'むすっ',
     title_en: 'Self-Portrait with a Straw Hat', artist_en: 'Vincent van Gogh', hint_en: 'Grumpy',
     face: { nx: 0.427, ny: 0.627, rot: 0, brow: -0.157, lidTop: -0.147, lidBot: -0.114, chin: 0.163, left: -0.13, right: 0.14 },
-    goal: { frown: 0.25, browDown: 0.35 }, roll: 0, yaw: -0.3 },
+    goal: { frown: 0.25 }, roll: 0, yaw: -0.3 },
 ];
