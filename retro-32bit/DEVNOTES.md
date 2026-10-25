@@ -6,7 +6,7 @@
 - **v004（ムネエソの腹あかり 絵の作り直し）**＝画面の「ver. 0.4（試作）」。アートディレクター役の採点 46 → 68 → 78 点（`ART.md`）。
 - v003（ムネエソの腹あかり 1回目）＝ ver. 0.3。
 - v002（段階Bの前半: GTE・コントローラー・光るキューブ）＝ ver. 0.2。
-- v001（段階A: CPU と絵・回る三角形）＝ ver. 0.1。節目の版は v001。保管庫にはまだ出していない（2026-10-25 ユーザー「保管庫はまだいい」）。
+- v001（段階A: CPU と絵・回る三角形）＝ ver. 0.1。節目の版は v001。**2026-10-25 に保管庫に掲載**（v004 のあと。ユーザー「保管庫に入れて」）。
 
 ## しくみ
 - `js/cpu.js` — MIPS R3000A。全部の命令（COP2＝GTE は段階B）。**遅延スロット**（`next` を持ち、とぶ命令は `next` を書きかえる）と**ロードの遅れ**（`ldR/ldV` を1命令あとに書く。その命令が同じレジスタに書いたら取り消し。lwl/lwr は読みかけの値に重ねる）。例外（あふれ・番地のずれ・syscall・break・知らない命令）と割りこみ（SR の IEc・IM と CAUSE の 10 番）。かけ算の上の 32 ビットは `umulHi`（16 ビットずつ）。
@@ -35,6 +35,7 @@
 - スマホのたて: 画面の下に指のパッド（左手＝L・十字キー・SELECT、右手＝R・ひし形の Y/X/A/B・START）、その下に札と操作。スマホの横: 画面をまん中に、左右の手にパッド、上の帯に開く・一時停止・はじめから（札は隠す）。
 
 ## 確認のしかた
+0. 保管庫のサムネイル: `node retro-32bit/tools/thumb-glow.mjs`（はじめの見上げの 4 秒を画面なしで撮って `thumbs/retro-32bit.mp4`・`.jpg`。1こまずつ描いて ffmpeg。tools/make-motion-thumbs.ps1 は使わない＝ゲームの中のパッドで動かすため）。
 0. ムネエソの腹あかり: `node retro-32bit/tools/play-glow.mjs --bot=none|match|dvm [--react=こま --aim=段 --shots=こま,...]`（パッドを押すだけで遊ばせ、見つかった回数・食べた数・エネルギーを出す。絵は `_dev/retro-32bit/glow-<こま>.png`）。2026-10-25 の値: none＝はじめの1回は練習で見つからず、2回目から見つかる／match（react 50・aim 10）＝3分 生きのび 18 食べる／dvm（react 50・aim 10）＝3分 生きのび 253 食べる。react は 60（1秒）まで間に合い、90（1.5秒）で見つかる。
 1. `node retro-32bit/tools/test-cpu.mjs` — CPU とアセンブラ（25 こ。遅延スロット・ロードの遅れ・かけ算・0 で割る・lwl/lwr/swl/swr・あふれの例外）。`test-gte.mjs`（9 こ。割り算・RTPS を浮動小数とくらべる・NCLIP・AVSZ3・RTPT・NCDS・CPU から命令）。`test-pad.mjs`（光るキューブに十字キーを押させて、角度の進みが変わるか）。ぜんぶ ok になること。
 2. `node retro-32bit/tools/build.mjs` → `node retro-32bit/tools/run.mjs --frames=30,100 --vram` — 絵が `_dev/retro-32bit/` に出る（1こま 5ms ほど）。
