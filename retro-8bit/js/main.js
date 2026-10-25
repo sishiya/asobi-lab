@@ -149,7 +149,7 @@ async function openEntry(e, gesture) {
     fit();
     if (cont) { if (room && roomPlay) setRoomPlay(true); else { draw(); await upTo(drawn(), 200); } }
   });
-  if (e.id && location.hash !== '#' + e.id) history.pushState(null, '', '#' + e.id);
+  if (e.id && location.hash !== '#' + e.id) history.pushState({ retro8: 1 }, '', '#' + e.id);   // 棚から開いた印（もどるときに1つ戻す）
   if (cont) { if (!running) power(); return; }
   let bytes;
   try { bytes = e.bytes || await loadRom(e); } catch { backToShelf(); return; }
@@ -174,11 +174,20 @@ function stopPlayer() {
   // 遊ぶ画面の画面に前のソフトの絵を残さない（つぎの絵が描けるまで見せない）
   canvas.style.visibility = glCanvas.style.visibility = 'hidden';
 }
+// 遊ぶ画面の #id を消す（v026。ユーザー「履歴がすごい数になる。トップに戻るのが大変」）。
+// 棚から開いたとき（pushState した）はブラウザの履歴を1つ戻すだけ＝履歴はふえない（popstate の route がもう一度 backToShelf を呼ぶ）。
+// #id つきで直接ひらいたときは、その履歴を書きかえる
+function leaveHash() {
+  if (!location.hash) return false;
+  if (history.state?.retro8) { history.back(); return true; }
+  history.replaceState(null, '', location.pathname + location.search);
+  return false;
+}
 async function backToShelf() {
+  if (leaveHash()) return;
   if (room && nes && !$('player').hidden) {
     // 部屋: 電源は入れたまま、テレビに止めた絵を映しておく（v023。本体を押して電源を切ると消える）
     saveBattery(); running = false; audio?.ctx.suspend();
-    if (location.hash) history.pushState(null, '', location.pathname);
     const frame = nes.ppu.frame;
     await swap(async () => {
       $('bezel').hidden = false; $('stage').classList.remove('roomon');
@@ -200,7 +209,6 @@ async function backToShelf() {
   $('player').hidden = true;
   $('shelf').hidden = false;
   document.body.classList.remove('playing');
-  if (location.hash) history.pushState(null, '', location.pathname);
 }
 // ← とリセットは1回で効く（2026-10-25 ユーザー「2回押さないと効かないのはストレス」。棚へもどるときもセーブは残す）
 $('btnBack').addEventListener('click', backToShelf);

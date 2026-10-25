@@ -350,9 +350,9 @@ html,body{overflow-x:clip}   /* 動き（ふた・飛ぶカセット）がはみ
 
 /* 部屋（3D。v021。案A: トップの上半分・案C: 遊ぶ画面の「部屋で遊ぶ」） */
 html.room3d #conbox{display:none}   /* 部屋を読みこむあいだ: 2D の本体は出さず、部屋の場所をとる（v025） */
-html.room3d #roombox[hidden]{display:block;background:#5a4c3f}
+html.room3d #roombox[hidden]{display:block!important;background:#5a4c3f}   /* [hidden] の !important より強く（v026。高さ 0 で詰まって、出たときにガタついていた） */
 .roombox{position:relative;height:clamp(300px,56vh,560px);margin:0;overflow:hidden;border-radius:0}
-.shelf:has(.roombox:not([hidden])) .desk{margin-top:0}   /* 部屋の机と、カセットの机をつなげる */
+.shelf:has(.roombox:not([hidden])) .desk,html.room3d .shelf .desk{margin-top:0}   /* 部屋の机と、カセットの机をつなげる */
 .roombox .room3d,.stage .room3d{display:block;width:100%;height:100%;touch-action:none;cursor:grab;outline:none}
 .roombox .room3d:active{cursor:grabbing}
 .stage.roomon{position:relative;padding:0;align-items:stretch}
