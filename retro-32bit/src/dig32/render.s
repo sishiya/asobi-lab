@@ -2,6 +2,7 @@
 
 NEAR    = 40             ; これより手前の点がある面は描かない（手前の切れ目）
 LODZ    = 2048           ; これより遠い面は、模様をやめて霧にまぜた一色（8 ブロック）
+AOZ     = 1536           ; これより近い面だけ、すみの陰（グーロー）をつける（6 ブロック）
 FOG0    = 1024           ; 霧がかかりはじめる所（4 ブロック）。FARZ − FOG0 = 4096
 FARZ    = 5120           ; 霧でいちばん白くなる所（20 ブロック）
 VIEWR   = 22             ; チャンクのまん中がこれより遠ければ描かない（ブロック）
@@ -60,7 +61,7 @@ texupload:
 
 ; ---- 1 こまを描く ----
 render:
-  addiu sp, sp, -40
+  addiu sp, sp, -48           ; 32 = 近い順の何番目・36 = チャンク・40 = 向き
   sw ra, 0(sp)
   sw s0, 4(sp)
   sw s1, 8(sp)
@@ -137,15 +138,70 @@ render:
   slti t2, t2, VIEWR * VIEWR
   beqz t2, @nextchunk
   nop
-  sll t0, t9, 12
+  sw t9, 36(sp)              ; チャンクの番号
+  sw zero, 40(sp)            ; 向き
+@dir:
+  lw t9, 36(sp)
+  lw t8, 40(sp)
+  andi t0, t9, 3
+  sll t0, t0, 11             ; チャンクの左はしの x（×256）
+  srl t1, t9, 2
+  sll t1, t1, 11             ; 手前はしの z
+  ; 横の向きは、チャンクのどの面もカメラから裏になるなら、まとめて飛ばす
+  bnez t8, @g1
+  nop
+  addiu t2, t0, 256          ; +x: カメラの x が 左はし + 1 より右でなければ全部裏
+  slt t3, t2, s4
+  beqz t3, @nextdir
+  nop
+  b @gok
+  nop
+@g1:
+  li t2, 1
+  bne t8, t2, @g4
+  nop
+  addiu t2, t0, 7 * 256      ; −x: カメラの x が 右はしのブロックより左でなければ全部裏
+  slt t3, s4, t2
+  beqz t3, @nextdir
+  nop
+  b @gok
+  nop
+@g4:
+  li t2, 4
+  bne t8, t2, @g5
+  nop
+  addiu t2, t1, 256          ; +z
+  slt t3, t2, s5
+  beqz t3, @nextdir
+  nop
+  b @gok
+  nop
+@g5:
+  li t2, 5
+  bne t8, t2, @gok
+  nop
+  addiu t2, t1, 7 * 256      ; −z
+  slt t3, s5, t2
+  beqz t3, @nextdir
+  nop
+@gok:
+  li t2, 6 * DIRF * 4
+  mult t9, t2
+  mflo t0
   la s0, faces
   addu s0, s0, t0
-  sll t0, t9, 2
+  sll t0, t8, 10             ; 向き × DIRF × 4
+  addu s0, s0, t0
+  sll t0, t9, 3
+  sll t1, t9, 4
+  addu t0, t0, t1            ; チャンク × 24
+  sll t1, t8, 2
+  addu t0, t0, t1
   la t1, fcount
   addu t1, t1, t0
   lw s1, 0(t1)
   nop
-  beqz s1, @nextchunk
+  beqz s1, @nextdir
   nop
 @face:
   lw t0, 0(s0)
@@ -157,7 +213,9 @@ render:
   andi t3, t3, 15            ; y
   srl t4, t0, 14
   andi t4, t4, 7             ; 向き
-  srl t5, t0, 17             ; ブロック
+  srl t5, t0, 17
+  andi t5, t5, 31            ; ブロック
+  srl t9, t0, 22             ; t9 = すみの陰（2 ビット × 4）| 裏返し << 8（この面のあいだ使う）
   sll t1, t1, 8
   subu t1, t1, s4            ; bx（カメラから）
   sll t3, t3, 8
@@ -318,6 +376,11 @@ render:
   mult t0, t0                ; 2 乗にして、近くはうすく遠くで急に濃く（中ほどの木が透けて見えないように）
   mflo t0
   srl t0, t0, 12
+  slti t1, t0, 2662          ; 霧は 65% まで（遠くの木が空に溶けて透けて見えないように）
+  bnez t1, @f0c
+  nop
+  li t0, 2662
+@f0c:
   slti t7, a1, LODZ
   beqz t7, @flat
   nop
@@ -334,30 +397,82 @@ render:
   addu t7, t8, t7            ; × 17
   srl t8, t0, 8
   addu t7, t7, t8            ; + 霧の段
-  sll t7, t7, 2
-  addu t6, t6, t7
-  lw t4, 0(t6)
+  sll t7, t7, 4              ; × 4 段の陰 × 4 バイト
+  addu t0, t6, t7            ; t0 = この面の陰 0 の場所（陰 c は +4c）
+  lw t4, 0(t0)
   nop
-  lui t8, 0x2c00
+  ; uv（裏返しつき・CLUT とページ入り）は表から: uvtab + 模様 × 64 + 裏返し × 16 → TL・TR・BL・BR
+  la t1, uvtab
+  sll t2, a2, 6
+  addu t1, t1, t2
+  srl t2, t9, 4
+  andi t2, t2, 0x30
+  addu t1, t1, t2
+  lw t5, 12(t1)
+  lw t3, 8(t1)
+  lw t2, 4(t1)
+  lw t1, 0(t1)
+  nop
+  andi t6, t9, 255
+  beqz t6, @noao
+  slti t6, a1, AOZ            ; すみの陰は近い面だけ（遠くでは見えないので、速さのため）
+  bnez t6, @ao
+  nop
+@noao:
+  lui t8, 0x2c00             ; 陰なし: 模様つきの四角（0x2C）
   or t7, t4, t8
   sw t7, 4(s2)
-  sll t7, a2, 4              ; u のはじめ（模様 × 16）
-  addiu t8, a2, 20           ; CLUT: (320 + 模様 × 16, 240) → x/16 = 20 + 模様
-  ori t8, t8, 240 << 6
-  sll t8, t8, 16
-  or t8, t8, t7
-  sw t8, 12(s2)              ; 左上の uv と CLUT
-  addiu t8, t7, 15
-  lui v0, TPAGE
-  or t8, t8, v0
-  sw t8, 20(s2)              ; 右上の uv とページ
-  ori t8, t7, 15 << 8
-  sw t8, 28(s2)              ; 左下
-  addiu t8, t7, 15
-  ori t8, t8, 15 << 8
-  sw t8, 36(s2)              ; 右下
+  sw t1, 12(s2)
+  sw t2, 20(s2)
+  sw t3, 28(s2)
+  sw t5, 36(s2)
   lui v1, 0x0900             ; 語 9 つ
   li a0, 40
+  b @link
+  nop
+@ao:
+  ; 陰あり: グーローの模様つき四角（0x3C）。点を 8・16・24・32 → 8・20・32・44 へ
+  lw t7, 32(s2)
+  lw t8, 24(s2)
+  lw v0, 16(s2)
+  sw t7, 44(s2)
+  sw t8, 32(s2)
+  sw v0, 20(s2)
+  sw t1, 12(s2)
+  sw t2, 24(s2)
+  sw t3, 36(s2)
+  sw t5, 48(s2)
+  ; 4 すみの色は表から（陰の段 c → t0 + 4c）
+  andi t7, t9, 3
+  sll t7, t7, 2
+  addu t7, t0, t7
+  lw t7, 0(t7)
+  srl t8, t9, 2
+  sw t7, 4(s2)
+  andi t8, t8, 3
+  sll t8, t8, 2
+  addu t8, t0, t8
+  lw t8, 0(t8)
+  srl t7, t9, 4
+  sw t8, 16(s2)
+  andi t7, t7, 3
+  sll t7, t7, 2
+  addu t7, t0, t7
+  lw t7, 0(t7)
+  srl t8, t9, 6
+  sw t7, 28(s2)
+  andi t8, t8, 3
+  sll t8, t8, 2
+  addu t8, t0, t8
+  lw t8, 0(t8)
+  nop
+  sw t8, 40(s2)
+  lw t7, 4(s2)
+  lui t8, 0x3c00
+  or t7, t7, t8
+  sw t7, 4(s2)
+  lui v1, 0x0c00             ; 語 12
+  li a0, 52
   b @link
   nop
 @flat:
@@ -423,6 +538,14 @@ render:
   addiu s1, s1, -1
   bnez s1, @face
   nop
+@nextdir:
+  lw t8, 40(sp)
+  nop
+  addiu t8, t8, 1
+  sw t8, 40(sp)
+  slti t0, t8, 6
+  bnez t0, @dir
+  nop
 @nextchunk:
   lw t9, 32(sp)
   nop
@@ -456,7 +579,7 @@ render:
   lw s5, 24(sp)
   lw fp, 28(sp)
   jr ra
-  addiu sp, sp, 40
+  addiu sp, sp, 48
 
 ; チャンクを、カメラから近い順に corder へ（16 こ。差しこみで並べる）
 sortchunks:
@@ -660,7 +783,7 @@ outline:
 @cs:
   addiu t5, t5, 12           ; ひびの模様の番号
   la a3, linebuf
-  li t6, 0x2c808080
+  li t6, 0x2e808080          ; 半透明の模様つき四角（ひびの色はほぼ黒と半分ずつまぜる＝下の面が半分の明るさに）
   sw t6, GP0(s7)
   lw t7, 0(a3)
   nop
@@ -675,7 +798,7 @@ outline:
   nop
   sw t7, GP0(s7)
   addiu t7, t6, 15
-  lui t8, TPAGE
+  lui t8, TPAGE              ; ページ＋半透明の形 0（半分ずつ）
   or t7, t7, t8
   sw t7, GP0(s7)
   lw t7, 8(a3)
@@ -709,7 +832,7 @@ outline:
   nop
 
 ; ねらいの印（4 つの点）・置けなかった ×・持ち物の札（ブロック 2〜8: 土・石・砂・幹・葉・板・黒曜石）
-;   札は角を落とした四角。選んでいる札だけ 4 点上に出て明るい。持っていない札は枠だけ（絵を出さない）
+;   腰袋: 持っている物だけを左下にたてに積む（元のゲームの下の横の列にしない）。札は角を落とした四角、選んでいる札だけ 4 点右へ出て明るい。数は絵の下のまん中
 hud:
   addiu sp, sp, -16
   sw ra, 0(sp)
@@ -761,48 +884,83 @@ hud:
 @nodeny:
   li t0, 0xe100020a          ; スプライトは模様のページで（ディザも）
   sw t0, GP0(s7)
-  li s0, 2                   ; ブロック
-  li s1, -84                 ; x
-@slot:
-  lw t0, V_SEL(gp)
-  li s2, 94                  ; 札の上の y（選んでいる札は 4 点上）
-  bne t0, s0, @up
+  ; 腰袋: 持っている物だけを、左下にたてに積む（上から ブロックの番号の順。いちばん下の札の上が y = 82）
+  la t0, inv                 ; 持っている種類の数 → いちばん上の札の y
+  li t1, 2
+  li t2, 0
+@cnt:
+  addu t3, t0, t1
+  lbu t3, 0(t3)
+  addiu t1, t1, 1
+  beqz t3, @cn
+  slti t4, t1, 9
+  addiu t2, t2, 1
+@cn:
+  bnez t4, @cnt
   nop
-  li s2, 90
-@up:
+  bnez t2, @some
+  nop
+  ; 何も持っていない: 空の札の枠を 1 つ
+  li a2, 0x62909090
+  li a0, 0x0052ff69          ; (−151, 82)
+  li a1, 0x00010012          ; 上
+  bal rect
+  nop
+  li a0, 0x006dff69          ; 下 (−151, 109)
+  bal rect
+  nop
+  li a0, 0x0053ff68          ; 左 (−152, 83)
+  li a1, 0x001a0001
+  bal rect
+  nop
+  li a0, 0x0053ff7b          ; 右 (−133, 83)
+  bal rect
+  nop
+  b @pdone
+  nop
+@some:
+  li t3, 30                  ; 札の間
+  mult t2, t3
+  mflo t3
+  li s1, 112
+  subu s1, s1, t3            ; いちばん上の札の y（82 − (数 − 1) × 30）
+  li s0, 2
+@slot:
   la t4, inv
   addu t4, t4, s0
   lbu t4, 0(t4)
   nop
-  beqz t4, @empty
+  beqz t4, @next
   nop
-  ; 持っている札: 角を落とした下じき（選んでいれば明るい不透明、ほかは暗い半透明）
+  lw t0, V_SEL(gp)
+  li s2, -152                ; 札の左の x（選んでいる札は 4 点右へ出て明るい）
   li a2, 0x62202020
   bne t0, s0, @bg
   nop
+  li s2, -148
   li a2, 0x60c8dcd8
 @bg:
-  sll t1, s2, 16
-  addiu t2, s2, 1
+  ; 角を落とした札（20 × 28）: 横長の四角とたて長の四角を重ねる
+  addiu t2, s1, 1
   sll t2, t2, 16
-  andi t3, s1, 0xffff
+  andi t3, s2, 0xffff
   or a0, t2, t3
-  li a1, 0x00120014          ; 20 × 18
+  li a1, 0x001a0014          ; 20 × 26
   bal rect
   nop
-  addiu t3, s1, 1
+  addiu t3, s2, 1
   andi t3, t3, 0xffff
-  sll t1, s2, 16
+  sll t1, s1, 16
   or a0, t1, t3
-  li a1, 0x00140012          ; 18 × 20
+  li a1, 0x001c0012          ; 18 × 28
   bal rect
   nop
   ; ブロックの絵（16×16 のスプライト）
   li t1, 0x7c808080
   sw t1, GP0(s7)
-  addiu t2, s1, 2
+  addiu t2, s2, 2
   andi t2, t2, 0xffff
-  addiu t3, s2, 2
+  addiu t3, s1, 2
   sll t3, t3, 16
   or t2, t2, t3
   sw t2, GP0(s7)
@@ -816,57 +974,32 @@ hud:
   sll t7, t7, 16
   or t6, t6, t7
   sw t6, GP0(s7)
-  ; 数（右下に小さく）
+  ; 数は絵の下のまん中に（1 けたは 8 点、2 けたは 5 点右から）
+  lw t0, V_SEL(gp)
   move a0, t4
-  addiu a1, s1, 9
-  addiu a2, s2, 12
+  addiu a1, s2, 8
+  slti t1, t4, 10
+  bnez t1, @one
+  nop
+  addiu a1, s2, 5
+@one:
+  addiu a2, s1, 20
   li a3, 0x00f8f8f8
+  bne t0, s0, @wc
+  nop
+  li a3, 0x00283038          ; 明るい札の上は暗い字
+@wc:
   li t0, 1
   sw t0, V_SCL(gp)
   jal num
   nop
-  b @next
-  nop
-@empty:                       ; 持っていない札: 枠だけ
-  li a2, 0x62909090
-  bne t0, s0, @fr
-  nop
-  li a2, 0x60c8dcd8
-@fr:
-  addiu t3, s1, 1
-  andi t3, t3, 0xffff
-  sll t1, s2, 16
-  or a0, t1, t3
-  li a1, 0x00010012          ; 上
-  bal rect
-  nop
-  addiu t1, s2, 19
-  sll t1, t1, 16
-  addiu t3, s1, 1
-  andi t3, t3, 0xffff
-  or a0, t1, t3
-  bal rect                   ; 下
-  nop
-  addiu t1, s2, 1
-  sll t1, t1, 16
-  andi t3, s1, 0xffff
-  or a0, t1, t3
-  li a1, 0x00120001          ; 左
-  bal rect
-  nop
-  addiu t1, s2, 1
-  sll t1, t1, 16
-  addiu t3, s1, 19
-  andi t3, t3, 0xffff
-  or a0, t1, t3
-  bal rect                   ; 右
-  nop
+  addiu s1, s1, 30
 @next:
   addiu s0, s0, 1
-  addiu s1, s1, 24
   slti t0, s0, 9
   bnez t0, @slot
   nop
+@pdone:
   lw ra, 0(sp)
   lw s0, 4(sp)
   lw s1, 8(sp)
@@ -1143,10 +1276,10 @@ linebuf: .space 16
 mat_a:   .space 20
 mat_b:   .space 20
 mat_c:   .space 20
-fcount:  .space 64
+fcount:  .space 16 * 6 * 4
 cdist:   .space 64
 corder:  .space 16
 ot:      .space OTN * 4
 world:   .space W * D * H
-faces:   .space 16 * MAXF * 4
-pkts:    .space MAXDRAW * 40 + 64
+faces:   .space 16 * 6 * DIRF * 4
+pkts:    .space MAXDRAW * 52 + 64

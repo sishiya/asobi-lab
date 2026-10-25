@@ -25,8 +25,8 @@ const DROP = [0, 2, 2, 3, 4, 5, 6, 7, 8, 0, 0];            // 掘ると手に入
 function textures() {
   const T = [];
   const make = (pal, fn, seed) => { const r = rng(seed); const px = []; for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) px.push(Math.max(0, Math.min(pal.length - 1, fn(x, y, r)))); return { px, pal }; };
-  // 草の上: 青みの緑に、少し濃い・少し明るい点（花は置かない: どのブロックも同じ所に出て網の目に見えるので）
-  const grassPal = [[79, 138, 92], [72, 128, 86], [86, 148, 98], [64, 116, 80], [222, 214, 170]];
+  // 草の上: 少し黄みの緑に、少し濃い・少し明るい点（花は置かない: どのブロックも同じ所に出て網の目に見えるので）
+  const grassPal = [[92, 140, 78], [84, 130, 72], [100, 150, 84], [76, 118, 66], [222, 214, 170]];
   T.push(make(grassPal, (x, y, r) => { const v = r(); return v < 0.22 ? 1 : v < 0.38 ? 2 : v < 0.44 ? 3 : 0; }, 11));
   // 草の横: 赤い火山の土の上 3 点に草の帯（たれない）。帯の下に細い根
   const dirtPal = [[138, 74, 50], [126, 66, 46], [150, 84, 58], [112, 58, 40], [172, 120, 92], ...grassPal.slice(0, 4), [96, 70, 48]];
@@ -45,9 +45,10 @@ function textures() {
   // 幹の切り口: 年輪でなく、すじの点がちらばる（ヤシの幹の中）
   const cutPal = [[188, 168, 126], [172, 150, 110], [120, 100, 74], ...barkPal];
   T.push(make(cutPal, (x, y, r) => { const d = Math.hypot(x - 7.5, y - 7.5); if (d > 7) return 6; if (d > 6) return 3; return r() < 0.18 ? 2 : r() < 0.4 ? 1 : 0; }, 17));
-  // 葉: ななめにのびる細い葉（羽のような葉の束）
+  // 葉: 葉の房の斑（明るい房・暗いすきま。並びがそろわないように）
   const leafPal = [[58, 112, 70], [66, 122, 76], [50, 100, 62], [80, 136, 84], [44, 84, 58]];   // 明るさの幅をせまく（離れて見ると大きな房に）
-  T.push(make(leafPal, (x, y, r) => { const d = (x + y) % 6, e = (x - y + 32) % 6; if (d === 0) return 3; if (e === 0) return 4; return r() < 0.3 ? 2 : r() < 0.5 ? 1 : 0; }, 18));
+  const blobs = Array.from({ length: 7 }, (_, i) => [((i * 37) % 16) + 0.5, ((i * 23 + 5) % 16) + 0.5, i % 2 ? 3 : 4]);
+  T.push(make(leafPal, (x, y, r) => { for (const [bx, by, c] of blobs) if (Math.hypot(((x - bx + 24) % 16) - 8, ((y - by + 24) % 16) - 8) < 2.1) return c; return r() < 0.3 ? 2 : r() < 0.5 ? 1 : 0; }, 18));
   // 板: たての板 3 枚（板ごとに色がちがい、すきまは暗い）
   const plankPal = [[176, 138, 92], [164, 128, 84], [188, 150, 102], [112, 82, 54], [158, 120, 78]];
   T.push(make(plankPal, (x, y, r) => { if (x % 5 === 4) return 3; if ((x === 2 && y === 3) || (x === 7 && y === 11) || (x === 12 && y === 6)) return 3; const b = Math.floor(x / 5) % 3; return r() < 0.12 ? 4 : b; }, 19));
@@ -60,9 +61,9 @@ function textures() {
   // 岩盤: 黒っぽい溶岩
   const bedPal = [[52, 46, 46], [40, 36, 36], [66, 58, 56], [28, 24, 24]];
   T.push(make(bedPal, (x, y, r) => Math.floor(r() * 4), 22));
-  // ひび 3 段（0 は透明。掘っている面に重ねる）。1 点の太さのぎざぎざの線が、段ごとにのびて枝わかれする
+  // ひび 3 段（0 は透明。掘っている面に重ねる）。1 点の太さのぎざぎざの線（ふちどりなし）が、段ごとにのびて枝わかれする
   //   まわりにそろった形（風車や虫の足に見える形）にしないよう、向きも長さもばらばらに
-  const crackPal = [null, [30, 24, 22], [120, 106, 96]];
+  const crackPal = [null, [8, 8, 8]];   // 半透明の形 0（半分ずつ）で、下の面を半分の明るさにする（黒くならない）   // 半透明の引き算で、下の面をこの分だけ暗くする（黒い線にしない）
   const cr = rng(41), lines = [];
   for (const [a, len] of [[0.5, 9], [2.6, 6], [4.1, 8], [5.5, 4]]) {
     const pts = []; let x = 7 + cr() * 2, y = 7 + cr() * 2, ang = a;
@@ -74,9 +75,8 @@ function textures() {
     lines.slice(0, s + 1).forEach((pts, li) => pts.slice(0, Math.ceil((pts.length * (s - (li > s - 1 ? 1 : 0) * 0.5)) / 3)).forEach(([x, y]) => {
       if (x < 0 || y < 0 || x > 15 || y > 15) return;
       px[y * 16 + x] = 1;
-      if (y < 15 && !px[(y + 1) * 16 + x]) px[(y + 1) * 16 + x] = 2;   // 下に明るいふち（割れ目の段差）
     }));
-    T.push({ px, pal: crackPal });
+    T.push({ px, pal: crackPal, semi: true });   // 色に半透明の印（0x8000）
   }
   return T;
 }
@@ -111,7 +111,7 @@ function island(seed = 7) {
     }
   }
   // 木: まばらに（ほかの木と 3 ます以上はなす）。四角い葉の箱にしない:
-  //   浜（砂）にはヤシ（細い幹のてっぺんから葉が十字とななめにのび、先がつながったまま 1 段たれる）、草の上には傘の木（2 段の平たい傘）
+  //   浜（砂）にはヤシ（細い幹のてっぺんから葉が十字とななめにのび、先がつながったまま 1 段たれる）、草の上には傘の木（はば 5・7 の傘で、ふちが 1 段たれる）
   const leaf = (x, y, z) => { if (x >= 0 && z >= 0 && x < W && z < D && y < H && world[at(x, y, z)] === 0) world[at(x, y, z)] = 6; };
   const trees = [];
   for (let k = 0; k < 400 && trees.length < 9; k++) {
@@ -126,14 +126,14 @@ function island(seed = 7) {
       for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { leaf(x + dx, top, z + dz); leaf(x + dx * 2, top, z + dz * 2); leaf(x + dx * 3, top, z + dz * 3); leaf(x + dx * 3, top - 1, z + dz * 3); }
       for (const [dx, dz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) { leaf(x + dx, top, z + dz); leaf(x + dx * 2, top, z + dz * 2); leaf(x + dx * 2, top - 1, z + dz * 2); }
     } else {
-      const top = h + 4;
+      const top = h + 5;                                           // 傘は目より高く（たれたふちが目の前をふさがないように）
       for (let y = h + 1; y <= top; y++) world[at(x, y, z)] = 5;
       for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) {
         const d = Math.hypot(dx, dz);
-        if (d <= 3.2 && d > 0) leaf(x + dx, top, z + dz);
-        if (d <= 1.5) leaf(x + dx, top + 1, z + dz);
+        if (d <= 3.2 && d > 0) leaf(x + dx, top, z + dz);          // まん中の段（はば 7）
+        if (d <= 2.3) leaf(x + dx, top + 1, z + dz);               // 上の段（はば 5）
+        if (d > 2.5 && d <= 3.2) leaf(x + dx, top - 1, z + dz);    // ふちが 1 段たれる
       }
-      leaf(x, top + 1, z);
     }
   }
   // はじめに立つ場所: まん中に近い草の上で、まわり（前の 5 ます・高さ 4）に何もない開けた所
@@ -162,6 +162,7 @@ const CORNERS = [
   [[1, 1, 1], [0, 1, 1], [1, 0, 1], [0, 0, 1]],
   [[0, 1, 0], [1, 1, 0], [0, 0, 0], [1, 0, 0]],
 ];
+const AOFAC = [256, 204, 164, 130];   // すみの陰の段 → 明るさ（100・80・64・51%。/256）
 const FOG = [216, 220, 203];   // 霧の色（少し黄みのある灰。空の地平線の色）
 const SHADE = [0x54, 0x54, 0x80, 0x40, 0x68, 0x68];   // 面の向きの明るさ（0x80 で模様のまま）: 上 100・南北 80・東西 65・下 50%
 
@@ -191,23 +192,43 @@ export function gen() {
   out.push(...halves('texdata', rows));
   // 色の表: VRAM の (320, 240) から横に 1 枚 16 色ずつ（0x8000 は「半透明」の印。ここでは使わない。0 は透明なので、黒は 1 にずらす）
   const cl = [];
-  for (const t of tex) for (let i = 0; i < 16; i++) { if (t.pal[i] === null) { cl.push(0); continue; } const c = t.pal[i] ? c15(t.pal[i]) : 0x0421; cl.push(c || 0x0421); }
+  for (const t of tex) for (let i = 0; i < 16; i++) { if (t.pal[i] === null) { cl.push(0); continue; } const c = t.pal[i] ? c15(t.pal[i]) : 0x0421; cl.push((c || 0x0421) | (t.semi ? 0x8000 : 0)); }
   out.push(...halves('clutdata', cl));
   // 模様ごとの平均の色（遠くの一色に）
   out.push(...words('texavg', tex.map((t) => { const s = [0, 0, 0]; for (const p of t.px) for (let k = 0; k < 3; k++) s[k] += (t.pal[p] || [0, 0, 0])[k]; return bgr(s.map((v) => Math.round(v / 256))); })));
-  // 近い面の色の倍率の表: 模様 × 向き × 霧の 17 段（t = 段 / 16）。ねらい = 平均 × 明るさ / 128 ×（1 − t）+ 霧の色 × t、倍率 = ねらい × 128 / 平均
+  // 近い面の色の倍率の表: 模様 × 向き × 霧の 17 段（t = 段 / 16）× すみの陰 4 段。ねらい = 平均 × 明るさ / 128 ×（1 − t）+ 霧の色 × t、倍率 = ねらい × 128 / 平均
   //   遠い面（平均 × 明るさを GTE の DPCS で霧へ）と同じ式なので、模様から一色へ切りかわっても色が飛ばない
   const avg = tex.map((t) => { const s = [0, 0, 0]; for (const p of t.px) for (let k = 0; k < 3; k++) s[k] += (t.pal[p] || [0, 0, 0])[k]; return s.map((v) => Math.max(1, v / 256)); });
   const mod = [];
   for (const a of avg) for (const sh of SHADE) for (let lv = 0; lv <= 16; lv++) {
     const t = lv / 16;
-    mod.push(a.map((c, k) => Math.min(255, Math.round((((c * sh) / 128) * (1 - t) + FOG[k] * t) * 128 / c)) << (k * 8)).reduce((x, y) => x | y, 0));
+    for (const f of AOFAC) mod.push(a.map((c, k) => Math.min(255, Math.round(((((c * sh) / 128) * (1 - t) + FOG[k] * t) * 128 / c) * f / 256)) << (k * 8)).reduce((x, y) => x | y, 0));
   }
   out.push('.align 4', ...words('modtab', mod));
   out.push(...bytes('textop', TEX_TOP, 16), ...bytes('texside', TEX_SIDE, 16), ...bytes('texbot', TEX_BOT, 16));
   out.push(...bytes('hardness', HARD, 16), ...bytes('dropof', DROP, 16));
   out.push('.align 4', ...halves('corners', CORNERS.flat(2).map((v) => v * 256), 12));
   out.push(...bytes('shadeof', SHADE, 8));
+  // すみの陰: 向き × 4 すみ × 3 つ（横・たて・ななめ）の (dx, dy, dz)。面の前のます＋すみの側へ 1 つずつ
+  const NORM = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+  const ao = [];
+  CORNERS.forEach((cs, dir) => {
+    const n = NORM[dir], axes = [0, 1, 2].filter((k) => n[k] === 0);
+    for (const c of cs) {
+      const s = axes.map((k) => c[k] * 2 - 1);
+      const off = (us, vs) => { const o = [...n]; o[axes[0]] += us; o[axes[1]] += vs; return o; };
+      ao.push(...off(s[0], 0), ...off(0, s[1]), ...off(s[0], s[1]));
+    }
+  });
+  out.push(...bytes('aotab', ao, 36));
+  // 模様の uv: 模様 × 裏返し 4 × (TL, TR, BL, BR)。TL に CLUT（(320 + 模様 × 16, 240)）、TR にページ（10）
+  const uv = [];
+  tex.forEach((_, ti) => { for (let v = 0; v < 4; v++) {
+    const u0 = ti * 16, ul = v & 1 ? u0 + 15 : u0, ur = v & 1 ? u0 : u0 + 15, vt = v & 2 ? 15 : 0, vb = v & 2 ? 0 : 15;
+    uv.push((ul | (vt << 8) | ((((240 << 6) | (20 + ti)) << 16))) >>> 0, (ur | (vt << 8) | (10 << 16)) >>> 0, ul | (vb << 8), ur | (vb << 8));
+  } });
+  out.push('.align 4', ...words('uvtab', uv));
+  out.push(...bytes('aolut', [0, 1, 1, 3, 1, 2, 2, 3], 8));   // 印 → 段（横とたての両方なら 3）
   out.push(...bytes('font', Object.values(FONT).flatMap((g) => g.map((r) => parseInt(r, 2))), 14));
   out.push('.align 4', ...bytes('world0', [...isl.world], 32));
   out.push('.align 4');

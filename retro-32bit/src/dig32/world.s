@@ -1,6 +1,9 @@
 ; ---- 島のブロックと、外に出ている面の一覧（main.s のつづき） ----
-;   世界は 8×8 の柱（チャンク）16 本。チャンク c = cz×4 + cx。面の一覧は faces + c×MAXF×4 に、数は fcount + c×4
-;   面の語: x（5）| z（5）<< 5 | y（4）<< 10 | 向き（3）<< 14 | ブロック（5）<< 17
+;   世界は 8×8 の柱（チャンク）16 本。チャンク c = cz×4 + cx。面の一覧は向きごとに faces + (c×6 + 向き)×DIRF×4 に、数は fcount + (c×6 + 向き)×4
+;   （向きごとに分けておくと、描くときにチャンクまるごと裏になる向きを一度に飛ばせる）
+;   面の語: x（5）| z（5）<< 5 | y（4）<< 10 | 向き（3）<< 14 | ブロック（5）<< 17 | すみの陰（2 × 4）<< 22 | 模様の裏返し（2）<< 30
+;   裏返し: (x ^ z×3 ^ y×5) の下 2 ビット（1 = 左右・2 = 上下。上下は上・下の面だけ）。同じ模様が網の目に見えないように
+;   すみの陰: 面の前のます（ブロック＋向き）から見て、すみの両どなりとななめの 3 つがふさがっている数（両どなりなら 3）。水はふさがない
 ;   出す面: となりが空気のときだけ（水のとなりも出さない＝水の上の面は不透明なので、水の下は見えない）。水は上の面だけ
 
 ; a0 = ブロックの番号 → そのチャンク（ふちなら、となりのチャンクも）に作りなおしの印
@@ -131,17 +134,26 @@ buildchunk:
   sw s3, 16(sp)
   sw s4, 20(sp)
   sw s5, 24(sp)
-  sll t0, a0, 12             ; × MAXF × 4（1024 × 4）
+  li t0, 6 * DIRF * 4
+  mult a0, t0
+  mflo t0
   la s0, faces
-  addu s0, s0, t0            ; 書く場所
-  sll t0, a0, 2
+  addu s0, s0, t0            ; このチャンクの面の一覧（向き 0 のはじめ）
+  sll t0, a0, 3
+  sll t1, a0, 4
+  addu t0, t0, t1            ; × 24
   la t1, fcount
-  addu s5, t1, t0            ; 数を書く場所
+  addu s5, t1, t0            ; 向きごとの数（6 つ）
+  sw zero, 0(s5)
+  sw zero, 4(s5)
+  sw zero, 8(s5)
+  sw zero, 12(s5)
+  sw zero, 16(s5)
+  sw zero, 20(s5)
   andi t0, a0, 3
   sll s4, t0, 3              ; x のはじめ（cx × 8）
   srl t0, a0, 2
   sll t9, t0, 3              ; z のはじめ（cz × 8）
-  li s1, 0                   ; 数
   la t8, world
   li s3, 0                   ; y
 @y:
@@ -268,7 +280,6 @@ buildchunk:
   slti t0, s3, H
   bnez t0, @y
   nop
-  sw s1, 0(s5)
   lw ra, 0(sp)
   lw s0, 4(sp)
   lw s1, 8(sp)
@@ -278,15 +289,89 @@ buildchunk:
   lw s5, 24(sp)
   jr ra
   addiu sp, sp, 28
-@emit:                        ; a2 = 向き → 面の語を足す（MAXF まで）
-  slti t5, s1, MAXF
-  beqz t5, @full
-  nop
+@emit:                        ; a2 = 向き → 面の語を、その向きの一覧に足す（DIRF まで）。t1・t3・t8・t9・a1・s* はこわさない
   sll t5, a2, 14
   or t5, t5, t3
-  sw t5, 0(s0)
-  addiu s0, s0, 4
-  addiu s1, s1, 1
+  la a3, aotab               ; 向き × 4 すみ × 3 つ × (dx, dy, dz)
+  sll t4, a2, 5
+  sll t6, a2, 2
+  addu t4, t4, t6            ; × 36
+  addu a3, a3, t4
+  li v1, 0                   ; すみ
+@cor:
+  li v0, 0                   ; ふさがっている印（1 = 横・2 = たて・4 = ななめ）
+  li a0, 1
+@smp:
+  lb t4, 0(a3)
+  lb t6, 1(a3)
+  lb t7, 2(a3)
+  addiu a3, a3, 3
+  addu t4, t4, a1            ; x
+  addu t6, t6, s3            ; y
+  addu t7, t7, s2            ; z
+  sltiu t2, t4, 32           ; 島の外は空気
+  beqz t2, @air
+  sltiu t2, t7, 32
+  beqz t2, @air
+  sltiu t2, t6, 16
+  beqz t2, @air
+  nop
+  sll t6, t6, 10
+  sll t7, t7, 5
+  addu t6, t6, t7
+  addu t6, t6, t4
+  addu t6, t6, t8
+  lbu t6, 0(t6)
+  li t7, 9
+  beqz t6, @air
+  nop
+  beq t6, t7, @air
+  nop
+  or v0, v0, a0
+@air:
+  sll a0, a0, 1
+  slti t2, a0, 8
+  bnez t2, @smp
+  nop
+  la t4, aolut
+  addu t4, t4, v0
+  lbu t4, 0(t4)              ; 陰の段 0〜3
+  sll t6, v1, 1
+  addiu t6, t6, 22
+  sllv t4, t4, t6
+  or t5, t5, t4
+  addiu v1, v1, 1
+  slti t2, v1, 4
+  bnez t2, @cor
+  nop
+  sll t6, s2, 1
+  addu t6, t6, s2
+  xor t6, t6, a1
+  sll t7, s3, 2
+  addu t7, t7, s3
+  xor t6, t6, t7
+  andi t6, t6, 3
+  addiu t7, a2, -2
+  sltiu t7, t7, 2
+  bnez t7, @vok
+  nop
+  andi t6, t6, 1
+@vok:
+  sll t6, t6, 30
+  or t5, t5, t6
+  sll t4, a2, 2
+  addu t4, s5, t4            ; この向きの数
+  lw t6, 0(t4)
+  nop
+  slti t7, t6, DIRF
+  beqz t7, @full
+  sll t7, a2, 10             ; 向き × DIRF × 4
+  addu t7, t7, s0
+  sll a0, t6, 2
+  addu t7, t7, a0
+  sw t5, 0(t7)
+  addiu t6, t6, 1
+  sw t6, 0(t4)
 @full:
   jr ra
   nop
