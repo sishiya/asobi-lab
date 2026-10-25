@@ -5,8 +5,8 @@ import { createInput, bindTouch } from './input.js';
 
 // 棚のソフト（あそびラボのオリジナルだけ。PLAN.md 0章）
 const DISCS = [
-  { id: 'glow-belly', name: TX('ムネエソの腹あかり', 'Glow Belly'), file: 'discs/glow-belly.exe?v=3' },
-  { id: 'cube', name: TX('光るキューブ', 'Lit Cube'), file: 'discs/cube.exe?v=2' },
+  { id: 'glow-belly', name: TX('ムネエソの腹あかり', 'Glow Belly'), file: 'discs/glow-belly.exe?v=4' },
+  { id: 'cube', name: TX('光るキューブ', 'Lit Cube'), file: 'discs/cube.exe?v=4' },
   { id: 'spin-tri', name: TX('回る三角形', 'Spinning Triangle'), file: 'discs/spin-tri.exe?v=1' },
 ];
 

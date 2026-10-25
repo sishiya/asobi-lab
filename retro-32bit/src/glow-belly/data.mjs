@@ -23,7 +23,8 @@ const cost = (L) => (L === 0 ? 0 : Math.min(4000, Math.round(8 * 10 ** ((L - 160
 
 // 明るさ（0〜255）→ 水の色。深い所は紺の黒、明るい所は青緑
 // 中深層（200〜1000m、たそがれの海）らしく、まん中の段でも暗い青に
-const PAL = [[0, [0, 1, 4]], [40, [2, 6, 18]], [100, [5, 22, 52]], [160, [12, 52, 100]], [210, [30, 96, 150]], [255, [70, 150, 196]]];
+// ART.md: 昼の 150m #1f5f8f・480m（段 140）#0b2a52・700m（段 67）#050c1e
+const PAL = [[0, [0, 1, 4]], [40, [2, 5, 16]], [67, [5, 12, 30]], [140, [11, 42, 82]], [200, [22, 72, 118]], [255, [31, 95, 143]]];
 function water(I) {
   for (let i = 0; i + 1 < PAL.length; i++) if (I <= PAL[i + 1][0]) {
     const t = (I - PAL[i][0]) / (PAL[i + 1][0] - PAL[i][0]);
@@ -32,53 +33,66 @@ function water(I) {
   return PAL.at(-1)[1];
 }
 
-// ムネエソ（横から見ると腹が深くふくらんだ、銀色の手斧の形）。x＝頭が +、y＝下が +、z＝厚み
-const OUTLINE = [
-  [48, -2], [44, 6], [36, 18], [24, 30], [6, 36], [-12, 30], [-24, 16], [-32, 6],
-  [-32, -6], [-20, -14], [-12, -24], [0, -17], [16, -16], [36, -12],
-];
-const CENTER = [6, 6], THICK = 12; // 本物はもっとうすいが、下から見た影が読めるように少し厚く
-const TAIL = [[-32, 6], [-48, 14], [-42, 0], [-48, -14], [-32, -6]];
-const EYE = [[30, -8], [37, -5], [33, 1], [26, -2]];
-const PHOTO = [[36, 19], [29, 26], [21, 31], [13, 34], [5, 35], [-3, 34], [-11, 30], [-18, 24]];
+// ムネエソ（ART.md: 尾をのぞく高さ ≒ 長さ × 0.9 の手斧の形、腹はとがったキール、尾のつけねは高さの 1/5、上向きの目）。
+//   x＝頭が +、y＝下が +、z＝厚み。体は 7 本の輪切り × 4 段（背・上の横腹・銀の横腹・腹のキール）を帯でつなぐ（扇にしない）。
+//   段ごとの色をグーローでぬる: 背 #1c2a3a → 横腹 #5a6e88 → 銀 #c8d4e0 → 腹 #7088a0
+const COLS = [[46, -3, 6, 2], [36, -11, 32, 6], [22, -15, 52, 9], [8, -16, 56, 11], [-8, -15, 40, 10], [-20, -11, 20, 6], [-30, -5, 5, 2]]; // x・背・腹・厚み（背はまっすぐ、腹は前寄りに深い刃）
+const ROWS = [[0, 0, [16, 24, 36]], [0.18, 0.75, [26, 38, 54]], [0.36, 1, [110, 128, 152]], [0.66, 0.85, [200, 212, 224]], [1, 0, [112, 136, 160]]]; // 高さの割合・厚みの割合・色（上の 2 段＝背の暗い帯）
+const PHOTO_N = 11;
 
 function fishModel() {
-  const v = [], tris = [];
-  const vid = (p) => { const k = p.join(); let i = v.findIndex((q) => q.join() === k); if (i < 0) { i = v.length; v.push(p); } return i; };
+  const v = [], col = [], tris = [];
+  const vid = (p, c) => { const k = p.join(); let i = v.findIndex((q) => q.join() === k); if (i < 0) { i = v.length; v.push(p); col.push(c); } return i; };
   const sub = (a, b) => a.map((c, i) => c - b[i]);
   const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
   // side = -1 は手前（カメラの側, z が −）、+1 は奥。手前は画面で時計回り（GPU の裏の判定と同じ向き）
-  const tri = (a, b, c, side, col) => {
+  const tri = (a, b, c, side) => {
     const P = [a, b, c].map((p) => v[p]);
     const c2 = (P[1][0] - P[0][0]) * (P[2][1] - P[0][1]) - (P[1][1] - P[0][1]) * (P[2][0] - P[0][0]);
+    if (c2 === 0) return;
     if ((side < 0 && c2 < 0) || (side > 0 && c2 > 0)) [b, c] = [c, b];
     const Q = [a, b, c].map((p) => v[p]);
     let n = cross(sub(Q[1], Q[0]), sub(Q[2], Q[0]));
     if (n[2] * side < 0) n = n.map((x) => -x);
     const len = Math.hypot(...n) || 1;
-    tris.push({ i: [a, b, c], n: n.map((x) => Math.round(x / len * 4096)), col });
+    tris.push({ i: [a, b, c], n: n.map((x) => Math.round(x / len * 4096)) });
   };
+  const pt = (c, r, side) => { const [x, t, b, w] = COLS[c], [f, zf, rgb] = ROWS[r]; return vid([x, Math.round(t + (b - t) * f), Math.round(side * w * zf)], rgb); };
   for (const side of [-1, 1]) {
-    const c = vid([CENTER[0], CENTER[1], side * THICK]);
-    for (let k = 0; k < OUTLINE.length; k++) {
-      const p = OUTLINE[k], q = OUTLINE[(k + 1) % OUTLINE.length];
-      if (p[0] === -32 && q[0] === -32) continue; // 尾のつけ根は尾びれでふさぐ
-      const my = (p[1] + q[1]) / 2;
-      // 背は青みの灰、わきは銀、腹は白っぽい銀
-      const col = my < -8 ? bgr(70, 86, 112) : my > 16 ? bgr(214, 222, 232) : bgr(176, 186, 204);
-      tri(vid([p[0], p[1], 0]), vid([q[0], q[1], 0]), c, side, col);
+    for (let c = 0; c + 1 < COLS.length; c++) for (let r = 0; r + 1 < ROWS.length; r++) {
+      const A = pt(c, r, side), B = pt(c + 1, r, side), C = pt(c, r + 1, side), D = pt(c + 1, r + 1, side);
+      tri(A, B, C, side); tri(B, D, C, side);
     }
-    // 尾びれ（うすい板。両側に1枚ずつ）
-    const t = TAIL.map(([x, y]) => vid([x, y, side * 1]));
-    tri(t[0], t[1], t[2], side, bgr(120, 140, 170));
-    tri(t[2], t[3], t[4], side, bgr(120, 140, 170));
-    tri(t[0], t[2], t[4], side, bgr(120, 140, 170));
-    // 大きな目（上を向いた目。黒く光る）
-    const e = EYE.map(([x, y]) => vid([x, y, side * (THICK - 2)]));
-    tri(e[0], e[1], e[2], side, bgr(18, 20, 30));
-    tri(e[0], e[2], e[3], side, bgr(18, 20, 30));
+    // 背びれ
+    tri(vid([8, -16, 0], ROWS[0][2]), vid([-8, -15, 0], ROWS[0][2]), vid([-12, -28, side], [60, 76, 96]), side);
+    // 尾びれ（すけた灰青。先が明るい）
+    const tc = [74, 92, 116], tl = [136, 152, 176];
+    const t0 = vid([-30, -5, side], tc), t1 = vid([-30, 5, side], tc), tt = vid([-46, -17, side], tl), tm = vid([-40, 0, side], tc), tb = vid([-46, 17, side], tl);
+    tri(t0, tt, tm, side); tri(t0, tm, t1, side); tri(t1, tm, tb, side);
+    // 大きな上向きの目（頭の 1/4）: 銀の輪の上に、上前を向いた黒いひとみ
+    const ez = side * 6;
+    //   ひとみを先に入れる: 並べ表の同じ箱では、あとから入れた面が先に描かれる（＝ひとみが輪の上に描かれる）
+    const pz = side * 7;
+    const p0 = vid([28, -12, pz], [6, 8, 12]), p1 = vid([33, -12, pz], [6, 8, 12]), p2 = vid([28, -7, pz], [10, 12, 18]), p3 = vid([33, -7, pz], [10, 12, 18]);
+    tri(p0, p1, p2, side); tri(p1, p3, p2, side);
+    const r0 = vid([24, -13, ez], [176, 190, 206]), r1 = vid([35, -13, ez], [210, 222, 234]), r2 = vid([25, -3, ez], [120, 136, 156]), r3 = vid([34, -3, ez], [150, 166, 184]);
+    tri(r0, r1, r2, side); tri(r1, r3, r2, side);
+    // 口（上を向いたななめの線）
+    tri(vid([46, -2, side * 2], [10, 14, 20]), vid([40, -5, side * 4], [10, 14, 20]), vid([40, -3, side * 4], [10, 14, 20]), side);
   }
-  return { v, tris };
+  return { v, col, tris };
+}
+// 腹の発光器: キールの少し上に 11 こ（手前の面）
+function photophores() {
+  const out = [];
+  for (let k = 0; k < PHOTO_N; k++) {
+    const x = 34 - k * 5.6;
+    let c = 0; while (c + 1 < COLS.length && COLS[c + 1][0] > x) c++;
+    const [x0, , b0, w0] = COLS[c], [x1, , b1, w1] = COLS[Math.min(c + 1, COLS.length - 1)];
+    const t = x1 === x0 ? 0 : (x - x0) / (x1 - x0);
+    out.push([Math.round(x), Math.round(b0 + (b1 - b0) * t - 5), -Math.round((w0 + (w1 - w0) * t) * 0.45)]); // ふちから内側に
+  }
+  return out;
 }
 
 // 5×7 のドット字（上の行から。5 ビットの左が 16）
@@ -92,8 +106,9 @@ const FONT = {
   S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'], T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
   R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'], m: ['00000', '00000', '11010', '10101', '10101', '10101', '10101'],
   '^': ['00100', '01110', '11111', '00000', '00000', '00000', '00000'], v: ['00000', '00000', '00000', '00000', '11111', '01110', '00100'],
+  '+': ['00000', '00100', '00100', '11111', '00100', '00100', '00000'], '-': ['00000', '00000', '00000', '11111', '00000', '00000', '00000'],
 };
-export const GLYPHS = '0123456789ABSTRm^v';
+export const GLYPHS = '0123456789ABSTRm^v+-';
 
 export function gen() {
   const out = [];
@@ -107,11 +122,13 @@ export function gen() {
   const spawn = (lo, hi) => Array.from({ length: 64 }, () => Math.round(lo + (hi - lo) * rnd() ** 1.6));
   // 深さの 1 = 4m。昼は 200〜560m・夜は 100〜320m（プランクトンも昼は深く夜は浅い）
   out.push(...bytes('spawnday', spawn(50, 140)), ...bytes('spawnnight', spawn(25, 80)));
-  const f = fishModel();
-  out.push(`NFTRI = ${f.tris.length}`, `NPHOTO = ${PHOTO.length}`);
+  const f = fishModel(), ph = photophores();
+  if (f.v.length > 255) throw new Error('頂点が多すぎます');
+  out.push(`NFTRI = ${f.tris.length}`, `NPHOTO = ${ph.length}`);
   out.push('.align 4', 'fvtx:', ...f.v.map((p) => `  .half ${[...p, 0].map((x) => x & 0xffff).join(', ')}`));
-  out.push('ftri:', ...f.tris.map((t) => `  .byte ${t.i.join(', ')}, 0\n  .half ${[...t.n, 0].map((x) => x & 0xffff).join(', ')}\n  .word 0x${(((0x20 << 24) | t.col) >>> 0).toString(16)}`));
-  out.push('photo:', ...PHOTO.map(([x, y]) => `  .half ${x & 0xffff}, ${y & 0xffff}, ${-(THICK - 4) & 0xffff}, 0`));
+  out.push(...words('fcol', f.col.map((c) => bgr(...c))));
+  out.push('ftri:', ...f.tris.map((t) => `  .byte ${t.i.join(', ')}, 0\n  .half ${[...t.n, 0].map((x) => x & 0xffff).join(', ')}\n  .word 0`));
+  out.push('photo:', ...ph.map((p) => `  .half ${[...p, 0].map((x) => x & 0xffff).join(', ')}`));
   out.push(...bytes('font', GLYPHS.split('').flatMap((c) => FONT[c].map((r) => parseInt(r, 2)))));
   out.push('.align 4');
   return out.join('\n') + '\n';

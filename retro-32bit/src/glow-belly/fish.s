@@ -1,4 +1,5 @@
 ; ---- ムネエソ: 行列（GTE でかけ算）・形を GTE で投げて並べ表へ・腹の発光器（main.s のつづき） ----
+;   ぬりは帯のグーロー（ART.md）: 面の向きと光の向きの内積（GTE）→ 光の強さ f → 頂点の色 × f（CPU）
 
 ; GTE の決まった設定（はじめに1回）
 fishinit:
@@ -9,26 +10,17 @@ fishinit:
   li t0, 1365
   ctc2 t0, 29                ; ZSF3 = 1/3
   ; 光の向き（光のほうへ: 上と少し手前）。LLM の 1 行目だけ
-  li t0, 0xf1ec0000          ; L11 = 0, L12 = −3604
+  li t0, 0xf6660000          ; L11 = 0, L12 = −2458（上から）
   ctc2 t0, 8
-  li t0, 0x0000f87b          ; L13 = −1925
+  li t0, 0x0000f333          ; L13 = −3277（手前から。横腹の銀が光る）
   ctc2 t0, 9
   ctc2 zero, 10
   ctc2 zero, 11
   ctc2 zero, 12
-  ctc2 zero, 17
-  ctc2 zero, 18
-  ctc2 zero, 20
-  li t0, 520                 ; まわりの光（青み）
-  ctc2 t0, 13
-  li t0, 700
-  ctc2 t0, 14
-  li t0, 1000
-  ctc2 t0, 15
   jr ra
   nop
 
-; a0 = 角度、a1 = 出す所（3×3 の 16 ビット）。sincos は t0 = sin・t1 = cos
+; a0 = 角度 → t0 = sin・t1 = cos
 sincos:
   la t2, sintab
   andi t0, a0, 255
@@ -42,7 +34,7 @@ sincos:
   lw t1, 0(t1)
   jr ra
   nop
-; Rx: [1 0 0; 0 c −s; 0 s c]
+; Rx: [1 0 0; 0 c −s; 0 s c]（a0 = 角度、a1 = 出す所: 3×3 の 16 ビット）
 rotx:
   move t9, ra
   jal sincos
@@ -154,14 +146,40 @@ matmul:
   jr t9
   nop
 
-; ムネエソを描く。a0 = 1 なら見上げたシルエット（腹の光の明るさの1色）
+; a0 = 色（0x00BBGGRR）、a1 = 強さ（4096 で 1）→ v0 = 色 × 強さ（255 で止める）。t5〜t7 をこわす
+shade:
+  li v0, 0
+  li t7, 0
+@ch:
+  srlv t5, a0, t7
+  andi t5, t5, 255
+  mult t5, a1
+  mflo t5
+  sra t5, t5, 12
+  slti t6, t5, 256
+  bnez t6, @c1
+  nop
+  li t5, 255
+@c1:
+  sllv t5, t5, t7
+  or v0, v0, t5
+  addiu t7, t7, 8
+  slti t6, t7, 24
+  bnez t6, @ch
+  nop
+  jr ra
+  nop
+
+; ムネエソを描く。a0 = 1 なら見上げたシルエット（腹の光と上の光の差の色）
 fishdraw:
-  addiu sp, sp, -24
+  addiu sp, sp, -32
   sw ra, 0(sp)
   sw s0, 4(sp)
   sw s1, 8(sp)
   sw s2, 12(sp)
   sw s3, 16(sp)
+  sw s4, 20(sp)
+  sw s5, 24(sp)
   move s3, a0
   ; 尾をふる（y のまわり）× 上下の向き（z のまわり）× カメラのたおし（x のまわり）
   lw t0, V_T(gp)
@@ -202,34 +220,38 @@ fishdraw:
   la a0, mat_b
   jal setrt
   nop
-  ; ずらす: 横の画面では x = −56（画面で −40）、見上げるとまん中へ
+  ; ずらす: 横の画面では x = −56（画面で −40）、見上げる（LOOKUP）とまん中へ。タイトルでは寄る
   lw t0, V_TH(gp)
-  li t1, 64
+  li t1, LOOKUP
   subu t1, t1, t0
-  li t2, -56
+  bgez t1, @tx
+  nop
+  li t1, 0
+@tx:
+  li t2, -75                 ; −56/48 ≒ −75/64
   mult t1, t2
   mflo t1
   sra t1, t1, 6
+  li t0, 420
+  lw t2, V_STATE(gp)
+  li t3, 1
+  beq t2, t3, @far
+  nop
+  li t0, 290                 ; タイトル・おわり: 寄って大きく、まん中に
+  li t1, 0
+@far:
   ctc2 t1, 5
   ctc2 zero, 6
-  li t0, 420
   ctc2 t0, 7
-  ; 光の色 = 魚の所の光の明るさ（深いほど暗い銀）
+  ; 光の強さ: 魚の所の光が強いほど銀が明るい
   lw t0, V_I(gp)
   nop
-  sll t1, t0, 4
-  sll t0, t0, 2
-  addu t0, t0, t1            ; ×20
-  addiu t0, t0, 1000
-  srl t1, t0, 1
-  srl t2, t0, 3
-  addu t1, t1, t2            ; R ×0.62
-  ctc2 t1, 16                ; LR1（LR2 = 0）
-  srl t1, t0, 3
-  subu t1, t0, t1            ; G ×0.88
-  sll t1, t1, 16
-  ctc2 t1, 17                ; LG1（LR3 = 0）
-  ctc2 t0, 19                ; LB1
+  sll t1, t0, 4              ; ×16
+  addiu t1, t1, 1600
+  sw t1, V_KL(gp)
+  sll t1, t0, 2              ; ×4
+  addiu t1, t1, 700
+  sw t1, V_AMB(gp)
   ; 並べ表を空に
   la t0, ot + (OTN - 1) * 4
   sw t0, D6MADR(s7)
@@ -237,20 +259,31 @@ fishdraw:
   sw t0, D6BCR(s7)
   li t0, 0x11000002
   sw t0, D6CHCR(s7)
-  ; シルエットの色: 上の光の円（段 200）からの差を 2 倍に（腹の光 L − 上からの光 I）
-  lw a0, V_L16(gp)
-  lw t0, V_I(gp)
-  srl a0, a0, 4
-  subu a0, a0, t0
-  sll a0, a0, 1
-  addiu a0, a0, 200
-  jal palc
+  ; シルエットの色: 光の円の色 × k/16（k = 16 + (L − I)/2、0〜40）。合っていれば、魚のいるあたりの円の明るさとそろう
+  lw t0, V_L16(gp)
+  lw t1, V_I(gp)
+  srl t0, t0, 4
+  subu t0, t0, t1
+  sra t0, t0, 1
+  addiu t0, t0, 16
+  bgez t0, @k1
   nop
-  li t0, 0x20000000
+  li t0, 0
+@k1:
+  slti t1, t0, 41
+  bnez t1, @k2
+  nop
+  li t0, 40
+@k2:
+  sll a1, t0, 8              ; k × 256 = 4096 × k/16
+  lw a0, V_BASE(gp)
+  jal shade
+  nop
+  li t0, 0x30000000
   or s2, v0, t0
   la s0, ftri
   la s1, pkts
-  li t8, NFTRI
+  li s5, NFTRI
 @tri:
   la t9, fvtx
   lbu t0, 0(s0)
@@ -277,29 +310,64 @@ fishdraw:
   blez t0, @skip
   nop
   swc2 12, 8(s1)
-  swc2 13, 12(s1)
-  swc2 14, 16(s1)
+  swc2 13, 16(s1)
+  swc2 14, 24(s1)
   cop2 0x158002d             ; AVSZ3
-  mfc2 t3, 7
+  mfc2 s4, 7
   beqz s3, @lit
   nop
+  sw s2, 4(s1)               ; シルエット（3 点とも同じ色）
+  sw s2, 12(s1)
   b @col2
-  sw s2, 4(s1)               ; シルエット
+  sw s2, 20(s1)
 @lit:
   lwc2 0, 4(s0)
   lwc2 1, 8(s0)
-  lw t0, 12(s0)
   nop
-  mtc2 t0, 6
   cop2 0x0086012             ; MVMVA: RT × 面の向き
   nop
-  cop2 0x00be412             ; MVMVA: LLM × IR（lm）
+  cop2 0x00be412             ; MVMVA: LLM × IR（lm）→ IR1 = 光の向きとの内積
   nop
-  cop2 0x138041c             ; CC
+  mfc2 t0, 9
+  lw t1, V_KL(gp)
   nop
-  swc2 22, 4(s1)
+  mult t0, t1
+  mflo t0
+  sra t0, t0, 12
+  lw t1, V_AMB(gp)
+  nop
+  addu a1, t0, t1            ; 光の強さ f
+  la t9, fcol
+  lbu t0, 0(s0)
+  nop
+  sll t0, t0, 2
+  addu t0, t9, t0
+  lw a0, 0(t0)
+  jal shade
+  nop
+  li t0, 0x30000000
+  or v0, v0, t0
+  sw v0, 4(s1)
+  la t9, fcol
+  lbu t0, 1(s0)
+  nop
+  sll t0, t0, 2
+  addu t0, t9, t0
+  lw a0, 0(t0)
+  jal shade
+  nop
+  sw v0, 12(s1)
+  la t9, fcol
+  lbu t0, 2(s0)
+  nop
+  sll t0, t0, 2
+  addu t0, t9, t0
+  lw a0, 0(t0)
+  jal shade
+  nop
+  sw v0, 20(s1)
 @col2:
-  srl t3, t3, 2
+  srl t3, s4, 2
   slti t1, t3, OTN
   bnez t1, @ok
   nop
@@ -311,15 +379,15 @@ fishdraw:
   lw t1, 0(t3)
   li t2, 0x00ffffff
   and t1, t1, t2
-  lui t4, 0x0400
+  lui t4, 0x0600
   or t1, t1, t4
   sw t1, 0(s1)
   and t1, s1, t2
   sw t1, 0(t3)
-  addiu s1, s1, 20
+  addiu s1, s1, 28
 @skip:
-  addiu t8, t8, -1
-  bnez t8, @tri
+  addiu s5, s5, -1
+  bnez s5, @tri
   addiu s0, s0, 16
   ; 並べ表を GPU へ（奥から）
   la t0, ot + (OTN - 1) * 4
@@ -338,21 +406,23 @@ fishdraw:
   lw s1, 8(sp)
   lw s2, 12(sp)
   lw s3, 16(sp)
+  lw s4, 20(sp)
+  lw s5, 24(sp)
   jr ra
-  addiu sp, sp, 24
+  addiu sp, sp, 32
 
-; 腹の発光器（横の画面だけ）: 明るさ＝腹の光の段。消えているときは暗い点
+; 腹の発光器: 明るさ＝腹の光の段。消えているときは、くぼみ #23384a。光ると #7fe8ff へ、にじみ 5×5。
+;   横の画面で光っていると、腹の下に淡い光を落とす
 photodraw:
   lw t9, V_L16(gp)
   nop
   srl t9, t9, 4              ; 0〜255
-  ; 色: 青緑（R = L/4・G = L×7/8・B = L）
-  srl t0, t9, 2
-  srl t1, t9, 3
-  subu t1, t9, t1
+  srl t0, t9, 1              ; R = L/2
+  srl t1, t9, 4
+  subu t1, t9, t1            ; G = L × 15/16
   sll t1, t1, 8
   or t0, t0, t1
-  sll t1, t9, 16
+  sll t1, t9, 16             ; B = L
   or t8, t0, t1
   la t6, photo
   li t7, NPHOTO
@@ -367,10 +437,43 @@ photodraw:
   sra t1, t0, 16             ; y
   sll t0, t0, 16
   sra t0, t0, 16             ; x
-  beqz t9, @dark
+  slti t2, t9, 8
+  bnez t2, @dark
   nop
-  li t2, 0x62000000          ; にじみ 3×3（加算）
+  srl t2, t8, 1              ; にじみ 5×5（加算・色の半分）
+  li t3, 0x007f7f7f
+  and t2, t2, t3
+  li t3, 0x62000000
+  or t2, t2, t3
+  sw t2, GP0(s7)
+  addiu t3, t1, -2
+  sll t3, t3, 16
+  addiu t4, t0, -2
+  andi t4, t4, 0xffff
+  or t3, t3, t4
+  sw t3, GP0(s7)
+  li t3, 0x00050005
+  sw t3, GP0(s7)
+  li t2, 0x62000000          ; しん 2×2（加算・色そのまま）
   or t2, t2, t8
+  lw t3, V_TH(gp)            ; 見上げた画面で強すぎる（L − I > 12）ときは、白くまたたく
+  nop
+  slti t3, t3, 32
+  bnez t3, @tw
+  nop
+  lw t3, V_I(gp)
+  nop
+  subu t3, t9, t3
+  slti t3, t3, TOL + 1
+  bnez t3, @tw
+  nop
+  lw t3, V_T(gp)
+  nop
+  andi t3, t3, 8
+  beqz t3, @tw
+  nop
+  li t2, 0x62ffffff
+@tw:
   sw t2, GP0(s7)
   addiu t3, t1, -1
   sll t3, t3, 16
@@ -378,36 +481,60 @@ photodraw:
   andi t4, t4, 0xffff
   or t3, t3, t4
   sw t3, GP0(s7)
-  li t3, 0x00030003
+  li t3, 0x00020002
   sw t3, GP0(s7)
-  li t2, 0x68000000          ; まん中の 1 点（白っぽく）
-  srl t3, t9, 1
-  addiu t3, t3, 0x60
-  sll t4, t3, 8
-  or t4, t4, t3
-  sll t5, t3, 16
-  or t4, t4, t5
-  or t2, t2, t4
-  sw t2, GP0(s7)
   b @phn
   nop
 @dark:
-  li t2, 0x68101818          ; 消えた発光器
+  li t2, 0x6078604a          ; 消えた発光器: くぼみ #4a6078（2×2。縁なしで銀にうもれる）
   sw t2, GP0(s7)
-@phn:
   sll t3, t1, 16
   andi t4, t0, 0xffff
   or t3, t3, t4
   sw t3, GP0(s7)
+  li t3, 0x00020002
+  sw t3, GP0(s7)
+@phn:
   addiu t7, t7, -1
   bnez t7, @ph
   addiu t6, t6, 8
+  ; 腹の下に落ちる淡い光（横の画面・光っているとき）: 上が光の色の 1/4、下が黒（加算なので消える）のグーロー
+  lw t0, V_TH(gp)
+  nop
+  slti t0, t0, 32
+  beqz t0, @nopool
+  nop
+  slti t0, t9, 8
+  bnez t0, @nopool
+  nop
+  lw t1, V_STATE(gp)         ; 遊ぶ画面だけ（タイトルとおわりは魚がまん中にいる）
+  li t2, 1
+  bne t1, t2, @nopool
+  nop
+  srl t0, t8, 2
+  li t1, 0x003f3f3f
+  and t0, t0, t1
+  li t1, 0x3a000000
+  or t0, t0, t1
+  sw t0, GP0(s7)
+  li t0, 0x0022ffb4          ; (−76,34)
+  sw t0, GP0(s7)
+  sw zero, GP0(s7)
+  li t0, 0x0022fffc          ; (−4,34)
+  sw t0, GP0(s7)
+  sw zero, GP0(s7)
+  li t0, 0x0048ffa0          ; (−96,72)
+  sw t0, GP0(s7)
+  sw zero, GP0(s7)
+  li t0, 0x00480010          ; (16,72)
+  sw t0, GP0(s7)
+@nopool:
   jr ra
   nop
 
 ; ---- 変数と作業の場所 ----
 .align 4
-vars:   .space 128
+vars:   .space 192
 plk:    .space NPLK * 12
 snowp:  .space NSNOW * 8
 numbuf: .space 8
@@ -415,4 +542,4 @@ mat_a:  .space 20
 mat_b:  .space 20
 mat_c:  .space 20
 ot:     .space OTN * 4
-pkts:   .space 64 * 20
+pkts:   .space 100 * 28

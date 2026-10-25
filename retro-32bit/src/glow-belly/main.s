@@ -58,9 +58,15 @@ V_ITOP  = 100   ; 画面の上のふちの光
 V_IBOT  = 104   ; 下のふち
 V_BLINK = 108
 V_TILT  = 112
-V_DIM   = 116   ; 字の色を暗くする（タイトル）
+V_DIM   = 116   ; 弧の色
+V_KL    = 120   ; 魚の光の強さ（面の向き × これ）
+V_AMB   = 124   ; 魚のまわりの光
+V_BASE  = 128   ; 見上げた光の円の色（昼は青・夜は寒い青）
+V_RIM   = 132   ; blob のふちの色
+V_CMD   = 136   ; blob の命令（0x32 加算・0x30 不透明）
 
 DIE_SUS = 160
+LOOKUP  = 48    ; 見上げるカメラのたおし（64 で真下。48 ≒ 67° でななめ下から＝魚の形と腹の点が見える）
 TOL     = 12    ; 合っている幅（段。12 段 ≒ 3 倍）
 FD_MIN  = 25 * 256   ; 100m
 FD_MAX  = 175 * 256  ; 700m
@@ -90,6 +96,8 @@ start:
   sw t0, V_RND(gp)
   li t0, 2
   sw t0, V_SCL(gp)
+  li t0, 0x32
+  sw t0, V_CMD(gp)
   jal fishinit
   nop
   jal snowinit
@@ -138,6 +146,16 @@ frame:
   addiu t0, t0, 1            ; 時刻だけ進めて、泳いで見せる（光は午後のまま）
   andi t0, t0, 1023
   sw t0, V_T(gp)
+  la t1, sintab              ; 腹の光: 4 秒で光って消える
+  sll t2, t0, 1
+  andi t2, t2, 255
+  sll t2, t2, 2
+  addu t1, t1, t2
+  lw t1, 0(t1)
+  nop
+  addiu t1, t1, 4096
+  srl t1, t1, 2              ; 0〜2048
+  sw t1, V_L16(gp)
   jal light
   nop
   jal plankton
@@ -212,8 +230,8 @@ update:
   slti t1, t0, DAY
   bnez t1, @day
   nop
-  li t0, 2
-  sw t0, V_STATE(gp)
+  jal finish
+  nop
 @day:
   lw t0, V_PST(gp)
   li t1, 4
@@ -314,14 +332,14 @@ update:
   slti t3, t1, 30            ; 上がりきる 0.5 秒前から回りこむ
   beqz t3, @c2
   nop
-  li t2, 64
+  li t2, LOOKUP
   b @c2
   nop
 @c1:
   li t3, 2
   bne t0, t3, @c2
   nop
-  li t2, 64
+  li t2, LOOKUP
 @c2:
   lw t0, V_TH(gp)
   nop
@@ -435,11 +453,6 @@ predator:
   nop
   addiu t2, t2, -1
   sw t2, V_LIVES(gp)
-  bgtz t2, @alive
-  nop
-  li t3, 2
-  sw t3, V_STATE(gp)
-@alive:
   sw zero, V_PST(gp)
   li t3, 300
   sw t3, V_PT(gp)
@@ -448,6 +461,12 @@ predator:
   sw zero, V_SUS(gp)
   sw zero, V_FADE(gp)
   sw zero, V_L16(gp)
+  bgtz t2, @pr
+  nop
+  move t9, ra                ; 命がなくなった: おわり（腹をともす）
+  jal finish
+  nop
+  move ra, t9
   b @pr
   nop
 @idle:
@@ -459,11 +478,11 @@ predator:
   nop
   addiu t2, t2, 1
   sw t2, V_LOOKS(gp)
-  li t3, 60                  ; 上がるのは 1 秒（はじめの1回は 1.5 秒）
+  li t3, 60                  ; 上がるのは 1 秒（はじめの1回は 2 秒）
   li t4, 1
   bne t2, t4, @r0
   nop
-  li t3, 90
+  li t3, 120
 @r0:
   sw t3, V_PT(gp)
   b @pr
@@ -699,6 +718,19 @@ plankton:
   addiu t1, t1, 12
   lw ra, 0(sp)
   addiu sp, sp, 8
+  jr ra
+  nop
+
+; おわり: 腹をともし、カメラを横へ（おわりの画面のごほうびの絵）
+finish:
+  li t0, 2
+  sw t0, V_STATE(gp)
+  li t0, 2400
+  sw t0, V_L16(gp)
+  sw zero, V_TH(gp)
+  sw zero, V_EYE(gp)
+  sw zero, V_PST(gp)
+  sw zero, V_FADE(gp)
   jr ra
   nop
 

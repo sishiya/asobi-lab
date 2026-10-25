@@ -26,7 +26,7 @@ const v = () => Object.fromEntries(NAMES.map((n, i) => [n, m.ram32[((syms.vars &
 const plk = () => { const b = (syms.plk & 0x1fffff) >> 2, a = []; for (let k = 0; k < 24; k++) if (m.ram32[b + k * 3 + 2]) a.push({ x: m.ram32[b + k * 3] >> 4, d: m.ram32[b + k * 3 + 1] >> 4 }); return a; };
 
 const stat = { looks: 0, caught: 0, minE: 1e9, lowLight: 0, sus: [] };
-let lastPst = 0, lastLives = 3, frames = 0, maxSus = 0, since = 0;
+let lastPst = 0, lastLives = 3, frames = 0, maxSus = 0, since = 0, endAt = null;
 const react = +opt('react', 0), aim = +opt('aim', 3);
 const limit = +opt('frames', 13000);
 for (let f = 1; f < limit; f++) {
@@ -64,7 +64,7 @@ for (let f = 1; f < limit; f++) {
     writePng(join(out, `glow-${f}.png`), w, h, (x, y) => { const o = (y * w + x) * 4; return (buf[o] << 16) | (buf[o + 1] << 8) | buf[o + 2]; }, 2);
     console.log(`こま ${f}: 時刻 ${(t.T / 60).toFixed(1)}秒 深さ ${(t.FD >> 8) * 4}m 光 I=${t.I} L=${t.L16 >> 4} 疑い ${t.SUS} 状態 ${t.PST} 食べた ${t.CNT}`);
   }
-  if (f > 40 && t.STATE !== 1) break;
+  if (f > 40 && t.STATE !== 1) { endAt ??= f; if (f - endAt > 60) break; } // おわりの画面も 1 秒撮れるように
 }
 const e = v();
 console.log(`ボット ${bot}: ${(frames / 60).toFixed(0)} 秒遊んだ・見上げ ${stat.looks} 回・見つかった ${stat.caught} 回・食べた ${e.CNT}・エネルギーのいちばん低い所 ${stat.minE}・おわりの時刻 ${(e.T / 60).toFixed(0)} 秒`);
