@@ -1,7 +1,7 @@
 // ほって つんで 3D の決まりの確かめ（作る・たき火で朝まで・のろしで勝ち）。持ち物と場所は RAM に書いてはじめ、あとはボタンを押すだけ
 //   node retro-32bit/tools/test-dig.mjs [--shots]（--shots: 作る帯・煙と船・夜のたき火の絵を _dev/retro-32bit/ に）
 import { Console32 } from '../js/psx.js';
-import { BTN } from '../js/pad.js';
+import { BTN, MemCard } from '../js/pad.js';
 import { buildSoft } from './lib.mjs';
 import { writePng } from './png.mjs';
 
@@ -11,8 +11,8 @@ const OFF = { TGT: 10, PLC: 12, YAW: 4, PIT: 5, DIRTY: 18, TIME: 26, LVL: 27, CR
 let fails = 0;
 const ok = (name, cond, info = '') => { console.log(`${cond ? 'ok  ' : 'NG  '} ${name}${info ? '  ' + info : ''}`); if (!cond) fails++; };
 
-function boot() {
-  const m = new Console32(); m.loadExe(exe);
+function boot(card = null) {
+  const m = new Console32(); if (card) m.sio.cards[0] = card; m.loadExe(exe);
   const vb = (syms.vars & 0x1fffff) >> 2, wb = syms.world & 0x1fffff, iv = syms.inv & 0x1fffff;
   const t = {
     m, V: (k) => m.ram32[vb + OFF[k]] | 0, set: (k, v) => { m.ram32[vb + OFF[k]] = v; },
@@ -131,6 +131,32 @@ function boot() {
   // 2 日目の夜はヤシガニ 2 匹
   t = boot(); t.set('DAY', 2); night(t);
   ok('2 日目の夜はヤシガニ 2 匹', crit(t, 4).type === 2 && crit(t, 5).type === 2);
+}
+// セーブ（メモリーカード）: 朝になるとセーブ → 新しく電源を入れると「つづき」が出て、えらぶと島と持ち物がもどる
+{
+  let writes = 0;
+  const card = new MemCard(null, () => writes++);
+  let t = boot(card);
+  ok('カードが空なら、はじめの画面は出ない', t.m.ram32[((syms.vars & 0x1fffff) >> 2) + 60] === 0);
+  t.setInv([0, 0, 7, 3]); t.set('DAY', 3);
+  const target = t.V('TGT'); t.setBlock(target, 0);   // 島を少し変える（ねらっていたブロックを消す）
+  const sel = 11 * 1024 + 20 * 32 + 16; t.setBlock(sel, 8);
+  t.set('TIME', 330 * 64); t.run(500);
+  const dir1 = card.data[128], magic = String.fromCharCode(...card.data.slice(66 * 128, 66 * 128 + 4));
+  ok('朝になるとカードにセーブ', dir1 === 0x51 && magic === 'DG32', `札 ${dir1.toString(16)}・${magic}・${writes} フレーム`);
+  ok('題のフレームは SC・3 ブロック', card.data[64 * 128] === 0x53 && card.data[64 * 128 + 1] === 0x43 && card.data[64 * 128 + 3] === 3);
+  const used = new Set(); for (let f = 0; f < 1024; f++) if (card.data.slice(f * 128, f * 128 + 128).some((v, i) => v !== MemCard.format()[f * 128 + i])) used.add(f);
+  ok('使ったのはブロック 0〜3 だけ', [...used].every((f) => f < 256), `${used.size} フレーム`);
+  // 新しく電源を入れる
+  const t2 = boot(card);
+  const VB = (syms.vars & 0x1fffff) >> 2;
+  ok('セーブがあれば、はじめの画面（つづきの日 3）', t2.m.ram32[VB + 60] === 1 && t2.m.ram32[VB + 62] === 3, `画面 ${t2.m.ram32[VB + 60]}・日 ${t2.m.ram32[VB + 62]}`);
+  t2.shot('save-title');
+  t2.press('A');
+  ok('つづき: 日・持ち物・島がもどる', t2.V('DAY') === 3 && t2.inv(2) === 7 && t2.inv(3) === 3 && t2.block(target) === 0 && t2.block(sel) === 8, `日 ${t2.V('DAY')}・土 ${t2.inv(2)}・ねらい ${t2.block(target)}・置いた ${t2.block(sel)}`);
+  // あたらしく
+  const t3 = boot(card); t3.press('RIGHT'); t3.press('A');
+  ok('あたらしく: はじめの島', t3.V('DAY') === 1 && t3.inv(2) === 5 && t3.block(sel) !== 8);
 }
 console.log(fails ? `${fails} こ NG` : 'ぜんぶ ok');
 process.exitCode = fails ? 1 : 0;

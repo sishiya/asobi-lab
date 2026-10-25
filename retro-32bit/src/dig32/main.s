@@ -95,7 +95,13 @@ V_TMP4  = 220
 V_TMP5  = 224
 V_TMP6  = 228
 V_TMP7  = 232
+V_PLVL  = 256    ; 前のこまの明るさの段（朝になったか見る。ここから先はセーブしない）
+V_SAVET = 260    ; セーブの印を出すのこり（負ならセーブできなかった）
 V_CRABN = 236    ; ヤシガニが近い（ねらいの横に [B] の札）
+V_MODE  = 240    ; 0 遊ぶ・1 はじめの画面（つづき／あたらしく）
+V_MSEL  = 244    ; はじめの画面でえらんでいる方（0 つづき・1 あたらしく）
+V_SDAY  = 248    ; カードのセーブの日
+V_SAVEQ = 252    ; セーブしてほしい（朝・のろし）
 
 EYE_H   = 410    ; 目の高さ（1.6 ブロック）
 BODY_H  = 461    ; 体の高さ（1.8）
@@ -133,6 +139,17 @@ start:
   nop
   jal sndinit
   nop
+  sw zero, V_MODE(gp)        ; カードにこのソフトのセーブがあれば、はじめの画面（つづき／あたらしく）
+  sw zero, V_MSEL(gp)
+  sw zero, V_SAVEQ(gp)
+  sw zero, V_SAVET(gp)
+  jal peeksave
+  nop
+  beqz v0, @nosave
+  nop
+  li t0, 1
+  sw t0, V_MODE(gp)
+@nosave:
   li s6, 0
 
 frame:
@@ -150,6 +167,20 @@ frame:
   nop
   jal sndframe
   nop
+  lw t0, V_SAVEQ(gp)         ; セーブ（朝・のろし）
+  nop
+  beqz t0, @nosv
+  nop
+  sw zero, V_SAVEQ(gp)
+  jal savegame
+  nop
+  li t0, 150                 ; カードの印を 2.5 秒（書けなかったら × つき）
+  bnez v0, @svok
+  nop
+  li t0, -150
+@svok:
+  sw t0, V_SAVET(gp)
+@nosv:
   j frame
   nop
 
@@ -171,6 +202,8 @@ newworld:
   sw t0, V_CX(gp)
   li t0, START_Y
   sw t0, V_CY(gp)
+  addiu t0, t0, EYE_H        ; 目の高さ（はじめの画面でも島が見えるように）
+  sw t0, V_EY(gp)
   li t0, START_Z
   sw t0, V_CZ(gp)
   sw zero, V_VY(gp)
@@ -217,6 +250,67 @@ update:
   sw s0, 4(sp)
   sw s1, 8(sp)
   lw s0, V_PAD(gp)
+  lw t0, V_SAVET(gp)         ; セーブの印ののこり
+  nop
+  beqz t0, @st0
+  nop
+  bgtz t0, @st1
+  addiu t0, t0, -1
+  addiu t0, t0, 2
+@st1:
+  sw t0, V_SAVET(gp)
+@st0:
+  ; ---- はじめの画面: ←→ でえらぶ・A か START で決める ----
+  lw t0, V_MODE(gp)
+  nop
+  beqz t0, @inplay
+  nop
+  lw t0, V_EDGE(gp)
+  lw t1, V_MSEL(gp)
+  andi t2, t0, B_LEFT | B_RIGHT
+  beqz t2, @ms
+  nop
+  xori t1, t1, 1
+  sw t1, V_MSEL(gp)
+@ms:
+  andi t2, t0, B_A | B_START
+  beqz t2, @frozen
+  nop
+  sw zero, V_MODE(gp)
+  bnez t1, @fresh            ; あたらしく: いまの島のまま
+  nop
+  jal loadgame               ; つづき: カードから
+  nop
+  beqz v0, @fresh
+  nop
+  sw zero, V_CRAFT(gp)       ; 読んだあと、とちゅうの物は消す
+  sw zero, V_DIGP(gp)
+  sw zero, V_ACAM(gp)
+  sw zero, V_UPF(gp)
+  sw zero, V_DENY(gp)
+  sw zero, V_EVT(gp)
+  sw zero, V_MODE(gp)
+  sw zero, V_SAVET(gp)
+  sw zero, V_SAVEQ(gp)
+  la t0, crits
+  li t1, NCRIT
+@zc:
+  sw zero, 0(t0)
+  addiu t1, t1, -1
+  bnez t1, @zc
+  addiu t0, t0, 32
+  li t0, 0xffff
+  sw t0, V_DIRTY(gp)
+  jal rebuildall
+  nop
+@fresh:
+  lw t0, V_EVT(gp)
+  nop
+  ori t0, t0, EV_MADE
+  sw t0, V_EVT(gp)
+  b @frozen
+  nop
+@inplay:
   ; ---- 作る帯（SELECT で開く・閉じる。開いている間は世界が止まる）----
   lw t0, V_EDGE(gp)
   lw t1, V_CRAFT(gp)
@@ -345,6 +439,15 @@ update:
   lbu t1, 0(t1)
   nop
   sw t1, V_LVL(gp)
+  lw t0, V_PLVL(gp)          ; 朝になった（段が 0 になった）らセーブ
+  sw t1, V_PLVL(gp)
+  bnez t1, @nomorn
+  nop
+  beqz t0, @nomorn
+  nop
+  li t0, 1
+  sw t0, V_SAVEQ(gp)
+@nomorn:
   lw t0, V_WIN(gp)           ; のろしをあげてからの時間（船が近づく）
   lw t1, V_WINT(gp)
   beqz t0, @nowin
@@ -770,6 +873,8 @@ update:
   sw zero, V_WINT(gp)
   li t3, 90
   sw t3, V_ACAM(gp)
+  li t3, 1                   ; のろしをあげたらセーブ
+  sw t3, V_SAVEQ(gp)
   ori t1, t1, EV_WIN
   sw t1, V_EVT(gp)
   b @placeok

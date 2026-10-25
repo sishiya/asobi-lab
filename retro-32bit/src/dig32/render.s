@@ -1395,6 +1395,159 @@ hud:
   nop
   sw v0, GP0(s7)
 @hdone:
+  ; ---- セーブの印: 右上にカード（書いている間は点滅・書けなかったら赤い ×）----
+  lw t0, V_SAVET(gp)
+  nop
+  beqz t0, @nocard
+  nop
+  bltz t0, @cbad
+  nop
+  lw t1, V_BLINK(gp)
+  nop
+  andi t1, t1, 16
+  beqz t1, @nocard
+  nop
+@cbad:
+  li a0, 136
+  li a1, -116
+  jal cardicon
+  nop
+  lw t0, V_SAVET(gp)
+  nop
+  bgez t0, @nocard
+  nop
+  li t1, 0x404050f0          ; 書けなかった: 赤い ×
+  sw t1, GP0(s7)
+  li t1, 0xff8b0084          ; (132, −117) → (150, −101)
+  sw t1, GP0(s7)
+  li t1, 0xff9b0096
+  sw t1, GP0(s7)
+  li t1, 0x404050f0
+  sw t1, GP0(s7)
+  li t1, 0xff8b0096
+  sw t1, GP0(s7)
+  li t1, 0xff9b0084
+  sw t1, GP0(s7)
+@nocard:
+  ; ---- はじめの画面: [カード・何日目]（つづき）と [草のブロック]（あたらしく）。選んでいる方は白い太わくと「A」----
+  lw t0, V_MODE(gp)
+  nop
+  beqz t0, @nomode
+  nop
+  li a2, 0x62101010
+  li a0, 0xffdcff9c          ; (−100, −36)
+  li a1, 0x004800c8          ; 200 × 72
+  bal rect
+  nop
+  li s0, 0
+@mt:
+  sll t0, s0, 6
+  sll t1, s0, 3
+  addu t0, t0, t1            ; 72 ごと
+  addiu s1, t0, -76          ; 札の左
+  lw t0, V_MSEL(gp)
+  nop
+  bne t0, s0, @mtb
+  nop
+  li a2, 0x60f0f0f0
+  addiu t3, s1, -2
+  andi t3, t3, 0xffff
+  li t2, 0xffe00000          ; y = −32
+  or a0, t2, t3
+  li a1, 0x00360040          ; 64 × 54
+  bal rect
+  nop
+  li a2, 0x60c8dcd8          ; 「A」の札
+  addiu t3, s1, 26
+  andi t3, t3, 0xffff
+  li t2, 0x00180000          ; y = 24
+  or a0, t2, t3
+  li a1, 0x000b000c
+  bal rect
+  nop
+  la a0, stra
+  addiu a1, s1, 30
+  li a2, 26
+  li a3, 0x00283038
+  li t0, 1
+  sw t0, V_SCL(gp)
+  jal text
+  nop
+@mtb:
+  li a2, 0x60282828
+  andi t3, s1, 0xffff
+  li t2, 0xffe20000          ; y = −30
+  or a0, t2, t3
+  li a1, 0x0032003c          ; 60 × 50
+  bal rect
+  nop
+  bnez s0, @mnew
+  nop
+  addiu a0, s1, 8            ; つづき: カードと、その日の数
+  li a1, -22
+  jal cardicon
+  nop
+  lw a0, V_SDAY(gp)
+  addiu a1, s1, 26
+  li a2, -20
+  li a3, 0x00f8f8f8
+  li t0, 2
+  sw t0, V_SCL(gp)
+  jal num
+  nop
+  b @mnx
+  nop
+@mnew:
+  li t1, 0x7c808080          ; あたらしく: 草のブロックの絵（大きく 2 つ）
+  sw t1, GP0(s7)
+  addiu t2, s1, 14
+  andi t2, t2, 0xffff
+  li t3, 0xffe60000          ; y = −26
+  or t2, t2, t3
+  sw t2, GP0(s7)
+  li t5, 1
+  jal spruv
+  nop
+  sw v0, GP0(s7)
+  li t1, 0x7c808080
+  sw t1, GP0(s7)
+  addiu t2, s1, 30
+  andi t2, t2, 0xffff
+  li t3, 0xffe60000
+  or t2, t2, t3
+  sw t2, GP0(s7)
+  li t5, 0
+  jal spruv
+  nop
+  sw v0, GP0(s7)
+  li a2, 0x6060e070          ; 芽（あたらしい島）
+  addiu t3, s1, 28
+  andi t3, t3, 0xffff
+  li t2, 0xfffa0000          ; y = −6
+  or a0, t2, t3
+  li a1, 0x00080002
+  bal rect
+  nop
+  addiu t3, s1, 24
+  andi t3, t3, 0xffff
+  li t2, 0xfff80000
+  or a0, t2, t3
+  li a1, 0x00020004
+  bal rect
+  nop
+  addiu t3, s1, 30
+  andi t3, t3, 0xffff
+  li t2, 0xfff60000
+  or a0, t2, t3
+  li a1, 0x00020004
+  bal rect
+  nop
+@mnx:
+  addiu s0, s0, 1
+  slti t0, s0, 2
+  bnez t0, @mt
+  nop
+@nomode:
   lw ra, 0(sp)
   lw s0, 4(sp)
   lw s1, 8(sp)
@@ -1402,6 +1555,32 @@ hud:
   lw s3, 20(sp)
   jr ra
   addiu sp, sp, 24
+
+; カードの絵（10 × 13）: a0 = x、a1 = y。白い札・右上の欠け・青いラベル
+cardicon:
+  move t9, ra
+  andi a0, a0, 0xffff
+  sll a1, a1, 16
+  or t8, a0, a1
+  li a2, 0x60d8d8d8
+  move a0, t8
+  li a1, 0x000d000a
+  bal rect
+  nop
+  li a2, 0x60303030
+  addiu a0, t8, 7
+  li a1, 0x00030003
+  bal rect
+  nop
+  li a2, 0x60e0a060
+  lui t0, 5
+  addu a0, t8, t0
+  addiu a0, a0, 2
+  li a1, 0x00040006
+  bal rect
+  nop
+  jr t9
+  nop
 
 ; t5 = 模様の番号 → v0 = スプライトの uv と CLUT の語（2 段の模様にも）
 spruv:
@@ -1948,7 +2127,7 @@ readpad:
 .align 4
 stra:    .byte 10, 0xff, 0, 0
 strb:    .byte 11, 0xff, 0, 0
-vars:    .space 256
+vars:    .space 320            ; 0〜255 はセーブする・256〜 はしない
 inv:     .space 16
 numbuf:  .space 8
 linebuf: .space 16

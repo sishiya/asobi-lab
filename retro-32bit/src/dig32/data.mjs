@@ -386,6 +386,24 @@ export function gen() {
   const all = new Uint8Array(total); let so = 0; for (const b of blobs) { all.set(b, so); so += b.length; }
   if (SND_BASE + total > 0x80000) throw new Error('音が多すぎます');
   out.push('.align 64', ...bytes('sndbank', [...all], 32));
+  // セーブ（save.s）: 題のフレーム（SC・絵 1 枚・3 ブロック・題・色 16）と 16×16 の絵（小さな島とヤシ）と、ブロック 1〜3 の札
+  const frame = () => new Uint8Array(128), seal = (f) => { let x = 0; for (let i = 0; i < 127; i++) x ^= f[i]; f[127] = x; return f; };
+  const title = frame(); title.set([0x53, 0x43, 0x11, 3]); title.set([...'ASOBI-LAB  DIG AND STACK 3D'].map((c) => c.charCodeAt(0)), 4);
+  const iconPal = [[0, 0, 0], [46, 108, 140], [112, 170, 186], [226, 218, 196], [92, 140, 78], [64, 104, 60], [132, 112, 84], [138, 74, 50]];
+  iconPal.forEach((c, i) => { const v = i ? c15(c) | 0x8000 : 0; title[0x60 + i * 2] = v & 255; title[0x61 + i * 2] = v >> 8; });
+  const icon = frame();
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    const d2 = Math.hypot(x - 7.5, (y - 11) * 1.6);
+    let c = y >= 11 ? 1 : 0;                                 // 海
+    if (y >= 10 && d2 < 6.5) c = d2 < 4.5 ? (y === 10 ? 4 : 7) : 3;   // 島（草・土）と砂
+    if (x === 9 && y >= 3 && y < 10) c = 6;                  // ヤシの幹
+    if (y >= 2 && y <= 4 && Math.abs(x - 9) <= 4 - Math.abs(y - 3) * 2 + 1 && !(x === 9 && y === 4)) c = y === 2 ? 4 : 5;   // 葉
+    if (y === 12 && (x === 1 || x === 14)) c = 2;            // 波
+    icon[y * 8 + (x >> 1)] |= c << ((x & 1) * 4);
+  }
+  const NAME = 'BIASOBILAB-DIG32';
+  const dirs = [0x51, 0x52, 0x53].map((st, i) => { const f = frame(); f[0] = st; if (i === 0) { f[4] = 0; f[5] = 0x60; } const nx = i < 2 ? i + 1 : 0xffff; f[8] = nx & 255; f[9] = nx >> 8; f.set([...NAME].map((c) => c.charCodeAt(0)), 10); return seal(f); });
+  out.push('.align 4', ...bytes('savetitle', [...title, ...icon], 32), ...bytes('dirtab', dirs.flatMap((f) => [...f]), 32));
   out.push('.align 4', ...bytes('world0', [...isl.world], 32));
   out.push('.align 4');
   return out.join('\n') + '\n';

@@ -7,6 +7,7 @@ import { initSettings } from './settings.js';
 import { initShelf } from './shelf.js?v=1';
 import { TX, initLang } from './i18n.js';
 import { createAudio } from './audio.js';
+import { attachCard } from './memcard.js';
 
 const FRAME_MS = 1000 / 60;
 const $ = (id) => document.getElementById(id);
@@ -26,7 +27,7 @@ function save(k, v) { try { localStorage.setItem(k, v); return true; } catch { r
 // ---------- 棚 ----------
 const exeCache = new Map();
 async function loadExe(entry) {
-  if (!exeCache.has(entry.id)) exeCache.set(entry.id, fetch(entry.file + '?v=6').then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
+  if (!exeCache.has(entry.id)) exeCache.set(entry.id, fetch(entry.file + '?v=7').then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
   return exeCache.get(entry.id);
 }
 // 棚の手ざわりの音（sfx/。8ビット互換機と同じ音を写した。Stable Audio で作って、カチッが1つだけの所を切り出したもの）。
@@ -131,6 +132,7 @@ async function bootEntry(e) {
 }
 function makeConsole(bytes) {
   const c = new Console32(audio ? audio.ctx.sampleRate : 48000);
+  attachCard(c);   // メモリーカード（口 1。中身はこの端末の中だけ）
   try { c.loadExe(bytes); } catch (err) { alert(TX('このディスクは動かせません: ', 'Cannot run this disc: ') + err.message); return null; }
   return c;
 }
