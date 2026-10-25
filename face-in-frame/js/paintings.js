@@ -2,7 +2,7 @@
 // face: 顔の線（face.js の faceLines と同じ形。鼻先 nx・ny と、そこから眉の下・上まぶた・下まぶた・あご・ほおまで。
 //   絵のよこはばを 1 とした割合、rot は首のかたむきの度）。くり抜く穴は、設定の「くり抜く所」に合わせてここから作る（face.js の areaBox）。
 //   顔が見つかる絵（モナ・リザ・真珠・トカゲ）は Face Landmarker の結果、見つからない絵（叫び・写楽・ゴッホ）は目で測った。
-// title_en・artist_en・hint_en: 英語のときの題・作者・ひとこと。styleCrop: 筆のタッチのスタイルを読む広さ（顔のはばの倍、ふつう 3。tools/style-bottlenecks）。touchMax: 筆のタッチの強さの上限（ふつう 1）。
+// title_en・artist_en・hint_en: 英語のときの題・作者・ひとこと。styleCrop: 筆のタッチのスタイルを読む広さ（顔のはばの倍、ふつう 3。tools/style-bottlenecks）。touchMax: 筆のタッチの強さの上限（ふつう 1）。fast: 筆のタッチに絵ごとの専用モデルを使う。fastCrop: 専用モデルの学習で読む広さ。
 // goal: お手本の口の形（face.js の expression の jaw・smile・frown・round、0〜1）。書かなかった名前は 0 として軽く見る。
 // roll: 首のかたむき（度。右に倒すと＋）、yaw: 顔の向き（画面の右向きが＋、-1〜1）。null なら見ない。
 export const PAINTINGS = [
@@ -29,11 +29,14 @@ export const PAINTINGS = [
     goal: { jaw: 0.35, round: 0.3 }, roll: 15, yaw: null },
   { id: 'sharaku', src: 'art/sharaku.jpg', title: '三代目大谷鬼次の江戸兵衛', artist: '東洲斎写楽', year: 1794, hint: '口をへの字に！',
     title_en: 'Ōtani Oniji III as Yakko Edobei', artist_en: 'Tōshūsai Sharaku', hint_en: 'Frown hard!',
+    fast: true, // 筆のタッチに専用モデル（vendor/style-models/sharaku.bin。tools/train_style.py）
     styleCrop: 1.1, // 筆のタッチ: まわりの暗い地と髪を読むと顔が黒ずむので、顔の肌と線だけを読む
+    fastCrop: 1.8,  // 専用モデルは、眉や目の線もふくめて読む（肌だけだと紙の色しか学ばない）
     face: { nx: 0.856, ny: 0.6875, rot: 0, brow: -0.195, lidTop: -0.165, lidBot: -0.1315, chin: 0.1955, left: -0.236, right: 0.02 },
     goal: { frown: 0.6 }, roll: 0, yaw: 0.5 },
   { id: 'gogh', src: 'art/gogh.jpg', title: '麦わら帽子の自画像', artist: 'フィンセント・ファン・ゴッホ', year: 1887, hint: 'むすっ',
     title_en: 'Self-Portrait with a Straw Hat', artist_en: 'Vincent van Gogh', hint_en: 'Grumpy',
+    fast: true, // 筆のタッチに専用モデル（vendor/style-models/gogh.bin。tools/train_style.py）
     face: { nx: 0.427, ny: 0.627, rot: 0, brow: -0.157, lidTop: -0.147, lidBot: -0.114, chin: 0.163, left: -0.13, right: 0.14 },
     goal: { frown: 0.25 }, roll: 0, yaw: -0.3 },
 ];

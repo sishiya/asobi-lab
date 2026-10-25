@@ -1,11 +1,11 @@
 // 名画の顔ハメ: 画面の流れ・看板の合成・シャッター・けっか。
 // カメラの映像はこの端末の中だけで使う。写真はけっかで「保存」を押したときだけファイルにする。
-import { PAINTINGS } from './paintings.js?v=8';
-import { createLandmarker, readFace, areaBox } from './face.js?v=8';
-import { createBlender, labStats } from './blend.js?v=8';
-import { scoreFace, averageFaces, mark } from './score.js?v=8';
-import { TX, initLang } from './i18n.js?v=8';
-import { loadStyler, stylize, LIVE, PHOTO } from './style.js?v=8';
+import { PAINTINGS } from './paintings.js?v=9';
+import { createLandmarker, readFace, areaBox } from './face.js?v=9';
+import { createBlender, labStats } from './blend.js?v=9';
+import { scoreFace, averageFaces, mark } from './score.js?v=9';
+import { TX, initLang } from './i18n.js?v=9';
+import { loadStyler, stylize, LIVE, PHOTO } from './style.js?v=9';
 
 const $ = s => document.querySelector(s);
 
@@ -198,7 +198,7 @@ $('#start').onclick = async () => {
   run = { list, i: 0, phase: 'load', t0: 0, cur: null, shots: [] };
   try {
     blender = blender || createBlender();
-    const [ , l, st] = await Promise.all([startCamera(), lmk ? lmk : createLandmarker('VIDEO'), TOUCH[cfg.touch] ? loadStyler() : null]);
+    const [ , l, st] = await Promise.all([startCamera(), lmk ? lmk : createLandmarker('VIDEO'), TOUCH[cfg.touch] ? loadStyler(list.filter(p => p.fast).map(p => p.id)) : null]);
     styler = st;
     lmk = l;
     $('#wait').textContent = TX('絵を用意しています…', 'Hanging the paintings…');

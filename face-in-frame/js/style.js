@@ -2,11 +2,15 @@
 // スタイルの特徴（js/styles.js）は事前に計算しておき、ここで使うのは変換のほう（vendor/style-transfer/、2.4MB）だけ。
 // 「筆のタッチ」をなしにしたままなら、TensorFlow.js もモデルも読みこまない。
 // 入力はいつも正方形の LIVE（遊んでいるあいだ）か PHOTO（写真）。大きさが変わるたびに GPU の下ごしらえ（1〜2秒）が走るのをさけるため
-import { STYLES } from './styles.js?v=8';
+import { STYLES } from './styles.js?v=9';
+import { loadFast } from './style-fast.js?v=9';
 
 export const LIVE = 224, PHOTO = 448;
 const BASE = new URL('../vendor/', import.meta.url).href;
 let ready = null, net = null;
+// 絵ごとの専用モデル（js/style-fast.js。あれば任意スタイル変換のかわりに使う）。?touch=arb で、くらべるために使わない
+const fast = {};
+const USE_FAST = new URLSearchParams(location.search).get('touch') !== 'arb';
 
 function loadScript(src) {
   return new Promise((ok, ng) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ng; document.head.append(s); });
@@ -14,16 +18,18 @@ function loadScript(src) {
 
 // 使えるようにする（2回目からは同じ約束を返す）。結果は { live } か null。
 // GPU がない（WebGL が使えない）と1コマ数秒かかるので使わない。GPU が遅ければ写真だけにかける（live: false）
-export function loadStyler() {
+export function loadStyler(fastIds = []) {
   ready = ready || (async () => {
     try {
       if (!window.tf) await loadScript(BASE + 'tfjs/tf.min.js');
       if (!(await tf.setBackend('webgl'))) return null;
       await tf.ready();
       net = await tf.loadGraphModel(BASE + 'style-transfer/model.json');
+      if (USE_FAST) for (const id of fastIds) { const f = await loadFast(id); if (f) fast[id] = f; }
       const c = Object.assign(document.createElement('canvas'), { width: 8, height: 8 }), out = document.createElement('canvas');
       await run(c, [0, 0, 8, 8], 'gogh', PHOTO, out); // 下ごしらえ（写真の大きさ）
       await run(c, [0, 0, 8, 8], 'gogh', LIVE, out);
+      for (const id of Object.keys(fast).slice(0, 1)) { await run(c, [0, 0, 8, 8], id, PHOTO, out); await run(c, [0, 0, 8, 8], id, LIVE, out); } // 専用モデルの下ごしらえ
       let t = performance.now(); await run(c, [0, 0, 8, 8], 'gogh', PHOTO, out);
       if (performance.now() - t > 800) return null; // 写真1枚に時間がかかりすぎる端末では使わない（けっかが待たされる）
       t = performance.now(); await run(c, [0, 0, 8, 8], 'gogh', LIVE, out);
@@ -43,8 +49,8 @@ async function run(src, [x, y, w, h], id, size, out) {
   tg.drawImage(src, sx, sy, side, side, 0, 0, size, size);
   const img = tf.tidy(() => {
     const content = tf.browser.fromPixels(tmp).toFloat().div(255).expandDims();
-    const style = tf.tensor(STYLES[id], [1, 1, 1, 100]);
-    const y = net.execute({ Placeholder: content, Placeholder_1: style }).squeeze(); // 入力は 画像・スタイルの特徴
+    const y = fast[id] ? fast[id](content).squeeze()
+      : net.execute({ Placeholder: content, Placeholder_1: tf.tensor(STYLES[id], [1, 1, 1, 100]) }).squeeze(); // 入力は 画像・スタイルの特徴
     // 明るさと色の散らばりを、もとの顔にもどす（筆づかいの模様だけをもらう。暗い絵で顔が黒ずまないように）
     // 測るのは正方形のまん中（顔のあたり）だけ。まわりの暗い所で平均がずれないように
     const q = Math.round(size / 4), mid = t => t.slice([q, q, 0], [size - 2 * q, size - 2 * q, 3]);
@@ -59,6 +65,6 @@ async function run(src, [x, y, w, h], id, size, out) {
 }
 
 export async function stylize(src, rect, id, size, out) {
-  if (!net || !STYLES[id]) return null;
+  if (!net || !(fast[id] || STYLES[id])) return null;
   return run(src, rect, id, size, out);
 }
