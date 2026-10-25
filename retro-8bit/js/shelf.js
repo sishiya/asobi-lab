@@ -121,7 +121,7 @@ export function initShelf(o) {
   }
 
   // ---------- 本体 ----------
-  function setPower(on) { con.classList.toggle('on', on); led.classList.toggle('on', on); room?.setPower(on); }
+  function setPower(on) { con.classList.toggle('on', on); led.classList.toggle('on', on); room?.setPower(on); if (!on) o.powerOff?.(); }
 
   // ---------- さしこむ・抜く ----------
   // 飛ぶカセットは本体の中の座標（本体を縮めていれば、その縮めた単位）。机のカセットの大きさから本体の中の大きさへ s で変える
@@ -140,17 +140,13 @@ export function initShelf(o) {
 
   // ---------- 部屋（3D）のとき: 棚のカセットを口の真上まで飛ばし、そこで 3D のカセットに入れかえる ----------
   const fixedFly = (cart, it) => {
-    const fly = cart.cloneNode(true); fly.classList.add('fly', 'fixed'); fly.removeAttribute('aria-label'); fly.tabIndex = -1;
+    const fly = cart.cloneNode(true); fly.classList.add('fly', 'fixed'); fly.classList.remove('gone'); fly.removeAttribute('aria-label'); fly.tabIndex = -1;   // もどるときは棚のカセットが隠れている（gone）ので、写しでは外す
     fly.style.setProperty('--c', getComputedStyle(it).getPropertyValue('--c'));
     fly.querySelector('canvas').getContext('2d').drawImage(cart.querySelector('canvas'), 0, 0);
     document.body.append(fly); return fly;
   };
   const TF = (x, y, s) => `translate(${x}px, ${y}px) scale(${s})`;
   const atSlot = () => { const r = room.slotRect(), s = r.w / 160; return { x: r.cx - 80 * s, y: r.bottom - 208 * s, s }; };
-  function frameOf(canvas) {   // ラベルの絵（棚のカセットの canvas）→ テレビに映す 256×240 の絵
-    const d = canvas.getContext('2d').getImageData(0, 0, 256, 240).data;
-    return new Uint32Array(d.buffer.slice(0));
-  }
   async function ejectRoom() {
     const s = seated; seated = null;
     if (con.classList.contains('on')) { setPower(false); o.sfx.clack('sw'); await wait(200); }
@@ -185,10 +181,14 @@ export function initShelf(o) {
     await wait(160);
     it.classList.remove('open'); o.sfx.clack('caseClose');
     await wait(260);
+    await startUp(entry);
+  }
+  // 電源を入れる: 本体が動き出してテレビに映り（v023。ラベルの絵ではなく本物の起動）、テレビに寄ってから遊ぶ画面へ（同じ遊びがそのまま続く）
+  async function startUp(entry) {
     setPower(true); o.sfx.clack('sw');
-    room.show(frameOf(label));   // テレビにタイトルが映る
+    await o.boot(entry);
     await wait(380);
-    await room.focusTV(true, still() ? 0 : 750);   // テレビに寄ってから、遊ぶ画面へ
+    await room.focusTV(true, still() ? 0 : 750);
     o.open(entry);
   }
 
@@ -312,7 +312,15 @@ export function initShelf(o) {
       room = r;
       if (seated) { const it = row.querySelector(`.item[data-id="${CSS.escape(seated.id)}"]`); seated.fly?.remove(); seated.fly = null; if (it) room.seatCart({ color: getComputedStyle(it).getPropertyValue('--c').trim(), label: it.querySelector('canvas'), title: seated.entry.title }); }
     },
-    // 確かめ用
+    // 部屋の本体を押したとき（v023）: 入れて、遊ぶ画面から棚へもどると電源は入ったまま。本体を押すと切れて画面が消え、もう一度押すと入る
+    get powered() { return con.classList.contains('on'); },
+    get busy() { return busy; },
+    async power(on) {
+      if (busy || !seated) return;
+      if (!on) { setPower(false); o.sfx.clack('sw'); return; }
+      busy = true;
+      try { await startUp(seated.entry); } finally { busy = false; }
+    },
     get seated() { return seated?.id || null; },
   };
 }

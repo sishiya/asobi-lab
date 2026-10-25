@@ -4,7 +4,7 @@ import { LIBRARY } from './library.js?v=15';
 import { createCRT } from './crt/crt-gl.js';
 import { createInput, keyLabel } from './input.js';
 import { initSettings } from './settings.js';
-import { initShelf } from './shelf.js?v=22';
+import { initShelf } from './shelf.js?v=23';
 import { TX, initLang, setRomLang } from './i18n.js';
 
 const FRAME_MS = 1000 / 60.0988;
@@ -64,22 +64,30 @@ function clack(kind) {
 }
 // 棚（くわしくは shelf.js）
 initLang();
-const shelf = initShelf({ library: LIBRARY, loadRom, open: (e) => openEntry(e, true), sfx: { clack } });
+const shelf = initShelf({ library: LIBRARY, loadRom, open: (e) => openEntry(e, true), boot: bootEntry, powerOff, sfx: { clack } });
 
 // ---------- 部屋（3D。js/room3d.js。案A: トップの上半分・案C: 遊ぶ画面の「部屋で遊ぶ」） ----------
 // WebGL2 がない・動きを減らす設定 では使わない（トップは 2D の本体のまま）
 let room = null, roomPlay = read('retro8.roomPlay', '0') === '1';
 const ROOM_OK = !matchMedia('(prefers-reduced-motion: reduce)').matches && (() => { try { return !!document.createElement('canvas').getContext('webgl2'); } catch { return false; } })();
 if (ROOM_OK) {
-  import('./room3d.js?v=2').then((m) => {
+  import('./room3d.js?v=7').then((m) => {
     room = m.createRoom();
     $('roombox').hidden = false; $('conbox').hidden = true;
     room.attach($('roombox'), 'shelf');
+    $('roombox').append(ghost);
     shelf.useRoom(room);
+    // テレビか本体を押す: 電源が入っていれば、テレビ＝続きから・本体＝電源を切る。切れていれば電源を入れる（v023）
+    room.canPick = () => !!shelf.seated && !shelf.busy && $('player').hidden;
+    room.onPick = (w) => {
+      if (!shelf.powered) shelf.power(true);
+      else if (w === 'con') shelf.power(false);
+      else if (nes && current) room.focusTV(true, 650).then(() => openEntry(current, true));
+    };
     $('btnRoom').hidden = false; $('btnRoom').setAttribute('aria-pressed', String(roomPlay));
     if (current && roomPlay) setRoomPlay(true);
-  }).catch((e) => console.warn('room', e));
-}
+  }).catch((e) => { console.warn('room', e); document.documentElement.classList.remove('room3d'); });
+} else document.documentElement.classList.remove('room3d');   // 2D の本体にもどす
 // 遊ぶ画面で: 部屋のテレビで遊ぶ（ふつうの画面は隠す）／ふつうの画面にもどす
 function setRoomPlay(on) {
   roomPlay = on; save('retro8.roomPlay', on ? '1' : '0');
@@ -91,18 +99,58 @@ function setRoomPlay(on) {
 }
 $('btnRoom').addEventListener('click', () => setRoomPlay(!roomPlay));
 
-// ---------- 遊ぶ画面へ ----------
-async function openEntry(e, gesture) {
+// ---------- 棚 ⇄ 遊ぶ画面（部屋のとき） ----------
+// テレビの画面の上に見えない四角（ghost）を置き、遊ぶ画面の画面と同じ名前にする。View Transitions で、テレビの画面が遊ぶ画面の画面へのびる（もどるときは縮む）。
+// 使えないブラウザ・部屋がないときは、そのまま入れかえる
+const ghost = document.createElement('div'); ghost.className = 'tvghost'; ghost.setAttribute('aria-hidden', 'true');
+function placeGhost() {
+  if (!room || $('shelf').hidden) return;
+  const r = room.screenRect(), b = $('roombox').getBoundingClientRect();
+  Object.assign(ghost.style, { left: r.left - b.left + 'px', top: r.top - b.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+}
+async function swap(update) {
+  if (!room || !document.startViewTransition) { await update(); return; }
+  placeGhost();
+  const t = document.startViewTransition(async () => { await update(); placeGhost(); room.renderNow(); });
+  await t.finished.catch(() => {});
+}
+const upTo = (p, ms) => Promise.race([p, new Promise((ok) => setTimeout(ok, ms))]);
+
+// ---------- 部屋で電源を入れたとき: 棚のまま本体を動かし、テレビに映す（そのまま遊ぶ画面へ続く） ----------
+async function bootEntry(e) {
   stopPlayer();
   current = e;
-  $('shelf').hidden = true;
-  $('player').hidden = false;
-  $('cartName').textContent = e.title;
-  guideKeys = e.keys?.length ? e.keys : [['PAD', ''], ['A', ''], ['B', ''], ['START', ''], ['SELECT', '']];
-  renderGuide();
-  document.body.classList.add('playing');
+  let bytes;
+  try { bytes = e.bytes || await loadRom(e); } catch { return; }
+  if (current !== e || nes) return;
+  nes = new Console8(bytes, audio ? audio.ctx.sampleRate : 48000);
+  loadBattery();
+  setRomLang(nes);
+  power();
+}
+// 本体の電源が切れた（棚で）: 止めて、テレビは消える（room.setPower）
+function powerOff() {
+  if (!$('player').hidden) return;
+  stopPlayer();
+  current = null;
+}
+
+// ---------- 遊ぶ画面へ ----------
+async function openEntry(e, gesture) {
+  const cont = !!nes && current === e;   // 部屋で電源が入っている（入れたところ・棚へもどっていた）→ そのまま続ける
+  if (!cont) { stopPlayer(); current = e; }
+  await swap(async () => {
+    $('shelf').hidden = true;
+    $('player').hidden = false;
+    $('cartName').textContent = e.title;
+    guideKeys = e.keys?.length ? e.keys : [['PAD', ''], ['A', ''], ['B', ''], ['START', ''], ['SELECT', '']];
+    renderGuide();
+    document.body.classList.add('playing');
+    fit();
+    if (cont) { if (room && roomPlay) setRoomPlay(true); else { draw(); await upTo(drawn(), 200); } }
+  });
   if (e.id && location.hash !== '#' + e.id) history.pushState(null, '', '#' + e.id);
-  fit();
+  if (cont) { if (!running) power(); return; }
   let bytes;
   try { bytes = e.bytes || await loadRom(e); } catch { backToShelf(); return; }
   nes = new Console8(bytes, audio ? audio.ctx.sampleRate : 48000);
@@ -123,8 +171,28 @@ function stopPlayer() {
   running = false;
   audio?.ctx.suspend();
   nes = null;
+  // 遊ぶ画面の画面に前のソフトの絵を残さない（つぎの絵が描けるまで見せない）
+  canvas.style.visibility = glCanvas.style.visibility = 'hidden';
 }
-function backToShelf() {
+async function backToShelf() {
+  if (room && nes && !$('player').hidden) {
+    // 部屋: 電源は入れたまま、テレビに止めた絵を映しておく（v023。本体を押して電源を切ると消える）
+    saveBattery(); running = false; audio?.ctx.suspend();
+    if (location.hash) history.pushState(null, '', location.pathname);
+    const frame = nes.ppu.frame;
+    await swap(async () => {
+      $('bezel').hidden = false; $('stage').classList.remove('roomon');
+      $('player').hidden = true; $('shelf').hidden = false;
+      document.body.classList.remove('playing');
+      room.attach($('roombox'), 'shelf'); room.focusTV(true, 0);
+      await upTo(room.show(frame), 200);
+    });
+    await room.focusTV(false, 800);
+    // ひと呼吸おいて、電源を切ってカセットをケースへ（v024。ユーザー「ワンテンポおいて」）。そのあいだにテレビを押せば続きから
+    await new Promise((ok) => setTimeout(ok, 600));
+    if ($('player').hidden && nes && !shelf.busy) shelf.back();
+    return;
+  }
   stopPlayer();
   if (room) { $('bezel').hidden = false; $('stage').classList.remove('roomon'); room.attach($('roombox'), 'shelf'); }
   shelf.back();
@@ -139,8 +207,8 @@ $('btnBack').addEventListener('click', backToShelf);
 function route() {
   const id = location.hash.slice(1);
   const e = LIBRARY.find((x) => x.id === id);
-  if (e) { if (current !== e) openEntry(e, false); }
-  else if (current) { stopPlayer(); shelf.back(); current = null; $('player').hidden = true; $('shelf').hidden = false; document.body.classList.remove('playing'); }
+  if (e) { if (current !== e) openEntry(e, false); else if ($('player').hidden) openEntry(e, true); }
+  else if (current && !$('player').hidden) backToShelf();
 }
 addEventListener('popstate', route);
 
@@ -192,8 +260,9 @@ addEventListener('resize', fit);
 // ---------- 画面の見え方: くっきり（2D）か、ブラウン管（WebGL2。まなびラボ「ブラウン管のドット絵」の計算） ----------
 const glCanvas = $('crt');
 let crt = null, worker = null, busy = false, crtFrames = 0;
-// はじめは: PC はブラウン管（ビデオ端子）、スマホは くっきり（描くのが重いので。メニューで変えられる）
-let screenMode = read('retro8.screen', matchMedia('(pointer:coarse)').matches ? 'lcd' : 'composite');
+// はじめは ブラウン管・RGB（v024。ユーザー。PC もスマホも。メニューで変えられる）。
+// 前は起動のたびに `retro8.screen` へ書いていて、選んだのかどうか分からないので、メニューで選んだときだけ `retro8.screenMode` に残す
+let screenMode = read('retro8.screenMode', 'rgb');
 try { crt = createCRT(glCanvas); } catch { crt = null; }
 if (crt) {
   crt.setPicture({ w: 256, h: 240, data: new Uint8Array(256 * 240 * 4) });
@@ -203,7 +272,7 @@ if (crt) {
       busy = false;
       if (screenMode === 'lcd') return;
       crt.setSignal(e.data.sig, 1024, 240, 256, 240, e.data.glow || false);
-      crtDraw();
+      crtDraw(); shown();
     };
   } catch { worker = null; }
 }
@@ -218,8 +287,8 @@ function crtDraw() {
 // worker が使えないときだけ、ここで RGB の信号を作る（にじみは はじめの 1 回だけ）
 let glowTick = 0;
 function draw() {
-  if (room && roomPlay) { room.show(nes.ppu.frame); return; }   // 部屋のテレビに映す
-  if (screenMode === 'lcd') { px.set(nes.ppu.frame); g.putImageData(img, 0, 0); return; }
+  if (room && (roomPlay || $('player').hidden)) { room.show(nes.ppu.frame); return; }   // 部屋のテレビに映す（棚にいるあいだも）
+  if (screenMode === 'lcd') { px.set(nes.ppu.frame); g.putImageData(img, 0, 0); shown(); return; }
   const f = nes.ppu.frame;
   if (worker) {
     if (busy) return;
@@ -230,11 +299,15 @@ function draw() {
   }
   for (let i = 0, j = 0; i < f.length; i++, j += 4) { const c = f[i]; sig[j] = c; sig[j + 1] = c; sig[j + 2] = c; sig[j + 3] = c; }
   crt.setSignal(sig8, 1024, 240, 256, 240, glowTick++ ? false : undefined);
-  crtDraw();
+  crtDraw(); shown();
 }
-function setScreen(mode) {
+// 遊ぶ画面の画面に絵が描けた
+let drawnWaiters = [];
+function shown() { canvas.style.visibility = glCanvas.style.visibility = ''; const w = drawnWaiters; drawnWaiters = []; for (const f of w) f(); }
+const drawn = () => new Promise((ok) => drawnWaiters.push(ok));
+function setScreen(mode, chosen) {
   if (!crt && mode !== 'lcd') return;
-  screenMode = mode; save('retro8.screen', mode); glowTick = 0;
+  screenMode = mode; if (chosen) save('retro8.screenMode', mode); glowTick = 0;
   const on = mode !== 'lcd';
   canvas.hidden = on; glCanvas.hidden = !on;
   $('bezel').classList.toggle('crton', on);
@@ -282,7 +355,7 @@ setSound(soundOn);
 
 // ---------- 入力（キー・指・ゲームパッド。くわしくは input.js） ----------
 const input = createInput();
-input.onPress = (p, b) => { if (!running && nes && (b === 'START' || b === 'A')) power(); };
+input.onPress = (p, b) => { if (!running && nes && !$('player').hidden && (b === 'START' || b === 'A')) power(); };
 // キーの案内: コントローラーのボタン → いまの割り当てのキー → すること
 let guideKeys = [];
 const BUTTON_LABEL = { PAD: TX('十字キー', 'D-pad'), A: 'A', B: 'B', START: 'START', SELECT: 'SELECT' };
@@ -340,7 +413,7 @@ for (const el of document.querySelectorAll('[data-btn]')) {
 let pausedBySettings = false;
 const settings = initSettings({
   input,
-  screen: { get: () => screenMode, set: setScreen, can: !!crt },
+  screen: { get: () => screenMode, set: (m) => setScreen(m, true), can: !!crt },
   sound: { get: () => soundOn, set: setSound },
   volume: { get: () => volume, set: setVolume },
   vibrate: { get: () => vibrateOn, set: (v) => { vibrateOn = v; save('retro8.vibrate', v ? '1' : '0'); }, can: COARSE && !!navigator.vibrate },
@@ -352,7 +425,7 @@ $('btnSettings').addEventListener('click', () => settings.open('view'));
 // ---------- 動かす ----------
 // 確かめ用の窓口（動いたフレームの数・画面の見え方）
 const stats = { frames: 0 };
-window.__retro8 = { stats, get mode() { return screenMode; }, setScreen: (m) => setScreen(m), get nes() { return nes; } };
+window.__retro8 = { stats, get mode() { return screenMode; }, setScreen: (m) => setScreen(m), get nes() { return nes; }, get room() { return room; } };
 let acc = 0, last = 0;
 function loop(t) {
   if (!running || !nes) return;
@@ -402,7 +475,7 @@ $('player').addEventListener('contextmenu', (e) => { if (!e.target.closest('inpu
 
 // タブを離れたら止め、もどったら続ける
 document.addEventListener('visibilitychange', () => {
-  if (!nes || !$('power').hidden) return;
+  if (!nes || !$('power').hidden || $('player').hidden) return;   // 棚で止めているあいだは、もどっても動かさない
   if (document.hidden) { saveBattery(); running = false; audio?.ctx.suspend(); }
   else { running = true; last = 0; acc = 0; audio?.ctx.resume(); requestAnimationFrame(loop); keepAwake(true); }
 });
