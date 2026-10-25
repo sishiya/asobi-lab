@@ -13,4 +13,10 @@ export const LIBRARY = [
     keys: [['PAD', '←→ 動く'], ['A', '舌'], ['START', 'はじめる・止める']],
     frames: 70,
   },
+  {
+    id: 'pillbug-path', file: 'roms/pillbug-path.nes', title: 'ダンゴムシのみち', color: '#6f7a3a',
+    desc: 'ダンゴムシは前がふさがると曲がる。左に曲がったら、つぎは右。石を置いて、葉っぱまで歩かせるパズル。ひなたに出ると丸くなる。',
+    keys: [['PAD', 'カーソル'], ['A', '石を置く・とる'], ['START', '歩かせる'], ['B', '止める'], ['SELECT', '石をもどす']],
+    frames: 70,
+  },
 ];

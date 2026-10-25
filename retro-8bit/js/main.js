@@ -1,6 +1,6 @@
 // 棚（トップ）と遊ぶ画面。画面・音・入力・セーブをつなぐ（ブラウザの係）
 import { Console8, BTN } from './nes.js';
-import { LIBRARY } from './library.js';
+import { LIBRARY } from './library.js?v=15';
 import { createCRT } from './crt/crt-gl.js';
 import { createInput, keyLabel } from './input.js';
 import { initSettings } from './settings.js';
