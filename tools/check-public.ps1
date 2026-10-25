@@ -100,8 +100,8 @@ foreach ($f in $files) {
     if (-not $extrasOk -or $json -match '"(copyright|author)"|[A-Za-z]:[\\/]|/Users/|/home/') { [void]$hits.Add("$rel : glb に作者・付加情報・パスがある（書き出しの設定を見直す）") }
     continue
   }
-  if ($ext -eq '.nes') {
-    # 8ビット互換機の ROM（retro-8bit/tools/build.mjs が src/ から作る）: バイトの中に、メール・PC のパス・鍵・自分の言葉などがないか
+  if ($ext -eq '.nes' -or ($ext -eq '.exe' -and $rel -match '^retro-32bit[\\/]')) {
+    # 8ビット互換機の ROM（retro-8bit/tools/build.mjs が src/ から作る）・32ビット互換機のソフト（retro-32bit/tools/build.mjs）: バイトの中に、メール・PC のパス・鍵・自分の言葉などがないか
     $ascii = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($f))
     foreach ($r in $rules) { if ($ascii -match $r.r) { [void]$hits.Add("$rel : ROM の中に $($r.n)") } }
     foreach ($w in $private) { if ($ascii -match $w) { [void]$hits.Add("$rel : ROM の中に 自分の言葉（.private-words.txt）") } }

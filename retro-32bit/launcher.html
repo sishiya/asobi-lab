@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>32ビット互換機 過去の版</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%2311141f'/><path d='M32 12 52 48H12z' fill='%23e8483c'/><path d='M32 12 52 48 32 40z' fill='%233c7ce8'/><path d='M32 12 12 48 32 40z' fill='%2346d070'/></svg>">
+<style>
+/* 1段組み: 節目の版はカード、ほかの版は表 */
+:root{--bg:#0c0e15;--ink:#e6e9f2;--muted:#8f97ad;--line:#2a3042;--panel:#161a26;--acc:#e8483c;color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:48px 16px 64px;display:flex;flex-direction:column;gap:28px}
+.eyebrow{font-size:11px;letter-spacing:.2em;color:var(--muted)}
+h1{font-weight:800;font-size:30px;margin:6px 0 0;color:var(--acc)}
+h2{font-size:12px;letter-spacing:.18em;color:var(--muted);font-weight:700;margin:0 0 10px}
+.cards{display:flex;flex-direction:column;gap:12px}
+.card{display:grid;grid-template-columns:auto 1fr auto;gap:6px 18px;align-items:start;padding:16px 18px;background:var(--panel);border:1px solid var(--line);border-radius:12px;text-decoration:none;color:inherit}
+.card:hover,.latest{border-color:var(--acc)}
+.ver{font-size:13px;color:var(--acc);padding-top:3px;font-weight:700}
+.card b{font-size:17px}
+.card p{margin:4px 0 0;font-size:13px;line-height:1.75;color:var(--muted)}
+.date{font-size:11px;color:var(--muted);white-space:nowrap;padding-top:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{padding:8px 6px;border-top:1px solid var(--line);vertical-align:top}
+td:first-child{color:var(--muted);white-space:nowrap}
+td a,.foot a{color:var(--ink)}
+.foot{font-size:13px;display:flex;gap:16px}
+@media (max-width:520px){.card{grid-template-columns:1fr}.date{padding:0}h1{font-size:26px}}
+</style>
+</head>
+<body>
+<main>
+  <header><div class="eyebrow">RETRO-32BIT · VERSIONS</div><h1>32ビット互換機</h1></header>
+  <section>
+    <h2>ターニングポイント</h2>
+    <div class="cards">
+      <a class="card latest" href="index.html"><span class="ver">最新</span><div><b>いまの版</b><p>作業フォルダにある index.html。</p></div><span class="date">—</span></a>
+      <a class="card" href="versions/v001-tri/index.html"><span class="ver">v001</span><div><b>はじめの試作（段階A）</b>
+        <p>一から書いた 32 ビットのゲーム機の互換機の芯（CPU MIPS R3000A・絵を塗る GPU・DMA・割りこみ）と、自作の MIPS アセンブラで作ったテストソフト「回る三角形」。メーカーの BIOS は使わず、実行ファイルを直接置いて動かす。</p></div><span class="date">2026-10-25</span></a>
+    </div>
+  </section>
+  <section>
+    <h2>すべての版</h2>
+    <table>
+      <tr><td>v001-tri</td><td>段階A: CPU（全命令・遅延スロット・ロードの遅れ・例外）・GPU（三角形・四角・線・テクスチャ・半透明・ディザ）・DMA・アセンブラ・回る三角形（ver. 0.1）</td></tr>
+    </table>
+  </section>
+  <p class="foot"><a href="index.html">いまの版へ</a><a href="../archive.html">あそびラボの保管庫へ</a></p>
+</main>
+</body>
+</html>
