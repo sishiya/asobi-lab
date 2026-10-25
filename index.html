@@ -187,6 +187,9 @@ h2+.grid{margin-top:0}
 // video は遊び方の動画 {id: YouTube の動画 ID, at: 公開日時}（例 video:{id:'xxxxxxxxxxx', at:'2026-10-25T21:00:00+09:00'}）。at を過ぎるとカードに「▶ 遊び方の動画」が出る。足すのは公開されてから（まなびラボと同じ）。
 // title_en・desc_en は英語の入口での名前と説明。en:true は、ゲームの中も英語に切り替えられるもの（ないものは「Japanese only」と出す）。
 const GAMES = [
+  {id:'retro-8bit', title:'8ビット互換機', cat:'action', created:'2026-10-25', updated:'2026-10-25',
+   desc:'あそびラボが一から書いた8ビットのゲーム機。透明なケースからカセットをえらぶと、本体にカチャッとさしこんで電源が入る。ソフトはこの機械のために作ったオリジナル3本。画面はブラウン管にもできる。',
+   title_en:'8-bit Console', desc_en:'An 8-bit game console written from scratch by Asobi Lab. Pick a cartridge from its clear case, and it clicks into the console and powers on. Three original games made for this machine. The screen can look like an old CRT TV.', en:true},
   {id:'dino-race', title:'恐竜かけっこ牧場', cat:'sim', created:'2026-10-17', updated:'2026-10-19',
    desc:'恐竜をかけ合わせて育て、物理の計算で本当に走らせて 100m のかけっこ。体の形と走り方は遺伝子で決まり、走り方は片方の親から丸ごと受けつぐ。体が大きくなるほど重さの割に力が足りなくなる「相似則」も本物どおり。速いけど転びやすい子か、少し遅いけど安定した子か。大会でメダルを集めて、研究の推定の速さに挑もう。',
    title_en:'Dino Sprint Ranch', desc_en:'Breed dinosaurs and race them 100m with real physics. Body shape and gait come from genes, and each hatchling inherits its whole gait from one parent. Just like real animals, the bigger the body, the less strength it has to spare. Keep the fast but wobbly runner, or the slower, steadier one? Win medals at the cups and chase the top speeds estimated by researchers.', en:true},

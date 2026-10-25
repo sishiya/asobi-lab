@@ -362,11 +362,21 @@ $('btnFull').addEventListener('click', () => {
 });
 document.addEventListener('fullscreenchange', () => setTimeout(fit, 50));
 
+// 遊んでいるあいだ: 画面を暗くしない（使えるブラウザだけ）・iOS の指2本の拡大をしない・長押しのメニューを出さない
+let wake = null;
+function keepAwake(on) {
+  if (on) { if (!wake && navigator.wakeLock) navigator.wakeLock.request('screen').then((w) => { wake = w; w.addEventListener('release', () => { wake = null; }); }).catch(() => {}); }
+  else { wake?.release().catch(() => {}); wake = null; }
+}
+new MutationObserver(() => keepAwake(document.body.classList.contains('playing') && !document.hidden)).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+for (const t of ['gesturestart', 'gesturechange']) document.addEventListener(t, (e) => { if (document.body.classList.contains('playing')) e.preventDefault(); }, { passive: false });
+$('player').addEventListener('contextmenu', (e) => { if (!e.target.closest('input,textarea')) e.preventDefault(); });
+
 // タブを離れたら止め、もどったら続ける
 document.addEventListener('visibilitychange', () => {
   if (!nes || !$('power').hidden) return;
   if (document.hidden) { saveBattery(); running = false; audio?.ctx.suspend(); }
-  else { running = true; last = 0; acc = 0; audio?.ctx.resume(); requestAnimationFrame(loop); }
+  else { running = true; last = 0; acc = 0; audio?.ctx.resume(); requestAnimationFrame(loop); keepAwake(true); }
 });
 
 shelf.render();
