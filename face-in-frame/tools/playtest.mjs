@@ -2,10 +2,12 @@
 // node face-in-frame/tools/playtest.mjs [test の絵の id] [幅] [高さ] [出す絵の id をコンマで]
 // 撮った絵は _dev/face-in-frame/<日時>/ へ（Git に入れない）
 import path from 'node:path';
+import { chromium } from '../../tools/playwright/node_modules/playwright/index.mjs';
 import { serve, launch, safeContext, outDir } from '../../tools/playwright/lib.mjs';
 
 const [id = 'pearl', w = '1280', h = '720'] = process.argv.slice(2);
-const srv = await serve(), browser = await launch();
+// GPU=1 で GPU を使う（筆のタッチは GPU がないと切れる。ふつうの headless は WebGL がソフトウェア）
+const srv = await serve(), browser = process.env.GPU ? await chromium.launch({ args: ['--mute-audio', '--enable-gpu', '--use-angle=d3d11', '--ignore-gpu-blocklist'] }) : await launch();
 const ctx = await safeContext(browser, srv.origin, { width: +w, height: +h });
 const page = await ctx.newPage();
 const errors = [];

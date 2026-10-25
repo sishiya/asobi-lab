@@ -1,20 +1,22 @@
 // 名画の顔ハメ: 画面の流れ・看板の合成・シャッター・けっか。
 // カメラの映像はこの端末の中だけで使う。写真はけっかで「保存」を押したときだけファイルにする。
-import { PAINTINGS } from './paintings.js?v=6';
-import { createLandmarker, readFace, areaBox } from './face.js?v=6';
-import { createBlender, labStats } from './blend.js?v=6';
-import { scoreFace, averageFaces, mark } from './score.js?v=6';
-import { TX, initLang } from './i18n.js?v=6';
+import { PAINTINGS } from './paintings.js?v=7';
+import { createLandmarker, readFace, areaBox } from './face.js?v=7';
+import { createBlender, labStats } from './blend.js?v=7';
+import { scoreFace, averageFaces, mark } from './score.js?v=7';
+import { TX, initLang } from './i18n.js?v=7';
+import { loadStyler, stylize, LIVE, PHOTO } from './style.js?v=7';
 
 const $ = s => document.querySelector(s);
 
 // ---- 設定（覚えておけなくても動く） ----
-const DEF = { assist: 1, blend: 2, secs: 5, shots: 3, sound: 1 };
+const DEF = { assist: 1, blend: 2, touch: 2, secs: 5, shots: 3, sound: 1 };
 const cfg = { ...DEF };
 try { Object.assign(cfg, JSON.parse(localStorage.getItem('face-in-frame') || '{}')); } catch (e) {}
 const saveCfg = () => { try { localStorage.setItem('face-in-frame', JSON.stringify(cfg)); } catch (e) {} };
 const ASSIST = [0, 0.3, 0.55, 0.8];   // 顔を穴へ寄せる割合（なし・弱・中・強）
 const BLEND = [0, 0.45, 0.75, 1];     // 絵の色へ寄せる割合
+const TOUCH = [0, 0.45, 0.75, 1];     // 筆のタッチ（スタイル変換）を重ねる割合
 const INTRO = 1.8;                    // 絵が出てから時間が動き出すまで（秒）
 
 function syncSeg() {
@@ -196,7 +198,8 @@ $('#start').onclick = async () => {
   run = { list, i: 0, phase: 'load', t0: 0, cur: null, shots: [] };
   try {
     blender = blender || createBlender();
-    const [ , l] = await Promise.all([startCamera(), lmk ? lmk : createLandmarker('VIDEO')]);
+    const [ , l, st] = await Promise.all([startCamera(), lmk ? lmk : createLandmarker('VIDEO'), TOUCH[cfg.touch] ? loadStyler() : null]);
+    styler = st;
     lmk = l;
     $('#wait').textContent = TX('絵を用意しています…', 'Hanging the paintings…');
     await Promise.all(list.map(prepare));
@@ -251,7 +254,12 @@ function placement(cur, gw, gh) {
   return { k, ox: cur.hx - k * cx, oy: cur.hy - k * cy };
 }
 
-function compose(g, cur, scale) {
+// 筆のタッチ: 遊んでいるあいだは LIVE の大きさで、変換が終わるたびに次をはじめる（1〜2コマおくれる）。写真は PHOTO で撮りなおす。
+// styler は loadStyler の結果（null なら使わない。live が false なら写真だけ）
+let styler = null, styleBusy = false, styleId = null, styleBox = null;
+const liveStyle = document.createElement('canvas');
+const holeRect = (cur, scale) => cur.sbox.map(v => v * scale);
+function compose(g, cur, scale, live) {
   g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#121010'; g.fillRect(0, 0, g.canvas.width, g.canvas.height);
   const gw = blender.canvas.width, gh = blender.canvas.height;
   if (gw) {
@@ -272,6 +280,16 @@ function compose(g, cur, scale) {
       const [bx, by, bw, bh] = cur.sbox; drawShade(g, cur.shade, bx, by, bw, bh);
       g.restore();
     }
+  }
+  const touch = TOUCH[cfg.touch] || 0;
+  if (live && styler && styler.live && touch > 0) {
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    const r = holeRect(cur, scale);
+    if (!styleBusy) { // いまの絵を渡してから、前の結果を描く
+      styleBusy = true; const id = cur.p.id;
+      stylize(g.canvas, r, id, LIVE, liveStyle).then(b => { styleId = b ? id : null; styleBox = b; }).catch(() => { styleId = null; }).finally(() => { styleBusy = false; });
+    }
+    if (styleId === cur.p.id && styleBox) { const [x, y, d] = styleBox; g.globalAlpha = touch; g.drawImage(liveStyle, x, y, d, d); g.globalAlpha = 1; }
   }
   g.setTransform(scale, 0, 0, scale, 0, 0);
   g.drawImage(cur.holed, 0, 0);
@@ -297,7 +315,16 @@ function shoot() {
   if (TEST) (window.__shots = window.__shots || []).push(Date.now()); // 確かめ用: シャッターの時刻
   const cur = run.cur, c = document.createElement('canvas');
   c.width = cur.W; c.height = cur.H;
-  compose(c.getContext('2d'), cur, 1);
+  const cg = c.getContext('2d');
+  compose(cg, cur, 1);
+  const touch = TOUCH[cfg.touch] || 0;
+  if (styler && touch > 0) { // 写真は細かく変換して重ね、穴のあいた絵をのせなおす
+    const r = holeRect(cur, 1), out = document.createElement('canvas');
+    run.pending = (run.pending || 0) + 1;
+    stylize(c, r, cur.p.id, PHOTO, out).then(b => {
+      if (b) { cg.globalAlpha = touch; cg.drawImage(out, b[0], b[1], b[2], b[2]); cg.globalAlpha = 1; cg.drawImage(cur.holed, 0, 0); }
+    }).catch(() => {}).finally(() => { if (run) run.pending--; });
+  }
   const now = performance.now();
   const f = averageFaces(recent.filter(r => now - r.t < 450).map(r => r.f));
   const score = scoreFace(f, cur.p);
@@ -329,12 +356,12 @@ function frame(now) {
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(run.frozen, 0, 0, stage.width, stage.height);
     if (t > 1.1) {
       if (run.i + 1 < run.list.length) begin(run.i + 1);
-      else { finish(); }
+      else if (!run.pending) finish(); // 写真の筆のタッチが終わってから
     }
     return;
   }
   blender.draw(video, gw, gh, srcStats, cur.dst, BLEND[cfg.blend] || 0);
-  compose(ctx, cur, stage.width / cur.W);
+  compose(ctx, cur, stage.width / cur.W, true);
   if (run.phase === 'intro') {
     $('#timer').style.width = '0';
     if (t > INTRO) { run.phase = 'pose'; run.t0 = now; }

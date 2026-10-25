@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/no-quirks.css"><script src="../assets/no-quirks.js" defer></script>
-<link rel="stylesheet" href="css/style.css?v=6">
+<link rel="stylesheet" href="css/style.css?v=7">
 </head>
 <body>
 
@@ -28,7 +28,7 @@
     <p class="privacy"><span class="cam" aria-hidden="true"></span><span lang="ja">カメラを使います。映像はこの端末の中だけで使い、送ったり保存したりしません。</span><span lang="en">This uses your camera. The video stays on this device and is never sent or saved.</span></p>
     <div class="links"><button class="link" id="openSettings"><span lang="ja">設定</span><span lang="en">Settings</span></button><a class="link" href="../index.html"><span lang="ja">あそびラボのトップへ</span><span lang="en">Asobi Lab home</span></a></div>
   </div>
-  <span class="ver">ver. 0.5</span>
+  <span class="ver">ver. 0.6</span>
 </section>
 
 <!-- 遊ぶ -->
@@ -71,11 +71,12 @@
     <h2><span lang="ja">設定</span><span lang="en">Settings</span></h2>
     <div class="opt"><span><span lang="ja">顔を穴へ寄せる</span><span lang="en">Pull my face into the hole</span></span><div class="seg" data-key="assist"><button data-v="0"><span lang="ja">なし</span><span lang="en">Off</span></button><button data-v="1"><span lang="ja">弱</span><span lang="en">Low</span></button><button data-v="2"><span lang="ja">中</span><span lang="en">Mid</span></button><button data-v="3"><span lang="ja">強</span><span lang="en">High</span></button></div></div>
     <div class="opt"><span><span lang="ja">絵の色になじませる</span><span lang="en">Blend into the painting</span></span><div class="seg" data-key="blend"><button data-v="0"><span lang="ja">なし</span><span lang="en">Off</span></button><button data-v="1"><span lang="ja">弱</span><span lang="en">Low</span></button><button data-v="2"><span lang="ja">中</span><span lang="en">Mid</span></button><button data-v="3"><span lang="ja">強</span><span lang="en">High</span></button></div></div>
+    <div class="opt"><span><span lang="ja">筆のタッチ</span><span lang="en">Brushstrokes</span></span><div class="seg" data-key="touch"><button data-v="0"><span lang="ja">なし</span><span lang="en">Off</span></button><button data-v="1"><span lang="ja">弱</span><span lang="en">Low</span></button><button data-v="2"><span lang="ja">中</span><span lang="en">Mid</span></button><button data-v="3"><span lang="ja">強</span><span lang="en">High</span></button></div></div>
     <div class="opt"><span><span lang="ja">1枚の時間</span><span lang="en">Time per painting</span></span><div class="seg" data-key="secs"><button data-v="5"><span lang="ja">5秒</span><span lang="en">5 s</span></button><button data-v="8"><span lang="ja">8秒</span><span lang="en">8 s</span></button></div></div>
     <div class="opt"><span><span lang="ja">枚数</span><span lang="en">Paintings</span></span><div class="seg" data-key="shots"><button data-v="3">3</button><button data-v="5">5</button></div></div>
     <div class="opt"><span><span lang="ja">音</span><span lang="en">Sound</span></span><div class="seg" data-key="sound"><button data-v="1"><span lang="ja">あり</span><span lang="en">On</span></button><button data-v="0"><span lang="ja">なし</span><span lang="en">Off</span></button></div></div>
     <button class="big" id="closeSettings"><span lang="ja">とじる</span><span lang="en">Close</span></button>
-    <p class="credit"><span lang="ja">絵はどれもパブリックドメインです（<a href="CREDITS.md" target="_blank">出典</a>）。顔の読み取りに MediaPipe（Apache-2.0）を使っています。</span><span lang="en">All paintings are in the public domain (<a href="CREDITS.md" target="_blank">sources</a>, in Japanese). Face tracking uses MediaPipe (Apache-2.0).</span></p>
+    <p class="credit"><span lang="ja">絵はどれもパブリックドメインです（<a href="CREDITS.md" target="_blank">出典</a>）。顔の読み取りに MediaPipe、筆のタッチに Magenta の任意スタイル変換と TensorFlow.js（どれも Apache-2.0）を使っています。</span><span lang="en">All paintings are in the public domain (<a href="CREDITS.md" target="_blank">sources</a>, in Japanese). Face tracking uses MediaPipe; brushstrokes use Magenta arbitrary style transfer with TensorFlow.js (all Apache-2.0).</span></p>
   </div>
 </div>
 
@@ -84,6 +85,6 @@
   <div class="panel"><p id="msgText"></p><button class="big" id="msgOk"><span lang="ja">タイトルへ</span><span lang="en">Back to title</span></button></div>
 </div>
 
-<script type="module" src="js/main.js?v=6"></script>
+<script type="module" src="js/main.js?v=7"></script>
 </body>
 </html>
