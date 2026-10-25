@@ -312,7 +312,12 @@ if (crt) {
   crt.setPicture({ w: 256, h: 240, data: new Uint8Array(256 * 240 * 4) });
   try {
     worker = new Worker(new URL('./crt/worker.js', import.meta.url), { type: 'module' });
-    worker.onmessage = (e) => { busy = false; if (screenMode !== 'lcd' && screenMode !== 'rgb') { crt.setSignal(e.data, 1024, 240); crtDraw(); } };
+    worker.onmessage = (e) => {
+      busy = false;
+      if (screenMode === 'lcd') return;
+      crt.setSignal(e.data.sig, 1024, 240, 256, 240, e.data.glow || false);
+      crtDraw();
+    };
   } catch { worker = null; }
 }
 if (!crt) screenMode = 'lcd';
@@ -322,23 +327,26 @@ function crtDraw() {
   crt.draw({ view: [0, 0, glCanvas.width / 256], split: -1, scan: 1, inter: 0, mask: 1, triads: 1.5, gamma: 2.4, bloom: 0.12, curve: 1, par: 1, rowH: 1, dotW: 1,
     noise: screenMode === 'rf' ? 0.06 : 0, seed: (crtFrames++ % 97) * 0.37 });
 }
+// 信号とにじみは worker で（にじみは 4 回に 1 回。ぼかした光なので少しおくれても見えない）。
+// worker が使えないときだけ、ここで RGB の信号を作る（にじみは はじめの 1 回だけ）
+let glowTick = 0;
 function draw() {
   if (screenMode === 'lcd') { px.set(nes.ppu.frame); g.putImageData(img, 0, 0); return; }
   const f = nes.ppu.frame;
-  if (screenMode === 'rgb' || !worker) {
-    // RGB: 信号はドットのまま（1ドット 4 点にのばす）
-    for (let i = 0, j = 0; i < f.length; i++, j += 4) { const c = f[i]; sig[j] = c; sig[j + 1] = c; sig[j + 2] = c; sig[j + 3] = c; }
-    crt.setSignal(sig8, 1024, 240);
-    crtDraw();
-  } else if (!busy) {
+  if (worker) {
+    if (busy) return;
     busy = true;
     const copy = new Uint8ClampedArray(f.buffer.slice(0));
-    worker.postMessage({ data: copy, link: screenMode }, [copy.buffer]);
+    worker.postMessage({ data: copy, link: screenMode, glow: (glowTick++ & 3) === 0 }, [copy.buffer]);
+    return;
   }
+  for (let i = 0, j = 0; i < f.length; i++, j += 4) { const c = f[i]; sig[j] = c; sig[j + 1] = c; sig[j + 2] = c; sig[j + 3] = c; }
+  crt.setSignal(sig8, 1024, 240, 256, 240, glowTick++ ? false : undefined);
+  crtDraw();
 }
 function setScreen(mode) {
   if (!crt && mode !== 'lcd') return;
-  screenMode = mode; save('retro8.screen', mode);
+  screenMode = mode; save('retro8.screen', mode); glowTick = 0;
   const on = mode !== 'lcd';
   canvas.hidden = on; glCanvas.hidden = !on;
   $('bezel').classList.toggle('crton', on);
