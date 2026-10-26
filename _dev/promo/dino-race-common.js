@@ -205,7 +205,8 @@ function drMission(g, f, y, label, line1, line2) {
 }
 // 「まなびラボの姉妹サイト」の札（左上のしし屋の目印の下に。a は目印の始まり）
 function drSister(g, t, a, x = 48, y = 196) {
-  const u = t - a, f = ease((u - 0.7) / 0.4) * (1 - ease((u - 5.4) / 0.4)); if (f <= 0) return;
+  // 左上の目印（drawIdentMini）のアイコンがはけるのといっしょに消す（2026-10-27 ユーザー「姉妹サイトだけがしばらくとどまり続けるのが気になる」。前は 5.4 秒まで）
+  const u = t - a, f = ease((u - 0.7) / 0.4) * (1 - ease((u - 2.6) / 0.5)); if (f <= 0) return;
   g.save(); g.shadowBlur = 0; g.globalAlpha = f;
   setFont(g, 30, true); const s = 'まなびラボの姉妹サイト', w = g.measureText(s).width + 44;
   g.fillStyle = 'rgba(255,241,220,0.93)'; g.beginPath(); g.roundRect(x, y - 26, w, 52, 26); g.fill();
