@@ -8,8 +8,5 @@ export const CALIBRATED = {
   hals: {goal: {jaw: 0.002,smile: 0.637,frown: 0.02,round: 0.041},roll: 2.4,yaw: -0.309},
   rembrandt: {goal: {jaw: 0.082,smile: 0,frown: 0.002,round: 0.413},roll: -8.9,yaw: 0.161},
   utamaro: {goal: {jaw: 0.002,smile: 0,frown: 0.01,round: 0.171},roll: 1.1,yaw: -1.321},
-  manet: {goal: {jaw: 0.007,smile: 0,frown: 0.003,round: 0.438},roll: 2.6,yaw: 0.165},
-  gogh2: {goal: {jaw: 0.01,smile: 0,frown: 0.112,round: 0.006},roll: -1,yaw: -0.958},
-  tanguy: {goal: {jaw: 0.001,smile: 0.028,frown: 0.068,round: 0.001},roll: 0.1,yaw: -0.047},
   milkmaid: {goal: {jaw: 0.003,smile: 0,frown: 0.017,round: 0.041},roll: 16.7,yaw: -0.507},
 };

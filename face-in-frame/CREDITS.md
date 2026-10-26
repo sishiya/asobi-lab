@@ -17,10 +17,7 @@
 | `art/rembrandt.jpg` | 口を開けた自画像（帽子の） | レンブラント・ファン・レイン、1630 | ウィキメディア・コモンズ「Rembrandt van Rijn, Self-Portrait in a Cap, Open-Mouthed, 1630, NGA 10060.jpg」（ワシントン・ナショナル・ギャラリー） | CC0 |
 | `art/reiko.jpg` | 麗子微笑 | 岸田劉生、1921 | ウィキメディア・コモンズ「Reiko Smiling by Kishida Ryusei (Tokyo National Museum).jpg」（所蔵: 東京国立博物館。画像のもとは e国宝） | パブリックドメイン |
 | `art/utamaro.jpg` | 婦女人相十品 ポッピンを吹く娘 | 喜多川歌麿、1792〜93ごろ | メトロポリタン美術館 Open Access（DP135591。ウィキメディア・コモンズ経由） | CC0 |
-| `art/manet.jpg` | 笛を吹く少年（上半身を切りぬき） | エドゥアール・マネ、1866 | ウィキメディア・コモンズ「Manet, Edouard - Young Flautist, or The Fifer, 1866 (2).jpg」（所蔵: オルセー美術館） | パブリックドメイン |
 | `art/yawning.jpg` | あくびをする自画像 | ジョゼフ・デュクルー、1783ごろ | ウィキメディア・コモンズ「Joseph Ducreux - Self-Portrait, Yawning - 71.PA.56 - J. Paul Getty Museum.jpg」（ゲティ美術館 Open Content） | パブリックドメイン |
-| `art/gogh2.jpg` | 自画像 | フィンセント・ファン・ゴッホ、1889 | ウィキメディア・コモンズ「Vincent van Gogh - Self-Portrait - Google Art Project.jpg」（所蔵: オルセー美術館） | パブリックドメイン |
-| `art/tanguy.jpg` | タンギー爺さん（上半身を切りぬき） | フィンセント・ファン・ゴッホ、1887 | ウィキメディア・コモンズ「Van Gogh - Bildnis Pére Tanguy.jpeg」（所蔵: ロダン美術館） | パブリックドメイン |
 | `art/milkmaid.jpg` | 牛乳を注ぐ女（人物のまわりを切りぬき） | ヨハネス・フェルメール、1658ごろ | ウィキメディア・コモンズ「Johannes Vermeer - Het melkmeisje - Google Art Project.jpg」（所蔵: アムステルダム国立美術館） | パブリックドメイン |
 
 ## ライブラリ
