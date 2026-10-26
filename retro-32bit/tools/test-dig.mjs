@@ -180,5 +180,30 @@ function boot(card = null) {
   t.press('L2'); ok('L2（ホイール ↑）で前の持ち物', t.m.ram32[VB + 15] === 2, `選び ${t.m.ram32[VB + 15]}`);
   t.press('R2'); t.press('R2'); ok('R2（ホイール ↓）でつぎの持ち物', t.m.ram32[VB + 15] === 7, `選び ${t.m.ram32[VB + 15]}`);
 }
+// 水から上がる: 浅い海（底から 1 段の岸・水面より 1 段高い岸）と、深い水たまり（底から浮いて、水面から岸へ跳ぶ）
+{
+  const climb = (setup) => {
+    const t = boot(), VB = (syms.vars & 0x1fffff) >> 2, r = t.m.ram32, wb = syms.world & 0x1fffff;
+    const at = (x, y, z) => y * 1024 + z * 32 + x;
+    const start = setup(t, at);
+    r[VB] = start.x * 256; r[VB + 2] = start.z * 256; r[VB + 1] = start.y * 256; r[VB + 4] = start.yaw << 8; r[VB + 18] = 0xffff; t.run(30);
+    const inwat = r[VB + 19];
+    for (let i = 0; i < 300; i++) { t.m.sio.buttons[0] = (1 << BTN.UP) | (1 << BTN.A); t.run(1); }
+    t.m.sio.buttons[0] = 0;
+    return { inwat, out: start.out(r[VB] / 256, r[VB + 2] / 256), y: r[VB + 1] / 256 };
+  };
+  // 浅い海: 巣のとなりの海（水は 1 段）から岸へ
+  let res = climb((t) => ({ x: 29.5, z: 4.5, y: 5, yaw: 192, out: (x) => x < 29 }));
+  ok('浅い海から、水面と同じ高さの岸へ上がれる', res.inwat === 1 && res.out, `足 ${res.y.toFixed(2)}`);
+  res = climb((t, at) => { for (const z of [3, 4, 5]) t.setBlock(at(28, 6, z), 4); return { x: 29.5, z: 4.5, y: 5, yaw: 192, out: (x) => x < 29 }; });
+  ok('浅い海から、水面より 1 段高い岸へ上がれる', res.inwat === 1 && res.out, `足 ${res.y.toFixed(2)}`);
+  // 深い水たまり: はじめの場所のとなりを 3 段掘って水を入れる（水面は地面より 1 段下）
+  res = climb((t, at) => {
+    const VB = (syms.vars & 0x1fffff) >> 2, x = t.m.ram32[VB] >> 8, z = t.m.ram32[VB + 2] >> 8, g = t.m.ram32[VB + 1] >> 8;
+    for (let y = g - 4; y < g; y++) t.setBlock(at(x, y, z), y < g - 1 ? 9 : 0);
+    return { x: x + 0.5, z: z + 0.5, y: g - 4, yaw: 0, out: (xx, zz) => Math.floor(xx) !== x || Math.floor(zz) !== z };
+  });
+  ok('深い水たまりの底から、浮いて岸へ上がれる', res.inwat === 1 && res.out, `足 ${res.y.toFixed(2)}`);
+}
 console.log(fails ? `${fails} こ NG` : 'ぜんぶ ok');
 process.exitCode = fails ? 1 : 0;

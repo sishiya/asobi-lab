@@ -27,7 +27,7 @@ function save(k, v) { try { localStorage.setItem(k, v); return true; } catch { r
 // ---------- 棚 ----------
 const exeCache = new Map();
 async function loadExe(entry) {
-  if (!exeCache.has(entry.id)) exeCache.set(entry.id, fetch(entry.file + '?v=8').then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
+  if (!exeCache.has(entry.id)) exeCache.set(entry.id, fetch(entry.file + '?v=9').then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
   return exeCache.get(entry.id);
 }
 // 棚の手ざわりの音（sfx/。8ビット互換機と同じ音を写した。Stable Audio で作って、カチッが1つだけの所を切り出したもの）。

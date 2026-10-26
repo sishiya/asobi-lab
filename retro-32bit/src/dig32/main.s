@@ -668,23 +668,37 @@ update:
   xori v0, v0, 9
   sltiu v0, v0, 1
   sw v0, V_INWAT(gp)
-  ; 跳ぶ（地面に立っているとき）・水の中では A で浮く
+  ; 跳ぶ: 地面に立っているとき（水の底でも）・足が水面からわずかに出たとき（岸へ上がれるように）。水の中で A を押している間は浮く
   andi t1, s0, B_A
   beqz t1, @nj
   nop
+  lw t2, V_ONG(gp)
+  nop
+  bnez t2, @jump             ; 地面（水の底をふくむ）
+  nop
   lw t2, V_INWAT(gp)
   nop
-  beqz t2, @jl
+  beqz t2, @surf
   nop
-  li t3, 22
+  li t3, 22                  ; 水の中: 浮く
   sw t3, V_VY(gp)
   b @nj
   nop
-@jl:
-  lw t2, V_ONG(gp)
+@surf:
+  lw t2, V_VY(gp)            ; 水面: 浮いてきた（落ちていない）ときだけ
   nop
-  beqz t2, @nj
+  bltz t2, @nj
   nop
+  lw a0, V_CX(gp)            ; 足のすぐ下が水なら、地面と同じように跳べる
+  lw a1, V_CY(gp)
+  lw a2, V_CZ(gp)
+  addiu a1, a1, -64
+  jal blockat
+  nop
+  li t2, 9
+  bne v0, t2, @nj
+  nop
+@jump:
   li t3, JUMP_V
   sw t3, V_VY(gp)
 @nj:
