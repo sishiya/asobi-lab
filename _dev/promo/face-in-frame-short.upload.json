@@ -31,5 +31,5 @@
       "description": "Munch's The Scream, Sharaku, the Mona Lisa, Van Gogh. Put your own face into a masterpiece face-in-hole board with your camera and copy the expression in 5 seconds. Your face blends into the painting, brushstrokes and all. Then you get a score. From \"Masterpiece Face-in-Hole\", a browser game on Shishiya Asobi Lab, the sister site of Manabi Lab.\n\nGame (Japanese / English; switch with JP / EN on the title screen):\nhttps://sishiya.github.io/asobi-lab/face-in-frame/\n\nShishiya Asobi Lab (more games): https://sishiya.github.io/asobi-lab/\nShishiya Manabi Lab (learning apps): https://sishiya.github.io/manabi-lab/\n\nIn this video, a face from another painting (Caravaggio's Boy Bitten by a Lizard and others) stands in for the camera. No real person's face is shown.\nAll paintings are in the public domain. Face tracking: MediaPipe. Brushstrokes: Magenta arbitrary style transfer with TensorFlow.js (all Apache-2.0).\n\nMusic: original sounds synthesized by code.\n\n#Masterpiece #BrowserGame"
     }
   },
-  "videoId": "yaQTcZjPb5Q"
+  "videoId": "DqRlPYTLO8U"
 }
