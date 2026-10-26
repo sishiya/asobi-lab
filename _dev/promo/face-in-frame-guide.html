@@ -50,8 +50,8 @@ const CAPS = [
     en: ['Blending and brushstrokes: off vs. on', 'Without them, your face stands out from the painting'] },
   { a: 61.2, b: 72.8, main: '最後に、どれだけ似ていたかの点', sub: '見るのは口の形と首のかしげ方（目と眉は絵のまま）。部位ごとに ◎○△',
     en: ['At the end: how close were you?', 'It scores your mouth shape and head tilt (the eyes and brows stay painted), with ◎ ○ △ for each'] },
-  { a: 73.2, b: 80.8, main: '絵は6枚から、1回3枚（設定で5枚）', sub: 'ムンクの「叫び」なら、さけべ！',
-    en: ['3 of the 6 paintings each round (5 in Settings)', 'For Munch\'s The Scream: scream!'] },
+  { a: 73.2, b: 80.8, main: '絵は1回3枚、毎回ちがう組み合わせ（設定で5枚）', sub: 'ムンクの「叫び」なら、さけべ！',
+    en: ['3 different paintings each round (5 in Settings)', 'For Munch\'s The Scream: scream!'] },
   { a: 81.2, b: 91.8, main: '写真は「保存」を押したときだけ、この端末に', sub: '1枚ずつでも、まとめて1枚の画像にもできる',
     en: ['Photos are saved to this device only when you press Save', 'Save them one by one or all together as one image'] },
 ];
@@ -97,7 +97,7 @@ promoStart({
       fifFrame(g, 220 + W2 + 70, y, W2, H2, f, () => fifView(g, FIF.v.play, 220 + W2 + 70, y, W2, H2, [0.6, 0.47], 1.9), 'あり（はじめの設定）');
     }
     // 右の札
-    drawPanel(g, X, 230, XW, '絵はいま6枚（どれもパブリックドメイン）', ['叫び（ムンク）', 'モナ・リザ（ダ・ヴィンチ）', '真珠の耳飾りの少女（フェルメール）', 'トカゲに噛まれる少年（カラヴァッジョ）', '三代目大谷鬼次の江戸兵衛（写楽）', '麦わら帽子の自画像（ゴッホ）'], fade(t, 7.6, 14.6, 0.4));
+    drawPanel(g, X, 230, XW, '出てくる絵の一部（どれもパブリックドメイン）', ['叫び（ムンク）', 'モナ・リザ（ダ・ヴィンチ）', '真珠の耳飾りの少女（フェルメール）', 'トカゲに噛まれる少年（カラヴァッジョ）', '三代目大谷鬼次の江戸兵衛（写楽）', '麦わら帽子の自画像（ゴッホ）'], fade(t, 7.6, 14.6, 0.4));
     drawPanel(g, X, 230, XW, 'はじめの設定', ['顔を穴へ寄せる: 弱', '絵の色になじませる: 中', '筆のタッチ: 中', '1枚の時間: 5秒（8秒も）', '枚数: 3枚（5枚も）'], fade(t, 16.4, 23.6, 0.4));
     drawPanel(g, X, 230, XW, 'この動画では', ['カメラのかわりに、名画の顔で遊んでいます', '（本物の人の顔はうつしていません）', '名画の顔は表情を変えないので、点は低め'], fade(t, 24.6, 30.8, 0.4), '#ffd27a');
     drawPanel(g, X, 230, XW, 'この回のけっか（40点「あと少し、大げさに」）', ['写楽: 口 △　首 ○', 'モナ・リザ: 口 △　首 ○', 'ゴッホ: 口 ○　首 ○'], fade(t, 61.6, 72.8, 0.4));
