@@ -1,12 +1,12 @@
 // 名画の顔ハメ: 画面の流れ・看板の合成・シャッター・けっか。
 // カメラの映像はこの端末の中だけで使う。写真はけっかで「保存」を押したときだけファイルにする。
-import { PAINTINGS } from './paintings.js?v=11';
-import { createLandmarker, readFace, areaBox } from './face.js?v=11';
-import { createBlender, labStats } from './blend.js?v=11';
-import { scoreFace, averageFaces, mark } from './score.js?v=11';
-import { TX, initLang } from './i18n.js?v=11';
-import { loadStyler, stylize, LIVE, PHOTO } from './style.js?v=11';
-import { createHarmonizer } from './harmonize.js?v=11';
+import { PAINTINGS } from './paintings.js?v=12';
+import { createLandmarker, readFace, areaBox } from './face.js?v=12';
+import { createBlender, labStats } from './blend.js?v=12';
+import { scoreFace, averageFaces, mark } from './score.js?v=12';
+import { TX, initLang } from './i18n.js?v=12';
+import { loadStyler, stylize, LIVE, PHOTO } from './style.js?v=12';
+import { createHarmonizer } from './harmonize.js?v=12';
 
 const $ = s => document.querySelector(s);
 
@@ -171,6 +171,11 @@ let face = null, smooth = null, recent = [], srcStats = null, lastStat = 0, last
 
 function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
+// 顔の読み取り（約 13MB）は、タイトルを見ているあいだに読みはじめる（カメラの許可はまだ聞かない）
+let lmkPromise = null;
+const preloadLandmarker = () => (lmkPromise = lmkPromise || createLandmarker('VIDEO').catch(e => { lmkPromise = null; throw e; }));
+addEventListener('load', () => setTimeout(() => { preloadLandmarker().catch(() => {}).finally(() => { for (const p of PAINTINGS) loadImg(p.src).catch(() => {}); }); }, 300)); // 絵は顔の読み取りのあと（回線を取りあわない）
+
 $('#start').onclick = async () => {
   show('play'); $('#wait').hidden = false; $('#wait').textContent = TX('カメラを準備しています…', 'Getting the camera ready…');
   $('#hint').classList.remove('on'); $('#num').classList.remove('on'); $('#timer').style.width = '0';
@@ -179,11 +184,13 @@ $('#start').onclick = async () => {
   run = { list, i: 0, phase: 'load', t0: 0, cur: null, shots: [] };
   try {
     blender = blender || createBlender();
-    const [ , l, st] = await Promise.all([startCamera(), lmk ? lmk : createLandmarker('VIDEO'), TOUCH[cfg.touch] ? loadStyler(list.filter(p => p.fast).map(p => p.id)) : null]);
-    styler = st;
-    lmk = l;
-    $('#wait').textContent = TX('絵を用意しています…', 'Hanging the paintings…');
-    await Promise.all(list.map(prepare));
+    // 待つのは、カメラ・顔の読み取り（タイトルのうちから先読み）・1枚目の絵だけ。2枚目からと筆のタッチは遊びながら（v012。スマホで 16 秒待たせていた）
+    const cam = startCamera().then(() => { $('#wait').textContent = TX('顔の読み取りを準備しています…', 'Getting face tracking ready…'); });
+    // 顔の読み取りは待たない: 絵とカメラを先に出し、読めるまで時間を止めておく（そのあいだも穴に合わせて遊べる）
+    await Promise.all([cam, prepare(list[0])]);
+    preloadLandmarker().then(l => { lmk = l; updateHint(); }, () => { if (run) { run = null; stopCamera(); message(TX('顔の読み取りの準備ができませんでした。ページを読みこみなおしてみてください。', 'Face tracking could not start. Please reload the page.')); } });
+    for (const p of list.slice(1)) prepare(p).catch(() => {});
+    if (TOUCH[cfg.touch] && !styler) loadStyler(list.filter(p => p.fast).map(p => p.id)).then(st => { styler = st; }); // 終わったら、その場から筆のタッチがかかる
   } catch (e) {
     const denied = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
     message(denied ? TX('カメラが使えませんでした。ブラウザの設定でカメラを許可すると遊べます。', 'The camera could not be used. Allow the camera in your browser settings to play.')
@@ -196,7 +203,18 @@ $('#start').onclick = async () => {
 };
 $('#quit').onclick = () => { run = null; stopCamera(); show('title'); };
 
-function begin(i) {
+// 絵の上のひとこと。顔の読み取りがまだなら「準備中」をそえる
+function updateHint() {
+  if (!run || !run.cur) return;
+  const p = run.cur.p, i = run.i;
+  const hint = TX(p.hint, p.hint_en);
+  let html = i === 0 ? TX(`<small>顔を穴に合わせて</small>「${hint}」`, `<small>Fit your face in the hole: </small>${hint}`) : hint;
+  if (!lmk) html += TX('<small class="prep">顔の読み取りを準備中…</small>', '<small class="prep">Getting face tracking ready…</small>');
+  $('#hint').innerHTML = html;
+}
+
+async function begin(i) {
+  if (!cache.has(keyOf(run.list[i]))) { run.phase = 'load'; await prepare(run.list[i]); if (!run) return; } // まだ読めていなければ待つ（ふつうは前の絵のあいだに終わる）
   run.i = i; run.cur = cache.get(keyOf(run.list[i])); run.phase = 'intro'; run.t0 = run.introAt = performance.now();
   if (TEST) { // 確かめ用: 絵が出た時刻と、穴のまん中（絵の中の割合）。動くサムネイルの切り出しに使う
     (window.__begins = window.__begins || []).push(Date.now());
@@ -206,8 +224,7 @@ function begin(i) {
   const p = run.cur.p;
   $('#count').textContent = `${i + 1} / ${run.list.length}`;
   $('#name').textContent = TX(`${p.title}　${p.artist}`, `${p.title_en} · ${p.artist_en}`);
-  const hint = TX(p.hint, p.hint_en);
-  $('#hint').innerHTML = i === 0 ? TX(`<small>顔を穴に合わせて</small>「${hint}」`, `<small>Fit your face in the hole: </small>${hint}`) : hint;
+  updateHint();
   $('#hint').classList.add('on');
   fitStage();
 }
@@ -313,7 +330,7 @@ function frame(now) {
   // 顔を読む（新しいコマのときだけ）
   if (video.currentTime !== lastVT) {
     lastVT = video.currentTime;
-    try { face = readFace(lmk.detectForVideo(video, now), gw, gh, true); } catch (e) { face = null; }
+    try { face = lmk ? readFace(lmk.detectForVideo(video, now), gw, gh, true) : null; } catch (e) { face = null; }
     if (face) {
       const b = areaBox(face.lines, area());
       smooth = smooth ? { x: smooth.x + (b.x - smooth.x) * 0.35, y: smooth.y + (b.y - smooth.y) * 0.35, w: smooth.w + (b.w - smooth.w) * 0.25, h: smooth.h + (b.h - smooth.h) * 0.25 } : { ...b };
@@ -334,7 +351,7 @@ function frame(now) {
   compose(ctx, cur, stage.width / cur.W, true);
   if (run.phase === 'intro') {
     $('#timer').style.width = '0';
-    if (t > INTRO) { run.phase = 'pose'; run.t0 = now; }
+    if (t > INTRO && lmk) { run.phase = 'pose'; run.t0 = now; } // 顔の読み取りが読めるまでは、時間を動かさない
   } else if (run.phase === 'pose') {
     const left = cfg.secs - t;
     $('#timer').style.width = Math.min(100, t / cfg.secs * 100) + '%';

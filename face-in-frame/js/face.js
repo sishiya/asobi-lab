@@ -8,7 +8,8 @@ export async function createLandmarker(mode) {
   const files = await FilesetResolver.forVisionTasks(BASE);
   // wasm は自分で1回だけ読み、application/wasm の種類をつけて渡す。サーバーが種類をつけないと、
   // 読みこみが2回走り、1本ずつしか返せない手元のサーバー（.claude/serve.ps1 の古い版）が止まるため
-  try {
+  // 公開のサイト（GitHub Pages）は種類が正しく、読みながら組み立てられる（streaming）ので、手元のサーバーのときだけ（v012）
+  if (['localhost', '127.0.0.1'].includes(location.hostname)) try {
     const buf = await (await fetch(files.wasmBinaryPath)).arrayBuffer();
     files.wasmBinaryPath = URL.createObjectURL(new Blob([buf], { type: 'application/wasm' }));
   } catch (e) {}
