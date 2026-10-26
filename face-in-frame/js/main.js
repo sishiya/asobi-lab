@@ -1,13 +1,13 @@
 // 名画の顔ハメ: 画面の流れ・看板の合成・シャッター・けっか。
 // カメラの映像はこの端末の中だけで使う。写真はけっかで「保存」を押したときだけファイルにする。
-import { PAINTINGS } from './paintings.js?v=18';
-import { pickRound } from './pick.js?v=18';
-import { createLandmarker, readFace, areaBox } from './face.js?v=18';
-import { createBlender, labStats } from './blend.js?v=18';
-import { scoreFace, averageFaces, mark } from './score.js?v=18';
-import { TX, initLang } from './i18n.js?v=18';
-import { loadStyler, stylize, LIVE, PHOTO } from './style.js?v=18';
-import { createHarmonizer } from './harmonize.js?v=18';
+import { PAINTINGS } from './paintings.js?v=19';
+import { pickRound } from './pick.js?v=19';
+import { createLandmarker, readFace, areaBox } from './face.js?v=19';
+import { createBlender, labStats } from './blend.js?v=19';
+import { scoreFace, averageFaces, mark } from './score.js?v=19';
+import { TX, initLang } from './i18n.js?v=19';
+import { loadStyler, stylize, LIVE, PHOTO } from './style.js?v=19';
+import { createHarmonizer } from './harmonize.js?v=19';
 
 const $ = s => document.querySelector(s);
 
@@ -32,6 +32,19 @@ syncSeg();
 initLang();
 $('#openSettings').onclick = () => { $('#settings').hidden = false; };
 $('#closeSettings').onclick = () => { $('#settings').hidden = true; };
+// ヘルプ: 名画一覧（はじめてひらいたときに作る。小さな絵は art/thumbs/）
+$('#openHelp').onclick = () => {
+  const g = $('#gallery');
+  if (!g.children.length) for (const p of PAINTINGS) {
+    const li = document.createElement('li');
+    li.innerHTML = `<div class="pic"><img alt="" src="art/thumbs/${p.id}.jpg"></div><b></b><span></span>`;
+    li.querySelector('b').textContent = TX(p.title, p.title_en);
+    li.querySelector('span').textContent = TX(`${p.artist}、${p.year}`, `${p.artist_en}, ${p.year}`);
+    g.append(li);
+  }
+  $('#help').hidden = false;
+};
+$('#closeHelp').onclick = () => { $('#help').hidden = true; };
 
 function show(id) { for (const s of document.querySelectorAll('.screen')) s.classList.toggle('on', s.id === id); }
 function message(text) { $('#msgText').textContent = text; $('#msg').hidden = false; }

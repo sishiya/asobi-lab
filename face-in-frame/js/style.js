@@ -2,8 +2,8 @@
 // スタイルの特徴（js/styles.js）は事前に計算しておき、ここで使うのは変換のほう（vendor/style-transfer/、2.4MB）だけ。
 // 「筆のタッチ」をなしにしたままなら、TensorFlow.js もモデルも読みこまない。
 // 入力はいつも正方形の LIVE（遊んでいるあいだ）か PHOTO（写真）。大きさが変わるたびに GPU の下ごしらえ（1〜2秒）が走るのをさけるため
-import { STYLES } from './styles.js?v=18';
-import { loadFast } from './style-fast.js?v=18';
+import { STYLES } from './styles.js?v=19';
+import { loadFast } from './style-fast.js?v=19';
 
 export const LIVE = 224, PHOTO = 448;
 const BASE = new URL('../vendor/', import.meta.url).href;

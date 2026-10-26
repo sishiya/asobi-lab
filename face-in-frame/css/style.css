@@ -89,7 +89,7 @@ h1{font-family:"Shippori Mincho",serif;font-weight:800;font-size:clamp(34px,8vw,
 .seg button.on{background:var(--acc);color:#241806;font-weight:700}
 .credit{font-size:12px;color:var(--muted)}
 /* とじる: まわりの項目と間をあける（v016 ユーザー「上下マージンがせますぎる」） */
-#closeSettings{margin:12px 0 8px}
+#closeSettings,#closeHelp{margin:12px 0 8px}
 .credit a{color:var(--muted)}
 
 @media (max-height:520px){
@@ -103,7 +103,8 @@ h1{font-family:"Shippori Mincho",serif;font-weight:800;font-size:clamp(34px,8vw,
 
 /* ことば: <span lang> の対のうち、いまのことばでないほうを隠す。タイトルの右上に JP / EN */
 :root[lang=en] [lang=ja],:root:not([lang=en]) [lang=en]{display:none!important}
-.langsw{position:absolute;right:16px;top:16px;display:flex;gap:2px;padding:3px;border-radius:999px;background:var(--panel);border:1px solid var(--line)}
+.corner{position:absolute;right:16px;top:16px;display:flex;gap:8px;align-items:center}
+.langsw{display:flex;gap:2px;padding:3px;border-radius:999px;background:var(--panel);border:1px solid var(--line)}
 .langsw button{min-width:44px;min-height:38px;padding:2px 10px;border:0;border-radius:999px;background:none;color:var(--muted);font-size:13px;font-weight:700;letter-spacing:.06em}
 .langsw button[aria-pressed=true]{background:var(--acc);color:#241806}
 .links{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
@@ -114,3 +115,14 @@ h1{font-family:"Shippori Mincho",serif;font-weight:800;font-size:clamp(34px,8vw,
 .hint small.prep::before{content:"";display:inline-block;width:10px;height:10px;margin-right:6px;border:2px solid var(--muted);border-top-color:var(--acc);border-radius:50%;vertical-align:-1px;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (max-width:480px){.hint small.prep{display:block}}
+/* ヘルプ（v019 ユーザー「JP/EN の右隣にヘルプ」「名画一覧をずらっと」）: ? のボタンは JP / EN と同じ高さ。一覧の絵は art/thumbs/（tools/thumbs.mjs）を、ひらいたときに読む */
+.helpbtn{width:46px;height:46px;flex:none;border-radius:50%;background:var(--panel);border:1px solid var(--line);color:var(--muted);font-size:18px;font-weight:700}
+.helpbtn:hover{color:var(--ink)}
+.panel.wide{max-width:640px}
+.gallery{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:16px 12px}
+.gallery li{display:flex;flex-direction:column;gap:6px;min-width:0}
+.gallery .pic{aspect-ratio:4/5;position:relative} /* 絵のたてよこがまちまちでも、題の高さをそろえる */
+.gallery img{position:absolute;inset:0;margin:auto;max-width:100%;max-height:100%;box-sizing:border-box;border:2px solid var(--gold);box-shadow:0 4px 10px rgba(0,0,0,.4)}
+.gallery b{font-size:12px;line-height:1.4;font-weight:700}
+.gallery span{font-size:11px;line-height:1.4;color:var(--muted)}
+#help .credit{border-top:1px solid var(--line);padding-top:14px;line-height:1.7}
