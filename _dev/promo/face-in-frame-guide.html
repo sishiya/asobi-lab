@@ -24,13 +24,13 @@ const NAME = '名画の顔ハメ';
 const SC = [
   { a: 0, b: 15, clip: 'play', c0: 0.2, rate: 0, phone: true },                                    // タイトルの画面
   { a: 15, b: 24, clip: 'title', c0: 2.4, rate: 0.5, phone: true, tap: [[16.0, 0.333, 0.769], [23.2, 0.5, 0.75]] },   // 設定（開く ct 2.95 → t 16.1、閉じる 6.6 → t 23.4）
-  { a: 24, b: 31, clip: 'play', c0: 0, rate: 2.33, phone: true, tap: [[24.1, 0.5, 0.6375]] },      // はじめる → カメラと絵の準備（早送り）
-  { a: 31, b: 37.2, clip: 'play', c0: 16.3, phone: true, zoom: [[0.62, 0.47], 2.2], label: '穴のまわり' },   // 写楽（シャッター ct 21.40 → t 36.1）
-  { a: 37.2, b: 45, clip: 'play', c0: 22.57, phone: true, zoom: [[0.47, 0.39], 2.2], label: '穴のまわり' }, // モナ・リザ（29.47 → t 44.1）
-  { a: 45, b: 53, clip: 'play', c0: 30.5, phone: true, zoom: [[0.48, 0.52], 2.2], label: '穴のまわり' },    // ゴッホ（37.43 → t 51.93）
-  { a: 53, b: 61, stills: [['plain', 7.5], ['play', 21.25]] },                                       // なじませ・筆のタッチ なし／あり（写楽、シャッターの直前）
+  { a: 24, b: 31, clip: 'play', c0: 0, rate: 0.44, phone: true, tap: [[24.1, 0.5, 0.6375]] },      // はじめる → カメラと絵の準備（早送り）
+  { a: 31, b: 37.2, clip: 'play', c0: 2.99, phone: true, zoom: [[0.62, 0.47], 2.2], label: '穴のまわり' },   // 写楽（2026-10-26 v010 で録りなおし: 寄せる中で: シャッター ct 8.09 → t 36.1）
+  { a: 37.2, b: 45, clip: 'play', c0: 9.26, phone: true, zoom: [[0.47, 0.39], 2.2], label: '穴のまわり' }, // モナ・リザ（16.04 → t 44.0）
+  { a: 45, b: 53, clip: 'play', c0: 17.16, phone: true, zoom: [[0.48, 0.52], 2.2], label: '穴のまわり' },   // ゴッホ（23.99 → t 51.83）
+  { a: 53, b: 61, stills: [['plain', 7.45], ['play', 7.93]] },                                       // なじませ・筆のタッチ なし／あり（写楽、シャッターの直前）
   { a: 61, b: 73, img: 'bottom', from: 'top', slideAt: 67, phone: true },                            // けっか
-  { a: 73, b: 81, clip: 'title', c0: 17.9, phone: true, zoom: [[0.52, 0.58], 2.2], label: '穴のまわり' }, // 叫び（22.97 → t 78.07）
+  { a: 73, b: 81, clip: 'title', c0: 14.884, phone: true, zoom: [[0.52, 0.58], 2.2], label: '穴のまわり' }, // 叫び（19.81 → t 77.93）
   { a: 81, b: 999, img: 'bottom', phone: true },                                                     // 保存
 ];
 const CAPS = [
@@ -55,7 +55,7 @@ const CAPS = [
   { a: 81.2, b: 91.8, main: '写真は「保存」を押したときだけ、この端末に', sub: '1枚ずつでも、まとめて1枚の画像にもできる',
     en: ['Photos are saved to this device only when you press Save', 'Save them one by one or all together as one image'] },
 ];
-const SHOTS_T = [36.1, 44.1, 51.93, 78.07];
+const SHOTS_T = [36.1, 43.98, 51.83, 77.93];
 const MUSIC = { style: 'romp', light: true, stopAt: END, cues: [{ t: END, type: 'jingle' }, { t: 1.0, type: 'pop' },
   ...SHOTS_T.map(t => ({ t, type: 'stamp' })), { t: 15, type: 'whoosh' }, { t: 24, type: 'whoosh' }, { t: 31, type: 'whoosh' }, { t: 37.2, type: 'whoosh' },
   { t: 45, type: 'whoosh' }, { t: 53, type: 'whoosh' }, { t: 61, type: 'whoosh' }, { t: 67, type: 'whoosh' }, { t: 73, type: 'whoosh' }, { t: 81, type: 'whoosh' }] };
@@ -100,7 +100,7 @@ promoStart({
     drawPanel(g, X, 230, XW, '絵はいま6枚（どれもパブリックドメイン）', ['叫び（ムンク）', 'モナ・リザ（ダ・ヴィンチ）', '真珠の耳飾りの少女（フェルメール）', 'トカゲに噛まれる少年（カラヴァッジョ）', '三代目大谷鬼次の江戸兵衛（写楽）', '麦わら帽子の自画像（ゴッホ）'], fade(t, 7.6, 14.6, 0.4));
     drawPanel(g, X, 230, XW, 'はじめの設定', ['顔を穴へ寄せる: 弱', '絵の色になじませる: 中', '筆のタッチ: 中', '1枚の時間: 5秒（8秒も）', '枚数: 3枚（5枚も）'], fade(t, 16.4, 23.6, 0.4));
     drawPanel(g, X, 230, XW, 'この動画では', ['カメラのかわりに、名画の顔で遊んでいます', '（本物の人の顔はうつしていません）', '名画の顔は表情を変えないので、点は低め'], fade(t, 24.6, 30.8, 0.4), '#ffd27a');
-    drawPanel(g, X, 230, XW, 'この回のけっか（31点「もっと大げさに！」）', ['写楽: 口 △　首 ○', 'モナ・リザ: 口 △　首 ◎', 'ゴッホ: 口 △　首 ◎'], fade(t, 61.6, 72.8, 0.4));
+    drawPanel(g, X, 230, XW, 'この回のけっか（40点「あと少し、大げさに」）', ['写楽: 口 △　首 ○', 'モナ・リザ: 口 △　首 ○', 'ゴッホ: 口 ○　首 ○'], fade(t, 61.6, 72.8, 0.4));
     if (t > 31 && t < 53) fifStandIn(g, fade(t, 31.2, 52.8, 0.4), PX, PY + PHH / 2 + 34);
     drPopCaps(g, t, CAPS, 40, 'top');
     // 決まった部分（題名・CC の案内・終わり・目印）

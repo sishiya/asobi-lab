@@ -22,11 +22,11 @@ const TOP = 330, VH = 1070, T_END = 36;
 const NAME = '名画の顔ハメ', SUB = '名画の顔に、自分の顔をはめて表情をまねる';
 // 場面: クリップの時刻 ct = c0 + (t − a) × rate。focus・zoom は寄せ方（クリップの中の 0〜1）
 const SC = [
-  { a: 0, b: 6, clip: 'title', c0: 17.6, focus: [0.52, 0.56], zoom: 1.5 },          // 叫び（クリップの中で絵が出る 17.87・シャッター 22.97 → t 5.37）
+  { a: 0, b: 6, clip: 'title', c0: 14.584, focus: [0.52, 0.56], zoom: 1.5 },        // 叫び（2026-10-26 v010 で録りなおし: 寄せる中で録りなおし: シャッター ct 19.81 → t 5.23）
   { a: 6, b: 10.5, clip: 'title', c0: 0.4, rate: 0.6, phone: true },                  // タイトルの画面
-  { a: 10.5, b: 16.5, clip: 'play', c0: 16.3, focus: [0.58, 0.47], zoom: 1.45 },    // 写楽（出る 16.37・シャッター 21.40 → t 15.6）
-  { a: 16.5, b: 24.2, clip: 'play', c0: 22.6, focus: [0.47, 0.42], zoom: 1.7 },     // モナ・リザ（22.57・29.47 → t 23.37）
-  { a: 24.2, b: 32, clip: 'play', c0: 30.6, focus: [0.48, 0.5], zoom: 1.6 },        // ゴッホ（30.53・37.43 → t 31.03）
+  { a: 10.5, b: 16.5, clip: 'play', c0: 2.99, focus: [0.58, 0.47], zoom: 1.45 },    // 写楽（シャッター ct 8.09 → t 15.6）
+  { a: 16.5, b: 24.2, clip: 'play', c0: 9.29, focus: [0.47, 0.42], zoom: 1.7 },     // モナ・リザ（16.04 → t 23.25）
+  { a: 24.2, b: 32, clip: 'play', c0: 17.26, focus: [0.48, 0.5], zoom: 1.6 },       // ゴッホ（23.99 → t 30.93）
   { a: 32, b: 40, img: 'bottom', from: 'top', slideAt: 34, phone: true },             // けっか
 ];
 const CAPS = [
@@ -34,14 +34,14 @@ const CAPS = [
     en: ['Put your own face in with your camera', 'The video stays on your device. Never sent or saved'] },
   { a: 10.7, b: 16.3, main: '穴に合わせて、5秒で表情をまねる', sub: '写楽のお題は「口をへの字に！」',
     en: ['Fit the hole and copy the look in 5 seconds', 'Sharaku says: "Turn your mouth down!"'] },
-  { a: 16.7, b: 24, main: '色と陰影を、絵になじませる', sub: 'モナ・リザは「ほんのり、ほほえむ」',
-    en: ['Your face is blended into the painting\'s colors and shading', 'Mona Lisa: "A faint smile"'] },
+  { a: 16.7, b: 24, main: '色と陰影を、絵になじませる', sub: 'モナ・リザは「すまし顔」',
+    en: ['Your face is blended into the painting\'s colors and shading', 'Mona Lisa: "Poker face"'] },
   { a: 24.4, b: 31.8, main: '筆のタッチも、絵ごとに', sub: 'ゴッホの画風を、その場で顔にかける',
     en: ['Brushstrokes, too, painting by painting', 'Van Gogh\'s style is applied to your face live'] },
   { a: 32.2, b: T_END - 0.2, main: '最後に、似ていたかの点', sub: '見るのは口の形と首のかしげ方',
     en: ['At the end: how close were you?', 'It scores the shape of your mouth and the tilt of your head'] },
 ];
-const SHOTS_T = [5.37, 15.6, 23.37, 31.03];   // シャッターの時刻（クリップの中の白い光のコマから）
+const SHOTS_T = [5.23, 15.6, 23.25, 30.93];   // シャッターの時刻（クリップの中の白い光のコマから）
 const MUSIC = { style: 'romp', stopAt: SHORT_END, cues: [
   { t: 0.6, type: 'pop' }, ...CAPS.map(c => ({ t: c.a, type: 'pop' })), ...SHOTS_T.map(t => ({ t, type: 'stamp' })),
   { t: 6, type: 'whoosh' }, { t: 10.5, type: 'whoosh' }, { t: 16.5, type: 'whoosh' }, { t: 24.2, type: 'whoosh' }, { t: 32, type: 'whoosh' }, { t: 34, type: 'whoosh' },

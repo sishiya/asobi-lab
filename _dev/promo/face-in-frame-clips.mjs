@@ -31,7 +31,7 @@ for (const name of names) {
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-  const st = { sound: 0, secs: 5, assist: 0, blend: 2, touch: 2, ...c.st };
+  const st = { sound: 0, secs: 5, assist: 2, blend: 2, touch: 2, ...c.st };   // 寄せるは中（なしだと写楽の大きな穴に試験の顔の目が入る。2026-10-26）
   await page.addInitScript(s => { localStorage.setItem('face-in-frame', s); localStorage.setItem('manabi-lang', 'ja'); }, JSON.stringify(st));
   await page.goto(`${srv.origin}/${GAME}?lang=ja&test=${c.test}&path=align&pick=${c.pick}`);
   await page.waitForTimeout(1500);

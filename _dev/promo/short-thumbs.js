@@ -8,5 +8,5 @@ window.ASOBI_BADGE = 'icon';   // 2026-10-19 ユーザーが見くらべて 'ico
 window.SHORT_THUMBS = {
   'edge-falls':    { name: '果ての滝の箱庭', t: 3, focus: [0.5, 0.41], zoom: 1.3, wfocus: [0.47, 0.42], wzoom: 0.75, wx: 830, kicker: '何も生まれず、何も消えない', big: '世界の果て', sub: 'から、川が滝になって落ちる', c1: '#eaf4ff', c2: '#8fc3e8' },
   'dino-race':     { name: '恐竜かけっこ牧場', wname: 'あそびかたと見どころ', t: 32.2, focus: [0.68, 0.655], zoom: 2.6, wfocus: [0.6, 0.62], wzoom: 1.25, wx: 900, kicker: '恐竜を育てて、人の世界記録に挑む', big: '9.58秒', sub: 'より速い恐竜を育てろ！', c1: '#fff1c9', c2: '#f08a5a' },
-  'face-in-frame': { name: '名画の顔ハメ', wname: 'あそびかたと見どころ', t: 13.5, focus: [0.6, 0.43], zoom: 1.5, wfocus: [0.6, 0.43], wzoom: 0.9, wx: 880, kicker: '名画の顔に、自分の顔をはめる', big: '口をへの字に！', sub: '5秒で、写楽の表情をまねろ', c1: '#fff1c9', c2: '#e8b04a' },
+  'face-in-frame': { name: '名画の顔ハメ', wname: 'あそびかたと見どころ', t: 15.3, focus: [0.6, 0.43], zoom: 1.5, wfocus: [0.6, 0.43], wzoom: 0.9, wx: 880, kicker: '名画の顔に、自分の顔をはめる', big: '口をへの字に！', sub: '5秒で、写楽の表情をまねろ', c1: '#fff1c9', c2: '#e8b04a' },
 };
