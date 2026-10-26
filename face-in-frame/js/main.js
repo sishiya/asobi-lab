@@ -1,12 +1,13 @@
 // 名画の顔ハメ: 画面の流れ・看板の合成・シャッター・けっか。
 // カメラの映像はこの端末の中だけで使う。写真はけっかで「保存」を押したときだけファイルにする。
-import { PAINTINGS } from './paintings.js?v=13';
-import { createLandmarker, readFace, areaBox } from './face.js?v=13';
-import { createBlender, labStats } from './blend.js?v=13';
-import { scoreFace, averageFaces, mark } from './score.js?v=13';
-import { TX, initLang } from './i18n.js?v=13';
-import { loadStyler, stylize, LIVE, PHOTO } from './style.js?v=13';
-import { createHarmonizer } from './harmonize.js?v=13';
+import { PAINTINGS } from './paintings.js?v=14';
+import { pickRound } from './pick.js?v=14';
+import { createLandmarker, readFace, areaBox } from './face.js?v=14';
+import { createBlender, labStats } from './blend.js?v=14';
+import { scoreFace, averageFaces, mark } from './score.js?v=14';
+import { TX, initLang } from './i18n.js?v=14';
+import { loadStyler, stylize, LIVE, PHOTO } from './style.js?v=14';
+import { createHarmonizer } from './harmonize.js?v=14';
 
 const $ = s => document.querySelector(s);
 
@@ -171,6 +172,12 @@ let face = null, smooth = null, recent = [], srcStats = null, lastStat = 0, last
 
 function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
+// 絵の選び方とならべ方は pick.js（v014）。前回の絵・けっか・遊んだ回数を覚えておく。localStorage が使えなくても、開いているあいだは覚えておく
+const PICK_KEY = 'face-in-frame-seen';
+let pickState = {};
+try { pickState = JSON.parse(localStorage.getItem(PICK_KEY) || '{}'); } catch (e) {}
+const savePick = () => { try { localStorage.setItem(PICK_KEY, JSON.stringify(pickState)); } catch (e) {} };
+
 // 顔の読み取り（約 13MB）は、タイトルを見ているあいだに読みはじめる（カメラの許可はまだ聞かない）
 let lmkPromise = null;
 const preloadLandmarker = () => (lmkPromise = lmkPromise || createLandmarker('VIDEO').catch(e => { lmkPromise = null; throw e; }));
@@ -180,8 +187,10 @@ $('#start').onclick = async () => {
   show('play'); $('#wait').hidden = false; $('#wait').textContent = TX('カメラを準備しています…', 'Getting the camera ready…');
   $('#hint').classList.remove('on'); $('#num').classList.remove('on'); $('#timer').style.width = '0';
   const pick = new URLSearchParams(location.search).get('pick'); // 確かめ用: ?pick=pearl,monalisa で絵を決める
-  const list = pick ? pick.split(',').map(id => PAINTINGS.find(p => p.id === id)).filter(Boolean) : shuffle(PAINTINGS).slice(0, cfg.shots);
-  run = { list, i: 0, phase: 'load', t0: 0, cur: null, shots: [] };
+  const picked = pick ? pick.split(',').map(id => PAINTINGS.find(p => p.id === id)).filter(Boolean).map(p => ({ p, retry: false }))
+    : (({ list, state }) => (pickState = state, savePick(), list))(pickRound(PAINTINGS, cfg.shots, pickState));
+  const list = picked.map(c => c.p);
+  run = { list, retry: picked.map(c => c.retry), i: 0, phase: 'load', t0: 0, cur: null, shots: [] };
   try {
     blender = blender || createBlender();
     // 待つのは、カメラ・顔の読み取り（タイトルのうちから先読み）・1枚目の絵だけ。2枚目からと筆のタッチは遊びながら（v012。スマホで 16 秒待たせていた）
@@ -315,7 +324,7 @@ function shoot() {
   const f = averageFaces(recent.filter(r => now - r.t < 450).map(r => r.f));
   const score = scoreFace(f, cur.p);
   if (TEST) (window.__shotFaces = window.__shotFaces || []).push(f); // 確かめ用: 撮ったときの顔の数（tools/calibrate.mjs）
-  run.shots.push({ p: cur.p, canvas: c, score });
+  run.shots.push({ p: cur.p, canvas: c, score, retry: run.retry && run.retry[run.i] });
   shutterSound();
   const fl = $('#flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
   run.phase = 'freeze'; run.t0 = now; run.frozen = c;
@@ -373,6 +382,7 @@ function finish() {
     const [bx, by, bw, bh] = cache.get(keyOf(s.p)).sbox, d = Math.max(bw, bh) * 1.7, c = Object.assign(document.createElement('canvas'), { width: 300, height: 300 });
     c.getContext('2d').drawImage(s.canvas, bx + bw / 2 - d / 2, by + bh / 2 - d / 2, d, d, 0, 0, 300, 300); return c.toDataURL('image/jpeg', 0.9); });
   const total = Math.round(shots.reduce((a, s) => a + s.score.total, 0) / shots.length);
+  if (!TEST || !new URLSearchParams(location.search).get('pick')) { pickState.scores = shots.map(s => ({ id: s.p.id, score: s.score.total, retry: !!s.retry })); savePick(); } // 次の回のリベンジに使う
   $('#total').textContent = total;
   $('#rank').textContent = RANKS.find(r => total >= r[0])[1];
   const box = $('#shots'); box.textContent = '';
