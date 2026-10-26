@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/no-quirks.css"><script src="../assets/no-quirks.js" defer></script>
-<link rel="stylesheet" href="css/style.css?v=15">
+<link rel="stylesheet" href="css/style.css?v=16">
 </head>
 <body>
 
@@ -28,13 +28,13 @@
     <p class="privacy"><span class="cam" aria-hidden="true"></span><span lang="ja">カメラを使います。映像はこの端末の中だけで使い、送ったり保存したりしません。</span><span lang="en">This uses your camera. The video stays on this device and is never sent or saved.</span></p>
     <div class="links"><button class="link" id="openSettings"><span lang="ja">設定</span><span lang="en">Settings</span></button><a class="link" href="../index.html"><span lang="ja">あそびラボのトップへ</span><span lang="en">Asobi Lab home</span></a></div>
   </div>
-  <span class="ver">ver. 0.13</span>
+  <span class="ver">ver. 0.14</span>
 </section>
 
 <!-- 遊ぶ -->
 <section id="play" class="screen">
   <div class="bar">
-    <button class="quit" id="quit" aria-label="やめる" data-en-label="Quit">×</button>
+    <button class="quit back" id="quit" aria-label="タイトルへもどる" data-en-label="Back to title"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <span class="count" id="count"></span>
     <span class="name" id="name"></span>
   </div>
@@ -52,6 +52,7 @@
 
 <!-- けっか -->
 <section id="result" class="screen">
+  <button class="quit back" id="back" aria-label="タイトルへもどる" data-en-label="Back to title"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   <div class="res">
     <p class="eyebrow"><span lang="ja">けっか</span><span lang="en">RESULT</span></p>
     <p class="total"><b id="total">0</b><span lang="ja">点</span><span lang="en"> pts</span></p>
@@ -85,6 +86,6 @@
   <div class="panel"><p id="msgText"></p><button class="big" id="msgOk"><span lang="ja">タイトルへ</span><span lang="en">Back to title</span></button></div>
 </div>
 
-<script type="module" src="js/main.js?v=15"></script>
+<script type="module" src="js/main.js?v=16"></script>
 </body>
 </html>
