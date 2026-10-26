@@ -5,7 +5,7 @@
 // title_en・artist_en・hint_en: 英語のときの題・作者・ひとこと。styleCrop: 筆のタッチのスタイルを読む広さ（顔のはばの倍、ふつう 3。tools/style-bottlenecks）。touchMax: 筆のタッチの強さの上限（ふつう 1）。fast: 筆のタッチに絵ごとの専用モデルを使う。fastCrop: 専用モデルの学習で読む広さ。
 // goal: お手本の口の形（face.js の expression の jaw・smile・frown・round、0〜1）。書かなかった名前は 0 として軽く見る。
 // roll: 首のかたむき（度。右に倒すと＋）、yaw: 顔の向き（画面の右向きが＋、-1〜1）。null なら見ない。
-import { CALIBRATED } from './goals.js?v=12';
+import { CALIBRATED } from './goals.js?v=13';
 
 export const PAINTINGS = [
   { id: 'scream', src: 'art/scream.jpg', title: '叫び', artist: 'エドヴァルド・ムンク', year: 1893, hint: 'さけべ！',
@@ -60,6 +60,39 @@ export const PAINTINGS = [
     title_en: 'Self-Portrait in a Cap, Open-Mouthed', artist_en: 'Rembrandt van Rijn', hint_en: 'Gasp!',
     face: { nx: 0.517, ny: 0.484, rot: 0, brow: -0.163, lidTop: -0.133, lidBot: -0.097, chin: 0.195, left: -0.217, right: 0.203 },
     goal: { jaw: 0.5, round: 0.4 }, roll: 0, yaw: 0 },
+  { id: 'reiko', src: 'art/reiko.jpg', title: '麗子微笑', artist: '岸田劉生', year: 1921, hint: 'にんまり',
+    title_en: 'Reiko Smiling', artist_en: 'Kishida Ryūsei', hint_en: 'Sly smile',
+    styleCrop: 1.1, touchMax: 0.4, // 筆のタッチ: まわりの暗い地を読むと顔が黒ずむので、顔の肌だけ・弱く
+    calibrate: false, // 読み取りが顔の線と笑みを読みちがえる（にんまりを 0 と読む）ので、顔の線は目で測り、お手本は手で決めたまま
+    face: { nx: 0.659, ny: 0.477, rot: 0, brow: -0.085, lidTop: -0.0625, lidBot: -0.037, chin: 0.105, left: -0.19, right: 0.085 },
+    goal: { smile: 0.4 }, roll: 0, yaw: 0 },
+  { id: 'utamaro', src: 'art/utamaro.jpg', title: 'ポッピンを吹く娘', artist: '喜多川歌麿', year: 1793, hint: '口をすぼめて、ふーっ',
+    title_en: 'Young Woman Blowing a Poppin', artist_en: 'Kitagawa Utamaro', hint_en: 'Blow!',
+    // 版画で顔が見つからないので、顔の線は目で測った
+    face: { nx: 0.37, ny: 0.591, rot: 0, brow: -0.128, lidTop: -0.091, lidBot: -0.067, chin: 0.101, left: -0.02, right: 0.161 },
+    goal: { round: 0.6 }, roll: 0, yaw: -0.4 },
+  { id: 'manet', src: 'art/manet.jpg', title: '笛を吹く少年', artist: 'エドゥアール・マネ', year: 1866, hint: '笛をくわえて、ぴー',
+    title_en: 'The Fifer', artist_en: 'Édouard Manet', hint_en: 'Play the fife!',
+    face: { nx: 0.5189, ny: 0.48, rot: 2, brow: -0.1014, lidTop: -0.0789, lidBot: -0.0576, chin: 0.0889, left: -0.1276, right: 0.0922 },
+    goal: { round: 0.4 }, roll: 0, yaw: 0 },
+  { id: 'yawning', src: 'art/yawning.jpg', title: 'あくびをする自画像', artist: 'ジョゼフ・デュクルー', year: 1783, hint: 'ふぁ〜あ',
+    title_en: 'Self-Portrait, Yawning', artist_en: 'Joseph Ducreux', hint_en: 'Big yawn!',
+    calibrate: false, // 読み取りが大あくびの口を笑みと読む（jaw 0.08・smile 0.55）ので、お手本は手で決めたまま
+    face: { nx: 0.5192, ny: 0.397, rot: -11.9, brow: -0.0527, lidTop: -0.0367, lidBot: -0.0283, chin: 0.1251, left: -0.1459, right: 0.0353 },
+    goal: { jaw: 0.9, round: 0.3 }, roll: 0, yaw: 0 },
+  { id: 'gogh2', src: 'art/gogh2.jpg', title: '自画像（1889年）', artist: 'フィンセント・ファン・ゴッホ', year: 1889, hint: 'じっと、にらむ',
+    title_en: 'Self-Portrait (1889)', artist_en: 'Vincent van Gogh', hint_en: 'Stare hard',
+    face: { nx: 0.4076, ny: 0.5499, rot: -1.4, brow: -0.1314, lidTop: -0.1061, lidBot: -0.0839, chin: 0.1479, left: -0.0314, right: 0.2543 },
+    goal: { frown: 0.3 }, roll: 0, yaw: -0.3 },
+  { id: 'tanguy', src: 'art/tanguy.jpg', title: 'タンギー爺さん', artist: 'フィンセント・ファン・ゴッホ', year: 1887, hint: 'まじめな顔で',
+    title_en: 'Portrait of Père Tanguy', artist_en: 'Vincent van Gogh', hint_en: 'Straight face',
+    face: { nx: 0.5136, ny: 0.3651, rot: -1.1, brow: -0.1188, lidTop: -0.0864, lidBot: -0.0667, chin: 0.1108, left: -0.1243, right: 0.1418 },
+    goal: { frown: 0.2 }, roll: 0, yaw: 0 },
+  { id: 'milkmaid', src: 'art/milkmaid.jpg', title: '牛乳を注ぐ女', artist: 'ヨハネス・フェルメール', year: 1658, hint: 'そっと、うつむいて',
+    title_en: 'The Milkmaid', artist_en: 'Johannes Vermeer', hint_en: 'Look down, gently',
+    styleCrop: 1.1, touchMax: 0.4, // 筆のタッチ: まわりの暗い地を読むと顔が黒ずむので、顔の肌だけ・弱く
+    face: { nx: 0.5753, ny: 0.3529, rot: 13.4, brow: -0.0941, lidTop: -0.0718, lidBot: -0.0598, chin: 0.0769, left: -0.0652, right: 0.1363 },
+    goal: {}, roll: 0, yaw: 0 },
 ];
 
 // お手本を、その絵自身の顔を同じしくみで読んだ数に合わせる（tools/calibrate.mjs が js/goals.js に書く）。

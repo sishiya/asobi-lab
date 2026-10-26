@@ -34,7 +34,10 @@ for (const p of PAINTINGS) {
     for (const q of res.faceLandmarks[0]) g.fillRect(q.x * img.width - 1, q.y * img.height - 1, 2, 2);
     g.strokeRect(f.box.x - f.box.w / 2, f.box.y - f.box.h / 2, f.box.w, f.box.h);
     const r = (v) => Math.round(v * 100) / 100;
-    window.RESULTS[p.id] = { size: [img.width, img.height], box: f.box, roll: r(f.roll), yaw: r(f.yaw), ex: Object.fromEntries(Object.entries(f.ex).map(([k, v]) => [k, r(v)])) };
+    // face: paintings.js の face にそのまま写せる形（絵のよこはばを 1 とした割合）
+    const q = v => Math.round(v / img.width * 10000) / 10000;
+    const face = Object.fromEntries(Object.entries(f.lines).map(([k, v]) => [k, k === 'rot' ? Math.round(v * 10) / 10 : q(v)]));
+    window.RESULTS[p.id] = { size: [img.width, img.height], face, box: f.box, roll: r(f.roll), yaw: r(f.yaw), ex: Object.fromEntries(Object.entries(f.ex).map(([k, v]) => [k, r(v)])) };
     pre.textContent = p.id + '\n' + JSON.stringify(window.RESULTS[p.id], null, 1);
   } else { pre.textContent = p.id + '\n顔が見つからない'; window.RESULTS[p.id] = null; }
   // くり抜く所の3つの箱（鼻から下・目から下・顔ぜんぶ）
