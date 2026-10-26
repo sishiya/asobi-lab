@@ -38,8 +38,8 @@ h1{font-family:"Shippori Mincho",serif;font-weight:800;font-size:clamp(34px,8vw,
 #play{flex-direction:column;align-items:center;padding:16px 16px 16px;gap:12px}
 .bar{width:100%;max-width:900px;display:flex;align-items:center;gap:12px;min-height:44px;
   padding-left:clamp(0px,calc(72px - (100vw - 900px) / 2),56px)} /* 左上の←（.back）とかさならないように。広い画面ではあけない */
-.quit{width:44px;height:44px;flex:none;border:1px solid var(--line);border-radius:50%;background:transparent;color:var(--muted);display:inline-flex;align-items:center;justify-content:center}
-.quit:hover{color:var(--ink);border-color:var(--muted)}
+.quit{width:44px;height:44px;flex:none;border:0;border-radius:50%;background:transparent;color:var(--muted);display:inline-flex;align-items:center;justify-content:center}
+.quit:hover{color:var(--ink);background:rgba(255,255,255,.06)}
 /* タイトルへ（v016 ユーザー「画面左上に←」「プレイ中もけっか画面と同じ位置」）。遊ぶ画面とけっかで同じ場所・同じ形。けっかではいっしょにスクロールする */
 .back{position:absolute;left:16px;top:16px}
 .count{font-weight:700;color:var(--acc);font-size:16px;white-space:nowrap;flex-shrink:0}
