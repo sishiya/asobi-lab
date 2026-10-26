@@ -2,8 +2,8 @@
 // きびしくしすぎない: 表情の数で 0.35、首で 25 度・向き 0.6 ずれると 0 になる（それより近ければ点が入る）。
 // 見るのは、穴からのぞく口と、首のかたむき・向きだけ（目と眉は絵のまま隠れているので点にしない。v005 ユーザー）
 export const PARTS = [
-  { id: 'mouth', name: '口', name_en: 'Mouth', keys: ['jaw', 'smile', 'frown', 'round'] },
-  { id: 'head', name: '首', name_en: 'Head' },
+  { id: 'mouth', name: '口の形', name_en: 'Mouth shape', keys: ['jaw', 'smile', 'frown', 'round'] },
+  { id: 'head', name: '顔の向き', name_en: 'Face angle' },
 ];
 
 const clamp01 = v => Math.max(0, Math.min(1, v));

@@ -1,13 +1,13 @@
 // 名画の顔ハメ: 画面の流れ・看板の合成・シャッター・けっか。
 // カメラの映像はこの端末の中だけで使う。写真はけっかで「保存」を押したときだけファイルにする。
-import { PAINTINGS } from './paintings.js?v=14';
-import { pickRound } from './pick.js?v=14';
-import { createLandmarker, readFace, areaBox } from './face.js?v=14';
-import { createBlender, labStats } from './blend.js?v=14';
-import { scoreFace, averageFaces, mark } from './score.js?v=14';
-import { TX, initLang } from './i18n.js?v=14';
-import { loadStyler, stylize, LIVE, PHOTO } from './style.js?v=14';
-import { createHarmonizer } from './harmonize.js?v=14';
+import { PAINTINGS } from './paintings.js?v=15';
+import { pickRound } from './pick.js?v=15';
+import { createLandmarker, readFace, areaBox } from './face.js?v=15';
+import { createBlender, labStats } from './blend.js?v=15';
+import { scoreFace, averageFaces, mark } from './score.js?v=15';
+import { TX, initLang } from './i18n.js?v=15';
+import { loadStyler, stylize, LIVE, PHOTO } from './style.js?v=15';
+import { createHarmonizer } from './harmonize.js?v=15';
 
 const $ = s => document.querySelector(s);
 
