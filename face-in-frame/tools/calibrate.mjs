@@ -6,7 +6,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { serve, launch, safeContext, ROOT } from '../../tools/playwright/lib.mjs';
 
-const ids = (fs.readFileSync(path.join(ROOT, 'face-in-frame', 'js', 'paintings.js'), 'utf8').match(/\{ id: '([\w-]+)'/g) || []).map(s => s.match(/'(.+)'/)[1]);
+// calibrate: false の絵（横顔など、読み取りが表情を読みちがえる絵）は書かない
+const src = fs.readFileSync(path.join(ROOT, 'face-in-frame', 'js', 'paintings.js'), 'utf8');
+const ids = [...src.matchAll(/\{ id: '([\w-]+)'([\s\S]*?)goal:/g)].filter(m => !/calibrate: false/.test(m[2])).map(m => m[1]);
 const srv = await serve(), browser = await launch(), out = {};
 const r = v => Math.round(v * 1000) / 1000;
 for (const id of ids) {

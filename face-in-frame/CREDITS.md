@@ -10,6 +10,11 @@
 | `art/lizard.jpg` | トカゲに噛まれる少年 | カラヴァッジョ、1594〜1596ごろ | ウィキメディア・コモンズ「Boy Bitten by a Lizard-Caravaggio (Longhi).jpg」（所蔵: ロベルト・ロンギ財団、フィレンツェ） | パブリックドメイン |
 | `art/sharaku.jpg` | 三代目大谷鬼次の江戸兵衛 | 東洲斎写楽、1794 | メトロポリタン美術館 Open Access（object 37358、DP130228） | CC0 |
 | `art/gogh.jpg` | 麦わら帽子の自画像 | フィンセント・ファン・ゴッホ、1887 | メトロポリタン美術館 Open Access（object 436532、DT1502） | CC0 |
+| `art/ducreux.jpg` | あざける自画像 | ジョゼフ・デュクルー、1793ごろ | ウィキメディア・コモンズ「Joseph Ducreux - Self-portrait of the artist as a mocker.jpg」（所蔵: ルーヴル美術館） | パブリックドメイン |
+| `art/courbet.jpg` | 絶望の男（自画像） | ギュスターヴ・クールベ、1843〜1845ごろ | ウィキメディア・コモンズ「Gustave Courbet - Le Désespéré (1843).jpg」 | パブリックドメイン |
+| `art/hals.jpg` | 笑う少年 | フランス・ハルス、1625ごろ | ウィキメディア・コモンズ「Frans Hals - Laughing Boy - 1032 - Mauritshuis.jpg」（所蔵: マウリッツハイス美術館） | パブリックドメイン |
+| `art/brouwer.jpg` | 苦い飲み物 | アドリアーン・ブラウエル、1636ごろ | ウィキメディア・コモンズ「Adriaen Brouwer - The Bitter Potion - Google Art Project.jpg」（所蔵: シュテーデル美術館） | パブリックドメイン |
+| `art/rembrandt.jpg` | 口を開けた自画像（帽子の） | レンブラント・ファン・レイン、1630 | ウィキメディア・コモンズ「Rembrandt van Rijn, Self-Portrait in a Cap, Open-Mouthed, 1630, NGA 10060.jpg」（ワシントン・ナショナル・ギャラリー） | CC0 |
 
 ## ライブラリ
 - MediaPipe Tasks Vision 0.10.14（`vendor/mediapipe/`。Face Landmarker のモデル `face_landmarker.task` もふくむ）: Apache License 2.0、Google。顔の読み取りはブラウザの中だけで動き、映像を外に送りません。
