@@ -1,13 +1,13 @@
 // 名画の顔ハメ: 画面の流れ・看板の合成・シャッター・けっか。
 // カメラの映像はこの端末の中だけで使う。写真はけっかで「保存」を押したときだけファイルにする。
-import { PAINTINGS } from './paintings.js?v=17';
-import { pickRound } from './pick.js?v=17';
-import { createLandmarker, readFace, areaBox } from './face.js?v=17';
-import { createBlender, labStats } from './blend.js?v=17';
-import { scoreFace, averageFaces, mark } from './score.js?v=17';
-import { TX, initLang } from './i18n.js?v=17';
-import { loadStyler, stylize, LIVE, PHOTO } from './style.js?v=17';
-import { createHarmonizer } from './harmonize.js?v=17';
+import { PAINTINGS } from './paintings.js?v=18';
+import { pickRound } from './pick.js?v=18';
+import { createLandmarker, readFace, areaBox } from './face.js?v=18';
+import { createBlender, labStats } from './blend.js?v=18';
+import { scoreFace, averageFaces, mark } from './score.js?v=18';
+import { TX, initLang } from './i18n.js?v=18';
+import { loadStyler, stylize, LIVE, PHOTO } from './style.js?v=18';
+import { createHarmonizer } from './harmonize.js?v=18';
 
 const $ = s => document.querySelector(s);
 
@@ -209,8 +209,7 @@ $('#start').onclick = async () => {
   $('#wait').hidden = true;
   begin(0);
 };
-$('#quit').onclick = () => { run = null; stopCamera(); show('title'); };
-$('#back').onclick = () => show('title');
+$('#toTitle').onclick = () => show('title'); // けっかの下のリンク（v018。遊んでいるあいだの戻るは、ページの読みなおしで）
 
 // 絵の上のひとこと。顔の読み取りがまだなら「準備中」をそえる
 function updateHint() {

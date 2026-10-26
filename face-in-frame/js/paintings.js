@@ -5,7 +5,7 @@
 // title_en・artist_en・hint_en: 英語のときの題・作者・ひとこと。styleCrop: 筆のタッチのスタイルを読む広さ（顔のはばの倍、ふつう 3。tools/style-bottlenecks）。touchMax: 筆のタッチの強さの上限（ふつう 1）。fast: 筆のタッチに絵ごとの専用モデルを使う。fastCrop: 専用モデルの学習で読む広さ。
 // goal: お手本の口の形（face.js の expression の jaw・smile・frown・round、0〜1）。書かなかった名前は 0 として軽く見る。
 // roll: 首のかたむき（度。右に倒すと＋）、yaw: 顔の向き（画面の右向きが＋、-1〜1）。null なら見ない。
-import { CALIBRATED } from './goals.js?v=17';
+import { CALIBRATED } from './goals.js?v=18';
 
 export const PAINTINGS = [
   { id: 'scream', src: 'art/scream.jpg', title: '叫び', artist: 'エドヴァルド・ムンク', year: 1893, hint: 'さけべ！',
