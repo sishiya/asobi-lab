@@ -147,7 +147,7 @@ function openMenu() {
   $('menuSeed').textContent = `一滴の番号 ${seed}・${fmtT(world ? world.t : 0)}`;
   $('menu').showModal();
 }
-$('menu').addEventListener('close', () => { if (!$('help').open) setPlaying(playingBeforeMenu); });
+$('menu').addEventListener('close', () => { if (!$('help').open && $('gate').hidden) setPlaying(playingBeforeMenu); });   // タイトルにもどったときは止めたまま
 $('menuBtn').onclick = openMenu;
 $('mResume').onclick = () => $('menu').close();
 // メニューと「このアプリについて」は、外（うしろの暗い所）を押したら閉じる
@@ -384,19 +384,22 @@ setTimeout(() => { if (!hintOnce) toast('生き物を押すと、追いかけて
 // ── はじめの注意書き: 「のぞいてみる」を押すまで一滴は止めておく。同じタブで一度押したら、もう出さない（?nogate・?test では出さない） ──
 let seen = false; try { seen = sessionStorage.getItem('drop-gate') === '1'; } catch {}
 let title = null;   // タイトルのうしろで泳ぐ数匹（本番とは別の小さな一滴）
-if (seen || q.has('nogate') || q.has('test')) $('gate').hidden = true;
-else {
-  setPlaying(false);
-  title = makeTitle();
-  $('gateGo').focus();
-  $('gateGo').onclick = () => { $('gate').hidden = true; title = null; try { sessionStorage.setItem('drop-gate', '1'); } catch {} setPlaying(true); };
-  // もどる: ブラウザの前のページへ（前のページがなければ保管庫へ）
-  $('gateBack').onclick = () => { if (history.length > 1 && document.referrer) history.back(); else location.href = '../archive.html'; };
+let titleRen = null;   // タイトルの描き手は 1 つだけ作って使いまわす（WebGL の数をふやさない）
+function showTitle() {
+  $('gate').hidden = false; title = makeTitle(); setPlaying(false); $('gateGo').focus();
 }
+$('gateGo').onclick = () => { $('gate').hidden = true; title = null; try { sessionStorage.setItem('drop-gate', '1'); } catch {} setPlaying(true); };
+// もどる: ブラウザの前のページへ（前のページがなければ保管庫へ）
+$('gateBack').onclick = () => { if (history.length > 1 && document.referrer) history.back(); else location.href = '../archive.html'; };
+if (seen || q.has('nogate') || q.has('test')) $('gate').hidden = true;
+else showTitle();
+// メニューの「タイトルにもどる」: 一滴はそのまま止めて、タイトルを出す（「のぞいてみる」で続きから）
+$('mTitle').onclick = () => { $('menu').close(); showTitle(); };
+
 
 // タイトル: はじまりの2本毛を 5 匹だけ、まん中に置く。砂なし。カメラは 5 匹のまん中をゆっくり追う（群れや群体は出さない。2026-11-01 ユーザー「数匹をクローズアップしてゆったり泳いでいる様子を（グロくない範囲で）」）
 function makeTitle() {
-  const r = new Renderer($('gateView')); r.style = 'abyss';
+  const r = titleRen || (titleRen = new Renderer($('gateView'))); r.style = 'abyss'; r.ghosts = []; r.prev.clear();
   const w = new World({ seed: 11, size, sand: 0, founders: 0, initFood: 260 });
   const g0 = founderGenome(), b0 = founderBody();
   for (let i = 0; i < 5; i++) w.addOrg(w.mutate(g0, 0.5), 1, W / 2 + (w.r() - 0.5) * 70, H / 2 + (w.r() - 0.5) * 50, eSplit(g0, b0) * 0.6, 0, b0);
