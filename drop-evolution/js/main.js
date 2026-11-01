@@ -14,9 +14,11 @@ let size = ['s', 'm', 'l'].includes(q.get('size')) ? q.get('size') : 'm';   // �
 let sand = ['0', '1', '2'].includes(q.get('sand')) ? +q.get('sand') : 1;   // 砂つぶ（地形）
 let pop = ['1', '10', '50', '150'].includes(q.get('pop')) ? +q.get('pop') : 150;   // はじめの数（2026-11-01 ユーザー「初期個体数も入れて。1体も選びたい」）
 // 計算は Web Worker で（js/simlink.js・worker.js）。?noworker で今までどおり画面側で回す。world は一滴（Worker のときは届いた写し）
-const sim = makeSim(!q.has('noworker'));
+let sim = makeSim(!q.has('noworker'));
 let world = null;
 sim.onInit = () => onWorld();   // 一滴を作るのは、ページの準備がすべて終わってから（いちばん下）
+// Worker が動かなければ、画面側で回す形にかえて、同じ一滴を作りなおす
+sim.onFail = () => { const last = sim.last; sim = makeSim(false); sim.onInit = () => onWorld(); window.__sim = sim; if (last) sim[last[0]](last[1]); sim.run(speed, playing); };
 const view = $('view'), ren = new Renderer(view), graph = new Graph($('graph'));
 ren.style = 'abyss';         // 造形は「深海の発光」F3（2026-10-31 ユーザーが選んだ。abyss.js。その前は案B「燐光」・案A「設計図」。ほかの案は look/）
 if (q.has('test')) document.body.classList.add('test');

@@ -113,9 +113,12 @@ function workerSim() {
     else if (d.type === 'frame') { waiting = false; if (s.world) { const t0 = performance.now(); s.world.apply(d); s.applyMs = (s.applyMs || 0) * 0.9 + (performance.now() - t0) * 0.1; s.simRate = d.simRate; s.stepMs = d.stepMs; } }
     else if (d.type === 'eatenBy' && eatenCb) { const cb = eatenCb; eatenCb = null; cb(d.by ? s.world.byId.get(d.by) || null : null); }
   };
-  wk.onerror = e => console.error('worker', e.message);
-  s.newWorld = opt => { wk.postMessage({ type: 'new', opt }); };
-  s.restoreWorld = data => { wk.postMessage({ type: 'restore', data }); };
+  // 計算のコアが動かないとき（読みこめない・4 秒たっても一滴が届かない）は、画面側で回す形にもどる（main.js の onFail）
+  const fail = why => { if (s.failed || s.world) return; s.failed = true; console.warn('worker', why); wk.terminate(); s.onFail?.(); };
+  wk.onerror = e => fail(e.message || 'error');
+  const watch = () => setTimeout(() => { if (!s.world) fail('timeout'); }, 4000);
+  s.newWorld = opt => { s.last = ['newWorld', opt]; watch(); wk.postMessage({ type: 'new', opt }); };
+  s.restoreWorld = data => { s.last = ['restoreWorld', data]; watch(); wk.postMessage({ type: 'restore', data }); };
   s.set = (k, v) => { if (s.world) s.world[k] = v; wk.postMessage({ type: 'set', key: k, value: v }); };
   s.run = (sp, pl) => { speed = sp; playing = pl; wk.postMessage({ type: 'run', speed: sp, playing: pl }); };
   // 前に頼んだ分が届いていれば、次のこまの分を頼む（画面は届いている最新の写しを描く）
