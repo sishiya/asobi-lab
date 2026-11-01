@@ -815,7 +815,7 @@ export class World {
         for (const q of mem) { A[0] += q.sL; A[1] += q.sR; A[2] += q.pL; A[3] += q.pR; A[4] += q.dL; A[5] += q.dR; }
         for (let k = 0; k < 6; k++) A[k] /= mem.length;
         for (const q of mem) {
-          const s = q.g[GI.signal]; if (s <= 0) continue;
+          const s = q.g[GI.signal]; if (s <= 0 || globalThis.NO_SIGNAL) continue;   // NO_SIGNAL: 効き目を切ったくらべ
           q.sL += (A[0] - q.sL) * s; q.sR += (A[1] - q.sR) * s; q.pL += (A[2] - q.pL) * s; q.pR += (A[3] - q.pR) * s; q.dL += (A[4] - q.dL) * s; q.dR += (A[5] - q.dR) * s;
         }
       }
