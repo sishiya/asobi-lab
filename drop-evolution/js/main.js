@@ -174,6 +174,7 @@ const LABELS = {
   keep: ['藍藻を飼う', v => v.toFixed(2)],
   colMax: ['群体の大きさ', v => `${Math.round(2 ** v)} 細胞`],
   fiss: ['続けて分かれる回数', v => `${Math.max(1, Math.round(v))} 回`],
+  plane: ['一列にのびる', v => v.toFixed(2)],
   share: ['仲間と分けあう', v => v.toFixed(2)],
   signal: ['仲間の合図を聞く', v => v.toFixed(2)],
   inBeat: ['内の細胞が打つ', v => v.toFixed(2)],

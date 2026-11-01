@@ -59,6 +59,7 @@ const LEAK = 0.5;                      // 飼われた藍藻が作った分の�
 const SYM_DIGEST = 1 / 20;             // 「飼う」が 0 のとき、飼っている藍藻を消化してしまう割合 /s（飼う 1 で消化しない）
 const SYM_ROOM = 0.4;                  // 細胞に入る藍藻＝体の4割まで（緑藻の葉緑体も細胞の半分ほど）
 const LINKS_MAX = 6;                   // 1つの細胞がくっついていられる仲間の数（まわりに並べられる数）
+const FILTER_K = 2;                    // つながれた細胞がこす水は、同じ力で泳ぐときの2倍（体が水といっしょに動かないので。Christensen-Dalsgaard & Fenchel 2003）
 const BURST_T = 1;                     // 多分裂で、続けて分かれる間の秒（育つのを待たない）
 const LINK_BREAK = 2.5;                // くっついた2つが、半径の和のこの倍より離されると、ちぎれる
 const SAND_EDGE = 30;                  // 水の流れが、つぶのふちからこの幅で弱まる µm
@@ -80,7 +81,8 @@ export const GENES = [
   ['keep',  0,   1,   0,   0.10],
   // 群体の中での働きの分かれ（オオヒゲマワリの体細胞と生殖細胞、海綿の襟細胞と中の細胞）。同じ遺伝子でも、仲間に囲まれた「内」の細胞と「外」の細胞で出し方を変える
   ['colMax', 1,  10,  3,   0.06],  // 群体を何回分かれるまで1つに保つか（2 の何乗の細胞まで）。それより大きくなると、子は1つの細胞で離れて、新しい群体を始める（オオヒゲマワリも、分かれる回数で細胞の数が決まる）
-  ['fiss',  1,  12,  1,   0.02],  // 多分裂: 1つの細胞が大きく育ってから、育たずに続けて何回分かれるか（1 はふつうの二つ割り。クラミドモナスは 2〜4 回、オオヒゲマワリの生殖細胞は 11〜12 回で、一度に子の群体になる。群体の大きさは母の細胞の大きさで決まる）
+  ['fiss',  1,  12,  1,   0.02],
+  ['plane', 0,  1,   0,   0.10],  // 分かれる向きをそろえる割合（1 はいつも体の軸の前へ子を出す＝細胞の一列の糸になる。本物の糸状の緑藻・シオグサ。0 はばらばらの向き）  // 多分裂: 1つの細胞が大きく育ってから、育たずに続けて何回分かれるか（1 はふつうの二つ割り。クラミドモナスは 2〜4 回、オオヒゲマワリの生殖細胞は 11〜12 回で、一度に子の群体になる。群体の大きさは母の細胞の大きさで決まる）
   ['signal', 0,  1,   0,   0.10],  // 群体の仲間が感じたことを、つながりを通して受けとる強さ（細胞どうしの合図。海綿や板形動物の化学の合図・刺胞動物の神経のはじまり）。少しエネルギーを使う
   ['share', 0,   1,   0,   0.10],  // くっついた仲間と、ためた分を分けあう強さ（細胞どうしをつなぐ細い橋。オオヒゲマワリにもある）
   ['inBeat', 0,  1,   1,   0.10],  // 内の細胞が節を打つ強さ（1 は外と同じ。0 は打たずに休む）
@@ -106,10 +108,15 @@ const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 // 死にやすさは重さの −0.25 乗（本物の海の生き物の自然の死亡率。代謝の 0.75 乗と同じ根っこ。Peterson & Wroblewski 1984）。
 // 群体は群体ごと食べられるので、群体全体の重さで。はじまりの大人（半径 8 µm）で 1
 let M0 = 0;
-const dieK = o => { if (!M0) M0 = massOf(8, analyze(founderBody())); return (o.m * o.colN / M0) ** -0.25; };
+// 半分はウイルスなど（重さの −0.25 乗）、半分は一滴より大きな捕食者（ワムシ・カイアシ類の幼生）に食べられる分。
+// こちらは口に入る大きさまでしか食べないので、群体全体の半径が GRAZE_R をこえると急に減る（大きさの逃げ場。Hessen & Van Donk 1993・Lürling 2003）
+const GRAZE_R = 30;
+const dieK = o => { if (!M0) M0 = massOf(8, analyze(founderBody())); const R = o.colN > 1 ? o.colR : o.r; return 0.5 * (o.m * o.colN / M0) ** -0.25 + 0.5 / (1 + (R / GRAZE_R) ** 4); };
+// 糸の細胞（端と端でつながっている）か
+const inFil = o => !!o.fr || o.links.some(x => x.fr === o);
 const symRoom = o => SYM_ROOM * o.eS * Math.max(1, o.e / o.eS) / FOOD_E;
 
-export function fissOf(g) { return Math.max(1, Math.round(g[GI.fiss])); }
+export function fissOf(g) { return globalThis.NO_FISS ? 1 : Math.max(1, Math.round(g[GI.fiss])); }   // NO_FISS: 効き目を切ったくらべ（遺伝子は変わるが効かない）
 
 export function founderGenome() { return GENES.map(g => g[3]); }
 
@@ -562,8 +569,17 @@ export class World {
       if (mating) { o.mateT -= dt; if (o.mateT <= 0) o.mate = null; }
       else if (o.full <= 0) {
         const ma = o.a + g[GI.mouth];
-        // 細胞は食べる所でだけ食べる。くっついている間は、泳げば進んだ分の水が口の前を流れてくる（つながれた泳ぎ手は水を同じ速さで流す）
-        this.eatFoodAt(o, o.x + Math.cos(ma) * o.r, o.y + Math.sin(ma) * o.r, o.r * MOUTH + 1.5 + (still ? Math.abs(vFree) * dt * 1.5 : 0));
+        // 細胞は食べる所でだけ食べる
+        const mx = o.x + Math.cos(ma) * o.r, my = o.y + Math.sin(ma) * o.r, mw = o.r * MOUTH + 1.5;
+        if (!still) this.eatFoodAt(o, mx, my, mw);
+        else {
+          // くっついている間は、毛で水の流れを作り、流れてきた水からこし取る。1秒にこす水＝泳ぐ速さ×口の幅×FILTER_K、
+          // 出会う数はそこのエサの濃さ×こした水。食べるのは、流れが引きよせる範囲（体の4倍）にいる1つ
+          // （前は口のまわりを少し広く食べるだけで、新しい水が来ず、まわりを食べつくすと終わっていた）
+          const dens = this.fgrid[cellOf(mx, my)] / (CELL * CELL);
+          const fw = this.flowAt(o.x, o.y), past = Math.hypot(fw.u, fw.v);   // 海の流れも水を運んでくる（動かない者だけの得。泳ぎ手は流れといっしょに流される）
+          if (r() < dens * (Math.abs(vFree) * FILTER_K + past) * 2 * mw * dt) this.eatFoodAt(o, mx, my, o.r * 4);
+        }
         if (this.pieces.length && o.full <= 0) this.eatPieces(o);
         for (let j = 0; o.full <= 0 && j < bp.tips.length; j++) { const t = this.tip(o, j); this.eatFoodAt(o, t.x, t.y, 2); }
       } else o.full -= dt;
@@ -699,6 +715,7 @@ export class World {
     const os = this.orgs;
     let any = false;
     for (const o of os) {
+      if (o.fr && (o.fr.dead || !o.links.includes(o.fr))) o.fr = null;
       if (!o.links.length) { o.colN = 1; o.colR = o.r; o.col = o; o.colAnch = false; continue; }
       any = true;
       for (let j = o.links.length - 1; j >= 0; j--) {
@@ -712,6 +729,14 @@ export class World {
         o.a += da * (q.m / (o.m + q.m)); q.a -= da * (o.m / (o.m + q.m));
         // 柄で砂つぶにくっついている細胞は動かない（前はばねで引かれて柄がのびた）
         const wo = o.anch ? (q.anch ? 0.5 : 1) : q.anch ? 0 : o.m / (o.m + q.m), f = o.anch && q.anch ? 0 : (d - L) / d;
+        // 糸のつながり（軸の向きに分かれた親子）: 前のとなりは、うしろの細胞の軸の前にいるように引きよせる（端と端で壁を共有するので折れにくい）
+        if (o.fr === q || q.fr === o) {
+          const A = o.fr === q ? o : q, B = A === o ? q : o, ux = Math.cos(A.a), uy = Math.sin(A.a);
+          const ex = (A.x + ux * L - B.x) * 0.5, ey = (A.y + uy * L - B.y) * 0.5;
+          const kA = A.anch ? 0 : B.anch ? 1 : B.m / (A.m + B.m), kB = B.anch ? 0 : A.anch ? 1 : 1 - kA;
+          A.x -= ex * kA; A.y -= ey * kA; B.x += ex * kB; B.y += ey * kB;
+          continue;
+        }
         o.x += dx * f * (1 - wo); o.y += dy * f * (1 - wo); q.x -= dx * f * wo; q.y -= dy * f * wo;   // 重いほうは動きにくい
       }
     }
@@ -755,7 +780,8 @@ export class World {
         for (const u of mem) {
           if (u === q || (u.x - q.x) ** 2 + (u.y - q.y) ** 2 >= ((u.r + q.r) * 1.15) ** 2) continue;
           k++;
-          if (q.id < u.id && q.links.length < LINKS_MAX && u.links.length < LINKS_MAX && !q.links.includes(u)) { q.links.push(u); u.links.push(q); }
+          // 寒天質でつながる（糸の細胞は端と端だけでつながるので、横の仲間とはつながらない）
+          if (q.id < u.id && !inFil(q) && !inFil(u) && q.links.length < LINKS_MAX && u.links.length < LINKS_MAX && !q.links.includes(u)) { q.links.push(u); u.links.push(q); }
         }
         this.setInner(q, k >= 3);
       }
@@ -954,8 +980,11 @@ export class World {
     const g = this.mutate(o.g), b = mutateBody(o.b, this.r, gauss);
     const clade = this.cladeFor(o.clade, g, b);
     // 群体の中の細胞は寒天質にとめられているので、その場にとどまり、子をとなりに出す。ひとりなら2つが左右に離れる
-    const inCol = o.links.length > 0, ang = this.r() * Math.PI * 2, s = o.r * (inCol ? 1.2 : 0.6);
+    // 分裂面がそろっていれば、子は体の軸の前へ（糸のように一列にのびる）。そろっていなければ、ばらばらの向きへ
+    const axial = this.r() < o.g[GI.plane];
+    const inCol = o.links.length > 0, ang = axial ? o.a : this.r() * Math.PI * 2, s = o.r * (inCol ? 1.2 : 0.6);
     const child = this.addOrg(g, clade, o.x + Math.cos(ang) * s, o.y + Math.sin(ang) * s, half, o.gen + 1, b);
+    if (axial) child.a = o.a;
     if (!inCol && !o.anch) { o.x -= Math.cos(ang) * s; o.y -= Math.sin(ang) * s; }   // くっついている親はその場に
     this.grow(o);
     child.parent = o.id; child.burst = o.burst; child.burstT = BURST_T;
@@ -964,7 +993,16 @@ export class World {
       child.sym = k; o.sym -= k; child.symE = o.symE / 2; o.symE /= 2;
     }
     // 分かれたあと、くっついたまま離れないことがある（親の「くっつく」の割合で。まわりがうまっていたら離れる）
-    if (this.r() < o.g[GI.stick] && o.links.length < LINKS_MAX && o.colN < 2 ** o.g[GI.colMax]) { o.links.push(child); child.links.push(o); child.col = o.col; child.colN = o.colN + 1; child.colR = o.colR; }
+    if (this.r() < o.g[GI.stick] && o.links.length < LINKS_MAX && o.colN < 2 ** o.g[GI.colMax]) {
+      // 糸の途中で分かれたら、子は親と前のとなりの間に入る（糸がのびる）
+      if (axial) {
+        let q = null, best = 0;
+        for (const u of o.links) { const d = (u.x - o.x) * Math.cos(o.a) + (u.y - o.y) * Math.sin(o.a); if (d > best) { best = d; q = u; } }
+        if (q) { o.links.splice(o.links.indexOf(q), 1); q.links.splice(q.links.indexOf(o), 1); q.links.push(child); child.links.push(q); child.fr = q; }
+        o.fr = child;   // 前のとなり（端と端で壁を共有してつながる。糸がまっすぐ保たれる）
+      }
+      o.links.push(child); child.links.push(o); child.col = o.col; child.colN = o.colN + 1; child.colR = o.colR;
+    }
     this.stats.births++;
     return child;
   }
@@ -1004,7 +1042,7 @@ const DIFF = {
   size: ['大きい', '小さい'], range: ['遠くまで感じる', '近くだけ感じる'],
   food: ['エサへまっすぐ向かう', 'エサにつられにくい'], kinesis: ['エサの中でゆっくり泳ぐ', 'エサの中で速く泳ぐ'], eatRest: ['のみこむ間は休む', 'のみこむ間も泳ぐ'], backup: ['ぶつかると下がる', 'ぶつかっても下がらない'], attach: ['砂つぶにくっついて待つ', 'くっつかない'], mouth: ['食べる所が横へ寄った', '食べる所が前へ寄った'], small: ['獲物を追う', '獲物を追わない'], big: ['大きな相手から逃げる', '逃げない'],
   mix: ['仲間と混ぜたがる', '混ぜたがらない'], keep: ['藍藻を飼う', '藍藻を飼わない'],
-  colMax: ['大きな群体になる', '小さな群体で離れる'], fiss: ['続けて分かれる', '1回ずつ分かれる'], share: ['仲間と分けあう', '分けあわない'], signal: ['仲間の合図を聞く', '合図を聞かない'], inBeat: ['内の細胞も打つ', '内の細胞が休む'], outDiv: ['外の細胞も分かれる', '外の細胞が分かれない'], stick: ['子とくっついたままの', '子と離れる'],
+  colMax: ['大きな群体になる', '小さな群体で離れる'], fiss: ['続けて分かれる', '1回ずつ分かれる'], plane: ['一列にのびる', 'ばらばらに分かれる'], share: ['仲間と分けあう', '分けあわない'], signal: ['仲間の合図を聞く', '合図を聞かない'], inBeat: ['内の細胞も打つ', '内の細胞が休む'], outDiv: ['外の細胞も分かれる', '外の細胞が分かれない'], stick: ['子とくっついたままの', '子と離れる'],
 };
 export function traitDiff(a, b, ba, bb) {
   const P = analyze(ba), Q = analyze(bb);
