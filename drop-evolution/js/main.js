@@ -302,7 +302,7 @@ function frame(now) {
 
 // ── 確かめ用の計測ログ（?test のとき）: 開いたページごとに番号をつけ、10 秒ごとに計算量を記録して、「ログを保存」で CSV に ──
 const perfLog = q.has('test') ? { id: new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19), rows: [], acc: 0, real: 0 } : null;
-const SIM_PARTS = ['env', 'orgs', 'collide', 'colonies', 'predation', 'divide'], DRAW_PARTS = ['water', 'wake', 'glow', 'light', 'gel', 'crisp', 'sel', 'motes'];
+const SIM_PARTS = ['env', 'orgs', 'collide', 'colonies', 'predation', 'divide'], DRAW_PARTS = ['water', 'wake', 'glow', 'light', 'gel', 'crisp', 'crisp_build', 'crisp_gpu', 'crisp_copy', 'sel', 'motes'];
 const PERF_HEAD = 'real_s,sim_s,speed,sim_rate,sim_ms,draw_ms,fps,orgs,visible,algae,colony_cells,zoom,view_w,view_h,dpr,' + SIM_PARTS.map(k => 's_' + k).join(',') + ',' + DRAW_PARTS.map(k => 'd_' + k).join(',');
 function logPerf(fdt) {
   world.profOn = true;   // 計算の部分ごとの時間も測る（新しい一滴になっても）
@@ -318,7 +318,7 @@ function logPerf(fdt) {
   try { localStorage.setItem('drop-perf-' + perfLog.id, perfCSV()); } catch {}
 }
 function perfCSV() {
-  const env = `# drop-perf ${perfLog.id} / ${navigator.userAgent} / cores ${navigator.hardwareConcurrency || '?'} / screen ${screen.width}x${screen.height} / seed ${seed}`;
+  const env = `# drop-perf ${perfLog.id} / ${navigator.userAgent} / cores ${navigator.hardwareConcurrency || '?'} / screen ${screen.width}x${screen.height} / seed ${seed} / 描き方 ${ren.glCrisp ? 'WebGL' : '2D'}`;
   return [env, PERF_HEAD, ...perfLog.rows].join('\n') + '\n';
 }
 if (perfLog) $('perfSave').onclick = () => {

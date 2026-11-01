@@ -291,7 +291,7 @@ export function drawAbyss(ren, world, sel, time) {
     const mm = a + o.g[GI.mouth], rp = rimP[b];
     // 群体で押し合っている細胞は、ふれた面で膜が平らになる（重なった分だけ。面の場所は2つの丸の半径から）
     const cuts = [];
-    for (const q of o.links) { const dx = q.x - o.x, dy = q.y - o.y, d = Math.hypot(dx, dy) || 1; if (d < r + q.r) cuts.push(dx / d, dy / d, (d * d + r * r - q.r * q.r) / (2 * d)); }
+    if (r * z >= 10) for (const q of o.links) { const dx = q.x - o.x, dy = q.y - o.y, d = Math.hypot(dx, dy) || 1; if (d < r + q.r) cuts.push(dx / d, dy / d, (d * d + r * r - q.r * q.r) / (2 * d)); }   // 画面で小さいときは平らな面は見えないので、ふつうの輪
     if (!cuts.length) { rp.moveTo(o.x + Math.cos(mm + 0.5) * r, o.y + Math.sin(mm + 0.5) * r); rp.arc(o.x, o.y, r, mm + 0.5, mm - 0.5 + TAU); }
     else for (let k = 0; k <= 28; k++) {
       const t = mm + 0.5 + (TAU - 1) * k / 28;
@@ -409,7 +409,8 @@ function motes(ren, g, time, rayAt) {
 
 // くっきりの光を WebGL で（2D の描き方と同じ形・同じ色。上の if (!gC) の中と対になっている）
 function crispGL(gC, ren, world, vis, glow, poses, sel, time, tl, br) {
-  const c = ren.cam, z = c.z, cv = ren.cv;
+  const c = ren.cam, z = c.z, cv = ren.cv, PF = ren.prof; let t0 = performance.now();
+  const sub = k => { const n = performance.now(); PF[k] = (PF[k] || 0) * 0.9 + (n - t0) * 0.1; t0 = n; };
   gC.begin(cv.width, cv.height, c.x, c.y, z * ren.dpr);
   // 藍藻: またたく小さな火花
   const ss = Math.max(1.6, 1.8 / z);
@@ -450,7 +451,7 @@ function crispGL(gC, ren, world, vis, glow, poses, sel, time, tl, br) {
     if (r * z < 3) continue;
     const mm = a + o.g[GI.mouth];
     const cuts = [];
-    for (const q of o.links) { const dx = q.x - o.x, dy = q.y - o.y, d = Math.hypot(dx, dy) || 1; if (d < r + q.r) cuts.push(dx / d, dy / d, (d * d + r * r - q.r * q.r) / (2 * d)); }
+    if (r * z >= 10) for (const q of o.links) { const dx = q.x - o.x, dy = q.y - o.y, d = Math.hypot(dx, dy) || 1; if (d < r + q.r) cuts.push(dx / d, dy / d, (d * d + r * r - q.r * q.r) / (2 * d)); }   // 画面で小さいときは平らな面は見えないので、ふつうの輪
     if (!cuts.length) gC.ring(o.x, o.y, r, rw, mm, 0.5, rimC[b]);
     else {
       let lx = 0, ly = 0;
@@ -479,8 +480,16 @@ function crispGL(gC, ren, world, vis, glow, poses, sel, time, tl, br) {
     if (!q || q.dead || o.mateT <= 0 || o.id > q.id) continue;
     gC.seg(o.x, o.y, q.x, q.y, wm, [1, 0.863, 0.588, 0.8 * (0.45 + 0.35 * Math.sin(time * 3 + o.id))]);
   }
+  sub('crisp_build');
   gC.flush(false);
-  const g = ren.cx;
-  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
-  g.drawImage(gC.canvas, 0, 0);
+  sub('crisp_gpu');
+  // 絵は 2D の画面にうつさず、すぐ上に重ねたキャンバスとしてブラウザに重ねてもらう（うつすと GPU から読みもどして重かった）
+  const L = gC.canvas;
+  if (!L.isConnected) {
+    L.setAttribute('aria-hidden', 'true');
+    Object.assign(L.style, { position: 'fixed', left: '0', top: '0', pointerEvents: 'none', zIndex: getComputedStyle(cv).zIndex });
+    cv.after(L);
+  }
+  if (L.style.width !== cv.style.width || L.style.height !== cv.style.height) { L.style.width = cv.style.width; L.style.height = cv.style.height; }
+  sub('crisp_copy');
 }
