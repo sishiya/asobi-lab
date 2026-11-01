@@ -2,14 +2,17 @@
 import { World, DT, GI, GENES, eSplit, speedOf, W, H } from './sim.js';
 import { Renderer, drawBodyDiagram } from './render.js';
 import { Graph, cladeColor, fmtT } from './graph.js';
-import { restore } from './snap.js';
+import { makeSim } from './simlink.js';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
 let seed = +(q.get('seed') || (Date.now() % 100000));
 let size = ['s', 'm', 'l'].includes(q.get('size')) ? q.get('size') : 'm';   // 一滴の大きさ
 let sand = ['0', '1', '2'].includes(q.get('sand')) ? +q.get('sand') : 1;   // 砂つぶ（地形）
-let world = new World({ seed, size, sand });
+// 計算は Web Worker で（js/simlink.js・worker.js）。?noworker で今までどおり画面側で回す。world は一滴（Worker のときは届いた写し）
+const sim = makeSim(!q.has('noworker'));
+let world = null;
+sim.onInit = () => onWorld();   // 一滴を作るのは、ページの準備がすべて終わってから（いちばん下）
 const view = $('view'), ren = new Renderer(view), graph = new Graph($('graph'));
 ren.style = 'abyss';         // 造形は「深海の発光」F3（2026-10-31 ユーザーが選んだ。abyss.js。その前は案B「燐光」・案A「設計図」。ほかの案は look/）
 if (q.has('test')) document.body.classList.add('test');
@@ -102,9 +105,9 @@ $('graph').addEventListener('click', e => {
 
 // ── 下の操作 ──
 $('play').onclick = () => setPlaying(!playing);
-function setPlaying(p) { playing = p; $('play').textContent = p ? '❚❚' : '▶'; $('play').setAttribute('aria-label', p ? '止める' : '動かす'); }
+function setPlaying(p) { playing = p; sim.run(speed, playing); $('play').textContent = p ? '❚❚' : '▶'; $('play').setAttribute('aria-label', p ? '止める' : '動かす'); }
 document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => setSpeed(+b.dataset.speed));
-function setSpeed(s) { speed = s; document.querySelectorAll('[data-speed]').forEach(b => b.classList.toggle('on', +b.dataset.speed === s)); if (!playing) setPlaying(true); }
+function setSpeed(s) { speed = s; sim.run(speed, playing); document.querySelectorAll('[data-speed]').forEach(b => b.classList.toggle('on', +b.dataset.speed === s)); if (!playing) setPlaying(true); }
 document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
   graph.mode = b.dataset.mode;
   document.querySelectorAll('[data-mode]').forEach(x => x.classList.toggle('on', x === b));
@@ -120,17 +123,17 @@ addEventListener('keydown', e => {
 
 // ── 環境 ──
 const level = (v, lo, hi) => v < lo ? '少ない' : v > hi ? '多い' : 'ふつう';
-$('food').oninput = e => { world.foodRate = +e.target.value; $('foodOut').textContent = level(world.foodRate, 0.6, 1.5); };
+$('food').oninput = e => { const v = +e.target.value; sim.set('foodRate', v); $('foodOut').textContent = level(v, 0.6, 1.5); };
 if (q.has('food')) { $('food').value = q.get('food'); $('food').oninput({ target: $('food') }); }   // URL の ?food= で海の栄養をはじめから
-$('light').oninput = e => { world.light = +e.target.value; $('lightOut').textContent = world.light < 0.05 ? 'まっくら' : level(world.light, 0.4, 0.8).replace('少ない', '弱い').replace('多い', '強い'); };
+$('light').oninput = e => { const v = +e.target.value; sim.set('light', v); $('lightOut').textContent = v < 0.05 ? 'まっくら' : level(v, 0.4, 0.8).replace('少ない', '弱い').replace('多い', '強い'); };
 if (q.has('light')) { $('light').value = q.get('light'); $('light').oninput({ target: $('light') }); }   // URL の ?light= で光をはじめから
-$('flow').oninput = e => { world.flow = +e.target.value; $('flowOut').textContent = world.flow < 0.05 ? 'とまる' : level(world.flow, 0.6, 1.4).replace('少ない', '弱い').replace('多い', '強い'); };
+$('flow').oninput = e => { const v = +e.target.value; sim.set('flow', v); $('flowOut').textContent = v < 0.05 ? 'とまる' : level(v, 0.6, 1.4).replace('少ない', '弱い').replace('多い', '強い'); };
 // ── メニュー（新しい一滴はここからだけ。もう一度たずねる） ──
 let playingBeforeMenu = true;
 function openMenu() {
   playingBeforeMenu = playing; setPlaying(false);
   $('menuMain').hidden = false; $('menuConfirm').hidden = true;
-  $('menuSeed').textContent = `一滴の番号 ${seed}・${fmtT(world.t)}`;
+  $('menuSeed').textContent = `一滴の番号 ${seed}・${fmtT(world ? world.t : 0)}`;
   $('menu').showModal();
 }
 $('menu').addEventListener('close', () => { if (!$('help').open) setPlaying(playingBeforeMenu); });
@@ -164,7 +167,7 @@ $('mNewYes').onclick = async () => {
     const t = turns.find(x => x.id === newTurn);
     let d;
     try { d = await (await fetch(`data/${newTurn}.json`)).json(); } catch { toast('その一滴を読みこめませんでした'); return; }
-    world = restore(d);
+    sim.restoreWorld(d);
     ({ seed, size, sand } = d.opt);
     for (const [id, v] of [['food', d.opt.foodRate], ['light', d.opt.light], ['flow', d.opt.flow]]) { $(id).value = v; $(id).oninput({ target: $(id) }); }
     startWorld(`「${t.title}」をのぞいています`);
@@ -172,13 +175,18 @@ $('mNewYes').onclick = async () => {
   }
   seed = (seed * 7919 + 13) % 100000;
   size = newSize; sand = newSand;
-  world = new World({ seed, size, sand, foodRate: +$('food').value, light: +$('light').value, flow: +$('flow').value });
+  sim.newWorld({ seed, size, sand, foodRate: +$('food').value, light: +$('light').value, flow: +$('flow').value });
   startWorld('新しい一滴をのぞいています');
 };
-function startWorld(msg) {
+// 新しい一滴が届いたとき（画面側で回すときはすぐ、Worker のときは少しあと）: 見え方を初めにもどす
+function onWorld() {
+  world = sim.world;
+  if (q.has('test')) sim.set('profOn', true);   // 計算の部分ごとの時間も測る
   ren.ghosts = []; ren.prev.clear();
   ren.cam.x = W / 2; ren.cam.y = H / 2; ren.cam.z = Math.max(ren.fitZoom(), Math.min(1.3, Math.min(ren.w, ren.h) / 500)); clampCam();
   select(null); lastEvent = 0;
+}
+function startWorld(msg) {
   playingBeforeMenu = true;
   $('menu').close();
   toast(msg);
@@ -213,6 +221,7 @@ let hintOnce = false;
 function renderCard(full) {
   if (!sel) return;
   const o = sel, c = world.clades.get(o.clade);
+  if (!c || !o.g) return;   // Worker のとき、系統の知らせがまだ届いていないことがある
   $('cSwatch').style.background = cladeColor(c);
   $('cName').textContent = c.name;
   $('cMeta').textContent = `系統 ${c.id}・${o.gen + 1} 代目` + (o.anch || o.colAnch ? '・くっついて待つ' : '') + (o.sym ? `・藍藻 ${o.sym} を飼う` : '') + (o.colN > 1 ? `・${o.colN} 細胞の群体の${o.inner ? '内' : '外'}` : '') + (o.mateT > 0 ? '・接合中' : o.mixes ? `・混ぜた ${o.mixes} 回` : '');
@@ -249,26 +258,27 @@ let toastT = 0;
 function toast(s) { $('toast').textContent = s; $('toast').hidden = false; toastT = 3; }
 
 // ── まわす ──
-let last = performance.now(), acc = 0, uiT = 0, simRate = 0;
+let last = performance.now(), uiT = 0, simRate = 0, selGone = false;
 const perf = { sim: 0, draw: 0, fps: 60 };   // 1こまの計算と描く時間（ms）。?test のときだけ右下に出す
 function frame(now) {
   const fdt = Math.max(0, Math.min(0.1, (now - last) / 1000)); last = now;   // 最初のこまは、ブラウザの時刻が始めた時刻より前のことがある
   realTime += fdt;
-  if (playing) {
-    acc += fdt * speed;
-    const t0 = performance.now();
-    let n = 0;
-    while (acc >= DT) {
-      world.step(); acc -= DT; n++;
-      if (performance.now() - t0 > (speed >= 256 ? 45 : 12)) { acc = 0; break; }   // 重いときは実の速さを落とす（超高速は1こまに長く計算する）
-    }
-    simRate = simRate * 0.9 + (n * DT / Math.max(fdt, 1e-3)) * 0.1;
-    perf.sim = perf.sim * 0.9 + (performance.now() - t0) * 0.1;
-  }
-  if (sel && sel.dead) {
-    const by = sel.eatenBy ? world.orgs.find(o => o.id === sel.eatenBy) : null;
-    toast(by ? 'この1匹は食べられた。食べたほうを追いかけます' : 'この1匹はエネルギーが尽きた');
-    if (by) select(by); else { const same = world.orgs.find(o => o.clade === sel.clade); same ? select(same) : select(null); }
+  // 計算: 画面側ならここで回す。Worker なら、届いている最新の写しを描き、次の分を頼む
+  sim.tick(fdt);
+  if (!world) { requestAnimationFrame(frame); return; }
+  simRate = sim.simRate;
+  // 1こまあたりの計算の時間（Worker のときは、別のコアで1こまの間に使った時間）
+  const simMs = sim.usesWorker ? sim.stepMs * sim.simRate / DT / Math.max(1, perf.fps) : sim.lastMs || 0;
+  perf.sim = perf.sim * 0.9 + simMs * 0.1;
+  if (sel && sel.dead && !selGone) {
+    // 食べられたなら、食べたほうを追いかける（Worker のときは答えを待つ）
+    const gone = sel; selGone = true;
+    sim.eatenBy(gone, by => {
+      selGone = false;
+      if (sel !== gone) return;
+      toast(by ? 'この1匹は食べられた。食べたほうを追いかけます' : 'この1匹はエネルギーが尽きた');
+      if (by) select(by); else { const same = world.orgs.find(o => o.clade === gone.clade); same ? select(same) : select(null); }
+    });
   }
   if (sel && follow) {
     // 札とグラフにかくれない所（空いている所のまん中）に追う1匹を置く
@@ -286,7 +296,7 @@ function frame(now) {
     $('sTime').textContent = fmtT(world.t);
     $('sRate').textContent = playing && simRate < speed * 0.8 ? `いまは ×${Math.round(simRate)}` : '';
     $('sPop').textContent = world.orgs.length;
-    if (perfLog) $('perfText').textContent = `計算 ${perf.sim.toFixed(1)} ms ・ 描く ${perf.draw.toFixed(1)} ms ・ ${Math.round(perf.fps)} こま/秒 ・ ${world.orgs.length} 匹`;
+    if (perfLog) $('perfText').textContent = `計算${sim.usesWorker ? '（別のコア）' : ''} ${perf.sim.toFixed(1)} ms ・ 1刻み ${sim.stepMs.toFixed(1)} ms ・ 描く ${perf.draw.toFixed(1)} ms ・ ${Math.round(perf.fps)} こま/秒 ・ ${world.orgs.length} 匹`;
     $('sClades').textContent = world.liveClades().length;
     $('sPred').textContent = world.orgs.filter(o => o.prey > 0).length;
     graph.draw(world, selClade);
@@ -305,7 +315,6 @@ const perfLog = q.has('test') ? { id: new Date().toISOString().replace(/[:.]/g, 
 const SIM_PARTS = ['env', 'orgs', 'collide', 'colonies', 'predation', 'divide'], DRAW_PARTS = ['water', 'wake', 'glow', 'light', 'gel', 'crisp', 'crisp_build', 'crisp_gpu', 'crisp_copy', 'sel', 'motes'];
 const PERF_HEAD = 'real_s,sim_s,speed,sim_rate,sim_ms,draw_ms,fps,orgs,visible,algae,colony_cells,zoom,view_w,view_h,dpr,' + SIM_PARTS.map(k => 's_' + k).join(',') + ',' + DRAW_PARTS.map(k => 'd_' + k).join(',');
 function logPerf(fdt) {
-  world.profOn = true;   // 計算の部分ごとの時間も測る（新しい一滴になっても）
   perfLog.real += fdt; perfLog.acc += fdt;
   if (perfLog.acc < 10) return;
   perfLog.acc = 0;
@@ -318,7 +327,7 @@ function logPerf(fdt) {
   try { localStorage.setItem('drop-perf-' + perfLog.id, perfCSV()); } catch {}
 }
 function perfCSV() {
-  const env = `# drop-perf ${perfLog.id} / ${navigator.userAgent} / cores ${navigator.hardwareConcurrency || '?'} / screen ${screen.width}x${screen.height} / seed ${seed} / 描き方 ${ren.glCrisp ? 'WebGL' : '2D'}`;
+  const env = `# drop-perf ${perfLog.id} / ${navigator.userAgent} / cores ${navigator.hardwareConcurrency || '?'} / screen ${screen.width}x${screen.height} / seed ${seed} / 描き方 ${ren.glCrisp ? 'WebGL' : '2D'} / 計算 ${sim.usesWorker ? 'Worker' : '画面側'}`;
   return [env, PERF_HEAD, ...perfLog.rows].join('\n') + '\n';
 }
 if (perfLog) $('perfSave').onclick = () => {
@@ -345,8 +354,10 @@ function updateScale() {
   $('scale').querySelector('span').textContent = `${um} µm`;
 }
 
+sim.newWorld({ seed, size, sand, foodRate: +$('food').value, light: +$('light').value, flow: +$('flow').value });
 requestAnimationFrame(frame);
 setTimeout(() => { if (!hintOnce) toast('生き物を押すと、追いかけて遺伝子を見られます'); }, 2500);
 
 // 確かめ用（tools から）
+window.__sim = sim;
 window.__drop = { get world() { return world; }, get sel() { return sel; }, ren, select, setSpeed, setPlaying };

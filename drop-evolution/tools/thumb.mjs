@@ -11,7 +11,7 @@ const FPS = 15, LEN = 4;
 const srv = await serve(), br = await launch();
 const ctx = await safeContext(br, srv.origin, { width: 640, height: 360, scale: 2 });
 const pg = await ctx.newPage();
-await pg.goto(`${srv.origin}/drop-evolution/?seed=${seed}`);
+await pg.goto(`${srv.origin}/drop-evolution/?seed=${seed}&noworker`);
 await pg.addStyleTag({ content: '#top,#env,#bottom,#card,#scale,#toast{display:none!important}' });
 await pg.evaluate(([s, z]) => {
   __drop.setPlaying(false);
