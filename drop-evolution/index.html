@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/no-quirks.css"><script src="../assets/no-quirks.js" defer></script>
-<link rel="stylesheet" href="css/style.css?v=59">
+<link rel="stylesheet" href="css/style.css?v=61">
 </head>
 <body>
 <canvas id="view" aria-label="顕微鏡の視野"></canvas>
@@ -20,11 +20,13 @@
   <div class="gateBox">
     <h2 id="gateTitle">ひとしずくの進化</h2>
     <p class="gateLead">海の水の一滴を、顕微鏡でのぞきます</p>
-    <p class="gateNote"><b>ご注意</b>小さな生き物がたくさん集まって泳いだり、細胞がびっしり並んだかたまりになったりします。虫や、小さなものが集まった様子が苦手な方は、ここで引き返してください。</p>
     <div class="gateBtns">
-      <button type="button" id="gateGo" class="gatePrimary">のぞいてみる</button>
-      <button type="button" id="gateBack" class="gateGhost">もどる</button>
+      <button type="button" id="gateCont" class="gatePrimary" hidden>つづきから<small id="gateContSub"></small></button>
+      <button type="button" id="gateNew" class="gatePrimary">はじめから</button>
     </div>
+    <p class="gateNote"><b>ご注意</b>小さな生き物がたくさん集まって泳いだり、細胞がびっしり並んだかたまりになったりします。虫や、小さなものが集まった様子が苦手な方は、ここで引き返してください。</p>
+    <button type="button" id="gateBack" class="gateBack">もどる</button>
+  </div>
   </div>
 </div>
 
@@ -139,6 +141,6 @@
 </dialog>
 
 <div id="perf"><span id="perfText"></span><button type="button" id="perfSave">ログを保存</button></div>
-<script type="module" src="js/main.js?v=59"></script>
+<script type="module" src="js/main.js?v=61"></script>
 </body>
 </html>

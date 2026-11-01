@@ -4,6 +4,7 @@ import { founderBody } from './body.js';
 import { Renderer, drawBodyDiagram } from './render.js';
 import { Graph, cladeColor, fmtT } from './graph.js';
 import { makeSim } from './simlink.js';
+import { get as getSave } from './save.js';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -181,8 +182,9 @@ function showStarts() {
     ? 'いまの一滴の生き物と記録は消えて、はじまりの2本毛から決まりどおりに進んだ一滴の、その時点から続きを見ます。'
     : 'いまの一滴の生き物と記録は消えて、はじまりの2本毛（すべての真核生物の祖先）から始まります。大きさ・砂つぶ・はじめの数も選べます。';
 }
-$('mNew').onclick = () => { newSize = size; showSize(); newSand = sand; showSand(); newPop = pop; showPop(); newTurn = ''; showStarts(); $('menuMain').hidden = true; $('menuConfirm').hidden = false; $('mNewNo').focus(); };
-$('mNewNo').onclick = () => { $('menuMain').hidden = false; $('menuConfirm').hidden = true; };
+function openNew() { newSize = size; showSize(); newSand = sand; showSand(); newPop = pop; showPop(); newTurn = ''; showStarts(); $('menuMain').hidden = true; $('menuConfirm').hidden = false; $('mNewNo').focus(); }
+$('mNew').onclick = () => { fromTitle = false; openNew(); };
+$('mNewNo').onclick = () => { if (fromTitle) { fromTitle = false; $('menu').close(); return; } $('menuMain').hidden = false; $('menuConfirm').hidden = true; };
 $('mNewYes').onclick = async () => {
   if (newTurn) {
     const t = turns.find(x => x.id === newTurn);
@@ -208,7 +210,8 @@ function onWorld() {
   select(null); lastEvent = 0;
 }
 function startWorld(msg) {
-  playingBeforeMenu = true;
+  playingBeforeMenu = true; fromTitle = false;
+  if (!$('gate').hidden) hideTitle();
   $('menu').close();
   toast(msg);
 }
@@ -381,20 +384,42 @@ sim.newWorld({ seed, size, sand, founders: pop === 150 ? undefined : pop, foodRa
 requestAnimationFrame(frame);
 setTimeout(() => { if (!hintOnce) toast('生き物を押すと、追いかけて遺伝子を見られます'); }, 2500);
 
-// ── はじめの注意書き: 「のぞいてみる」を押すまで一滴は止めておく。同じタブで一度押したら、もう出さない（?nogate・?test では出さない） ──
-let seen = false; try { seen = sessionStorage.getItem('drop-gate') === '1'; } catch {}
+// ── タイトル: 開くたびに出す（?nogate・?test では出さない）。「つづきから」「はじめから」・注意書き・「もどる」。どちらかを選ぶまで一滴は止めておく ──
 let title = null;   // タイトルのうしろで泳ぐ数匹（本番とは別の小さな一滴）
 let titleRen = null;   // タイトルの描き手は 1 つだけ作って使いまわす（WebGL の数をふやさない）
+let fromTitle = false;   // 「はじめから」の選び方をタイトルから開いたか（やめるでタイトルにもどる）
 function showTitle() {
-  $('gate').hidden = false; title = makeTitle(); setPlaying(false); $('gateGo').focus();
+  $('gate').hidden = false; title = makeTitle(); setPlaying(false);
+  // 保存した一滴があれば「つづきから」を大きく
+  $('gateCont').hidden = true; $('gateNew').className = 'gatePrimary'; $('gateNew').focus();
+  refreshCont();
 }
-$('gateGo').onclick = () => { $('gate').hidden = true; title = null; try { sessionStorage.setItem('drop-gate', '1'); } catch {} setPlaying(true); };
+function refreshCont() {
+  getSave('meta').then(m => {
+    if (!m || $('gate').hidden) return;
+    $('gateContSub').textContent = `${fmtT(m.t)}・${m.n} 匹`;
+    $('gateCont').hidden = false; $('gateNew').className = 'gateGhost'; $('gateCont').focus();
+  }).catch(() => {});
+}
+function hideTitle() { $('gate').hidden = true; title = null; }
+$('gateCont').onclick = async () => {
+  $('gateCont').disabled = true;
+  const ok = await sim.load().catch(() => false);
+  $('gateCont').disabled = false;
+  if (!ok) { toast('前の一滴を読みこめませんでした'); return; }
+  hideTitle(); setPlaying(true); toast('つづきから');
+};
+$('gateNew').onclick = () => { fromTitle = true; openMenu(); openNew(); };
 // もどる: ブラウザの前のページへ（前のページがなければ保管庫へ）
 $('gateBack').onclick = () => { if (history.length > 1 && document.referrer) history.back(); else location.href = '../archive.html'; };
-if (seen || q.has('nogate') || q.has('test')) $('gate').hidden = true;
+if (q.has('nogate') || q.has('test')) $('gate').hidden = true;
 else showTitle();
-// メニューの「タイトルにもどる」: 一滴はそのまま止めて、タイトルを出す（「のぞいてみる」で続きから）
-$('mTitle').onclick = () => { $('menu').close(); showTitle(); };
+// メニューの「タイトルにもどる」: いまの一滴を保存して止め、タイトルを出す
+$('mTitle').onclick = () => { $('menu').close(); showTitle(); if (world) Promise.resolve(sim.save()).then(refreshCont); };
+// 30 秒ごとと、タブを閉じる・ほかのタブに移るときに、いまの一滴を保存する（このブラウザの中だけ）
+setInterval(() => { if (!title && world && playing) sim.save(); }, 30000);
+addEventListener('visibilitychange', () => { if (document.hidden && !title && world) sim.save(); });
+addEventListener('pagehide', () => { if (!title && world) sim.save(); });
 
 
 // タイトル: はじまりの2本毛を 5 匹だけ、まん中に置く。砂なし。カメラは 5 匹のまん中をゆっくり追う（群れや群体は出さない。2026-11-01 ユーザー「数匹をクローズアップしてゆったり泳いでいる様子を（グロくない範囲で）」）

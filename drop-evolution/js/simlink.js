@@ -1,7 +1,8 @@
 // 画面と計算のつなぎ: 計算を Web Worker で回し（js/worker.js）、届いた数から「一滴の写し」を組み立てる。
 // ?noworker のとき・Worker が使えないときは、今までどおり画面側で一滴を回す（確かめの道具は一滴を直接動かすのでこちら）
 import { World, DT, setField } from './sim.js';
-import { restore } from './snap.js';
+import { restore, snapshot } from './snap.js';
+import { saveWorld, get } from './save.js';
 import { analyze } from './body.js';
 
 const OF = ['id', 'x', 'y', 'a', 'r', 'e', 'eS', 'colN', 'colR', 'inner', 'anch', 'colAnch', 'ax', 'ay', 'sym', 'mateT', 'mate', 'clade', 'hue', 'gen', 'ate', 'prey', 'kids', 'mixes', 'age', 'bId', 'xbId', 'gId', 'nLinks'];
@@ -90,6 +91,8 @@ function localSim() {
     s.lastMs = ms;
   };
   s.eatenBy = (o, cb) => cb(o.eatenBy ? s.world.orgs.find(x => x.id === o.eatenBy) : null);
+  s.save = () => s.world ? saveWorld(snapshot(s.world)).catch(e => console.warn(e)) : null;
+  s.load = async () => { const d = await get('last'); if (!d) return false; s.restoreWorld(d); return true; };
   return s;
 }
 
@@ -97,10 +100,12 @@ function localSim() {
 function workerSim() {
   const wk = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
   const s = { world: null, simRate: 0, stepMs: 0, usesWorker: true, onInit: null, lastMs: 0 };
-  let waiting = false, speed = 4, playing = true, eatenCb = null;
+  let waiting = false, speed = 4, playing = true, eatenCb = null, loadCb = null, saveCbs = [];
   wk.onmessage = e => {
     const d = e.data;
-    if (d.type === 'init') { s.world = new Mirror(d); waiting = false; s.onInit?.(); }
+    if (d.type === 'init') { s.world = new Mirror(d); waiting = false; s.onInit?.(); if (loadCb) { loadCb(true); loadCb = null; } }
+    else if (d.type === 'loadFailed' && loadCb) { loadCb(false); loadCb = null; }
+    else if (d.type === 'saved') { for (const cb of saveCbs.splice(0)) cb(d.meta); }
     else if (d.type === 'frame') { waiting = false; if (s.world) { const t0 = performance.now(); s.world.apply(d); s.applyMs = (s.applyMs || 0) * 0.9 + (performance.now() - t0) * 0.1; s.simRate = d.simRate; s.stepMs = d.stepMs; } }
     else if (d.type === 'eatenBy' && eatenCb) { const cb = eatenCb; eatenCb = null; cb(d.by ? s.world.byId.get(d.by) || null : null); }
   };
@@ -112,6 +117,8 @@ function workerSim() {
   // 前に頼んだ分が届いていれば、次のこまの分を頼む（画面は届いている最新の写しを描く）
   s.tick = () => { if (!waiting && s.world) { waiting = true; wk.postMessage({ type: 'frame' }); } s.lastMs = 0; };
   s.eatenBy = (o, cb) => { eatenCb = cb; wk.postMessage({ type: 'eatenBy', id: o.id }); };
+  s.save = () => new Promise(ok => { saveCbs.push(ok); wk.postMessage({ type: 'save' }); });
+  s.load = () => new Promise(ok => { loadCb = ok; wk.postMessage({ type: 'load' }); });
   return s;
 }
 

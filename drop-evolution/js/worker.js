@@ -1,7 +1,8 @@
 // 計算のコア（Web Worker）: 一滴をまるごと持ち、決められた速さで刻みを回し続ける。画面から頼まれるたびに、描くのに要る分を数の列に詰めて送る。
 // 画面側は js/simlink.js が受けとって「一滴の写し」を組み立てる（描く・札・グラフはその写しを見る）
 import { World, DT } from './sim.js';
-import { restore } from './snap.js';
+import { restore, snapshot } from './snap.js';
+import { saveWorld, get } from './save.js';
 
 let w = null, speed = 4, playing = true, acc = 0, last = performance.now();
 let simRate = 0, stepMs = 0, metaT = 0, winSim = 0, winReal = 0;
@@ -84,6 +85,9 @@ onmessage = e => {
   const d = e.data;
   if (d.type === 'new') reset(new World(d.opt));
   else if (d.type === 'restore') reset(restore(d.data));
+  // 保存（このブラウザの中だけ）と、保存した一滴からつづける
+  else if (d.type === 'save') { if (w) saveWorld(snapshot(w)).then(meta => postMessage({ type: 'saved', meta })).catch(e => postMessage({ type: 'saved', error: String(e) })); }
+  else if (d.type === 'load') get('last').then(data => { if (data) reset(restore(data)); else postMessage({ type: 'loadFailed' }); }).catch(() => postMessage({ type: 'loadFailed' }));
   else if (d.type === 'set') { if (w) w[d.key] = d.value; }
   else if (d.type === 'run') { speed = d.speed; playing = d.playing; }
   else if (d.type === 'frame') { if (w) frame(); }
