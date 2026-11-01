@@ -152,7 +152,7 @@ body.test #perf { display: block; }
 .gateBox { position: relative; z-index: 2; width: min(600px, 100%); text-align: center; }
 .gateBox h2 { margin: 0; white-space: nowrap; font: 700 clamp(26px, 8vw, 44px) var(--font); letter-spacing: .16em; color: var(--ink); text-shadow: 0 0 18px rgba(110,210,255,.55); }
 .gateLead { margin: 10px 0 36px; color: var(--sub); font-size: 14px; letter-spacing: .08em; }
-.gateNote { margin: 28px auto 18px; padding: 12px 16px; max-width: 340px; text-align: left; font-size: 12.5px; line-height: 1.8; color: var(--sub); background: rgba(2,10,20,.7); border: 1px solid rgba(255,200,97,.35); border-radius: 10px; }
+.gateNote { margin: 28px auto 18px; padding: 12px 16px; max-width: 340px; text-align: left; font-size: 12.5px; line-height: 1.8; color: rgba(255,214,140,.9); background: rgba(2,10,20,.7); border: 1px solid rgba(255,200,97,.35); border-radius: 10px; }
 .gateNote b { display: block; margin-bottom: 2px; color: var(--hi); font-size: 12.5px; letter-spacing: .1em; }
 .gateBtns { display: grid; gap: 10px; width: min(260px, 100%); margin: 0 auto; }
 .gateBtns button { padding: 13px 12px; border-radius: 26px; cursor: pointer; font: 700 15px var(--font); letter-spacing: .08em; }
