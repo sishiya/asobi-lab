@@ -31,8 +31,11 @@ function loop() {
     if (n) stepMs = stepMs * 0.9 + ms / n * 0.1;
     simRate = simRate * 0.95 + (n * DT / Math.max(fdt, 1e-3)) * 0.05;
   } else simRate *= 0.95;
-  setTimeout(loop, 0);
+  // 次の回をすぐ始める（setTimeout(0) はブラウザが 4 ms 以上に引きのばし、2 割ほど空回りしていた）。止めている間は少し休む
+  if (w && playing) tick.port2.postMessage(0); else setTimeout(loop, 16);
 }
+const tick = new MessageChannel();
+tick.port1.onmessage = loop;
 
 function frame() {
   const os = w.orgs.filter(o => !o.dead), N = os.length, F = OF.length;
