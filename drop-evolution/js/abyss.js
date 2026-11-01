@@ -5,6 +5,14 @@
 // 画面へは1回だけ引きのばして足す。水の色とふちの暗さは作り置きの絵。光る丸も作り置きの絵。くっきりの線は明るさ4段でまとめて引く
 import { W, H, GI } from './sim.js';
 import { FRAMES } from './body.js';
+import { makeGL, rgba } from './glbatch.js';
+
+// WebGL2 が使えれば、光の輪とくっきりの線を GPU でまとめて描く（2026-11-01 実機の記録で、描くの 7 割がこの2つだった）。?nogl で今の描き方
+function glOf(ren, name) {
+  if (ren[name] === undefined) { try { ren[name] = new URLSearchParams(location.search).has('nogl') ? null : makeGL(); } catch (e) { console.warn(e); ren[name] = null; } }
+  return ren[name];
+}
+const GLOW_RGB = [0.65, 0.95, 0.99];   // 光の輪の色（hsl 188・95%・82%）
 
 const TAU = Math.PI * 2;
 const HUE = 188;
@@ -174,20 +182,31 @@ export function drawAbyss(ren, world, sel, time) {
   const kg = 0.25, G = paper(ren, 'glow', kg), gg = G.getContext('2d');
   gg.setTransform(1, 0, 0, 1, 0, 0); gg.globalCompositeOperation = 'source-over'; gg.clearRect(0, 0, G.width, G.height);
   toWorld(ren, gg, kg); gg.globalCompositeOperation = 'lighter';
-  const spr = glowSprite();
-  for (const o of vis) {
-    const I = glow.get(o), R = Math.max(o.r + HALO, 6 / z);
-    // 群体の中の細胞は、光が仲間に重なって明るくなりすぎるので弱く（光は群体の外へもれる）
-    gg.globalAlpha = Math.min(1, 0.08 + I * 0.9) * (o.inner ? 0.25 : o.colN > 1 ? 0.6 : 1); gg.drawImage(ringSprite(o.r / R), o.x - R, o.y - R, R * 2, R * 2);
-  }
-  gg.globalAlpha = 1;
-  // 死んだときの光（ふくらんで消える輪）
+  const spr = glowSprite(), gG = glOf(ren, 'glGlow');
   ren.trackGhosts(world, time);
-  for (const gh of ren.ghosts) {
-    const k = (time - gh.t) / 1.6, R = gh.r * (1 + k * 2.5);
-    gg.globalAlpha = 0.5 * (1 - k); gg.drawImage(spr, gh.x - R, gh.y - R, R * 2, R * 2);
+  if (gG) {
+    gG.begin(G.width, G.height, c.x, c.y, z * kg);
+    for (const o of vis) {
+      const I = glow.get(o), R = Math.max(o.r + HALO, 6 / z);
+      gG.glowRing(o.x, o.y, R, o.r / R, [...GLOW_RGB, Math.min(1, 0.08 + I * 0.9) * (o.inner ? 0.25 : o.colN > 1 ? 0.6 : 1)]);
+    }
+    for (const gh of ren.ghosts) { const k = (time - gh.t) / 1.6; gG.blob(gh.x, gh.y, gh.r * (1 + k * 2.5), [...GLOW_RGB, 0.5 * (1 - k)]); }
+    gG.flush(true);
+    gg.setTransform(1, 0, 0, 1, 0, 0); gg.globalCompositeOperation = 'source-over'; gg.drawImage(gG.canvas, 0, 0);
+  } else {
+    for (const o of vis) {
+      const I = glow.get(o), R = Math.max(o.r + HALO, 6 / z);
+      // 群体の中の細胞は、光が仲間に重なって明るくなりすぎるので弱く（光は群体の外へもれる）
+      gg.globalAlpha = Math.min(1, 0.08 + I * 0.9) * (o.inner ? 0.25 : o.colN > 1 ? 0.6 : 1); gg.drawImage(ringSprite(o.r / R), o.x - R, o.y - R, R * 2, R * 2);
+    }
+    gg.globalAlpha = 1;
+    // 死んだときの光（ふくらんで消える輪）
+    for (const gh of ren.ghosts) {
+      const k = (time - gh.t) / 1.6, R = gh.r * (1 + k * 2.5);
+      gg.globalAlpha = 0.5 * (1 - k); gg.drawImage(spr, gh.x - R, gh.y - R, R * 2, R * 2);
+    }
+    gg.globalAlpha = 1;
   }
-  gg.globalAlpha = 1;
   const G2 = paper(ren, 'glow2', 0.125), g2 = G2.getContext('2d');
   g2.setTransform(1, 0, 0, 1, 0, 0); g2.clearRect(0, 0, G2.width, G2.height); g2.drawImage(G, 0, 0, G2.width, G2.height);
   lt.globalAlpha = 0.9 * GLOW_K; lt.drawImage(G, 0, 0, Lt.width, Lt.height);
@@ -216,7 +235,10 @@ export function drawAbyss(ren, world, sel, time) {
   }
   lap('gel');
   // ── くっきりの光: 藍藻・かけら・柄・群体・節・細胞・核・関節・先 ──
+  const gC = glOf(ren, 'glCrisp');
+  if (gC) crispGL(gC, ren, world, vis, glow, poses, sel, time, tl, br);
   toWorld(ren, g, dpr);
+  if (!gC) {
   // 藍藻: またたく小さな火花（明るさを4段にまとめて描く）
   const ss = Math.max(1.6, 1.8 / z);
   for (let b = 0; b < 4; b++) {
@@ -308,6 +330,7 @@ export function drawAbyss(ren, world, sel, time) {
     g.beginPath(); g.moveTo(o.x, o.y); g.lineTo(q.x, q.y); g.stroke();
   }
   g.globalAlpha = 1;
+  }
 
   lap('crisp');
   // ── 選んだ1匹（琥珀）と、感じる範囲 ──
@@ -382,4 +405,82 @@ function motes(ren, g, time, rayAt) {
     g.fillStyle = `rgba(${lit > 0.02 ? '235,250,255' : '200,225,240'},${Math.min(0.9, 0.1 * (0.4 + 0.6 * f.k) + lit * 5).toFixed(2)})`;
     g.beginPath(); g.arc(x, y, 0.5 + f.k * 1.1 + Math.min(1.5, lit * 3), 0, TAU); g.fill();
   }
+}
+
+// くっきりの光を WebGL で（2D の描き方と同じ形・同じ色。上の if (!gC) の中と対になっている）
+function crispGL(gC, ren, world, vis, glow, poses, sel, time, tl, br) {
+  const c = ren.cam, z = c.z, cv = ren.cv;
+  gC.begin(cv.width, cv.height, c.x, c.y, z * ren.dpr);
+  // 藍藻: またたく小さな火花
+  const ss = Math.max(1.6, 1.8 / z);
+  for (let i = 0; i < world.fn; i++) {
+    const x = world.fx[i], y = world.fy[i];
+    if (x < tl.x || x > br.x || y < tl.y || y > br.y || world.fage[i] >= 1e8) continue;
+    const b = Math.max(0, Math.sin(time * 2 + i * 1.7)) * 3.99 | 0;
+    gC.square(x, y, ss, rgba(ABYSS.food, 0.3 + b * 0.13));
+  }
+  // 死んだ体のかけら
+  const lp = Math.max(0.6 / z, 0.7), cp = rgba(ABYSS.glow, 0.22);
+  for (const p of world.pieces) {
+    if (p.x < tl.x || p.x > br.x || p.y < tl.y || p.y > br.y) continue;
+    const hx = Math.cos(p.a) * p.len / 2, hy = Math.sin(p.a) * p.len / 2;
+    gC.seg(p.x - hx, p.y - hy, p.x + hx, p.y + hy, lp, cp);
+  }
+  // 柄と、細胞どうしの橋
+  const cs = rgba('110,200,240', 0.3), cl = rgba('120,200,255', 0.3), ws = Math.max(1 / z, 1), wl = Math.max(1.4 / z, 1.2);
+  for (const o of vis) if (o.anch && o.ax !== undefined) gC.seg(o.x, o.y, o.ax, o.ay, ws, cs);
+  for (const o of vis) for (const q of o.links) if (o.id < q.id) {
+    const dx = q.x - o.x, dy = q.y - o.y, d = Math.hypot(dx, dy) || 1;
+    if (d > o.r + q.r) gC.seg(o.x + dx / d * o.r, o.y + dy / d * o.r, q.x - dx / d * q.r, q.y - dy / d * q.r, wl, cl);
+  }
+  // 節・膜・核・先（明るさは 4 段）
+  const lw = Math.max(0.6 / z, 0.7), rw = Math.max(lw, 1.1 / z);
+  const segC = [0, 1, 2, 3].map(b => rgba(ABYSS.glow, 0.25 + 0.5 * (b + 0.5) / 4)), rimC = [0, 1, 2, 3].map(b => rgba('190,245,255', 0.2 + 0.6 * (b + 0.5) / 4)), dotC = rgba('210,250,255', 0.75);
+  for (const o of vis) {
+    if (o === sel) continue;
+    const I = glow.get(o), b = Math.min(3, (I * 4) | 0), r = o.r, P = poses.get(o);
+    const a = o.a + (P ? P.wob : 0), ca = Math.cos(a), sa = Math.sin(a);
+    if (P) {
+      const pts = P.pts;
+      for (let i = 0; i < o.bp.n; i++) {
+        const q = i * 4;
+        gC.seg(o.x + (ca * pts[q] - sa * pts[q + 1]) * r, o.y + (sa * pts[q] + ca * pts[q + 1]) * r, o.x + (ca * pts[q + 2] - sa * pts[q + 3]) * r, o.y + (sa * pts[q + 2] + ca * pts[q + 3]) * r, lw, segC[b]);
+      }
+    }
+    if (r * z < 3) continue;
+    const mm = a + o.g[GI.mouth];
+    const cuts = [];
+    for (const q of o.links) { const dx = q.x - o.x, dy = q.y - o.y, d = Math.hypot(dx, dy) || 1; if (d < r + q.r) cuts.push(dx / d, dy / d, (d * d + r * r - q.r * q.r) / (2 * d)); }
+    if (!cuts.length) gC.ring(o.x, o.y, r, rw, mm, 0.5, rimC[b]);
+    else {
+      let lx = 0, ly = 0;
+      for (let k = 0; k <= 28; k++) {
+        const t = mm + 0.5 + (TAU - 1) * k / 28;
+        let px = Math.cos(t) * r, py = Math.sin(t) * r;
+        for (let j = 0; j < cuts.length; j += 3) { const over = px * cuts[j] + py * cuts[j + 1] - cuts[j + 2]; if (over > 0) { px -= cuts[j] * over; py -= cuts[j + 1] * over; } }
+        if (k) gC.seg(o.x + lx, o.y + ly, o.x + px, o.y + py, rw, rimC[b], true);
+        lx = px; ly = py;
+      }
+    }
+    gC.disc(o.x - ca * r * 0.2, o.y - sa * r * 0.2, r * 0.14, dotC);
+    if (P && r * z > 5) for (const i of o.bp.tips) { const q = i * 4; gC.disc(o.x + (ca * P.pts[q + 2] - sa * P.pts[q + 3]) * r, o.y + (sa * P.pts[q + 2] + ca * P.pts[q + 3]) * r, Math.max(0.8 / z, r * 0.08), dotC); }
+  }
+  // 飼っている藍藻
+  const ds = Math.max(1.2, 1.4 / z), sc = rgba(ABYSS.sym, 0.7);
+  for (const o of vis) {
+    if (!o.sym) continue;
+    const n = Math.min(40, o.sym);
+    for (let k = 0; k < n; k++) { const a = o.a + k * 2.39996 + o.id, d = o.r * 0.7 * Math.sqrt((k + 0.5) / n); gC.square(o.x + Math.cos(a) * d, o.y + Math.sin(a) * d, ds, sc); }
+  }
+  // 接合している2匹の橋
+  const wm = Math.max(1.2 / z, 1.5);
+  for (const o of vis) {
+    const q = o.mate;
+    if (!q || q.dead || o.mateT <= 0 || o.id > q.id) continue;
+    gC.seg(o.x, o.y, q.x, q.y, wm, [1, 0.863, 0.588, 0.8 * (0.45 + 0.35 * Math.sin(time * 3 + o.id))]);
+  }
+  gC.flush(false);
+  const g = ren.cx;
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+  g.drawImage(gC.canvas, 0, 0);
 }
