@@ -7,7 +7,7 @@
 import { analyze, founderBody, mutateBody, bodyDistance, expressBody, FRAMES } from './body.js';
 export { analyze } from './body.js';
 
-export const DT = 1 / 30;
+export const DT = +(globalThis.TUNE_DT || 1 / 20);   // 1刻みの秒（2026-11-01 まで 1/30。生き物は 1 刻みに 5 µm ほどしか動かず、体より小さいので、ぶつかりや食べる判定はこぼれない）
 // 一滴の大きさ（µm）。小・ふつう・大を選べる。藍藻と生き物の上限・はじめの数は面積に、海から流れこむ藍藻はふちの長さに合わせる
 export const FIELDS = { s: [1000, 700], m: [2000, 1400], l: [2800, 1960] };
 export let W = 2000, H = 1400;
@@ -753,11 +753,11 @@ export class World {
     }
     if (!any) { for (const o of os) this.setInner(o, false); return; }
     // つながり（群体）ごとに、まん中と半径
-    const seen = new Set();
+    const stamp = this.colStamp = (this.colStamp || 0) + 1;   // 見た印（Set より軽い）
     for (const o of os) {
-      if (!o.links.length || seen.has(o) || o.dead) continue;   // ひとりの細胞は上で済ませた
-      const mem = [o]; seen.add(o);
-      for (let i = 0; i < mem.length; i++) for (const q of mem[i].links) if (!seen.has(q) && !q.dead) { seen.add(q); mem.push(q); }
+      if (!o.links.length || o.seenAt === stamp || o.dead) continue;   // ひとりの細胞は上で済ませた
+      const mem = [o]; o.seenAt = stamp;
+      for (let i = 0; i < mem.length; i++) for (const q of mem[i].links) if (q.seenAt !== stamp && !q.dead) { q.seenAt = stamp; mem.push(q); }
       let cx = 0, cy = 0;
       for (const q of mem) { cx += q.x; cy += q.y; }
       cx /= mem.length; cy /= mem.length;
@@ -784,18 +784,8 @@ export class World {
           q.sL += (A[0] - q.sL) * s; q.sR += (A[1] - q.sR) * s; q.pL += (A[2] - q.pL) * s; q.pR += (A[3] - q.pR) * s; q.dL += (A[4] - q.dL) * s; q.dR += (A[5] - q.dR) * s;
         }
       }
-      // 0.2 秒ごとに: ふれ合う仲間どうしは、寒天質でつながる（親子だけでなく、となりどうしも。1つが死んでも群体がばらけない）。
-      // 群体の仲間 3 つ以上とふれていれば内
-      if (mem.length > 2 && this.stepN % 6 === 0) for (const q of mem) {
-        let k = 0;
-        for (const u of mem) {
-          if (u === q || (u.x - q.x) ** 2 + (u.y - q.y) ** 2 >= ((u.r + q.r) * 1.15) ** 2) continue;
-          k++;
-          // 寒天質でつながる（糸の細胞は端と端だけでつながるので、横の仲間とはつながらない）
-          if (q.id < u.id && !inFil(q) && !inFil(u) && q.links.length < LINKS_MAX && u.links.length < LINKS_MAX && !q.links.includes(u)) { q.links.push(u); u.links.push(q); }
-        }
-        this.setInner(q, k >= 3);
-      }
+      // 0.2 秒ごとに: 群体の仲間 3 つ以上とふれていれば内（ふれている数は collide で、近くの組を調べるついでに数えた。前は群体の中を総当たりで、190 細胞なら 1 回 3 万 6 千組）
+      if (mem.length > 2 && this.stepN % 6 === 0) for (const q of mem) this.setInner(q, (q.touch || 0) >= 3);
     }
     // 分けあう: つながった2つの「ためた割合」の差を、ふたりの share の小さいほうの速さで縮める
     for (const o of os) for (const q of o.links) {
@@ -813,6 +803,9 @@ export class World {
     // 小さいどうしの組は小さいほうの番号の若い側で、大きいのがまじる組は大きいほうの側で、1回だけ（前は一律 40 µm で、混んだ群体で調べる組が多すぎた）
     const BIG = 16;
     let maxR = 0; for (const o of os) if (o.r > maxR) maxR = o.r;
+    // 0.2 秒ごとに、群体の仲間とふれている数を数え、ふれ合う仲間どうしを寒天質でつなぐ（親子だけでなく、となりどうしも。1つが死んでも群体がばらけない）
+    const contact = this.stepN % 6 === 0;
+    if (contact) for (const o of os) o.touch = 0;
     for (let i = 0; i < os.length; i++) {
       const o = os[i]; if (o.dead) continue;
       const big = o.r > BIG, R = o.r + (big ? maxR : BIG), cx0 = Math.max(0, ((o.x - R) / CELL) | 0), cx1 = Math.min(GW - 1, ((o.x + R) / CELL) | 0);
@@ -825,6 +818,11 @@ export class World {
           // 同じ群体の仲間も重なれない。ただ寒天質で押し合っているので、少し重なる所（半径の和の 9 割）までは許す
           const mate = q.col === o.col && o.colN > 1;
           const dx = q.x - o.x, dy = q.y - o.y, L = (o.r + q.r) * (mate ? 0.9 : 1), d2 = dx * dx + dy * dy;
+          if (contact && mate && d2 < ((o.r + q.r) * 1.15) ** 2) {
+            o.touch++; q.touch++;
+            // 寒天質でつながる（糸の細胞は端と端だけでつながるので、横の仲間とはつながらない）
+            if (!inFil(o) && !inFil(q) && o.links.length < LINKS_MAX && q.links.length < LINKS_MAX && !o.links.includes(q)) { o.links.push(q); q.links.push(o); }
+          }
           if (d2 >= L * L || d2 < 1e-6) continue;
           // 群体はひとかたまりで押し返すので、重さは群体ぶん。1刻みに動くのは小さいほうの半径の 2 割まで（水の中では急に動けない）
           const mo = o.anch || (o.colAnch && !mate) ? 1e9 : mate ? o.m : o.m * o.colN, mq = q.anch || (q.colAnch && !mate) ? 1e9 : mate ? q.m : q.m * q.colN,   // くっついている物は動かない。仲間どうしは1つずつの重さで

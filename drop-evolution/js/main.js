@@ -1,5 +1,6 @@
 // ひとしずくの進化 — 画面と操作
-import { World, DT, GI, GENES, eSplit, speedOf, W, H } from './sim.js';
+import { World, DT, GI, GENES, eSplit, speedOf, W, H, founderGenome } from './sim.js';
+import { founderBody } from './body.js';
 import { Renderer, drawBodyDiagram } from './render.js';
 import { Graph, cladeColor, fmtT } from './graph.js';
 import { makeSim } from './simlink.js';
@@ -9,6 +10,7 @@ const q = new URLSearchParams(location.search);
 let seed = +(q.get('seed') || (Date.now() % 100000));
 let size = ['s', 'm', 'l'].includes(q.get('size')) ? q.get('size') : 'm';   // 一滴の大きさ
 let sand = ['0', '1', '2'].includes(q.get('sand')) ? +q.get('sand') : 1;   // 砂つぶ（地形）
+let pop = ['1', '10', '50', '150'].includes(q.get('pop')) ? +q.get('pop') : 150;   // はじめの数（2026-11-01 ユーザー「初期個体数も入れて。1体も選びたい」）
 // 計算は Web Worker で（js/simlink.js・worker.js）。?noworker で今までどおり画面側で回す。world は一滴（Worker のときは届いた写し）
 const sim = makeSim(!q.has('noworker'));
 let world = null;
@@ -107,13 +109,13 @@ $('graph').addEventListener('click', e => {
 $('play').onclick = () => setPlaying(!playing);
 function setPlaying(p) { playing = p; sim.run(speed, playing); $('play').textContent = p ? '❚❚' : '▶'; $('play').setAttribute('aria-label', p ? '止める' : '動かす'); }
 document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => setSpeed(+b.dataset.speed));
-function setSpeed(s) { speed = s; sim.run(speed, playing); document.querySelectorAll('[data-speed]').forEach(b => b.classList.toggle('on', +b.dataset.speed === s)); if (!playing) setPlaying(true); }
+function setSpeed(s) { speed = s; sim.run(speed, playing); $('speedBtn').textContent = `×${s}`; openPop(null); document.querySelectorAll('[data-speed]').forEach(b => b.classList.toggle('on', +b.dataset.speed === s)); if (!playing) setPlaying(true); }
 document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
   graph.mode = b.dataset.mode;
   document.querySelectorAll('[data-mode]').forEach(x => x.classList.toggle('on', x === b));
 });
 addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT' || $('menu').open || $('help').open) return;
+  if (e.target.tagName === 'INPUT' || $('menu').open || $('help').open || !$('gate').hidden) return;
   if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
   else if (e.key === '1') setSpeed(1); else if (e.key === '2') setSpeed(4); else if (e.key === '3') setSpeed(16);
   else if (e.key === '4') setSpeed(256); else if (e.key === '5') setSpeed(1024);
@@ -121,6 +123,15 @@ addEventListener('keydown', e => {
   else if (e.key === 'm' || e.key === 'M') openMenu();
 });
 
+// 速さと環境のたたみ: ボタンで開き、もう一度押すか外を押すと閉じる
+function openPop(which) {
+  const sp = which === 'speed' && !$('transport').classList.contains('speedOpen'), en = which === 'env' && !$('env').classList.contains('open');
+  $('transport').classList.toggle('speedOpen', sp); $('speedBtn').setAttribute('aria-expanded', sp);
+  $('env').classList.toggle('open', en); $('envBtn').setAttribute('aria-expanded', en);
+}
+$('speedBtn').onclick = () => openPop('speed');
+$('envBtn').onclick = () => openPop('env');
+addEventListener('pointerdown', e => { if (!e.target.closest('.transport, #env')) openPop(null); });
 // ── 環境 ──
 const level = (v, lo, hi) => v < lo ? '少ない' : v > hi ? '多い' : 'ふつう';
 $('food').oninput = e => { const v = +e.target.value; sim.set('foodRate', v); $('foodOut').textContent = level(v, 0.6, 1.5); };
@@ -128,7 +139,7 @@ if (q.has('food')) { $('food').value = q.get('food'); $('food').oninput({ target
 $('light').oninput = e => { const v = +e.target.value; sim.set('light', v); $('lightOut').textContent = v < 0.05 ? 'まっくら' : level(v, 0.4, 0.8).replace('少ない', '弱い').replace('多い', '強い'); };
 if (q.has('light')) { $('light').value = q.get('light'); $('light').oninput({ target: $('light') }); }   // URL の ?light= で光をはじめから
 $('flow').oninput = e => { const v = +e.target.value; sim.set('flow', v); $('flowOut').textContent = v < 0.05 ? 'とまる' : level(v, 0.6, 1.4).replace('少ない', '弱い').replace('多い', '強い'); };
-// ── メニュー（新しい一滴はここからだけ。もう一度たずねる） ──
+// ── メニュー（新しく始めるのはここからだけ。もう一度たずねる） ──
 let playingBeforeMenu = true;
 function openMenu() {
   playingBeforeMenu = playing; setPlaying(false);
@@ -139,16 +150,26 @@ function openMenu() {
 $('menu').addEventListener('close', () => { if (!$('help').open) setPlaying(playingBeforeMenu); });
 $('menuBtn').onclick = openMenu;
 $('mResume').onclick = () => $('menu').close();
-$('mHelp').onclick = () => { $('menu').close(); setPlaying(false); $('help').showModal(); };
+// メニューと「このアプリについて」は、外（うしろの暗い所）を押したら閉じる
+for (const id of ['menu', 'help']) $(id).addEventListener('click', e => {
+  if (e.target !== $(id)) return;
+  const r = $(id).getBoundingClientRect();
+  if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) $(id).close();
+});
+// このアプリについて（右上の ？）
+$('aboutBtn').onclick = () => { playingBeforeMenu = playing; setPlaying(false); $('help').showModal(); };
 $('help').addEventListener('close', () => setPlaying(playingBeforeMenu));
-let newSize = size, newSand = sand;
+let newSize = size, newSand = sand, newPop = pop;
+const showPop = () => document.querySelectorAll('[data-pop]').forEach(b => { b.classList.toggle('on', +b.dataset.pop === newPop); b.setAttribute('aria-checked', +b.dataset.pop === newPop); });
+document.querySelectorAll('[data-pop]').forEach(b => b.onclick = () => { newPop = +b.dataset.pop; showPop(); });
 const showSize = () => document.querySelectorAll('[data-size]').forEach(b => { b.classList.toggle('on', b.dataset.size === newSize); b.setAttribute('aria-checked', b.dataset.size === newSize); });
 document.querySelectorAll('[data-size]').forEach(b => b.onclick = () => { newSize = b.dataset.size; showSize(); });
 const showSand = () => document.querySelectorAll('[data-sand]').forEach(b => { b.classList.toggle('on', +b.dataset.sand === newSand); b.setAttribute('aria-checked', +b.dataset.sand === newSand); });
 document.querySelectorAll('[data-sand]').forEach(b => b.onclick = () => { newSand = +b.dataset.sand; showSand(); });
 // どこから始めるか: はじまりの2本毛か、進化の節目の一滴（data/turns.json。祖先から決まりどおりに回して保存したもの）
 let turns = [], newTurn = '';
-fetch('data/turns.json').then(r => r.ok ? r.json() : []).then(t => { turns = t; showStarts(); }).catch(() => {});
+// 並びは進化の時間の順（祖先から回した時間、同じなら代の数）
+fetch('data/turns.json').then(r => r.ok ? r.json() : []).then(t => { turns = t.sort((a, b) => (a.hours - b.hours) || (a.gen - b.gen)); showStarts(); }).catch(() => {});
 function showStarts() {
   const box = $('starts');
   box.hidden = !turns.length;
@@ -158,9 +179,9 @@ function showStarts() {
   $('newShape').hidden = !!newTurn;
   $('newNote').textContent = newTurn
     ? 'いまの一滴の生き物と記録は消えて、はじまりの2本毛から決まりどおりに進んだ一滴の、その時点から続きを見ます。'
-    : 'いまの一滴の生き物と記録は消えて、はじまりの2本毛（すべての真核生物の祖先）から始まります。大きさと砂つぶも選べます。';
+    : 'いまの一滴の生き物と記録は消えて、はじまりの2本毛（すべての真核生物の祖先）から始まります。大きさ・砂つぶ・はじめの数も選べます。';
 }
-$('mNew').onclick = () => { newSize = size; showSize(); newSand = sand; showSand(); newTurn = ''; showStarts(); $('menuMain').hidden = true; $('menuConfirm').hidden = false; $('mNewNo').focus(); };
+$('mNew').onclick = () => { newSize = size; showSize(); newSand = sand; showSand(); newPop = pop; showPop(); newTurn = ''; showStarts(); $('menuMain').hidden = true; $('menuConfirm').hidden = false; $('mNewNo').focus(); };
 $('mNewNo').onclick = () => { $('menuMain').hidden = false; $('menuConfirm').hidden = true; };
 $('mNewYes').onclick = async () => {
   if (newTurn) {
@@ -174,9 +195,9 @@ $('mNewYes').onclick = async () => {
     return;
   }
   seed = (seed * 7919 + 13) % 100000;
-  size = newSize; sand = newSand;
-  sim.newWorld({ seed, size, sand, foodRate: +$('food').value, light: +$('light').value, flow: +$('flow').value });
-  startWorld('新しい一滴をのぞいています');
+  size = newSize; sand = newSand; pop = newPop;
+  sim.newWorld({ seed, size, sand, founders: pop === 150 ? undefined : pop, foodRate: +$('food').value, light: +$('light').value, flow: +$('flow').value });
+  startWorld('新しく始めました');
 };
 // 新しい一滴が届いたとき（画面側で回すときはすぐ、Worker のときは少しあと）: 見え方を初めにもどす
 function onWorld() {
@@ -263,6 +284,8 @@ const perf = { sim: 0, draw: 0, fps: 60 };   // 1こまの計算と描く時間�
 function frame(now) {
   const fdt = Math.max(0, Math.min(0.1, (now - last) / 1000)); last = now;   // 最初のこまは、ブラウザの時刻が始めた時刻より前のことがある
   realTime += fdt;
+  // タイトルを見せている間は、うしろの数匹だけを描く
+  if (title) { drawTitle(fdt); requestAnimationFrame(frame); return; }
   // 計算: 画面側ならここで回す。Worker なら、届いている最新の写しを描き、次の分を頼む
   sim.tick(fdt);
   if (!world) { requestAnimationFrame(frame); return; }
@@ -354,9 +377,43 @@ function updateScale() {
   $('scale').querySelector('span').textContent = `${um} µm`;
 }
 
-sim.newWorld({ seed, size, sand, foodRate: +$('food').value, light: +$('light').value, flow: +$('flow').value });
+sim.newWorld({ seed, size, sand, founders: pop === 150 ? undefined : pop, foodRate: +$('food').value, light: +$('light').value, flow: +$('flow').value });
 requestAnimationFrame(frame);
 setTimeout(() => { if (!hintOnce) toast('生き物を押すと、追いかけて遺伝子を見られます'); }, 2500);
+
+// ── はじめの注意書き: 「のぞいてみる」を押すまで一滴は止めておく。同じタブで一度押したら、もう出さない（?nogate・?test では出さない） ──
+let seen = false; try { seen = sessionStorage.getItem('drop-gate') === '1'; } catch {}
+let title = null;   // タイトルのうしろで泳ぐ数匹（本番とは別の小さな一滴）
+if (seen || q.has('nogate') || q.has('test')) $('gate').hidden = true;
+else {
+  setPlaying(false);
+  title = makeTitle();
+  $('gateGo').focus();
+  $('gateGo').onclick = () => { $('gate').hidden = true; title = null; try { sessionStorage.setItem('drop-gate', '1'); } catch {} setPlaying(true); };
+  // もどる: ブラウザの前のページへ（前のページがなければ保管庫へ）
+  $('gateBack').onclick = () => { if (history.length > 1 && document.referrer) history.back(); else location.href = '../archive.html'; };
+}
+
+// タイトル: はじまりの2本毛を 5 匹だけ、まん中に置く。砂なし。カメラは 5 匹のまん中をゆっくり追う（群れや群体は出さない。2026-11-01 ユーザー「数匹をクローズアップしてゆったり泳いでいる様子を（グロくない範囲で）」）
+function makeTitle() {
+  const r = new Renderer($('gateView')); r.style = 'abyss';
+  const w = new World({ seed: 11, size, sand: 0, founders: 0, initFood: 260 });
+  const g0 = founderGenome(), b0 = founderBody();
+  for (let i = 0; i < 5; i++) w.addOrg(w.mutate(g0, 0.5), 1, W / 2 + (w.r() - 0.5) * 70, H / 2 + (w.r() - 0.5) * 50, eSplit(g0, b0) * 0.6, 0, b0);
+  r.resize(innerWidth, innerHeight, Math.min(2, devicePixelRatio || 1));
+  r.cam.x = W / 2; r.cam.y = H / 2; r.cam.z = Math.min(innerWidth, innerHeight) / 160;   // 少し寄せる。あくまで背景（主役は題名とボタン）
+  return { r, w, acc: 0 };
+}
+function drawTitle(fdt) {
+  const T = title; T.acc += fdt;
+  while (T.acc >= DT) { T.w.step(); T.acc -= DT; }
+  const os = T.w.orgs; if (!os.length) return;
+  // 1 匹を選んでゆっくり追う
+  if (!T.lead || T.lead.dead) T.lead = os[0];
+  T.r.cam.x += (T.lead.x - T.r.cam.x) * 0.02; T.r.cam.y += (T.lead.y - T.r.cam.y) * 0.02;
+  T.r.draw(T.w, null, realTime);
+}
+addEventListener('resize', () => { if (title) title.r.resize(innerWidth, innerHeight, Math.min(2, devicePixelRatio || 1)); });
 
 // 確かめ用（tools から）
 window.__sim = sim;

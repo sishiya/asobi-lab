@@ -25,6 +25,7 @@ button { font: inherit; color: inherit; }
 /* 上 */
 #top { position: fixed; top: 16px; left: 16px; right: 16px; display: flex; align-items: center; gap: 16px; pointer-events: none; }
 #top > * { pointer-events: auto; }
+#top .topRight { margin-left: auto; display: flex; gap: 8px; }   /* 「？」とメニューは右上のすみ */
 #top h1 { margin: 0; font: 700 16px var(--font); letter-spacing: .12em; color: var(--ink); white-space: nowrap; text-shadow: 0 0 8px rgba(110,210,255,.45); }
 .stats { display: flex; gap: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 8px 16px; font-size: 13px; color: var(--sub); backdrop-filter: blur(6px); }
 .stats b { color: var(--ink); font: 500 15px var(--mono); }
@@ -143,3 +144,27 @@ dialog#help form { text-align: right; }
 #perf { display: none; position: fixed; right: 8px; bottom: 4px; font: 11px var(--mono, monospace); color: var(--sub); pointer-events: none; z-index: 5; }
 body.test #perf { display: block; }
 #perf button { pointer-events: auto; margin-left: 8px; padding: 2px 8px; font: 11px var(--mono, monospace); background: transparent; color: var(--sub); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+/* タイトル: 主役は題名とボタン（まん中・中央揃え）。注意書きはそのあいだの別の枠。うしろの生き物は暗くうすい背景 */
+#gate { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: #020a14; }
+#gate[hidden] { display: none; }
+#gateView { position: fixed; inset: 0; z-index: 0; opacity: .45; }
+#gate::after { content: ""; position: fixed; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(ellipse at center, rgba(2,10,20,.15) 0%, rgba(2,10,20,.75) 75%); }
+.gateBox { position: relative; z-index: 2; width: min(600px, 100%); text-align: center; }
+.gateBox h2 { margin: 0; white-space: nowrap; font: 700 clamp(26px, 8vw, 44px) var(--font); letter-spacing: .16em; color: var(--ink); text-shadow: 0 0 18px rgba(110,210,255,.55); }
+.gateLead { margin: 10px 0 32px; color: var(--sub); font-size: 14px; letter-spacing: .08em; }
+.gateNote { margin: 0 auto 28px; padding: 12px 16px; max-width: 340px; text-align: left; font-size: 12.5px; line-height: 1.8; color: var(--sub); background: rgba(2,10,20,.7); border: 1px solid rgba(255,200,97,.35); border-radius: 10px; }
+.gateNote b { display: block; margin-bottom: 2px; color: var(--hi); font-size: 12.5px; letter-spacing: .1em; }
+.gateBtns { display: grid; gap: 10px; width: min(260px, 100%); margin: 0 auto; }
+.gateBtns button { padding: 13px 12px; border-radius: 26px; cursor: pointer; font: 700 15px var(--font); letter-spacing: .08em; }
+.gatePrimary { border: 0; background: var(--hi); color: #1a1205; }
+.gateGhost { border: 1px solid var(--line); background: rgba(2,10,20,.5); color: var(--ink); }
+/* 速さと環境は、ふだんはたたみ、ボタンで上に開く（2026-11-01 ユーザー「常時開いている必要がないので工夫して」） */
+.transport { position: relative; }
+.pill { border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 18px; padding: 8px 14px; min-width: 52px; cursor: pointer; font: 700 14px var(--font); }
+.pill[aria-expanded="true"] { background: rgba(110,210,255,.14); }
+.transport .speeds { display: none; position: absolute; left: 0; bottom: calc(100% + 8px); background: var(--panel); backdrop-filter: blur(6px); }
+.transport.speedOpen .speeds { display: flex; }
+#env { top: auto; bottom: 92px; transform: none; }
+#env:not(.open) { display: none !important; }
+@media (max-width: 760px) { #env { bottom: 252px; } }
+@media (max-height: 460px) { #env { top: auto; bottom: 74px; } }

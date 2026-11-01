@@ -8,7 +8,7 @@ for (const [w, h] of [[1280, 720], [1024, 768], [375, 740], [812, 375]]) {
   const ctx = await safeContext(br, srv.origin, { width: w, height: h });
   const pg = await ctx.newPage();
   pg.on('pageerror', e => errors.push(`${w}x${h}: ${e.message}`));
-  await pg.goto(`${srv.origin}/drop-evolution/?seed=${seed}&noworker`);
+  await pg.goto(`${srv.origin}/drop-evolution/?seed=${seed}&noworker&nogate`);
   await pg.waitForTimeout(800);
   await pg.evaluate(s => { const w = __drop.world; while (w.t < s) w.step(); }, secs);
   await pg.waitForTimeout(600);

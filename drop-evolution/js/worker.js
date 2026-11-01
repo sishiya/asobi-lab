@@ -4,7 +4,7 @@ import { World, DT } from './sim.js';
 import { restore } from './snap.js';
 
 let w = null, speed = 4, playing = true, acc = 0, last = performance.now();
-let simRate = 0, stepMs = 0, metaT = 0;
+let simRate = 0, stepMs = 0, metaT = 0, winSim = 0, winReal = 0;
 // 遺伝子と体の形は、新しいものが出たときだけ1回送る（同じものは番号で）
 let ids = new WeakMap(), nextId = 1, defs = [];
 const idOf = obj => { let i = ids.get(obj); if (!i) { i = nextId++; ids.set(obj, i); defs.push([i, obj]); } return i; };
@@ -29,8 +29,11 @@ function loop() {
     while (acc >= DT) { w.step(); acc -= DT; n++; if (performance.now() - t0 > (speed >= 256 ? 40 : 10)) break; }
     const ms = performance.now() - t0;
     if (n) stepMs = stepMs * 0.9 + ms / n * 0.1;
-    simRate = simRate * 0.95 + (n * DT / Math.max(fdt, 1e-3)) * 0.05;
-  } else simRate *= 0.95;
+    winSim += n * DT;
+  }
+  // 実際の速さ: 0.5 秒ごとに、進んだ一滴の時間 ÷ かかった時間（1回ずつの平均だと、とても短い回が多くて低く出ていた）
+  winReal += fdt;
+  if (winReal >= 0.5) { simRate = w && playing ? winSim / winReal : 0; winSim = 0; winReal = 0; }
   // 次の回をすぐ始める（setTimeout(0) はブラウザが 4 ms 以上に引きのばし、2 割ほど空回りしていた）。止めている間は少し休む
   if (w && playing) tick.port2.postMessage(0); else setTimeout(loop, 16);
 }

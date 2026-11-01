@@ -1,6 +1,6 @@
 // 画面なしで長く回し、探す力が上がるか・からだの形が広がるかを数で見る
 // node drop-evolution/tools/sim-check.mjs [秒=1800] [シード=1] [海の栄養=1] [光=0.6]
-for (const k of ['NO_EXDIG', 'NO_FISS']) if (process.env[k]) globalThis[k] = 1;   // くらべ: 効き目を切る
+for (const k of ['NO_EXDIG', 'NO_FISS']) if (process.env[k]) globalThis[k] = 1;
 import { World, GENES, GI, foragingTest, speedOf, analyze, colorName } from '../js/sim.js';
 const secs = +(process.argv[2] || 1800), seed = +(process.argv[3] || 1);
 const w = new World({ seed, foodRate: +(process.argv[4] || 1), light: +(process.argv[5] ?? 0.6), sand: +(process.argv[6] ?? 1) });

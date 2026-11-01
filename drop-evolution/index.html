@@ -10,10 +10,23 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/no-quirks.css"><script src="../assets/no-quirks.js" defer></script>
-<link rel="stylesheet" href="css/style.css?v=47">
+<link rel="stylesheet" href="css/style.css?v=57">
 </head>
 <body>
 <canvas id="view" aria-label="顕微鏡の視野"></canvas>
+<!-- はじめの注意書き（虫や、小さなものがたくさん集まった様子が苦手な人が、見る前に引き返せるように。2026-11-01 ユーザー） -->
+<div id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+  <canvas id="gateView" aria-hidden="true"></canvas>
+  <div class="gateBox">
+    <h2 id="gateTitle">ひとしずくの進化</h2>
+    <p class="gateLead">海の水の一滴を、顕微鏡でのぞきます</p>
+    <p class="gateNote"><b>ご注意</b>小さな生き物がたくさん集まって泳いだり、細胞がびっしり並んだかたまりになったりします。虫や、小さなものが集まった様子が苦手な方は、ここで引き返してください。</p>
+    <div class="gateBtns">
+      <button type="button" id="gateGo" class="gatePrimary">のぞいてみる</button>
+      <button type="button" id="gateBack" class="gateGhost">もどる</button>
+    </div>
+  </div>
+</div>
 
 <!-- 上: いまの状態 -->
 <header id="top">
@@ -24,11 +37,14 @@
     <span>系統 <b id="sClades">0</b></span>
     <span class="pred">狩る者 <b id="sPred">0</b></span>
   </div>
-  <button type="button" id="menuBtn" class="round" aria-label="メニュー">☰</button>
+  <div class="topRight">
+    <button type="button" id="aboutBtn" class="round" aria-label="このアプリについて" title="このアプリについて">?</button>
+    <button type="button" id="menuBtn" class="round" aria-label="メニュー" title="メニュー">☰</button>
+  </div>
 </header>
 
-<!-- 左: 環境 -->
-<aside id="env">
+<!-- 左下: 環境（「環境」のボタンで開く。ふだんはたたむ） -->
+<aside id="env" aria-label="環境">
   <label><span>海の栄養</span><input type="range" id="food" min="0.2" max="3" step="0.05" value="1"><output id="foodOut">ふつう</output></label>
   <label><span>光</span><input type="range" id="light" min="0" max="1" step="0.05" value="0.6"><output id="lightOut">ふつう</output></label>
   <label><span>海の流れ</span><input type="range" id="flow" min="0" max="2" step="0.05" value="1"><output id="flowOut">ふつう</output></label>
@@ -47,8 +63,10 @@
 
 <!-- 下: 時間とグラフ -->
 <footer id="bottom">
-  <div class="transport">
+  <div class="transport" id="transport">
     <button type="button" id="play" class="round big" aria-label="止める">❚❚</button>
+    <button type="button" id="speedBtn" class="pill" aria-haspopup="true" aria-expanded="false" title="はやさ">×4</button>
+    <button type="button" id="envBtn" class="pill" aria-haspopup="true" aria-expanded="false" title="海の栄養・光・海の流れ">環境</button>
     <div class="speeds" role="group" aria-label="はやさ">
       <button type="button" data-speed="1">×1</button><button type="button" data-speed="4" class="on">×4</button><button type="button" data-speed="16">×16</button><button type="button" data-speed="256" class="test">×256</button><button type="button" data-speed="1024" class="test">×1024</button>
     </div>
@@ -70,12 +88,11 @@
     <h2>ひとしずくの進化</h2>
     <p class="seed" id="menuSeed"></p>
     <button type="button" id="mResume" class="primary">つづける</button>
-    <button type="button" id="mHelp" class="ghost">しくみ</button>
-    <button type="button" id="mNew" class="ghost">新しい一滴</button>
+    <button type="button" id="mNew" class="ghost">新しく始める</button>
   </div>
   <div id="menuConfirm" hidden>
-    <h2>新しい一滴にしますか？</h2>
-    <p id="newNote">いまの一滴の生き物と記録は消えて、はじまりの2本毛（すべての真核生物の祖先）から始まります。大きさと砂つぶも選べます。</p>
+    <h2>新しく始めますか？</h2>
+    <p id="newNote">いまの一滴の生き物と記録は消えて、はじまりの2本毛（すべての真核生物の祖先）から始まります。大きさ・砂つぶ・はじめの数も選べます。</p>
     <div class="sizes starts" id="starts" role="radiogroup" aria-label="どこから始めるか"></div>
     <div id="newShape">
     <div class="sizes" role="radiogroup" aria-label="一滴の大きさ">
@@ -84,14 +101,17 @@
     <div class="sizes" role="radiogroup" aria-label="砂つぶ">
       <button type="button" data-sand="0" role="radio">砂なし<small>水だけ</small></button><button type="button" data-sand="1" role="radio">砂 少し<small>ところどころ</small></button><button type="button" data-sand="2" role="radio">砂 多い<small>すきまだらけ</small></button>
     </div>
+    <div class="sizes" role="radiogroup" aria-label="はじめの数">
+      <button type="button" data-pop="1" role="radio">1匹<small>1つから</small></button><button type="button" data-pop="10" role="radio">10匹<small>少し</small></button><button type="button" data-pop="50" role="radio">50匹<small>ほどほど</small></button><button type="button" data-pop="150" role="radio">150匹<small>ふつう</small></button>
     </div>
-    <button type="button" id="mNewYes" class="danger">新しい一滴にする</button>
+    </div>
+    <button type="button" id="mNewYes" class="danger">新しく始める</button>
     <button type="button" id="mNewNo" class="ghost">やめる</button>
   </div>
 </dialog>
 
 <dialog id="help">
-  <h2>しくみ</h2>
+  <h2>このアプリについて</h2>
   <p>顕微鏡でのぞいた海の水の一滴です。青緑のつぶは藍藻（らんそう）。光と、水に溶けた栄養塩で、どんどん分かれて増えます。生き物はそれを食べてためると2つに分かれ、そのたびに少しだけ変わります。だれも「よい個体」を選びません。<b>エサにありついて分かれられた者だけが子を残します。</b></p>
   <h3>部品は3つ</h3>
   <ul>
@@ -110,7 +130,7 @@
   </ol>
   <h3>はじまりと、本物とのちがい</h3>
   <p>はじまりの生き物は、すべての真核生物（動物・植物・菌・原生生物）の最後の共通祖先、LECA（約15〜20億年前）にならっています。鞭毛は2本、細胞の中にはもうミトコンドリアがあり、ときどき仲間と遺伝子を混ぜます。その前の、古細菌が細菌を取りこんでミトコンドリアにした出来事は、1回しか起きておらず、くわしいことがまだわかっていないので、ここでは描きません。</p>
-  <p>右上の ☰ の「新しい一滴」では、はじまりの2本毛のほかに、<b>進化の節目の一滴</b>（群体が育ったころなど）からも始められます。どれも、はじまりの2本毛から同じ決まりで何時間も回して保存したものです。</p>
+  <p>右上の ☰ の「新しく始める」では、はじまりの2本毛のほかに、<b>進化の節目の一滴</b>（群体が育ったころなど）からも始められます。どれも、はじまりの2本毛から同じ決まりで何時間も回して保存したものです。</p>
   <p>本物より速くしている所があります。一滴の数百匹で海の何百万匹のかわりをするため、形の突然変異は3倍。何億年もかかる変化を、時間を縮めて見せています。縮めるのは時間だけで、藍藻と原生生物が分かれる速さの比、ウイルスや大きな捕食者に殺される割合は本物に合わせています。緑の点1つは、藍藻の細胞1つではなく小さなかたまりです。食べる所は、LECA にならって前からななめ横のくぼみ（腹の溝）から始まり、場所も遺伝子で変わります。</p>
   <p>栄養塩はまわりの海から一滴のふちへしみこみ、ゆっくり広がります。藍藻は光が強いほど速く増えます。藍藻も海から流れこみます。泳ぎ方・触手・狩る者は決まりにありません。部品の組み合わせから生まれます。</p>
   <p class="ops">ドラッグで動かす・ホイールで寄る・生き物を押すと追いかける。スペースで止める。</p>
@@ -118,6 +138,6 @@
 </dialog>
 
 <div id="perf"><span id="perfText"></span><button type="button" id="perfSave">ログを保存</button></div>
-<script type="module" src="js/main.js?v=47"></script>
+<script type="module" src="js/main.js?v=57"></script>
 </body>
 </html>

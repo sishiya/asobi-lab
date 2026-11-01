@@ -16,7 +16,7 @@ const GLOW_RGB = [0.65, 0.95, 0.99];   // 光の輪の色（hsl 188・95%・82%�
 
 const TAU = Math.PI * 2;
 const HUE = 188;
-export const ABYSS = { ink: '#bfefff', glow: '120,225,255', food: '90,255,210', sym: '120,255,170', poo: 'rgba(150,120,90,A)', sel: '#ffc861' };
+export const ABYSS = { ink: '#bfefff', glow: '120,225,255', food: '160,232,215', sym: '120,255,170', poo: 'rgba(150,120,90,A)', sel: '#ffc861' };
 const WATER = '#031424';   // 真上から見るので、上下で明るさを変えない（2026-10-31 まで上ほど明るい＝横から見た海だった）
 // 航跡が半分の明るさになるまでの秒。0.25 は look/ の F3（毎こま 4.5% 薄める＝60fps で 0.25 秒）と同じ尾の長さ（ユーザーが見くらべで選んだ見え方）。
 // 0.12 にしたこともあるが、それは消え残りのバグで尾が長く見えていたため。バグを直したうえで 0.25 にもどした
@@ -228,7 +228,7 @@ export function drawAbyss(ren, world, sel, time) {
     const kG = 0.5, Gl = paper(ren, 'gel', kG), gl = Gl.getContext('2d');
     gl.setTransform(1, 0, 0, 1, 0, 0); gl.globalCompositeOperation = 'source-over'; gl.clearRect(0, 0, Gl.width, Gl.height);
     toWorld(ren, gl, kG);
-    const blob = (pad, k) => { gl.beginPath(); for (const o of members) { const R = o.r * k + pad; gl.moveTo(o.x + R, o.y); gl.arc(o.x, o.y, R, 0, TAU); } gl.fill(); };
+    const blob = (pad, k) => { gl.beginPath(); for (const o of members) { const R = o.r * k + pad; if (R <= 0) continue; gl.moveTo(o.x + R, o.y); gl.arc(o.x, o.y, R, 0, TAU); } gl.fill(); };   // 引いて見ると内側の半径がマイナスになることがある
     gl.fillStyle = 'rgb(140,215,255)'; blob(2.5, 1.35);
     gl.globalCompositeOperation = 'destination-out'; gl.fillStyle = 'rgba(0,0,0,0.75)'; blob(2.5 - Math.max(0.8, 1.5 / z), 1.35);
     g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 0.3; g.drawImage(Gl, 0, 0, ren.cv.width, ren.cv.height); g.globalAlpha = 1;
@@ -242,12 +242,12 @@ export function drawAbyss(ren, world, sel, time) {
   // 藍藻: またたく小さな火花（明るさを4段にまとめて描く）
   const ss = Math.max(1.6, 1.8 / z);
   for (let b = 0; b < 4; b++) {
-    g.fillStyle = `rgba(${ABYSS.food},${(0.3 + b * 0.13).toFixed(2)})`; g.beginPath();
+    g.fillStyle = `rgba(${ABYSS.food},${(0.16 + b * 0.08).toFixed(2)})`; g.beginPath();
     for (let i = 0; i < world.fn; i++) {
       const x = world.fx[i], y = world.fy[i];
       if (x < tl.x || x > br.x || y < tl.y || y > br.y || world.fage[i] >= 1e8) continue;
       if ((Math.max(0, Math.sin(time * 2 + i * 1.7)) * 3.99 | 0) !== b) continue;
-      g.rect(x - ss / 2, y - ss / 2, ss, ss);
+      g.moveTo(x + ss / 2, y); g.arc(x, y, ss / 2, 0, TAU);   // 藍藻は丸い小さな細胞（四角だと寄ったときカクカクした）
     }
     g.fill();
   }
@@ -418,7 +418,7 @@ function crispGL(gC, ren, world, vis, glow, poses, sel, time, tl, br) {
     const x = world.fx[i], y = world.fy[i];
     if (x < tl.x || x > br.x || y < tl.y || y > br.y || world.fage[i] >= 1e8) continue;
     const b = Math.max(0, Math.sin(time * 2 + i * 1.7)) * 3.99 | 0;
-    gC.square(x, y, ss, rgba(ABYSS.food, 0.3 + b * 0.13));
+    gC.disc(x, y, ss / 2, rgba(ABYSS.food, 0.16 + b * 0.08));
   }
   // 死んだ体のかけら
   const lp = Math.max(0.6 / z, 0.7), cp = rgba(ABYSS.glow, 0.22);
