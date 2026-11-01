@@ -628,9 +628,10 @@ export class World {
     for (const o of born) this.divide(o);
     lap('divide');
     if (os.some(o => o.dead)) this.orgs = os.filter(o => !o.dead);
-    if (this.orgs.length === 0) {
-      this.events.push({ t: this.t, text: 'すべていなくなった。はじまりの生き物をもう一度入れた' });
-      this.seedFounders(Math.max(6, Math.round(40 * AREA)));
+    // すべていなくなっても、決まりの外から生き物を足さない（2026-11-01 ユーザー「自動でリスタートがかかるのをやめて」）。画面が知らせて、はじめからか、このまま眺めるかを選ぶ
+    if (this.orgs.length === 0 && !this.extinctAt) {
+      this.extinctAt = this.t;
+      this.events.push({ t: this.t, text: 'すべていなくなった' });
     }
     this.histAcc += dt;
     if (this.histAcc >= this.histEvery) { this.histAcc = 0; this.record(); }

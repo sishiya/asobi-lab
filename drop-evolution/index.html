@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/no-quirks.css"><script src="../assets/no-quirks.js" defer></script>
-<link rel="stylesheet" href="css/style.css?v=63">
+<link rel="stylesheet" href="css/style.css?v=65">
 </head>
 <body>
 <canvas id="view" aria-label="顕微鏡の視野"></canvas>
@@ -113,6 +113,13 @@
   </div>
 </dialog>
 
+<!-- すべていなくなったとき（自動でやり直さない。はじめからか、このまま眺めるかを選ぶ） -->
+<dialog id="extinct" aria-labelledby="exTitle">
+  <h2 id="exTitle">すべていなくなりました</h2>
+  <p id="exText"></p>
+  <button type="button" id="exNew" class="primary">はじめから</button>
+  <button type="button" id="exWatch" class="ghost">このまま眺める</button>
+</dialog>
 <dialog id="help">
   <h2>このアプリについて</h2>
   <p>顕微鏡でのぞいた海の水の一滴です。青緑のつぶは藍藻（らんそう）。光と、水に溶けた栄養塩で、どんどん分かれて増えます。生き物はそれを食べてためると2つに分かれ、そのたびに少しだけ変わります。だれも「よい個体」を選びません。<b>エサにありついて分かれられた者だけが子を残します。</b></p>
@@ -141,6 +148,6 @@
 </dialog>
 
 <div id="perf"><span id="perfText"></span><button type="button" id="perfSave">ログを保存</button></div>
-<script type="module" src="js/main.js?v=63"></script>
+<script type="module" src="js/main.js?v=65"></script>
 </body>
 </html>

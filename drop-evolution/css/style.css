@@ -170,3 +170,10 @@ body.test #perf { display: block; }
 #env:not(.open) { display: none !important; }
 @media (max-width: 760px) { #env { bottom: 252px; } }
 @media (max-height: 460px) { #env { top: auto; bottom: 74px; } }
+/* すべていなくなったときの画面（メニューと同じ形） */
+dialog#extinct { width: min(320px, calc(100% - 32px)); border: 1px solid var(--line); border-radius: 14px; padding: 22px 22px 18px; background: #061524; color: var(--ink); text-align: center; }
+dialog#extinct::backdrop { background: rgba(0,4,10,.55); }
+dialog#extinct h2 { font: 700 18px var(--font); letter-spacing: .1em; margin: 0 0 6px; }
+dialog#extinct p { font-size: 13px; line-height: 1.7; color: var(--sub); margin: 0 0 16px; }
+dialog#extinct button { display: block; width: 100%; margin-top: 8px; padding: 11px 12px; border-radius: 10px; cursor: pointer; font-weight: 700; color: var(--ink); }
+dialog#extinct .primary { border: 0; background: var(--hi); color: #1a1205; }

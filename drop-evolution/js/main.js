@@ -116,7 +116,7 @@ document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
   document.querySelectorAll('[data-mode]').forEach(x => x.classList.toggle('on', x === b));
 });
 addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT' || $('menu').open || $('help').open || !$('gate').hidden) return;
+  if (e.target.tagName === 'INPUT' || $('menu').open || $('help').open || $('extinct').open || !$('gate').hidden) return;
   if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
   else if (e.key === '1') setSpeed(1); else if (e.key === '2') setSpeed(4); else if (e.key === '3') setSpeed(16);
   else if (e.key === '4') setSpeed(256); else if (e.key === '5') setSpeed(1024);
@@ -152,11 +152,23 @@ $('menu').addEventListener('close', () => { if (!$('help').open && $('gate').hid
 $('menuBtn').onclick = openMenu;
 $('mResume').onclick = () => $('menu').close();
 // メニューと「このアプリについて」は、外（うしろの暗い所）を押したら閉じる
-for (const id of ['menu', 'help']) $(id).addEventListener('click', e => {
+for (const id of ['menu', 'help', 'extinct']) $(id).addEventListener('click', e => {
   if (e.target !== $(id)) return;
   const r = $(id).getBoundingClientRect();
   if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) $(id).close();
 });
+// すべていなくなったとき: 自動でやり直さず、まん中に知らせる（1つの一滴につき1回）
+let extinctShown = false, exWasPlaying = true;
+function checkExtinct() {
+  if (extinctShown || title || !world || world.orgs.length || world.t < 1) return;
+  extinctShown = true;
+  $('exText').textContent = `${fmtT(world.t)} に、さいごの生き物がいなくなりました。はじめから始めるか、生き物のいない一滴をこのまま眺めるかを選べます。`;
+  exWasPlaying = playing; setPlaying(false);   // 選ぶまで止める
+  $('extinct').showModal(); $('exNew').focus();
+}
+$('exNew').onclick = () => { $('extinct').close(); fromTitle = false; openMenu(); openNew(); };
+$('exWatch').onclick = () => $('extinct').close();
+$('extinct').addEventListener('close', () => { if (!$('menu').open) setPlaying(exWasPlaying); });   // 眺めるなら元の速さで
 // このアプリについて（右上の ？）
 $('aboutBtn').onclick = () => { playingBeforeMenu = playing; setPlaying(false); $('help').showModal(); };
 $('help').addEventListener('close', () => setPlaying(playingBeforeMenu));
@@ -205,6 +217,7 @@ $('mNewYes').onclick = async () => {
 function onWorld() {
   world = sim.world;
   if (q.has('test')) sim.set('profOn', true);   // 計算の部分ごとの時間も測る
+  extinctShown = false;
   ren.ghosts = []; ren.prev.clear();
   ren.cam.x = W / 2; ren.cam.y = H / 2; ren.cam.z = Math.max(ren.fitZoom(), Math.min(1.3, Math.min(ren.w, ren.h) / 500)); clampCam();
   select(null); lastEvent = 0;
@@ -320,6 +333,7 @@ function frame(now) {
   if (uiT <= 0) {
     uiT = 0.25;
     $('sTime').textContent = fmtT(world.t);
+    checkExtinct();
     $('sRate').textContent = playing && simRate < speed * 0.8 ? `いまは ×${Math.round(simRate)}` : '';
     $('sPop').textContent = world.orgs.length;
     if (perfLog) $('perfText').textContent = `計算${sim.usesWorker ? '（別のコア）' : ''} ${perf.sim.toFixed(1)} ms ・ 1刻み ${sim.stepMs.toFixed(1)} ms ・ 描く ${perf.draw.toFixed(1)} ms ・ ${Math.round(perf.fps)} こま/秒 ・ ${world.orgs.length} 匹`;
