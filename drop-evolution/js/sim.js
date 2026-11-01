@@ -872,11 +872,20 @@ export class World {
           const prey = q.colN > 1 ? os.filter(x => x.col === q.col && !x.dead) : [q];
           const e0 = prey.reduce((a, x) => a + Math.max(0, x.e) + x.sym * FOOD_E, 0), e = e0 * 0.7 * ASSIM;
           for (const x of prey) x.sym = 0;     // 体の材料はぜんぶ、ためた量の中にある
-          o.e += e; o.gained += e; o.ate++; o.prey++;
-          o.poo += e0 * 0.7 * (1 - ASSIM) * N_PER_E;
+          // 自分の口より大きな相手を群体で囲んで体の外で消化したときは、獲物のまわりの仲間がみんなで溶けた栄養を吸う
+          // （本物の板形動物も、体の下に消化液を出し、ふれている細胞が吸う。胃はこのくぼみが体の中に入ったもの）。ふつうは食べた1つの細胞だけ
+          const pm = prey.reduce((a, x) => a + x.m, 0), pr = q.colN > 1 ? q.colR : q.r;
+          const eaters = o.colN > 1 && pr >= o.r * BITE ? os.filter(x => x.col === o.col && !x.dead && (x.x - q.x) ** 2 + (x.y - q.y) ** 2 < (pr + x.r * 2 + 4) ** 2) : [o];
+          if (!eaters.includes(o)) eaters.push(o);
+          const em = eaters.reduce((a, x) => a + x.m, 0);
+          for (const x of eaters) {
+            const k = x.m / em;
+            x.e += e * k; x.gained += e * k; x.poo += e0 * 0.7 * (1 - ASSIM) * N_PER_E * k;
+            x.full = HANDLE + 8 * pm / em;   // 消化する時間は、獲物の重さ÷吸う仲間みんなの重さ
+          }
+          o.ate++; o.prey++;
           this.addNut(q.x, q.y, e0 * 0.3 * N_PER_E);     // 食べこぼしは水にもどる
           this.stats.gained += e;
-          o.full = HANDLE + 8 * prey.reduce((a, x) => a + x.m, 0) / o.m;
           for (const x of prey) { x.eatenBy = o.id; this.kill(x, false); }
           break hunt;
         }
