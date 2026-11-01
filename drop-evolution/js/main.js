@@ -2,6 +2,7 @@
 import { World, DT, GI, GENES, eSplit, speedOf, W, H } from './sim.js';
 import { Renderer, drawBodyDiagram } from './render.js';
 import { Graph, cladeColor, fmtT } from './graph.js';
+import { restore } from './snap.js';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -96,7 +97,7 @@ $('graph').addEventListener('click', e => {
   if (!id) return;
   const live = world.orgs.filter(o => o.clade === id);
   if (live.length) select(live.reduce((a, b) => a.age > b.age ? a : b));
-  else { selClade = id; const c = world.clades.get(id); toast(`「${c.name}」(系統 ${c.id}) は ${fmtT(c.died)} に絶えた`); }
+  else { const c = world.clades.get(id); if (!c) return; selClade = id; toast(`「${c.name}」(系統 ${c.id}) は ${fmtT(c.died)} に絶えた`); }
 });
 
 // ── 下の操作 ──
@@ -142,19 +143,46 @@ const showSize = () => document.querySelectorAll('[data-size]').forEach(b => { b
 document.querySelectorAll('[data-size]').forEach(b => b.onclick = () => { newSize = b.dataset.size; showSize(); });
 const showSand = () => document.querySelectorAll('[data-sand]').forEach(b => { b.classList.toggle('on', +b.dataset.sand === newSand); b.setAttribute('aria-checked', +b.dataset.sand === newSand); });
 document.querySelectorAll('[data-sand]').forEach(b => b.onclick = () => { newSand = +b.dataset.sand; showSand(); });
-$('mNew').onclick = () => { newSize = size; showSize(); newSand = sand; showSand(); $('menuMain').hidden = true; $('menuConfirm').hidden = false; $('mNewNo').focus(); };
+// どこから始めるか: はじまりの2本毛か、進化の節目の一滴（data/turns.json。祖先から決まりどおりに回して保存したもの）
+let turns = [], newTurn = '';
+fetch('data/turns.json').then(r => r.ok ? r.json() : []).then(t => { turns = t; showStarts(); }).catch(() => {});
+function showStarts() {
+  const box = $('starts');
+  box.hidden = !turns.length;
+  box.innerHTML = [{ id: '', title: 'はじまりの2本毛から', sub: 'すべての真核生物の祖先' }, ...turns].map(t =>
+    `<button type="button" role="radio" data-turn="${t.id}" class="${t.id === newTurn ? 'on' : ''}" aria-checked="${t.id === newTurn}">${t.title}<small>${t.sub}</small></button>`).join('');
+  box.querySelectorAll('[data-turn]').forEach(b => b.onclick = () => { newTurn = b.dataset.turn; showStarts(); });
+  $('newShape').hidden = !!newTurn;
+  $('newNote').textContent = newTurn
+    ? 'いまの一滴の生き物と記録は消えて、はじまりの2本毛から決まりどおりに進んだ一滴の、その時点から続きを見ます。'
+    : 'いまの一滴の生き物と記録は消えて、はじまりの2本毛（すべての真核生物の祖先）から始まります。大きさと砂つぶも選べます。';
+}
+$('mNew').onclick = () => { newSize = size; showSize(); newSand = sand; showSand(); newTurn = ''; showStarts(); $('menuMain').hidden = true; $('menuConfirm').hidden = false; $('mNewNo').focus(); };
 $('mNewNo').onclick = () => { $('menuMain').hidden = false; $('menuConfirm').hidden = true; };
-$('mNewYes').onclick = () => {
+$('mNewYes').onclick = async () => {
+  if (newTurn) {
+    const t = turns.find(x => x.id === newTurn);
+    let d;
+    try { d = await (await fetch(`data/${newTurn}.json`)).json(); } catch { toast('その一滴を読みこめませんでした'); return; }
+    world = restore(d);
+    ({ seed, size, sand } = d.opt);
+    for (const [id, v] of [['food', d.opt.foodRate], ['light', d.opt.light], ['flow', d.opt.flow]]) { $(id).value = v; $(id).oninput({ target: $(id) }); }
+    startWorld(`「${t.title}」をのぞいています`);
+    return;
+  }
   seed = (seed * 7919 + 13) % 100000;
   size = newSize; sand = newSand;
   world = new World({ seed, size, sand, foodRate: +$('food').value, light: +$('light').value, flow: +$('flow').value });
+  startWorld('新しい一滴をのぞいています');
+};
+function startWorld(msg) {
   ren.ghosts = []; ren.prev.clear();
   ren.cam.x = W / 2; ren.cam.y = H / 2; ren.cam.z = Math.max(ren.fitZoom(), Math.min(1.3, Math.min(ren.w, ren.h) / 500)); clampCam();
   select(null); lastEvent = 0;
   playingBeforeMenu = true;
   $('menu').close();
-  toast('新しい一滴をのぞいています');
-};
+  toast(msg);
+}
 $('cardClose').onclick = () => select(null);
 
 // ── 選んだ1匹の札 ──
@@ -175,6 +203,7 @@ const LABELS = {
   colMax: ['群体の大きさ', v => `${Math.round(2 ** v)} 細胞`],
   fiss: ['続けて分かれる回数', v => `${Math.max(1, Math.round(v))} 回`],
   plane: ['一列にのびる', v => v.toFixed(2)],
+  exDig: ['体の外で消化', v => v.toFixed(2)],
   share: ['仲間と分けあう', v => v.toFixed(2)],
   signal: ['仲間の合図を聞く', v => v.toFixed(2)],
   inBeat: ['内の細胞が打つ', v => v.toFixed(2)],
@@ -221,8 +250,9 @@ function toast(s) { $('toast').textContent = s; $('toast').hidden = false; toast
 
 // ── まわす ──
 let last = performance.now(), acc = 0, uiT = 0, simRate = 0;
+const perf = { sim: 0, draw: 0, fps: 60 };   // 1こまの計算と描く時間（ms）。?test のときだけ右下に出す
 function frame(now) {
-  const fdt = Math.min(0.1, (now - last) / 1000); last = now;
+  const fdt = Math.max(0, Math.min(0.1, (now - last) / 1000)); last = now;   // 最初のこまは、ブラウザの時刻が始めた時刻より前のことがある
   realTime += fdt;
   if (playing) {
     acc += fdt * speed;
@@ -233,6 +263,7 @@ function frame(now) {
       if (performance.now() - t0 > (speed >= 256 ? 45 : 12)) { acc = 0; break; }   // 重いときは実の速さを落とす（超高速は1こまに長く計算する）
     }
     simRate = simRate * 0.9 + (n * DT / Math.max(fdt, 1e-3)) * 0.1;
+    perf.sim = perf.sim * 0.9 + (performance.now() - t0) * 0.1;
   }
   if (sel && sel.dead) {
     const by = sel.eatenBy ? world.orgs.find(o => o.id === sel.eatenBy) : null;
@@ -244,13 +275,18 @@ function frame(now) {
     const fx = (focus.x - ren.w / 2) / ren.cam.z, fy = (focus.y - ren.h / 2) / ren.cam.z;
     ren.cam.x += (sel.x - fx - ren.cam.x) * 0.12; ren.cam.y += (sel.y - fy - ren.cam.y) * 0.12; clampCam();
   }
+  const d0 = performance.now();
   ren.draw(world, sel, realTime);
+  perf.draw = perf.draw * 0.9 + (performance.now() - d0) * 0.1;
+  perf.fps = perf.fps * 0.9 + (1 / Math.max(fdt, 1e-3)) * 0.1;
+  if (perfLog) logPerf(fdt);
   uiT -= fdt;
   if (uiT <= 0) {
     uiT = 0.25;
     $('sTime').textContent = fmtT(world.t);
     $('sRate').textContent = playing && simRate < speed * 0.8 ? `いまは ×${Math.round(simRate)}` : '';
     $('sPop').textContent = world.orgs.length;
+    if (perfLog) $('perfText').textContent = `計算 ${perf.sim.toFixed(1)} ms ・ 描く ${perf.draw.toFixed(1)} ms ・ ${Math.round(perf.fps)} こま/秒 ・ ${world.orgs.length} 匹`;
     $('sClades').textContent = world.liveClades().length;
     $('sPred').textContent = world.orgs.filter(o => o.prey > 0).length;
     graph.draw(world, selClade);
@@ -263,6 +299,30 @@ function frame(now) {
   if (toastT > 0 && (toastT -= fdt) <= 0) $('toast').hidden = true;
   requestAnimationFrame(frame);
 }
+
+// ── 確かめ用の計測ログ（?test のとき）: 開いたページごとに番号をつけ、10 秒ごとに計算量を記録して、「ログを保存」で CSV に ──
+const perfLog = q.has('test') ? { id: new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19), rows: [], acc: 0, real: 0 } : null;
+const PERF_HEAD = 'real_s,sim_s,speed,sim_rate,sim_ms,draw_ms,fps,orgs,visible,algae,colony_cells,zoom,view_w,view_h,dpr';
+function logPerf(fdt) {
+  perfLog.real += fdt; perfLog.acc += fdt;
+  if (perfLog.acc < 10) return;
+  perfLog.acc = 0;
+  const c = ren.cam, hw = ren.w / 2 / c.z, hh = ren.h / 2 / c.z;
+  const vis = world.orgs.filter(o => Math.abs(o.x - c.x) < hw + 20 && Math.abs(o.y - c.y) < hh + 20).length;
+  perfLog.rows.push([perfLog.real.toFixed(0), world.t.toFixed(0), playing ? speed : 0, simRate.toFixed(2), perf.sim.toFixed(2), perf.draw.toFixed(2), perf.fps.toFixed(1),
+    world.orgs.length, vis, world.fn, world.orgs.filter(o => o.colN > 1).length, c.z.toFixed(3), ren.w, ren.h, ren.dpr ?? devicePixelRatio].join(','));
+  if (perfLog.rows.length > 4000) perfLog.rows.shift();
+  try { localStorage.setItem('drop-perf-' + perfLog.id, perfCSV()); } catch {}
+}
+function perfCSV() {
+  const env = `# drop-perf ${perfLog.id} / ${navigator.userAgent} / cores ${navigator.hardwareConcurrency || '?'} / screen ${screen.width}x${screen.height} / seed ${seed}`;
+  return [env, PERF_HEAD, ...perfLog.rows].join('\n') + '\n';
+}
+if (perfLog) $('perfSave').onclick = () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([perfCSV()], { type: 'text/csv' }));
+  a.download = `drop-perf-${perfLog.id}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
 
 const focus = { x: 0, y: 0 };
 function updateFocus() {

@@ -97,6 +97,8 @@ dialog#menu .sizes { display: flex; gap: 6px; margin: 0 0 14px; }
 dialog#menu .sizes button { margin: 0; padding: 8px 4px; background: transparent; border: 1px solid var(--line); color: var(--sub); font: 700 13px var(--font); }
 dialog#menu .sizes button small { display: block; font: 500 10px var(--mono, monospace); opacity: .75; margin-top: 2px; }
 dialog#menu .sizes button.on { border-color: var(--ink); color: var(--ink); background: rgba(110,210,255,.1); }
+dialog#menu .starts { flex-direction: column; }
+dialog#menu .starts button { text-align: left; padding: 8px 10px; }
 dialog#menu #mNew { margin-top: 22px; color: var(--sub); font-weight: 500; }
 #cBody { display: block; width: 100%; height: 96px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; }
 .bodyline { font-size: 12px; color: var(--sub); margin: 6px 0 10px; line-height: 1.5; }
@@ -137,3 +139,7 @@ dialog#help form { text-align: right; }
   #bottom { grid-template-columns: auto 1fr; }
   #scale { display: none; }
 }
+/* 確かめ用: 1こまの計算と描く時間（?test のときだけ） */
+#perf { display: none; position: fixed; right: 8px; bottom: 4px; font: 11px var(--mono, monospace); color: var(--sub); pointer-events: none; z-index: 5; }
+body.test #perf { display: block; }
+#perf button { pointer-events: auto; margin-left: 8px; padding: 2px 8px; font: 11px var(--mono, monospace); background: transparent; color: var(--sub); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }

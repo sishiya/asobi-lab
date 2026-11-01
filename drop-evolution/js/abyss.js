@@ -26,6 +26,20 @@ function glowSprite() {
   g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
   return (GLOW = c);
 }
+// 膜のすぐ外にもれる光の輪の絵。q は体の半径÷光の外の半径（8 段に分けて作り置く）。内はうすく、膜でいちばん明るく、外へ消える
+// （光は幻想的に見せるための絵で、大きく進化しても光る力は増えない。2026-11-01 ユーザー「身体のすこしそとがわにぼんやり光が漏れる見え方に」）
+const HALO = 7;                 // 膜の外へもれる光の幅 µm（体の大きさによらない）
+const RINGS = [];
+function ringSprite(q) {
+  const i = Math.max(0, Math.min(7, Math.round(q * 8 - 0.5)));
+  if (RINGS[i]) return RINGS[i];
+  const qi = (i + 0.5) / 8, c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'), rg = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  rg.addColorStop(0, `hsla(${HUE},95%,70%,0.03)`); rg.addColorStop(qi * 0.8, `hsla(${HUE},95%,72%,0.08)`);
+  rg.addColorStop(qi, `hsla(${HUE},95%,82%,0.85)`); rg.addColorStop(qi + (1 - qi) * 0.4, `hsla(${HUE},95%,60%,0.3)`); rg.addColorStop(1, `hsla(${HUE},95%,50%,0)`);
+  g.fillStyle = rg; g.fillRect(0, 0, 128, 128);
+  return (RINGS[i] = c);
+}
 // 紙（画面の css の大きさ × k）
 function paper(ren, name, k) {
   const w = Math.max(1, Math.round(ren.w * k)), h = Math.max(1, Math.round(ren.h * k)), P = ren.papers || (ren.papers = {});
@@ -42,7 +56,7 @@ let PTS = new Float32Array(64);
 function pose(o, time) {
   const B = o.bp;
   if (!B.n) return null;
-  const ph = ((time * Math.min(1 / o.b.T, 2.5) + o.id * 0.37) % 1) * FRAMES, f0 = ph | 0, k = ph - f0;
+  const u = (time * Math.min(1 / o.b.T, 2.5) + o.id * 0.37) % 1, ph = (u < 0 ? u + 1 : u) * FRAMES, f0 = Math.min(FRAMES - 1, ph | 0), k = ph - f0;
   const A = B.frames[f0], Bf = B.frames[(f0 + 1) % FRAMES];
   if (PTS.length < A.pts.length) PTS = new Float32Array(A.pts.length * 2);
   for (let i = 0; i < A.pts.length; i++) PTS[i] = A.pts[i] + (Bf.pts[i] - A.pts[i]) * k;
@@ -108,7 +122,8 @@ export function drawAbyss(ren, world, sel, time) {
     // WAKE_HALF 秒ごとに半分の明るさに（こまの速さによらない）。
     // 毎こま少しずつ薄めると、透明度は 0〜255 の整数なので、ごく薄い所が丸めで元にもどり、うっすらした跡がずっと残る。
     // 薄める分をためて、30% を超えたらまとめて薄める（残るのは 1/255 だけで、見えない）
-    const dt = Math.min(0.2, Math.max(0, time - (ren.wakeT ?? time)));
+    // 一滴の中の時間で薄める（倍速では速く消え、止めている間は残る。2026-11-01 ユーザー「軌跡も倍速の値を反映して消えるように」）
+    const dt = Math.min(2, Math.max(0, world.t - (ren.wakeT ?? world.t)));
     ren.wakeKeep = (ren.wakeKeep ?? 1) * Math.pow(0.5, dt / WAKE_HALF);
     if (ren.wakeKeep < 0.7) {
       wk.globalCompositeOperation = 'destination-out';
@@ -116,14 +131,15 @@ export function drawAbyss(ren, world, sel, time) {
       ren.wakeKeep = 1;
     }
   } else { wk.clearRect(0, 0, Wk.width, Wk.height); ren.wakePrev = null; }
-  wk.globalCompositeOperation = 'source-over'; Wk.fresh = false; ren.wakeCam = { x: c.x, y: c.y, z }; ren.wakeT = time;
+  const moved = world.t !== ren.wakeT;   // 止めている間は軌跡を足さない（同じ所に点が重なって明るい丸になる）
+  wk.globalCompositeOperation = 'source-over'; Wk.fresh = false; ren.wakeCam = { x: c.x, y: c.y, z }; ren.wakeT = world.t;
   toWorld(ren, wk, kw); wk.lineCap = 'round';
   const prev = ren.wakePrev || new Map(), next = new Map();
   const body = new Path2D(), tipsP = new Path2D();
   for (const o of vis) {
     const p = prev.get(o.id);
     next.set(o.id, [o.x, o.y]);
-    if (p && !o.anch && Math.abs(p[0] - o.x) < 25 && Math.abs(p[1] - o.y) < 25) { body.moveTo(p[0], p[1]); body.lineTo(o.x, o.y); }
+    if (moved && p && !o.anch && Math.abs(p[0] - o.x) < 25 && Math.abs(p[1] - o.y) < 25) { body.moveTo(p[0], p[1]); body.lineTo(o.x, o.y); }
   }
   ren.wakePrev = next;
   // 節の先（ごくうすく。前のこまの先の場所は wakeTips）
@@ -137,7 +153,7 @@ export function drawAbyss(ren, world, sel, time) {
     for (const i of o.bp.tips) {
       const q = i * 4, x = o.x + (ca * P.pts[q + 2] - sa * P.pts[q + 3]) * r, y = o.y + (sa * P.pts[q + 2] + ca * P.pts[q + 3]) * r, key = o.id * 16 + i, pp = ptips.get(key);
       ntips.set(key, [x, y]);
-      if (pp && Math.abs(pp[0] - x) < 25 && Math.abs(pp[1] - y) < 25) { tipsP.moveTo(pp[0], pp[1]); tipsP.lineTo(x, y); }
+      if (moved && pp && Math.abs(pp[0] - x) < 25 && Math.abs(pp[1] - y) < 25) { tipsP.moveTo(pp[0], pp[1]); tipsP.lineTo(x, y); }
     }
   }
   ren.wakeTips = ntips;
@@ -155,8 +171,9 @@ export function drawAbyss(ren, world, sel, time) {
   toWorld(ren, gg, kg); gg.globalCompositeOperation = 'lighter';
   const spr = glowSprite();
   for (const o of vis) {
-    const I = glow.get(o), R = Math.max(o.r * 2.4, 6 / z);
-    gg.globalAlpha = Math.min(1, 0.08 + I * 0.9); gg.drawImage(spr, o.x - R, o.y - R, R * 2, R * 2);
+    const I = glow.get(o), R = Math.max(o.r + HALO, 6 / z);
+    // 群体の中の細胞は、光が仲間に重なって明るくなりすぎるので弱く（光は群体の外へもれる）
+    gg.globalAlpha = Math.min(1, 0.08 + I * 0.9) * (o.inner ? 0.25 : o.colN > 1 ? 0.6 : 1); gg.drawImage(ringSprite(o.r / R), o.x - R, o.y - R, R * 2, R * 2);
   }
   gg.globalAlpha = 1;
   // 死んだときの光（ふくらんで消える輪）
@@ -178,6 +195,18 @@ export function drawAbyss(ren, world, sel, time) {
   g.drawImage(Lt, 0, 0, ren.cv.width, ren.cv.height);
   g.globalCompositeOperation = 'source-over';
 
+  // ── 群体を包む寒天質（本物の群体は、細胞のまわりを共有の寒天質がひとかたまりに包む。オオヒゲマワリの球の輪郭もこれ） ──
+  // 細胞を少し広げた丸をつなげた形。ふちを少し明るく、中はうすく
+  const members = vis.filter(o => o.colN > 1);
+  if (members.length) {
+    const kG = 0.5, Gl = paper(ren, 'gel', kG), gl = Gl.getContext('2d');
+    gl.setTransform(1, 0, 0, 1, 0, 0); gl.globalCompositeOperation = 'source-over'; gl.clearRect(0, 0, Gl.width, Gl.height);
+    toWorld(ren, gl, kG);
+    const blob = (pad, k) => { gl.beginPath(); for (const o of members) { const R = o.r * k + pad; gl.moveTo(o.x + R, o.y); gl.arc(o.x, o.y, R, 0, TAU); } gl.fill(); };
+    gl.fillStyle = 'rgb(140,215,255)'; blob(2.5, 1.35);
+    gl.globalCompositeOperation = 'destination-out'; gl.fillStyle = 'rgba(0,0,0,0.75)'; blob(2.5 - Math.max(0.8, 1.5 / z), 1.35);
+    g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 0.3; g.drawImage(Gl, 0, 0, ren.cv.width, ren.cv.height); g.globalAlpha = 1;
+  }
   // ── くっきりの光: 藍藻・かけら・柄・群体・節・細胞・核・関節・先 ──
   toWorld(ren, g, dpr);
   // 藍藻: またたく小さな火花（明るさを4段にまとめて描く）
@@ -205,7 +234,11 @@ export function drawAbyss(ren, world, sel, time) {
   for (const o of vis) if (o.anch && o.ax !== undefined) { g.moveTo(o.x, o.y); g.lineTo(o.ax, o.ay); }
   g.stroke();
   g.strokeStyle = 'rgba(120,200,255,0.3)'; g.lineWidth = Math.max(1.4 / z, 1.2); g.beginPath();
-  for (const o of vis) for (const q of o.links) if (o.id < q.id) { g.moveTo(o.x, o.y); g.lineTo(q.x, q.y); }
+  // 細胞どうしをつなぐ細い橋（細胞質の橋）: 膜と膜の間だけ。ふれ合っていれば見えない
+  for (const o of vis) for (const q of o.links) if (o.id < q.id) {
+    const dx = q.x - o.x, dy = q.y - o.y, d = Math.hypot(dx, dy) || 1;
+    if (d > o.r + q.r) { g.moveTo(o.x + dx / d * o.r, o.y + dy / d * o.r); g.lineTo(q.x - dx / d * q.r, q.y - dy / d * q.r); }
+  }
   g.stroke();
   // 明るさを4段に分けて、同じ段の線をまとめて引く
   const bucket = I => Math.min(3, (I * 4) | 0);
@@ -226,7 +259,16 @@ export function drawAbyss(ren, world, sel, time) {
     if (r * z < 3) continue;
     // 膜は食べる所で切れる
     const mm = a + o.g[GI.mouth], rp = rimP[b];
-    rp.moveTo(o.x + Math.cos(mm + 0.5) * r, o.y + Math.sin(mm + 0.5) * r); rp.arc(o.x, o.y, r, mm + 0.5, mm - 0.5 + TAU);
+    // 群体で押し合っている細胞は、ふれた面で膜が平らになる（重なった分だけ。面の場所は2つの丸の半径から）
+    const cuts = [];
+    for (const q of o.links) { const dx = q.x - o.x, dy = q.y - o.y, d = Math.hypot(dx, dy) || 1; if (d < r + q.r) cuts.push(dx / d, dy / d, (d * d + r * r - q.r * q.r) / (2 * d)); }
+    if (!cuts.length) { rp.moveTo(o.x + Math.cos(mm + 0.5) * r, o.y + Math.sin(mm + 0.5) * r); rp.arc(o.x, o.y, r, mm + 0.5, mm - 0.5 + TAU); }
+    else for (let k = 0; k <= 28; k++) {
+      const t = mm + 0.5 + (TAU - 1) * k / 28;
+      let px = Math.cos(t) * r, py = Math.sin(t) * r;
+      for (let c = 0; c < cuts.length; c += 3) { const over = px * cuts[c] + py * cuts[c + 1] - cuts[c + 2]; if (over > 0) { px -= cuts[c] * over; py -= cuts[c + 1] * over; } }
+      k ? rp.lineTo(o.x + px, o.y + py) : rp.moveTo(o.x + px, o.y + py);
+    }
     // 核
     const nx = o.x - ca * r * 0.2, ny = o.y - sa * r * 0.2;
     dotP.moveTo(nx + r * 0.14, ny); dotP.arc(nx, ny, r * 0.14, 0, TAU);

@@ -82,7 +82,8 @@ export const GENES = [
   // 群体の中での働きの分かれ（オオヒゲマワリの体細胞と生殖細胞、海綿の襟細胞と中の細胞）。同じ遺伝子でも、仲間に囲まれた「内」の細胞と「外」の細胞で出し方を変える
   ['colMax', 1,  10,  3,   0.06],  // 群体を何回分かれるまで1つに保つか（2 の何乗の細胞まで）。それより大きくなると、子は1つの細胞で離れて、新しい群体を始める（オオヒゲマワリも、分かれる回数で細胞の数が決まる）
   ['fiss',  1,  12,  1,   0.02],
-  ['plane', 0,  1,   0,   0.10],  // 分かれる向きをそろえる割合（1 はいつも体の軸の前へ子を出す＝細胞の一列の糸になる。本物の糸状の緑藻・シオグサ。0 はばらばらの向き）  // 多分裂: 1つの細胞が大きく育ってから、育たずに続けて何回分かれるか（1 はふつうの二つ割り。クラミドモナスは 2〜4 回、オオヒゲマワリの生殖細胞は 11〜12 回で、一度に子の群体になる。群体の大きさは母の細胞の大きさで決まる）
+  ['plane', 0,  1,   0,   0.10],
+  ['exDig', 0,  1,   0,   0.10],  // 群体で相手を囲み、体の外で消化する強さ（板形動物は体の下に消化液を出して、細胞より大きなエサを消化する。胃のはじまり＝ガストレア説）。群体全体の大きさ×これまでの相手を食べられる。消化液のぶん少し使う  // 分かれる向きをそろえる割合（1 はいつも体の軸の前へ子を出す＝細胞の一列の糸になる。本物の糸状の緑藻・シオグサ。0 はばらばらの向き）  // 多分裂: 1つの細胞が大きく育ってから、育たずに続けて何回分かれるか（1 はふつうの二つ割り。クラミドモナスは 2〜4 回、オオヒゲマワリの生殖細胞は 11〜12 回で、一度に子の群体になる。群体の大きさは母の細胞の大きさで決まる）
   ['signal', 0,  1,   0,   0.10],  // 群体の仲間が感じたことを、つながりを通して受けとる強さ（細胞どうしの合図。海綿や板形動物の化学の合図・刺胞動物の神経のはじまり）。少しエネルギーを使う
   ['share', 0,   1,   0,   0.10],  // くっついた仲間と、ためた分を分けあう強さ（細胞どうしをつなぐ細い橋。オオヒゲマワリにもある）
   ['inBeat', 0,  1,   1,   0.10],  // 内の細胞が節を打つ強さ（1 は外と同じ。0 は打たずに休む）
@@ -517,17 +518,18 @@ export class World {
       const steer = g[GI.food] * (o.sL - o.sR) / (o.sL + o.sR + 0.5)
         + g[GI.small] * (o.pL - o.pR) / (o.pL + o.pR + 0.5)
         - g[GI.big] * (o.dL - o.dR) / (o.dL + o.dR + 0.5);
-      o.a += clamp(steer * 3, -4, 4) * dt + nrand(r) * 0.5 * Math.sqrt(dt);
+      const fixed = o.anch || o.colAnch;   // 柄で砂つぶについている間は、体の向きは変わらない（毛だけ打って流れを作る）
+      if (!fixed) o.a += clamp(steer * 3, -4, 4) * dt + nrand(r) * 0.5 * Math.sqrt(dt);
       // 決まり1・2（body.js で求めた、リズム1回で進む量と回る量）
       const mating = o.mateT > 0;   // 接合している間は泳がず、相手とくっついたまま流される
-      if (bp.n && !mating) { o.bph += dt / T; o.a += clamp(bp.spin / T, -6, 6) * dt; }
+      if (bp.n && !mating) { o.bph += dt / T; if (!fixed) o.a += clamp(bp.spin / T, -6, 6) * dt; }
       // 水といっしょに流され、渦で向きが回る（回りの半分。小さな玉は水の回りに合わせて回る）
       // 打つ強さ: 内の細胞は遺伝子しだいで弱める。エサのにおいの濃さ F で、F/(F+1) の割合だけゆるめる（kinesis が − なら強める）
       const F = (o.sL + o.sR) / 2, beat = (o.inner ? g[GI.inBeat] : 1) * clamp(1 - g[GI.kinesis] * F / (F + 1), 0.1, 1.6) * (o.full > 0 ? 1 - g[GI.eatRest] : 1);
       // 回避反応: 前でぶつかったら、遺伝子の割合で 0.5 秒逆に打って下がり、それから向きを変える
-      if (o.bump) { o.bump = false; if (!o.rev && r() < g[GI.backup]) o.rev = 0.5; }
+      if (o.bump) { o.bump = false; if (!o.rev && !fixed && r() < g[GI.backup]) o.rev = 0.5; }
       let dir = 1;
-      if (o.rev > 0) { dir = -1; if ((o.rev -= dt) <= 0) { o.rev = 0; o.a += (r() < 0.5 ? 1 : -1) * (1 + r() * 1.5); } }
+      if (o.rev > 0) { dir = -1; if ((o.rev -= dt) <= 0) { o.rev = 0; if (!fixed) o.a += (r() < 0.5 ? 1 : -1) * (1 + r() * 1.5); } }
       // くっついている: 動かず、水の流れにも運ばれない。おなかがすくと離れる
       // 群体は、1つの細胞がくっついていれば群体ごと止まる（海綿のように、動かずに水を流して食べる）
       // 柄はのびない。ほかの力でつぶから引きはなされたら、柄が切れて離れる
@@ -548,14 +550,14 @@ export class World {
       else if (this.pushOut(o.x, o.y, o.r)) {
         o.x = SN.x; o.y = SN.y;
         const ca = Math.cos(o.a), sa = Math.sin(o.a), dn = ca * SN.nx + sa * SN.ny;
-        if (dn < -0.5) o.bump = true;                                    // 前からぶつかった
+        if (dn < -0.5 && !fixed) o.bump = true;                          // 前からぶつかった
         if (!o.anch && (o.colN === 1 || !globalThis.NO_COLATTACH) && o.e > 0.5 * o.eS && r() < g[GI.attach] * dt * 5) { o.anch = true; o.press = 0; o.ax = o.x - SN.nx * o.r * 1.6; o.ay = o.y - SN.ny * o.r * 1.6; }   // くっつく（柄の先＝つぶの表面）
-        if (dn < 0) o.a = Math.atan2(sa - dn * SN.ny, ca - dn * SN.nx);   // 表面へ向かう分だけ消して、そって進む
+        if (dn < 0 && !fixed) o.a = Math.atan2(sa - dn * SN.ny, ca - dn * SN.nx);   // 表面へ向かう分だけ消して、そって進む
         if ((o.press = (o.press || 0) + dt) > 1) o.over = true;
       } else if (o.press) o.press = Math.max(0, o.press - dt * 0.25);
       // 決まり5「使う・作る」
       // 生きるのに使う分は重さの 0.75 乗（原生生物でもクライバーの法則。2026-10-31 まで重さに比例で、大きな細胞が割に合わなすぎた）。8 µm の細胞で前と同じ
-      const cost = (0.001414 * o.m ** 0.75 + 0.003 + WORK_K * beat * beat * bp.work * o.r ** 3 / (T * T) + 0.0002 * g[GI.range] + 0.001 * g[GI.signal]) * dt;
+      const cost = (0.001414 * o.m ** 0.75 + 0.003 + WORK_K * beat * beat * bp.work * o.r ** 3 / (T * T) + 0.0002 * g[GI.range] + 0.001 * g[GI.signal] + 0.001 * g[GI.exDig]) * dt;
       const oc = cellOf(o.x, o.y);
       o.e -= cost; o.spent += cost;
       // 使った分の材料は、水に溶けて出す（本物もアンモニアなどで、体じゅうから出す）
@@ -798,21 +800,28 @@ export class World {
 
   collide() {
     const os = this.orgs;
+    // 調べる範囲: 小さい細胞は自分の半径＋BIG まで、大きい細胞（半径 BIG より上）は自分の半径＋いちばん大きい相手まで。
+    // 小さいどうしの組は小さいほうの番号の若い側で、大きいのがまじる組は大きいほうの側で、1回だけ（前は一律 40 µm で、混んだ群体で調べる組が多すぎた）
+    const BIG = 16;
+    let maxR = 0; for (const o of os) if (o.r > maxR) maxR = o.r;
     for (let i = 0; i < os.length; i++) {
       const o = os[i]; if (o.dead) continue;
-      const R = o.r + 40, cx0 = Math.max(0, ((o.x - R) / CELL) | 0), cx1 = Math.min(GW - 1, ((o.x + R) / CELL) | 0);
+      const big = o.r > BIG, R = o.r + (big ? maxR : BIG), cx0 = Math.max(0, ((o.x - R) / CELL) | 0), cx1 = Math.min(GW - 1, ((o.x + R) / CELL) | 0);
       const cy0 = Math.max(0, ((o.y - R) / CELL) | 0), cy1 = Math.min(GH - 1, ((o.y + R) / CELL) | 0);
       for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
         for (let k = this.ohead[cy * GW + cx]; k >= 0; k = this.onext[k]) {
-          if (k <= i) continue;      // 1組は1回だけ
-          const q = os[k]; if (!q || q.dead || (q.col === o.col && o.colN > 1)) continue;   // 同じ群体の中は寒天質のつながりにまかせる
-          const dx = q.x - o.x, dy = q.y - o.y, L = o.r + q.r, d2 = dx * dx + dy * dy;
+          const q = os[k]; if (!q || q.dead || q === o) continue;
+          const qb = q.r > BIG;
+          if (big ? qb && k <= i : qb || k <= i) continue;      // 1組は1回だけ
+          // 同じ群体の仲間も重なれない。ただ寒天質で押し合っているので、少し重なる所（半径の和の 9 割）までは許す
+          const mate = q.col === o.col && o.colN > 1;
+          const dx = q.x - o.x, dy = q.y - o.y, L = (o.r + q.r) * (mate ? 0.9 : 1), d2 = dx * dx + dy * dy;
           if (d2 >= L * L || d2 < 1e-6) continue;
           // 群体はひとかたまりで押し返すので、重さは群体ぶん。1刻みに動くのは小さいほうの半径の 2 割まで（水の中では急に動けない）
-          const mo = o.anch || o.colAnch ? 1e9 : o.m * o.colN, mq = q.anch || q.colAnch ? 1e9 : q.m * q.colN,   // くっついている物は動かない
+          const mo = o.anch || (o.colAnch && !mate) ? 1e9 : mate ? o.m : o.m * o.colN, mq = q.anch || (q.colAnch && !mate) ? 1e9 : mate ? q.m : q.m * q.colN,   // くっついている物は動かない。仲間どうしは1つずつの重さで
             d = Math.sqrt(d2), f = Math.min(L - d, 0.2 * Math.min(o.r, q.r)) / d, wo = mo / (mo + mq);
-          if (Math.cos(o.a) * dx + Math.sin(o.a) * dy > 0.5 * d) o.bump = true;   // 前でふれた
-          if (-(Math.cos(q.a) * dx + Math.sin(q.a) * dy) > 0.5 * d) q.bump = true;
+          if (!mate && Math.cos(o.a) * dx + Math.sin(o.a) * dy > 0.5 * d) o.bump = true;   // 前でふれた
+          if (!mate && -(Math.cos(q.a) * dx + Math.sin(q.a) * dy) > 0.5 * d) q.bump = true;
           o.x -= dx * f * (1 - wo); o.y -= dy * f * (1 - wo); q.x += dx * f * wo; q.y += dy * f * wo;
         }
       }
@@ -837,14 +846,16 @@ export class World {
   predation() {
     const os = this.orgs;
     for (let i = 0; i < os.length; i++) {
-      const o = os[i]; if (o.dead || o.full > 0) continue;
-      const R = o.r * (o.bp.reach + 0.5) + 2;   // 届く所＋のみこめる相手の半径
+      const o = os[i]; if (o.dead || o.full > 0 || o.inner) continue;   // 群体の内の細胞は、外の相手にふれない
+      // 群体で体の外で消化できれば、群体全体の大きさに応じた相手まで（ひとりの細胞は自分の口まで）
+      const bite = Math.max(o.r, o.colN > 1 && !globalThis.NO_EXDIG ? o.colR * o.g[GI.exDig] : 0) * BITE;   // NO_EXDIG: 効き目を切ったくらべ
+      const R = o.r * (o.bp.reach + 0.5) + 2 + bite;   // 届く所＋のみこめる相手の半径
       const cx0 = Math.max(0, ((o.x - R) / CELL) | 0), cx1 = Math.min(GW - 1, ((o.x + R) / CELL) | 0);
       const cy0 = Math.max(0, ((o.y - R) / CELL) | 0), cy1 = Math.min(GH - 1, ((o.y + R) / CELL) | 0);
       const ma = o.a + o.g[GI.mouth], mx = o.x + Math.cos(ma) * o.r, my = o.y + Math.sin(ma) * o.r;
       hunt: for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
         for (let k = this.ohead[cy * GW + cx]; k >= 0; k = this.onext[k]) {
-          const q = os[k]; if (!q || q === o || q.dead || q.col === o.col || q.colR >= o.r * BITE) continue;   // 群体はひとかたまりでのみこむ（かたまりが口より大きければ食べられない）
+          const q = os[k]; if (!q || q === o || q.dead || q.col === o.col || q.colR >= bite) continue;   // 群体はひとかたまりでのみこむ（かたまりが口より大きければ食べられない）
           let hit = (q.x - mx) ** 2 + (q.y - my) ** 2 < (o.r * MOUTH + q.r) ** 2;   // 前の口にふれた
           for (let j = 0; !hit && q.r < o.r * 0.25 * BITE && j < o.bp.tips.length; j++) {
             const t = this.tip(o, j);
@@ -1042,7 +1053,7 @@ const DIFF = {
   size: ['大きい', '小さい'], range: ['遠くまで感じる', '近くだけ感じる'],
   food: ['エサへまっすぐ向かう', 'エサにつられにくい'], kinesis: ['エサの中でゆっくり泳ぐ', 'エサの中で速く泳ぐ'], eatRest: ['のみこむ間は休む', 'のみこむ間も泳ぐ'], backup: ['ぶつかると下がる', 'ぶつかっても下がらない'], attach: ['砂つぶにくっついて待つ', 'くっつかない'], mouth: ['食べる所が横へ寄った', '食べる所が前へ寄った'], small: ['獲物を追う', '獲物を追わない'], big: ['大きな相手から逃げる', '逃げない'],
   mix: ['仲間と混ぜたがる', '混ぜたがらない'], keep: ['藍藻を飼う', '藍藻を飼わない'],
-  colMax: ['大きな群体になる', '小さな群体で離れる'], fiss: ['続けて分かれる', '1回ずつ分かれる'], plane: ['一列にのびる', 'ばらばらに分かれる'], share: ['仲間と分けあう', '分けあわない'], signal: ['仲間の合図を聞く', '合図を聞かない'], inBeat: ['内の細胞も打つ', '内の細胞が休む'], outDiv: ['外の細胞も分かれる', '外の細胞が分かれない'], stick: ['子とくっついたままの', '子と離れる'],
+  colMax: ['大きな群体になる', '小さな群体で離れる'], fiss: ['続けて分かれる', '1回ずつ分かれる'], plane: ['一列にのびる', 'ばらばらに分かれる'], exDig: ['体の外で消化する', '外で消化しない'], share: ['仲間と分けあう', '分けあわない'], signal: ['仲間の合図を聞く', '合図を聞かない'], inBeat: ['内の細胞も打つ', '内の細胞が休む'], outDiv: ['外の細胞も分かれる', '外の細胞が分かれない'], stick: ['子とくっついたままの', '子と離れる'],
 };
 export function traitDiff(a, b, ba, bb) {
   const P = analyze(ba), Q = analyze(bb);

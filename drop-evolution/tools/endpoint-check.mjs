@@ -21,6 +21,10 @@ export const ENDPOINTS = {
   filament: () => set(founderGenome(), { keep: 1, stick: 1, colMax: 5, plane: 1 }),
   // 立つ藻のはじまり: 糸が砂つぶにつき、上（前）へのびる
   stand: () => set(founderGenome(), { keep: 1, stick: 1, colMax: 5, plane: 1, attach: 1 }),
+  // 板形動物の手前: 群体で相手を囲み、体の外で消化する（細胞より大きな相手を食べる）。小さい相手へ向かい、仲間と分けあう
+  placo: () => set(founderGenome(), { stick: 1, colMax: 5, exDig: 1, small: 1, share: 1 }),
+  // くらべ: 同じで、外で消化しない
+  placo0: () => set(founderGenome(), { stick: 1, colMax: 5, exDig: 0, small: 1, share: 1 }),
   founder: () => founderGenome(),
 };
 
@@ -47,7 +51,7 @@ let line = `${name} ${mode} 捕食者${+process.env.PRED || 0} seed${seed} 光${
 for (let s = 300; s <= secs; s += 300) {
   while (w.t < s) w.step();
   const mine = w.orgs.filter(o => root(o.clade)), keep = mine.filter(o => o.sym > 0).length;
-  line += ` ${s / 60}分:${mine.length}/${w.orgs.length}(${fmtCols(mine)} 飼う${keep} 着${mine.filter(o => o.anch || o.colAnch).length} 栄養${(w.nut.reduce((a, b) => a + b, 0) / w.nut.length).toFixed(2)} 母${Math.max(0, ...mine.map(o => o.e / o.eS)).toFixed(1)} 狩る${w.orgs.filter(o => o.g[GI.small] > 0.5).length})`;
+  line += ` ${s / 60}分:${mine.length}/${w.orgs.length}(${fmtCols(mine)} 飼う${keep} 着${mine.filter(o => o.anch || o.colAnch).length} 栄養${(w.nut.reduce((a, b) => a + b, 0) / w.nut.length).toFixed(2)} 母${Math.max(0, ...mine.map(o => o.e / o.eS)).toFixed(1)} 狩る${w.orgs.filter(o => o.g[GI.small] > 0.5).length} 群体で狩った${mine.filter(o => o.colN > 1).reduce((a, o) => a + o.prey, 0)})`;
 }
 const mine = w.orgs.filter(o => root(o.clade));
 const avg = k => (mine.reduce((a, o) => a + o.g[GI[k]], 0) / Math.max(1, mine.length)).toFixed(2);

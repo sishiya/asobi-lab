@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/no-quirks.css"><script src="../assets/no-quirks.js" defer></script>
-<link rel="stylesheet" href="css/style.css?v=27">
+<link rel="stylesheet" href="css/style.css?v=36">
 </head>
 <body>
 <canvas id="view" aria-label="顕微鏡の視野"></canvas>
@@ -75,12 +75,15 @@
   </div>
   <div id="menuConfirm" hidden>
     <h2>新しい一滴にしますか？</h2>
-    <p>いまの一滴の生き物と記録は消えて、はじまりの2本毛（すべての真核生物の祖先）から始まります。大きさと砂つぶも選べます。</p>
+    <p id="newNote">いまの一滴の生き物と記録は消えて、はじまりの2本毛（すべての真核生物の祖先）から始まります。大きさと砂つぶも選べます。</p>
+    <div class="sizes starts" id="starts" role="radiogroup" aria-label="どこから始めるか"></div>
+    <div id="newShape">
     <div class="sizes" role="radiogroup" aria-label="一滴の大きさ">
       <button type="button" data-size="s" role="radio">小さい<small>1 × 0.7 mm</small></button><button type="button" data-size="m" role="radio">ふつう<small>2 × 1.4 mm</small></button><button type="button" data-size="l" role="radio">大きい<small>2.8 × 2 mm</small></button>
     </div>
     <div class="sizes" role="radiogroup" aria-label="砂つぶ">
       <button type="button" data-sand="0" role="radio">砂なし<small>水だけ</small></button><button type="button" data-sand="1" role="radio">砂 少し<small>ところどころ</small></button><button type="button" data-sand="2" role="radio">砂 多い<small>すきまだらけ</small></button>
+    </div>
     </div>
     <button type="button" id="mNewYes" class="danger">新しい一滴にする</button>
     <button type="button" id="mNewNo" class="ghost">やめる</button>
@@ -107,12 +110,14 @@
   </ol>
   <h3>はじまりと、本物とのちがい</h3>
   <p>はじまりの生き物は、すべての真核生物（動物・植物・菌・原生生物）の最後の共通祖先、LECA（約15〜20億年前）にならっています。鞭毛は2本、細胞の中にはもうミトコンドリアがあり、ときどき仲間と遺伝子を混ぜます。その前の、古細菌が細菌を取りこんでミトコンドリアにした出来事は、1回しか起きておらず、くわしいことがまだわかっていないので、ここでは描きません。</p>
+  <p>右上の ☰ の「新しい一滴」では、はじまりの2本毛のほかに、<b>進化の節目の一滴</b>（群体が育ったころなど）からも始められます。どれも、はじまりの2本毛から同じ決まりで何時間も回して保存したものです。</p>
   <p>本物より速くしている所があります。一滴の数百匹で海の何百万匹のかわりをするため、形の突然変異は3倍。何億年もかかる変化を、時間を縮めて見せています。縮めるのは時間だけで、藍藻と原生生物が分かれる速さの比、ウイルスや大きな捕食者に殺される割合は本物に合わせています。緑の点1つは、藍藻の細胞1つではなく小さなかたまりです。食べる所は、LECA にならって前からななめ横のくぼみ（腹の溝）から始まり、場所も遺伝子で変わります。</p>
   <p>栄養塩はまわりの海から一滴のふちへしみこみ、ゆっくり広がります。藍藻は光が強いほど速く増えます。藍藻も海から流れこみます。泳ぎ方・触手・狩る者は決まりにありません。部品の組み合わせから生まれます。</p>
   <p class="ops">ドラッグで動かす・ホイールで寄る・生き物を押すと追いかける。スペースで止める。</p>
   <form method="dialog"><button class="ghost">とじる</button></form>
 </dialog>
 
-<script type="module" src="js/main.js?v=27"></script>
+<div id="perf"><span id="perfText"></span><button type="button" id="perfSave">ログを保存</button></div>
+<script type="module" src="js/main.js?v=36"></script>
 </body>
 </html>
