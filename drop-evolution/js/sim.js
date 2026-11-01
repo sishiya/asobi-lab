@@ -344,6 +344,12 @@ export class World {
       for (const p of parts) { g.parts.push(gs.length); gs.push({ ...p, seed: g.seed, grp: groups.length }); }
       groups.push(g);
     }
+    this.indexSand();
+  }
+
+  // 升目ごとのつぶの一覧と、流れを弱める重みを作る（砂つぶをあとから置いたときも作りなおす）
+  indexSand() {
+    const gs = this.grains;
     // 升目ごとに、近くのつぶ（ふれる見こみのあるもの）の一覧
     this.ghead = new Int32Array(GW * GH).fill(-1); this.gnext = []; this.gidx = [];
     gs.forEach((q, i) => {
@@ -364,6 +370,34 @@ export class World {
       }
       M[c] = m; MX[c] = gx; MY[c] = gy;
     }
+  }
+
+  // 砂つぶをあとから置く（遊ぶ人は一滴のまわりの海: 外から運ばれてきた砂つぶ）。中にいた生き物は外へ押し出す。保存のために extraGrains にも書く
+  addGrain(x, y, R) {
+    x = clamp(x, R + 10, W - R - 10); y = clamp(y, R + 10, H - R - 10);
+    const g = { x, y, R, ang: 0, el: 1, seed: this.r() * 1000, parts: [this.grains.length] };
+    this.grains.push({ x, y, r: R, seed: g.seed, grp: this.sandGroups.length });
+    this.sandGroups.push(g);
+    (this.extraGrains || (this.extraGrains = [])).push([x, y, R]);
+    this.indexSand();
+    for (const o of this.orgs) {
+      const dx = o.x - x, dy = o.y - y, d = Math.hypot(dx, dy) || 1;
+      if (d < R + o.r) { o.x = x + dx / d * (R + o.r + 1); o.y = y + dy / d * (R + o.r + 1); o.anch = false; }
+    }
+    for (let i = 0; i < this.fn; i++) if ((this.fx[i] - x) ** 2 + (this.fy[i] - y) ** 2 < R * R) this.fage[i] = 1e9;   // 下じきになった藍藻
+    this.events.push({ t: this.t, text: '砂つぶが落ちてきた' });
+    this.sandVer = (this.sandVer || 0) + 1;
+  }
+
+  // 確かめ用: 決まった遺伝子の生き物を n 匹置く（?test のときだけ画面から呼ぶ）。決まりの外から足したので、一滴に「手を加えた」印をつける
+  spawn(g0, name, x, y, n = 3) {
+    const b0 = founderBody(), c = this.newClade(g0, 0, b0);
+    for (let i = 0; i < n; i++) {
+      const g = this.mutate(g0, 0.3), a = this.r() * Math.PI * 2, d = 6 + this.r() * 14;
+      this.addOrg(g, c.id, clamp(x + Math.cos(a) * d, 10, W - 10), clamp(y + Math.sin(a) * d, 10, H - 10), eSplit(g, b0) * 0.7, 0, b0);
+    }
+    this.tampered = true;
+    this.events.push({ t: this.t, text: `手を加えた: 「${name}」を ${n} 匹入れた` });
   }
 
   // 砂つぶに入りこんだ物（半径 rr）を外へ押し出す。押し出したら、外向きの向き（法線）を SN に入れて true

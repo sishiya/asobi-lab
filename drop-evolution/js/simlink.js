@@ -4,6 +4,7 @@ import { World, DT, setField } from './sim.js';
 import { restore, snapshot } from './snap.js';
 import { saveWorld, get } from './save.js';
 import { analyze } from './body.js';
+import { PRESETS } from './presets.js';
 
 const OF = ['id', 'x', 'y', 'a', 'r', 'e', 'eS', 'colN', 'colR', 'inner', 'anch', 'colAnch', 'ax', 'ay', 'sym', 'mateT', 'mate', 'clade', 'hue', 'gen', 'ate', 'prey', 'kids', 'mixes', 'age', 'bId', 'xbId', 'gId', 'nLinks'];
 const BOOL = new Set(['inner', 'anch', 'colAnch']);
@@ -12,7 +13,7 @@ const BOOL = new Set(['inner', 'anch', 'colAnch']);
 class Mirror {
   constructor(m) {
     this.size = m.size; this.seed = m.seed; setField(m.size);
-    this.grains = m.grains; this.sandGroups = m.sandGroups; this.sand = m.sand;
+    this.grains = m.grains; this.sandGroups = m.sandGroups; this.sand = m.sand; this.sandVer = m.sandVer; this.tampered = m.tampered;
     this.foodRate = m.foodRate; this.light = m.light; this.flow = m.flow;
     this.t = 0; this.orgs = []; this.byId = new Map(); this.defs = new Map();
     this.fn = 0; this.fx = new Float32Array(0); this.fy = new Float32Array(0); this.fage = new Float32Array(0); this.fi = new Float32Array(0);
@@ -53,7 +54,7 @@ class Mirror {
     this.poos = []; for (let i = 0; i < d.Q.length; i += 5) this.poos.push({ x: d.Q[i], y: d.Q[i + 1], n: d.Q[i + 2], n0: d.Q[i + 3], s: d.Q[i + 4] });
     const m = d.meta;
     if (m) {
-      this.histEvery = m.histEvery; this.stats = m.stats;
+      this.histEvery = m.histEvery; this.stats = m.stats; this.tampered = m.tampered;
       if (m.history) this.history = m.history.full ? m.history.items : this.history.concat(m.history.items);
       for (const c of m.clades) this.clades.set(c.id, c);
       if (m.events) this.events.push(...m.events);
@@ -92,6 +93,8 @@ function localSim() {
   };
   s.eatenBy = (o, cb) => cb(o.eatenBy ? s.world.orgs.find(x => x.id === o.eatenBy) : null);
   s.save = () => s.world ? saveWorld(snapshot(s.world)).catch(e => console.warn(e)) : null;
+  s.addGrain = (x, y, r) => s.world.addGrain(x, y, r);
+  s.spawn = (id, x, y, n) => { const p = PRESETS.find(p => p.id === id); if (p) s.world.spawn(p.g(), p.name, x, y, n); };
   s.load = async () => { const d = await get('last'); if (!d) return false; s.restoreWorld(d); return true; };
   return s;
 }
@@ -106,6 +109,7 @@ function workerSim() {
     if (d.type === 'init') { s.world = new Mirror(d); waiting = false; s.onInit?.(); if (loadCb) { loadCb(true); loadCb = null; } }
     else if (d.type === 'loadFailed' && loadCb) { loadCb(false); loadCb = null; }
     else if (d.type === 'saved') { for (const cb of saveCbs.splice(0)) cb(d.meta); }
+    else if (d.type === 'sand' && s.world) { s.world.grains = d.grains; s.world.sandGroups = d.sandGroups; s.world.sandVer = d.sandVer; }
     else if (d.type === 'frame') { waiting = false; if (s.world) { const t0 = performance.now(); s.world.apply(d); s.applyMs = (s.applyMs || 0) * 0.9 + (performance.now() - t0) * 0.1; s.simRate = d.simRate; s.stepMs = d.stepMs; } }
     else if (d.type === 'eatenBy' && eatenCb) { const cb = eatenCb; eatenCb = null; cb(d.by ? s.world.byId.get(d.by) || null : null); }
   };
@@ -118,6 +122,8 @@ function workerSim() {
   s.tick = () => { if (!waiting && s.world) { waiting = true; wk.postMessage({ type: 'frame' }); } s.lastMs = 0; };
   s.eatenBy = (o, cb) => { eatenCb = cb; wk.postMessage({ type: 'eatenBy', id: o.id }); };
   s.save = () => new Promise(ok => { saveCbs.push(ok); wk.postMessage({ type: 'save' }); });
+  s.addGrain = (x, y, r) => wk.postMessage({ type: 'grain', x, y, r });
+  s.spawn = (id, x, y, n) => wk.postMessage({ type: 'spawn', id, x, y, n });
   s.load = () => new Promise(ok => { loadCb = ok; wk.postMessage({ type: 'load' }); });
   return s;
 }

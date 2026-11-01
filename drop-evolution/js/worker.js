@@ -3,6 +3,7 @@
 import { World, DT } from './sim.js';
 import { restore, snapshot } from './snap.js';
 import { saveWorld, get } from './save.js';
+import { PRESETS } from './presets.js';
 
 let w = null, speed = 4, playing = true, acc = 0, last = performance.now();
 let simRate = 0, stepMs = 0, metaT = 0, winSim = 0, winReal = 0;
@@ -19,7 +20,7 @@ function reset(world) {
   w = world; acc = 0;
   ids = new WeakMap(); nextId = 1; defs = [];
   sentClade = new Map(); sentHist = 0; sentHistEvery = 0; sentEvents = 0;
-  postMessage({ type: 'init', size: w.size, seed: w.seed, grains: w.grains, sandGroups: w.sandGroups, foodRate: w.foodRate, light: w.light, flow: w.flow, sand: w.sand });
+  postMessage({ type: 'init', size: w.size, seed: w.seed, grains: w.grains, sandGroups: w.sandGroups, sandVer: w.sandVer, tampered: !!w.tampered, foodRate: w.foodRate, light: w.light, flow: w.flow, sand: w.sand });
 }
 
 function loop() {
@@ -66,7 +67,7 @@ function frame() {
 }
 
 function meta() {
-  const m = { histEvery: w.histEvery, clades: [], events: null, history: null, stats: w.stats };
+  const m = { histEvery: w.histEvery, clades: [], events: null, history: null, stats: w.stats, tampered: !!w.tampered };
   if (w.histEvery !== sentHistEvery || w.history.length < sentHist) { m.history = { full: true, items: w.history }; }
   else if (w.history.length > sentHist) m.history = { full: false, items: w.history.slice(sentHist) };
   sentHistEvery = w.histEvery; sentHist = w.history.length;
@@ -85,6 +86,9 @@ onmessage = e => {
   const d = e.data;
   if (d.type === 'new') reset(new World(d.opt));
   else if (d.type === 'restore') reset(restore(d.data));
+  // 砂つぶを置く（遊ぶ人の道具）・決まった生き物を置く（?test の確かめ用）
+  else if (d.type === 'grain') { if (w) { w.addGrain(d.x, d.y, d.r); postMessage({ type: 'sand', grains: w.grains, sandGroups: w.sandGroups, sandVer: w.sandVer }); } }
+  else if (d.type === 'spawn') { const p = PRESETS.find(p => p.id === d.id); if (w && p) w.spawn(p.g(), p.name, d.x, d.y, d.n); }
   // 保存（このブラウザの中だけ）と、保存した一滴からつづける
   else if (d.type === 'save') { if (w) saveWorld(snapshot(w)).then(meta => postMessage({ type: 'saved', meta })).catch(e => postMessage({ type: 'saved', error: String(e) })); }
   else if (d.type === 'load') get('last').then(data => { if (data) reset(restore(data)); else postMessage({ type: 'loadFailed' }); }).catch(() => postMessage({ type: 'loadFailed' }));

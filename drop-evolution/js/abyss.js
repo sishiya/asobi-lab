@@ -99,8 +99,8 @@ export function drawAbyss(ren, world, sel, time) {
     return p;
   };
   // 砂つぶは動かないので、形とぼかし色は一滴ごとに1回だけ作る
-  if (world.sandCache?.g !== g) {
-    world.sandCache = { g, list: (world.sandGroups || (world.grains || []).map((q, i) => ({ x: q.x, y: q.y, R: q.r, el: 1, parts: [i] }))).map(G => {
+  if (world.sandCache?.g !== g || world.sandCache.ver !== world.sandVer) {   // 砂つぶを置いたら作りなおす
+    world.sandCache = { g, ver: world.sandVer, list: (world.sandGroups || (world.grains || []).map((q, i) => ({ x: q.x, y: q.y, R: q.r, el: 1, parts: [i] }))).map(G => {
       const paths = G.parts.map(k => sandPath(world.grains[k]));
       const sg = g.createRadialGradient(G.x - G.R * 0.15, G.y - G.R * 0.15, G.R * 0.1, G.x, G.y, G.R * G.el * 1.05);
       sg.addColorStop(0, 'rgba(46,70,92,1)'); sg.addColorStop(0.7, 'rgba(24,42,62,1)'); sg.addColorStop(1, 'rgba(10,22,38,1)');

@@ -177,3 +177,11 @@ dialog#extinct h2 { font: 700 18px var(--font); letter-spacing: .1em; margin: 0 
 dialog#extinct p { font-size: 13px; line-height: 1.7; color: var(--sub); margin: 0 0 16px; }
 dialog#extinct button { display: block; width: 100%; margin-top: 8px; padding: 11px 12px; border-radius: 10px; cursor: pointer; font-weight: 700; color: var(--ink); }
 dialog#extinct .primary { border: 0; background: var(--hi); color: #1a1205; }
+/* 置くメニュー（右クリック・指の長押し） */
+#ctx { position: fixed; z-index: 30; min-width: 168px; padding: 8px; background: #061524; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.5); }
+#ctx[hidden] { display: none; }
+#ctx p { margin: 4px 6px 6px; font-size: 11px; color: var(--sub); letter-spacing: .06em; }
+#ctx button { display: block; width: 100%; text-align: left; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); font: 700 13px var(--font); cursor: pointer; }
+#ctx button:hover, #ctx button:focus-visible { background: rgba(110,210,255,.12); }
+#ctxOrgs { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
+.stats .tampered { color: var(--hi); font-size: 12px; }

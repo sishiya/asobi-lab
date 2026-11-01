@@ -45,11 +45,14 @@ export function snapshot(w, note = {}) {
     histEvery: every, histAcc: w.histAcc, stats: r3(w.stats), events: w.events.slice(-200).map(r3), history: hist,
     fa: w.fa, nut: Array.from(w.nut, v => round(v, 1000)), algae: live,
     poos: r3(w.poos), pieces: r3(w.pieces), bodies: r3(bodies), clades, orgs,
+    extraGrains: w.extraGrains || [], tampered: !!w.tampered,   // あとから置いた砂つぶ・手を加えた印
   };
 }
 
 export function restore(d) {
   const w = new World({ ...d.opt, founders: 0, initFood: 0 });
+  for (const [x, y, R] of d.extraGrains || []) w.addGrain(x, y, R);   // 知らせは下で保存した分に置きかわる
+  w.tampered = !!d.tampered;
   for (const k of ['t', 'stepN', 'hue0', 'nextId', 'nextClade', 'histEvery', 'histAcc', 'stats', 'events', 'history', 'fa', 'poos', 'pieces']) w[k] = d[k];
   w.nut.set(d.nut);
   w.clades = new Map(d.clades.map(c => [c.id, { ...c, b: d.bodies[c.b] }]));

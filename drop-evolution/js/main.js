@@ -5,6 +5,7 @@ import { Renderer, drawBodyDiagram } from './render.js';
 import { Graph, cladeColor, fmtT } from './graph.js';
 import { makeSim } from './simlink.js';
 import { get as getSave } from './save.js';
+import { PRESETS } from './presets.js';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -40,13 +41,36 @@ function clampCam() {
   c.y = hh * 2 > H + m * 2 ? H / 2 : Math.min(Math.max(c.y, hh - m), H + m - hh);
 }
 
+// ── 置くメニュー（右クリック・指の長押し）: 砂つぶを落とす。?test のときは決まった生き物も置ける（その一滴には「手を加えた」印） ──
+let ctxAt = null;
+function openCtx(sx, sy) {
+  if (!world || title) return;
+  ctxAt = ren.toWorld(sx, sy);
+  const m = $('ctx'); m.hidden = false;
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.min(sx, innerWidth - r.width - 8) + 'px'; m.style.top = Math.min(sy, innerHeight - r.height - 8) + 'px';
+}
+const closeCtx = () => { $('ctx').hidden = true; };
+view.addEventListener('contextmenu', e => { e.preventDefault(); openCtx(e.clientX, e.clientY); });
+addEventListener('pointerdown', e => { if (!$('ctx').hidden && !e.target.closest('#ctx')) closeCtx(); }, true);
+$('ctx').querySelectorAll('[data-grain]').forEach(b => b.onclick = () => { sim.addGrain(ctxAt.x, ctxAt.y, +b.dataset.grain); closeCtx(); });
+if (q.has('test')) {
+  $('ctxOrgs').hidden = false;
+  $('ctxOrgs').innerHTML = '<p>生き物（確かめ用）</p>' + PRESETS.map(p => `<button type="button" data-spawn="${p.id}">${p.name}</button>`).join('');
+  $('ctxOrgs').querySelectorAll('[data-spawn]').forEach(b => b.onclick = () => { sim.spawn(b.dataset.spawn, ctxAt.x, ctxAt.y, 3); closeCtx(); toast('この一滴は「手を加えた一滴」になりました'); });
+}
+
 // ── 見る操作（ドラッグ・ホイール・指2本） ──
 const ptrs = new Map();
 let down = null, pinch = null;
 view.addEventListener('pointerdown', e => {
   try { view.setPointerCapture(e.pointerId); } catch (_) {}
   ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (ptrs.size === 1) down = { x: e.clientX, y: e.clientY, cx: ren.cam.x, cy: ren.cam.y, moved: false };
+  if (ptrs.size === 1) {
+    down = { x: e.clientX, y: e.clientY, cx: ren.cam.x, cy: ren.cam.y, moved: false };
+    // 指の長押しで、置くメニュー（右クリックと同じ）
+    if (e.pointerType !== 'mouse') { const d = down; d.timer = setTimeout(() => { if (down === d && !d.moved) { d.long = true; openCtx(d.x, d.y); } }, 550); }
+  }
   else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: ren.cam.z }; down = null; }
 });
 view.addEventListener('pointermove', e => {
@@ -57,14 +81,15 @@ view.addEventListener('pointermove', e => {
     zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, pinch.z * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d / ren.cam.z);
   } else if (down) {
     const dx = e.clientX - down.x, dy = e.clientY - down.y;
-    if (Math.hypot(dx, dy) > 6) { down.moved = true; follow = false; view.classList.add('drag'); }
+    if (Math.hypot(dx, dy) > 6) { down.moved = true; clearTimeout(down.timer); follow = false; view.classList.add('drag'); }
     if (down.moved) { ren.cam.x = down.cx - dx / ren.cam.z; ren.cam.y = down.cy - dy / ren.cam.z; clampCam(); }
   }
 });
 const up = e => {
   ptrs.delete(e.pointerId);
   view.classList.remove('drag');
-  if (down && !down.moved && e.type === 'pointerup') pick(e.clientX, e.clientY);
+  if (down) clearTimeout(down.timer);
+  if (down && !down.moved && !down.long && e.type === 'pointerup') pick(e.clientX, e.clientY);
   if (ptrs.size < 2) pinch = null;
   down = null;
 };
@@ -120,7 +145,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
   else if (e.key === '1') setSpeed(1); else if (e.key === '2') setSpeed(4); else if (e.key === '3') setSpeed(16);
   else if (e.key === '4') setSpeed(256); else if (e.key === '5') setSpeed(1024);
-  else if (e.key === 'Escape') select(null);
+  else if (e.key === 'Escape') { closeCtx(); select(null); }
   else if (e.key === 'm' || e.key === 'M') openMenu();
 });
 
@@ -334,6 +359,7 @@ function frame(now) {
     uiT = 0.25;
     $('sTime').textContent = fmtT(world.t);
     checkExtinct();
+    $('sTampered').hidden = !world.tampered;
     $('sRate').textContent = playing && simRate < speed * 0.8 ? `いまは ×${Math.round(simRate)}` : '';
     $('sPop').textContent = world.orgs.length;
     if (perfLog) $('perfText').textContent = `計算${sim.usesWorker ? '（別のコア）' : ''} ${perf.sim.toFixed(1)} ms ・ 1刻み ${sim.stepMs.toFixed(1)} ms ・ 描く ${perf.draw.toFixed(1)} ms ・ ${Math.round(perf.fps)} こま/秒 ・ ${world.orgs.length} 匹`;
