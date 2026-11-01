@@ -30,6 +30,11 @@ for (const f of files) {
   const perStep = run.map((r, i) => r.sim_ms / Math.max(0.1, steps[i]));
   const s = fit(run.map(r => r.orgs / 1000), perStep), d = fit(run.map(r => r.visible / 1000), run.map(r => r.draw_ms));
   console.log(`  計算: 1刻み ${s.a.toFixed(2)} + ${s.b.toFixed(2)}×(生き物/千) ms ・ 描く: ${d.a.toFixed(1)} + ${d.b.toFixed(1)}×(見えている/千) ms`);
+  // 部分ごとの内わけ（ログにあれば）: 計算は 1 刻みあたり、描くは 1 こまあたり
+  const parts = pre => head.filter(h => h.startsWith(pre)).map(h => [h.slice(2), med(run.map(r => r[h]))]).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const sp = parts('s_'), dp = parts('d_');
+  if (sp.length) console.log(`  計算の内わけ（1刻み ms）: ${sp.map(([k, v]) => `${k} ${v.toFixed(2)}`).join(' ・ ')}`);
+  if (dp.length) console.log(`  描くの内わけ（1こま ms）: ${dp.map(([k, v]) => `${k} ${v.toFixed(2)}`).join(' ・ ')}`);
   const simShare = med(run.map(r => r.sim_ms / Math.max(0.1, r.sim_ms + r.draw_ms)));
   console.log(`  重いのは: ${simShare > 0.6 ? '計算（Web Worker・計算の作りを先に）' : simShare < 0.4 ? '描く（WebGL にする価値がある）' : '計算と描くが同じくらい'}（計算の割合 ${(simShare * 100).toFixed(0)}%）`);
 }

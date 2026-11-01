@@ -302,15 +302,18 @@ function frame(now) {
 
 // ── 確かめ用の計測ログ（?test のとき）: 開いたページごとに番号をつけ、10 秒ごとに計算量を記録して、「ログを保存」で CSV に ──
 const perfLog = q.has('test') ? { id: new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19), rows: [], acc: 0, real: 0 } : null;
-const PERF_HEAD = 'real_s,sim_s,speed,sim_rate,sim_ms,draw_ms,fps,orgs,visible,algae,colony_cells,zoom,view_w,view_h,dpr';
+const SIM_PARTS = ['env', 'orgs', 'collide', 'colonies', 'predation', 'divide'], DRAW_PARTS = ['water', 'wake', 'glow', 'light', 'gel', 'crisp', 'sel', 'motes'];
+const PERF_HEAD = 'real_s,sim_s,speed,sim_rate,sim_ms,draw_ms,fps,orgs,visible,algae,colony_cells,zoom,view_w,view_h,dpr,' + SIM_PARTS.map(k => 's_' + k).join(',') + ',' + DRAW_PARTS.map(k => 'd_' + k).join(',');
 function logPerf(fdt) {
+  world.profOn = true;   // 計算の部分ごとの時間も測る（新しい一滴になっても）
   perfLog.real += fdt; perfLog.acc += fdt;
   if (perfLog.acc < 10) return;
   perfLog.acc = 0;
   const c = ren.cam, hw = ren.w / 2 / c.z, hh = ren.h / 2 / c.z;
   const vis = world.orgs.filter(o => Math.abs(o.x - c.x) < hw + 20 && Math.abs(o.y - c.y) < hh + 20).length;
   perfLog.rows.push([perfLog.real.toFixed(0), world.t.toFixed(0), playing ? speed : 0, simRate.toFixed(2), perf.sim.toFixed(2), perf.draw.toFixed(2), perf.fps.toFixed(1),
-    world.orgs.length, vis, world.fn, world.orgs.filter(o => o.colN > 1).length, c.z.toFixed(3), ren.w, ren.h, ren.dpr ?? devicePixelRatio].join(','));
+    world.orgs.length, vis, world.fn, world.orgs.filter(o => o.colN > 1).length, c.z.toFixed(3), ren.w, ren.h, ren.dpr ?? devicePixelRatio,
+    ...SIM_PARTS.map(k => (world.prof?.[k] ?? 0).toFixed(3)), ...DRAW_PARTS.map(k => (ren.prof?.[k] ?? 0).toFixed(3))].join(','));
   if (perfLog.rows.length > 4000) perfLog.rows.shift();
   try { localStorage.setItem('drop-perf-' + perfLog.id, perfCSV()); } catch {}
 }

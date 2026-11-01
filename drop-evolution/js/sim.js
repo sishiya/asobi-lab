@@ -502,6 +502,9 @@ export class World {
   step() {
     const dt = DT, r = this.r;
     this.t += dt; this.stepN++;
+    // 確かめ用: 部分ごとの計算の時間（profOn のときだけ。ms、なめらかにした値）
+    const PF = this.profOn ? (this.prof || (this.prof = {})) : null; let lapT = PF ? performance.now() : 0;
+    const lap = k => { if (!PF) return; const n = performance.now(); PF[k] = (PF[k] || 0) * 0.95 + (n - lapT) * 0.05; lapT = n; };
     if (this.stepN % 3 === 2) this.updateFlow(dt * 3);
     if (this.stepN % 3 === 0) this.nutrients(dt * 3);
     if (this.stepN % 6 === 1) this.algae(dt * 6);   // 藍藻は 0.2 秒ごと（1 回に 2 µm ほどしか動かない）
@@ -509,6 +512,7 @@ export class World {
 
     this.buildGrids();
     if (this.stepN % 6 === 0) this.smell();
+    lap('env');
     const os = this.orgs, senseTick = this.stepN % 6;   // 感覚は 0.2 秒ごと（化学走性も 0.1〜1 秒ためて向きを変える）
     for (let i = 0; i < os.length; i++) {
       const o = os[i]; if (o.dead) continue;
@@ -590,12 +594,16 @@ export class World {
       // 飢え、またはウイルスや大きな捕食者（0.2 秒ごとに、混み具合で割合を出す）
       if (o.e <= STARVE * o.eS || (i % 6 === senseTick && r() < PROT_DIE * dieK(o) * (1 + (this.smS ? sample(this.smS, o.x, o.y, SM_BINS, smBin(o.colR || o.r)) : 0) / VIRUS_K) * dt * 6)) this.kill(o, true);
     }
+    lap('orgs');
     // 生き物どうしはすりぬけない（細胞は重なれない）。重なった分を、重さの逆の割合で押しもどす
     this.collide();
+    lap('collide');
     // 群体: くっついた仲間を引きよせ（打つ力は足し合わされる）、群体ごとの大きさを数える
     this.colonies();
+    lap('colonies');
     // 決まり4「食べる」（生き物）
     this.predation();
+    lap('predation');
     // 決まり6「分かれる」のもう半分: ふれた仲間と遺伝子を混ぜる（数はふえない）
     this.conjugate(senseTick);
     // 決まり6「分かれる」
@@ -618,6 +626,7 @@ export class World {
       born.push(o);
     }
     for (const o of born) this.divide(o);
+    lap('divide');
     if (os.some(o => o.dead)) this.orgs = os.filter(o => !o.dead);
     if (this.orgs.length === 0) {
       this.events.push({ t: this.t, text: 'すべていなくなった。はじまりの生き物をもう一度入れた' });

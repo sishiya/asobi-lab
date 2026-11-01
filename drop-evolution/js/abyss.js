@@ -64,6 +64,9 @@ function pose(o, time) {
 }
 
 export function drawAbyss(ren, world, sel, time) {
+  // 確かめ用: 部分ごとの描く時間（ms、なめらかにした値）。?test の計測ログに出す
+  const PF = ren.prof || (ren.prof = {}); let lapT = performance.now();
+  const lap = k => { const n = performance.now(); PF[k] = (PF[k] || 0) * 0.9 + (n - lapT) * 0.1; lapT = n; };
   const g = ren.cx, c = ren.cam, z = c.z, dpr = ren.dpr, w = ren.w, h = ren.h;
   const tl = ren.toWorld(0, 0), br = ren.toWorld(w, h);
   const inView = (o, m) => !(o.x < tl.x - m || o.x > br.x + m || o.y < tl.y - m || o.y > br.y + m);
@@ -112,6 +115,7 @@ export function drawAbyss(ren, world, sel, time) {
   }
   for (let b = 0; b < 4; b++) { g.fillStyle = ABYSS.poo.replace('A', (0.2 + 0.45 * (b + 0.5) / 4).toFixed(2)); g.fill(pooP[b]); }
 
+  lap('water');
   // ── 光の航跡（1/2 の紙。前のこまの場所から今の場所へ線。砂についているものは出さない） ──
   const kw = 0.5, Wk = paper(ren, 'wake', kw), wk = Wk.getContext('2d');
   const L = ren.wakeCam;
@@ -165,6 +169,7 @@ export function drawAbyss(ren, world, sel, time) {
   lt.imageSmoothingEnabled = true; lt.globalCompositeOperation = 'lighter';
   lt.globalAlpha = GLOW_K; lt.drawImage(Wk, 0, 0); lt.globalAlpha = 1;
 
+  lap('wake');
   // ── 光のにじみ（1/4 の紙に光る丸と節を描き、さらに 1/8 にして、それぞれ引きのばして重ねる） ──
   const kg = 0.25, G = paper(ren, 'glow', kg), gg = G.getContext('2d');
   gg.setTransform(1, 0, 0, 1, 0, 0); gg.globalCompositeOperation = 'source-over'; gg.clearRect(0, 0, G.width, G.height);
@@ -188,6 +193,7 @@ export function drawAbyss(ren, world, sel, time) {
   lt.globalAlpha = 0.9 * GLOW_K; lt.drawImage(G, 0, 0, Lt.width, Lt.height);
   lt.globalAlpha = 0.8 * GLOW_K; lt.drawImage(G2, 0, 0, Lt.width, Lt.height);
   lt.globalAlpha = 1;
+  lap('glow');
   // 真上からの光: 水面のうねりが集めた、大きくぼんやりした明るいむら（2026-10-31 に網目のコースティクス・なしと見くらべて選んだ。
   // 網目は光のもやが生き物の光とまぎれた）
   const rayAt = softLight(ren, lt, Lt, time, 0.04 + 0.12 * world.light);
@@ -195,6 +201,7 @@ export function drawAbyss(ren, world, sel, time) {
   g.drawImage(Lt, 0, 0, ren.cv.width, ren.cv.height);
   g.globalCompositeOperation = 'source-over';
 
+  lap('light');
   // ── 群体を包む寒天質（本物の群体は、細胞のまわりを共有の寒天質がひとかたまりに包む。オオヒゲマワリの球の輪郭もこれ） ──
   // 細胞を少し広げた丸をつなげた形。ふちを少し明るく、中はうすく
   const members = vis.filter(o => o.colN > 1);
@@ -207,6 +214,7 @@ export function drawAbyss(ren, world, sel, time) {
     gl.globalCompositeOperation = 'destination-out'; gl.fillStyle = 'rgba(0,0,0,0.75)'; blob(2.5 - Math.max(0.8, 1.5 / z), 1.35);
     g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 0.3; g.drawImage(Gl, 0, 0, ren.cv.width, ren.cv.height); g.globalAlpha = 1;
   }
+  lap('gel');
   // ── くっきりの光: 藍藻・かけら・柄・群体・節・細胞・核・関節・先 ──
   toWorld(ren, g, dpr);
   // 藍藻: またたく小さな火花（明るさを4段にまとめて描く）
@@ -301,6 +309,7 @@ export function drawAbyss(ren, world, sel, time) {
   }
   g.globalAlpha = 1;
 
+  lap('crisp');
   // ── 選んだ1匹（琥珀）と、感じる範囲 ──
   if (sel && !sel.dead) {
     const r = sel.r, P = pose(sel, time), a = sel.a + (P ? P.wob : 0), ca = Math.cos(a), sa = Math.sin(a);
@@ -313,8 +322,10 @@ export function drawAbyss(ren, world, sel, time) {
     g.beginPath(); g.arc(sel.x, sel.y, sel.g[GI.range] + r, 0, TAU); g.stroke(); g.setLineDash([]);
   }
 
+  lap('sel');
   // 筋の中できらめく粒
   motes(ren, g, time, rayAt);
+  lap('motes');
 }
 
 // 水の色（どこも同じ紺）と、ふちの暗さ。大きさが変わったときだけ 1/2 の絵に描きなおす
@@ -331,17 +342,27 @@ function waterImage(ren) {
 
 // やわらかい明暗: 水面のうねりが光を集めた、大きくぼんやりした明るいむら（一滴の側に付き、ゆっくり動く）
 function softLight(ren, lt, Lt, time, A) {
-  const c = ren.cam, z = c.z, k = Lt.width / ren.w, blobs = [];
-  lt.setTransform(k * z, 0, 0, k * z, k * (ren.w / 2 - c.x * z), k * (ren.h / 2 - c.y * z));
+  const c = ren.cam, z = c.z, blobs = [];
   for (let i = 0; i < 9; i++) {
     const x = (h01(i + 3) * 1.2 - 0.1) * W + Math.sin(time * 0.03 + i * 1.9) * 160, y = (h01(i + 9) * 1.2 - 0.1) * H + Math.cos(time * 0.025 + i * 2.3) * 120;
     const R = 260 + 340 * h01(i + 5), I = A * (0.55 + 0.45 * Math.sin(time * 0.15 + i * 2.7));
-    const gr = lt.createRadialGradient(x, y, 0, x, y, R);
-    gr.addColorStop(0, `rgba(170,215,240,${I.toFixed(3)})`); gr.addColorStop(1, 'rgba(170,215,240,0)');
-    lt.fillStyle = gr; lt.fillRect(x - R, y - R, R * 2, R * 2);
     blobs.push({ x, y, R, I });
   }
-  lt.setTransform(1, 0, 0, 1, 0, 0);
+  // むらはゆっくりしか動かないので、1/8 の小さな紙に描き、カメラが動いたときか 6 こまに 1 回だけ描きなおして、引きのばして重ねる
+  const S = paper(ren, 'soft', 0.125), sg = S.getContext('2d'), key = `${c.x},${c.y},${z},${S.width}`;
+  ren.softN = (ren.softN || 0) + 1;
+  if (S.fresh || ren.softKey !== key || ren.softN % 6 === 0) {
+    S.fresh = false; ren.softKey = key;
+    const k = S.width / ren.w;
+    sg.setTransform(1, 0, 0, 1, 0, 0); sg.clearRect(0, 0, S.width, S.height);
+    sg.setTransform(k * z, 0, 0, k * z, k * (ren.w / 2 - c.x * z), k * (ren.h / 2 - c.y * z));
+    for (const b of blobs) {
+      const gr = sg.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.R);
+      gr.addColorStop(0, `rgba(170,215,240,${b.I.toFixed(3)})`); gr.addColorStop(1, 'rgba(170,215,240,0)');
+      sg.fillStyle = gr; sg.fillRect(b.x - b.R, b.y - b.R, b.R * 2, b.R * 2);
+    }
+  }
+  lt.setTransform(1, 0, 0, 1, 0, 0); lt.drawImage(S, 0, 0, Lt.width, Lt.height);
   return (sx, sy) => {   // 画面の場所の明るさ（ちりのきらめき用）
     const wx = (sx - ren.w / 2) / z + c.x, wy = (sy - ren.h / 2) / z + c.y;
     let s = 0; for (const b of blobs) { const q = Math.hypot(wx - b.x, wy - b.y) / b.R; if (q < 1) s += b.I * (1 - q); }
