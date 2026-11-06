@@ -155,6 +155,7 @@ function finish() {
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   keyInput(dt);
+  if (thumbBot) { Object.assign(input, thumbBot(S)); toastT = 0; $('hint').hidden = true; }
   if (mode === 'play') {
     acc += dt;
     while (acc >= RULE.dt && !S.done) { step(S, input); acc -= RULE.dt; }
@@ -163,13 +164,21 @@ function frame(now) {
   }
   const out = world.update(S, dt, { showPred: mode === 'play' && tut >= 2, grade: gradeOf(S) }) || {};
   if (out.bloomed) { bloomCount += out.bloomed; for (let i = 0; i < Math.min(2, out.bloomed); i++) A.sBloom(out.rareBloomed > 0); }
-  if (mode === 'play') {
+  if (mode === 'play' && !thumbBot) {
     hints(dt, out.bloomed);
     const r = rareStretches(); $('rare').textContent = `${r.got} / ${r.all}`;
     if (toastT > 0) { toastT -= dt; if (toastT <= 0) { $('hint').hidden = true; setHint(); } }
   }
   requestAnimationFrame(frame);
 }
-toTitle();
+// サムネイル（?thumb。tools/thumb.html が撮る）: 13番の小川の 51 秒目。日なたの右岸でとどまって、めずらしい花を咲かせているところ。
+// 字はすべて隠し、考える遊び手（tools/bots.mjs の smart）が手を動かしつづける（動くサムネイル用）
+let thumbBot = null;
+if (q.has('thumb')) {
+  tut = 3; start(13); show('hud', false);
+  const { smart } = await import('../tools/bots.mjs');
+  while (S.t < 51) step(S, smart(S));
+  logAt = S.log.length; thumbBot = smart;
+} else toTitle();
 requestAnimationFrame(frame);
 window.__fb = { get S() { return S; }, input, start, world, get mode() { return mode; } };   // しらべ用
