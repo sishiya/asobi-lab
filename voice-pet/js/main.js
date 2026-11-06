@@ -1,40 +1,58 @@
 // こえのこ（仮）: 画面の流れ。たまご → 声をふきこむ → かえる → なでる・声をかける
 import { analyze } from './features.js';
-import { makeGenome, express, GENES, sourceText } from './genes.js';
+import { makeGenome, express, GENES, FORMS, sourceText } from './genes.js';
 import { synthVoice, sylls, sampleVoice, SAMPLES } from './synth.js';
-import * as C from './creature.js';
+import * as E from './engrave.js';
+import * as B from './behave.js';
 import * as S from './scene.js';
 import * as A from './audio.js';
 
 const q = new URLSearchParams(location.search);
 const TEST = q.get('test'); // マイクのかわりに声の見本（low high child breathy rough sing quick）
 if (q.has('mute')) A.setMuted(true);
-const KEY = 'voicepet.v1';
+const KEY = 'voicepet.v2'; // v2: 体の型（form）の遺伝子つき
+// 見た目（ART.md）: 鉛筆・ふ化したての幼い体つき・顔③・ふさふさ強
+E.setStyle('pencil'); E.setJuv(1); E.setFace(3); E.setFur(1);
 const MAX_REC = 6;
 
 const cv = document.getElementById('stage'), g2 = cv.getContext('2d');
 const $ = id => document.getElementById(id);
 const micBtn = $('mic'), hint = $('hint'), ring = $('ring');
 let W = 0, H = 0, DPR = 1, L = null, backdrop = null;
-const motes = S.makeMotes(70);
 
 // 状態
 let mode = 'egg';          // egg | rec | hatch | pet
-let gm = null, ph = null, shape = null, st = C.makeState();
+let gm = null, ph = null, plan = null, st = B.makeSt(), ref = null, shellA = 0;
 let recT = 0, recLevel = 0, recPet = false, hatchT = 0, eggWob = 0;
 let mouthTrack = null, mouthT = 0;
 let pointer = { x: 0, y: 0, down: false, sx: 0, sy: 0, onPet: false, moved: 0 };
 let last = performance.now();
 
 function load() {
-  try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && s.v === 1 && s.genes) return s; } catch (e) {}
+  try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && s.v === 1 && s.genes && s.genes.form) return s; } catch (e) {}
   return null;
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(gm)); } catch (e) {} }
 
 function setCreature(g) {
-  gm = g; ph = express(gm); shape = C.buildShape(ph); st = C.makeState();
+  gm = g; ph = express(gm); plan = E.PLANS[ph.form]; st = B.makeSt(ph.seed);
+  ref = measure(plan, { ...ph, size: 0.5 });
   renderGenes();
+}
+// 毛色の濃さ: 声が高いほど淡く、低いほど濃く（鉛筆なので色のかわりに）
+const coat = () => 0.25 - (ph.lum - 0.36) / 0.38 * 0.45;
+// 型ごとの大きさ（大きさの遺伝子がまんなかの子）を、透明の板に描いて測る
+const refCache = {};
+function measure(pl, p) {
+  const k = pl.name + (p.size === 0.5 ? '' : p.seed);
+  if (refCache[k]) return refCache[k];
+  const c = document.createElement('canvas'); c.width = 500; c.height = 380;
+  const g = c.getContext('2d'); g.translate(250, 330);
+  E.setCoat(0); pl.draw(g, p, B.makeSt(), 0, 0, {});
+  const d = g.getImageData(0, 0, 500, 380).data;
+  let top = 380, left = 500, right = 0;
+  for (let y = 0; y < 380; y++) for (let x = 0; x < 500; x++) if (d[(y * 500 + x) * 4 + 3] > 30) { if (y < top) top = y; if (x < left) left = x; if (x > right) right = x; }
+  return (refCache[k] = { top: top - 330, left: left - 250, right: right - 250 });
 }
 
 function resize() {
@@ -43,12 +61,14 @@ function resize() {
   cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
   L = S.layout(W, H);
-  backdrop = S.paintBackdrop(W, H, DPR);
+  backdrop = document.createElement('canvas'); backdrop.width = Math.round(W * DPR); backdrop.height = Math.round(H * DPR);
+  const bg = backdrop.getContext('2d'); bg.scale(DPR, DPR);
+  E.plate(bg, W, H); E.ground(bg, W, L.gx, L.gy, L.u); E.nest(bg, L.gx, L.gy - L.u * 0.06, L.u * 1.9, L.u * 0.45, 'back');
   document.body.classList.toggle('wide', L.wide);
 }
 
-// 生き物の大きさを画面に合わせる（いちばん大きい子でも収まるように）
-const fit = () => L.u / 64;
+// 生き物の大きさを画面に合わせる（型ごとに、まんなかの大きさの子が収まる倍率）
+const fit = () => Math.min(Math.min(L.u * 3.2, L.gy - 96) / -ref.top, Math.min(L.playW * 0.8, L.u * 3.6) / (ref.right - ref.left));
 
 // ---- 鳴き声 ----
 function makeCry(contour, dur, f0) {
@@ -82,7 +102,7 @@ async function beginRec() {
   else A.startRec();
   micBtn.classList.add('on');
   say(recPet ? 'きいてる…' : 'たまごが声をきいています…');
-  if (recPet) { st.listen = 1; st.lookAt = { x: 0, y: 0.8 }; st.earKick = 1; }
+  if (recPet) st.earKick = 1;
 }
 function endRec() {
   if (mode !== 'rec') return;
@@ -91,13 +111,12 @@ function endRec() {
   if (TEST) res = { samples: testBuf, sr: A.ctx().sampleRate };
   else res = A.stopRec();
   const dur = res.samples.length / res.sr;
-  st.listen = 0; st.lookAt = null;
   if (!TEST && dur < 0.5) { mode = recPet ? 'pet' : 'egg'; say('ボタンを押したまま話してね'); return; }
   const a = analyze(res.samples, res.sr);
   res.samples = null; // 声そのものはここで手放す
   if (!a.ok) {
     mode = recPet ? 'pet' : 'egg';
-    if (recPet) { st.tiltT = 1; setTimeout(() => (st.tiltT = 0), 1200); }
+    if (recPet) st.puzzled = 1.4;
     say({ quiet: '声が小さいみたい。もうすこし大きく', short: 'もうすこし長く話してね（1秒より長く）', unvoiced: 'ささやきでなく、声を出してみて' }[a.why] || 'もういちど');
     return;
   }
@@ -109,7 +128,7 @@ function endRec() {
     // まねっこ: 聞いた声の高さと節まわしを、自分の体（声の筒）で
     mode = 'pet';
     const d = Math.max(0.6, Math.min(2.4, a.raw.vDur * 0.9));
-    setTimeout(() => { cry(a.contour, d, Math.sqrt(a.raw.f0 * gm.voice.f0)); C.hop(st, 4); st.happy = 1; }, 380);
+    setTimeout(() => { cry(a.contour, d, Math.sqrt(a.raw.f0 * gm.voice.f0)); B.hop(st, 4); st.happy = 1; }, 380);
     say('');
   }
 }
@@ -120,7 +139,12 @@ function renderGenes() {
   if (!gm) { box.hidden = true; return; }
   box.hidden = mode === 'hatch' || mode === 'egg' || mode === 'rec';
   list.innerHTML = '';
-  GENES.forEach((g, i) => {
+  const f = FORMS[ph.form], fli = document.createElement('li');
+  fli.className = 'form'; fli.style.setProperty('--d', '0s');
+  fli.innerHTML = `<div class="gname">体の型<i class="real" title="本物の手本あり">●</i><b class="fname">${f.name}</b></div><div class="gfrom">${f.why}</div><div class="greal">${f.real}</div>`;
+  list.appendChild(fli);
+  GENES.filter(g => !g.hidden).forEach((g, i0) => {
+    const i = i0 + 1;
     const [a, b] = gm.genes[g.key], m = (a + b) / 2;
     const li = document.createElement('li');
     li.style.setProperty('--d', (i * 0.12) + 's');
@@ -153,11 +177,11 @@ cv.addEventListener('pointerdown', e => {
 cv.addEventListener('pointermove', e => {
   if (pointer.down) pointer.moved += Math.hypot(e.clientX - pointer.x, e.clientY - pointer.y);
   pointer.x = e.clientX; pointer.y = e.clientY;
-  if (pointer.down && pointer.onPet && pointer.moved > 10 && onCreature(e.clientX, e.clientY)) { st.pet = Math.min(1.5, st.pet + 0.06); petAmount += 0.03; }
+  if (pointer.down && pointer.onPet && pointer.moved > 10 && onCreature(e.clientX, e.clientY)) { st.pet = Math.min(1.5, st.pet + 0.08); petAmount += 0.03; }
 });
 let petAmount = 0;
 cv.addEventListener('pointerup', e => {
-  if (pointer.onPet && pointer.moved < 10) { C.hop(st, 6); st.earKick = 1; cry(null, 0.7); }
+  if (pointer.onPet && pointer.moved < 10) { B.hop(st, 5); st.earKick = 1; cry(null, 0.7); }
   else if (pointer.onPet && petAmount > 0.8) { st.happy = 1; cry(gm.voice.contour.map(x => -Math.abs(x) * 0.5), 1.1); }
   pointer.down = false; pointer.onPet = false; petAmount = 0;
 });
@@ -185,7 +209,6 @@ function tick(dt) {
   const ctx = g2;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.drawImage(backdrop, 0, 0, W, H);
-  S.drawMotes(ctx, motes, W, H, clock, L);
 
   // 声の大きさ
   let lv = 0;
@@ -202,36 +225,42 @@ function tick(dt) {
   const gx = L.gx, gy = L.gy;
   if (mode === 'egg' || (mode === 'rec' && !recPet)) {
     eggWob = Math.sin(clock * 9) * recLevel * 0.08 + Math.sin(clock * 0.9) * 0.015;
-    S.egg(ctx, gx, gy, L.u, clock, mode === 'rec' ? 0.35 + recLevel * 0.65 : 0.12 + 0.06 * Math.sin(clock * 1.43), eggWob, 0);
+    E.setCoat(0); E.egg(ctx, gx, gy, L.u, clock, mode === 'rec' ? recLevel : 0, eggWob, 0);
   } else if (mode === 'hatch') {
     hatchT += dt;
     const c = Math.min(1, hatchT / 1.3);
     if (hatchT < 1.35) {
       const shake = Math.sin(hatchT * 40) * 0.07 * c;
-      S.egg(ctx, gx, gy, L.u, clock, 0.6 + c * 0.4, shake, c);
+      E.setCoat(0); E.egg(ctx, gx, gy, L.u, clock, 0.4 + c * 0.6, shake, c);
       for (const at of [0.35, 0.8, 1.2]) if (hatchT - dt < at && hatchT >= at) A.blip('crack');
     } else {
-      if (hatchT - dt < 1.35) { A.blip('pop'); st.scale = 0.35; C.hop(st, 9); }
+      if (hatchT - dt < 1.35) { A.blip('pop'); st.scale = 0.35; B.hop(st, 8); shellA = 1; }
       st.scale += (1 - st.scale) * (1 - Math.exp(-dt * 7));
       if (hatchT - dt < 2.0 && hatchT >= 2.0) cry(null, 1.2);
       if (hatchT > 2.6) { mode = 'pet'; document.body.classList.add('hatched'); renderGenes(); say('なでたり、つついたり、声をかけたりしてみて'); setTimeout(() => mode === 'pet' && hint.textContent.startsWith('なでたり') && say(''), 6000); }
     }
   }
   if (ph && mode !== 'egg' && !(mode === 'rec' && !recPet) && !(mode === 'hatch' && hatchT < 1.35)) {
-    if (mode === 'rec') { st.listen = 1; st.hopV += recLevel * dt * 0; }
-    if (!st.lookAt && pointer.x) { /* 指の方を見る */ }
-    const lb = lastBox;
-    if (lb && pointer.x && mode !== 'rec') st.gazeT = { x: Math.max(-1, Math.min(1, (pointer.x - lb.cx) / (W * 0.3))), y: Math.max(-1, Math.min(1, (pointer.y - lb.cy) / (H * 0.3))) };
     // 口
+    let m = 0;
     if (mouthTrack) {
       mouthT += dt; const i = Math.floor(mouthT * 60);
-      st.mouth = i < mouthTrack.length ? mouthTrack[i] : 0;
+      m = i < mouthTrack.length ? mouthTrack[i] : 0;
       if (i >= mouthTrack.length) mouthTrack = null;
-    } else st.mouth *= 0.8;
-    C.update(st, dt, ph);
-    lastBox = C.draw(ctx, ph, shape, st, gx, gy, fit());
-  }
-  S.nest(ctx, gx, gy - L.u * 0.08, L.u * 2.05, L.u * 0.55, 'front');
+    }
+    B.step(st, dt, ph, { listening: mode === 'rec', level: recLevel, mouth: m });
+    if (st.scale === undefined) st.scale = 1;
+    st.scale += (1 - st.scale) * (1 - Math.exp(-dt * 7));
+    const sc = fit() * st.scale, oy = gy - st.hop * L.u * 0.35;
+    ctx.save(); ctx.translate(gx, oy); ctx.scale(sc, sc);
+    E.setCoat(coat()); plan.draw(ctx, ph, st, 0, 0, {});
+    ctx.restore();
+    const bx = gx + ref.left * sc - 8, bw = (ref.right - ref.left) * sc + 16, by = oy + ref.top * sc * 1.15 - 8, bh = -ref.top * sc * 1.15 + 16;
+    E.grain(ctx, bx, by, bw, bh);
+    lastBox = { cx: gx + (ref.left + ref.right) / 2 * sc, cy: oy + ref.top * sc / 2, ax: (ref.right - ref.left) / 2 * sc, R: -ref.top * sc / 2 };
+    if (shellA > 0) { E.shell(ctx, gx, gy, L.u, shellA); shellA -= dt * 0.25; }
+  } else if (mode === 'egg' || mode === 'rec' || mode === 'hatch') E.grain(ctx, gx - L.u, gy - L.u * 2.2, L.u * 2, L.u * 2.4);
+  E.nest(ctx, gx, gy - L.u * 0.06, L.u * 1.9, L.u * 0.45, 'front');
 }
 
 // ---- はじめ ----
@@ -248,4 +277,5 @@ window.__vp = {
   hatch(name) { const sr = 48000, a = analyze(sampleVoice(name, sr), sr); if (!a.ok) return a; mode = 'hatch'; setCreature(makeGenome(a, 12345)); hatchT = 0; return a; },
   advance(sec) { for (let t = 0; t < sec; t += 1 / 60) tick(1 / 60); },
   skip() { if (mode === 'hatch') { hatchT = 2.7; st.scale = 1; } },
+  form() { return FORMS[ph.form].name; },
 };

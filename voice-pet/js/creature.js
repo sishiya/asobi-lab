@@ -28,7 +28,7 @@ export function buildShape(ph) {
 }
 
 // 体のふちの点（ローカル座標、中心 0,0、半径 1 の大きさ）
-function outline(ph, sh, squash) {
+export function outline(ph, sh, squash) {
   const pts = [];
   const ax = Math.sqrt(ph.aspect) * squash.x, ay = 1 / Math.sqrt(ph.aspect) * squash.y;
   for (let i = 0; i < sh.N; i++) {
@@ -49,7 +49,7 @@ function outline(ph, sh, squash) {
   return pts;
 }
 
-function pathPts(ctx, pts, cx, cy, R) {
+export function pathPts(ctx, pts, cx, cy, R) {
   ctx.beginPath();
   const n = pts.length;
   for (let i = 0; i < n; i++) {

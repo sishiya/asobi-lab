@@ -31,14 +31,14 @@ try {
   await page.evaluate(() => __vp.advance(3));
   step('かえった', await mode() === 'pet');
   step('遺伝子の表が出る', await page.evaluate(() => !document.getElementById('genes').hidden));
-  step('保存は遺伝子の数だけ', await page.evaluate(() => { const s = localStorage.getItem('voicepet.v1'); return !!s && s.length < 1500 && !/samples/.test(s); }));
+  step('保存は遺伝子の数だけ', await page.evaluate(() => { const s = localStorage.getItem('voicepet.v2'); return !!s && s.length < 4000 && !/samples/.test(s); }));
   await page.evaluate(() => __vp.advance(1));
   await page.screenshot({ path: path.join(out, '2-pet.png') });
   // つつく
   const box = await page.evaluate(() => __vp.box);
   await page.mouse.click(box.cx, box.cy);
-  await page.evaluate(() => __vp.advance(0.25));
   step('つつくと跳ねる', await page.evaluate(() => __vp.st.hop > 0 || __vp.st.hopV !== 0));
+  step('体の型が決まっている', !!(await page.evaluate(() => __vp.form())));
   // なでる
   await page.mouse.move(box.cx - box.R * 0.5, box.cy); await page.mouse.down();
   for (let i = 0; i < 30; i++) { await page.mouse.move(box.cx - box.R * 0.5 + (i % 2 ? box.R : 0), box.cy + (i % 3) * 4, { steps: 3 }); await page.evaluate(() => __vp.advance(1 / 30)); }
