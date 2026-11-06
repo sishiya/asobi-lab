@@ -158,7 +158,7 @@ export function build() {
   const pad = (s, n = 28) => s + ' '.repeat(Math.max(0, n - [...s].length));
   const at = (n, words) => { const a = Array(n).fill(' '); for (const [i, w] of words) [...w].forEach((ch, k) => { a[i + k] = ch; }); return a.join(''); };
   const M = [
-    ['m_help', 2, 28, pad('A:CHOOSE A DINO'), pad('A:きょうりゅうを えらぶ')],
+    ['m_help', 2, 28, pad('A:CHOOSE  LOST? BREED FASTER'), pad('A:えらぶ まけたら かけあわせて はやく')],
     ['m_act', 2, 28, pad('   RACE    BREED   LET GO'), pad(at(28, [[3, 'かけっこ'], [11, 'かけあわせ'], [19, 'にがす']]))],
     ['m_partner', 2, 28, pad('CHOOSE A PARTNER    B:BACK'), pad('あいてを えらぶ     B:もどる')],
     ['m_full', 2, 28, pad('NO EMPTY PEN. LET ONE GO.'), pad('かこいが いっぱい。1とう にがして')],
@@ -178,6 +178,7 @@ export function build() {
     ['m_good', 10, 2, 'GOOD START!', ' いい でだし!'],
     ['m_false', 10, 2, 'FALSE START', '  はやすぎ!'],
     ['m_clear', 10, 2, '           ', '           '],
+    ['m_skip', 10, 2, 'A:SKIP     ', '  A:とばす '],
     ['m_finish', 10, 2, '  FINISH!  ', '   ゴール!  '],
     ['r_title', 12, 4, 'RESULT', ' けっか'],
     ['r_you', 0, 0, 'YOU   ', 'きみ'],
@@ -187,6 +188,7 @@ export function build() {
     ['r_top', 6, 17, 'TOP SPEED   KM/H', at(16, [[0, 'さいこう そくど'], [12, 'KM/H']])],
     ['r_win', 11, 20, 'YOU WIN!', ' かった!'],
     ['r_lose', 10, 20, 'TRY AGAIN!', 'まけちゃった'],
+    ['r_tip', 5, 22, 'BREED A FASTER DINO!', 'かけあわせて はやい こを!'],
     ['r_cupwon', 9, 22, 'CUP COMPLETE!', 'たいかい ゆうしょう!'],
     ['r_back', 7, 25, 'A:BACK TO RANCH', 'A:ぼくじょうへ もどる'],
     ['e_1', 11, 6, 'CHAMPION!', 'ゆうしょう!'],

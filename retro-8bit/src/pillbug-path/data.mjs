@@ -103,6 +103,7 @@ export function build() {
   bi('hint_clear', 2, 28, ...line('むしゃむしゃ!       A つぎへ', 'YUM!           A NEXT'));
   bi('hint_best', 2, 28, ...line('むしゃむしゃ! さいこう! A つぎへ', 'YUM! BEST!     A NEXT'));
   bi('hint_sun', 2, 28, ...line('まぶしい! まるまっちゃった', 'TOO SUNNY! IT CURLED UP.'));
+  bi('hint_loop', 2, 28, ...line('ぐるぐる! いしを おきなおそう', 'GOING IN CIRCLES. TRY AGAIN.'));
   for (const [name] of MSGS) sym['M_' + name.toUpperCase()] = MSGS.findIndex((m) => m[0] === name);
   sym.M_STAGE = MSGS.length; // 面ごとに 2 つ（番号・名前）: M_STAGE + 面×2
   STAGES.forEach((st, n) => {

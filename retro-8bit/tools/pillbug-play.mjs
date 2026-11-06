@@ -55,10 +55,11 @@ for (let n = 0; n < STAGES.length; n++) {
       if (c !== lastCell) { path.push(c); lastCell = c; }
     }
     if (r[R.state] === 3) { result = 'clear'; break; }
-    if (r[R.state] === 4) { result = 'sun'; break; }
+    if (r[R.state] === 4) { result = nes.ram[0x400 + (r[R.bugY] >> 4) * W + (r[R.bugX] >> 4)] === 3 ? 'sun' : 'loop'; break; }   // ひなたでなく止まった＝ぐるぐる（v034）
   }
   if (r0(nes) === 3 && path[path.length - 1] !== want.path[want.path.length - 1]) path.push(want.path[want.path.length - 1]);
-  const same = path.join() === want.path.join();
+  // ぐるぐるは、ROM が一回りしてから気づくので、JS の道が ROM の道の頭と同じならよい
+  const same = result === 'loop' ? path.slice(0, want.path.length).join() === want.path.join() : path.join() === want.path.join();
   const ok = result === want.result && same;
   if (!ok) bad++;
   console.log(`${String(n + 1).padStart(2)} ${STAGES[n].name.padEnd(14)} 石 ${stones.length}: ROM ${result}（${path.length} ます・${f} フレーム）・JS ${want.result}（${want.path.length} ます）${ok ? '' : ' ★ ちがう'}`);

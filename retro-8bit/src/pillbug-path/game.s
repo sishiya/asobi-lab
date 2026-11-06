@@ -95,6 +95,12 @@ dir_t = $49        ; 曲がる向きを調べるときの向き（a・b）
 dir_t2 = $4A
 best = $4B         ; いちばん少ない石の数（それで解くと BEST）
 lang = $4C         ; 0 かな・1 英語（ページが $7FFF に入れる。タイトルのたびに読む）
+lp_cx = $24        ; ぐるぐるを見つける（Brent）: 覚えた ます・向き・つぎの曲がり、数、窓の長さ
+lp_cy = $2E
+lp_h = $2F
+lp_nx = $4D
+lp_n = $4E
+lp_pow = $4F
 LANG = $7FFF
 
 OAM = $0200
@@ -934,6 +940,7 @@ plan_update:
   beq @nst
   lda #2
   sta state
+  jsr loop_reset
   lda #M_HINT_WALK
   jsr say_ptr
   jsr buf_data
@@ -1141,6 +1148,7 @@ walk_step:
   sta crumb_x
   lda bug_y
   sta crumb_y
+  jsr loop_reset     ; 葉っぱがへった＝同じ所を通っても、もう同じではない
   dec leaves
   bne @turn
   jsr go_clear
@@ -1151,6 +1159,10 @@ walk_step:
   jsr go_sun
   rts
 @turn:
+  jsr loop_check
+  bcc @nloop
+  jmp go_loop
+@nloop:
   ldy bug_h
   jsr blocked_dir
   bcc @go
@@ -1342,6 +1354,67 @@ go_sun:
   lda #M_HINT_SUN
   jsr say_ptr
   jsr buf_data
+  rts
+
+; 同じ ます・向き・つぎの曲がりに、葉っぱの数も同じでもどってきた＝ずっと回る。ひなたと同じに止めて、石を置く場面へ
+go_loop:
+  lda #4
+  sta state
+  lda #0
+  sta st_t
+  jsr sfx_take
+  lda #M_HINT_LOOP
+  jsr say_ptr
+  jsr buf_data
+  rts
+
+; ますのまん中で、いまを覚えた所とくらべる（C = 1 なら ぐるぐる）。覚えなおす間を 2・4・8…128 とのばす（Brent の見つけ方）
+loop_check:
+  lda cx
+  cmp lp_cx
+  bne @diff
+  lda cy
+  cmp lp_cy
+  bne @diff
+  lda bug_h
+  cmp lp_h
+  bne @diff
+  lda bug_next
+  cmp lp_nx
+  bne @diff
+  sec
+  rts
+@diff:
+  inc lp_n
+  lda lp_n
+  cmp lp_pow
+  bcc @r
+  lda #0
+  sta lp_n
+  lda lp_pow
+  bmi @keep
+  asl a
+  sta lp_pow
+@keep:
+  lda cx
+  sta lp_cx
+  lda cy
+  sta lp_cy
+  lda bug_h
+  sta lp_h
+  lda bug_next
+  sta lp_nx
+@r:
+  clc
+  rts
+
+loop_reset:
+  lda #$ff
+  sta lp_cx
+  lda #0
+  sta lp_n
+  lda #2
+  sta lp_pow
   rts
 
 sun_update:

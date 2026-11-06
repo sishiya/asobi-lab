@@ -26,7 +26,7 @@ function save(k, v) { try { localStorage.setItem(k, v); return true; } catch { r
 // ---------- 棚 ----------
 const romCache = new Map();
 async function loadRom(entry) {
-  if (!romCache.has(entry.id)) romCache.set(entry.id, fetch(entry.file + '?v=5').then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
+  if (!romCache.has(entry.id)) romCache.set(entry.id, fetch(entry.file + '?v=6').then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
   return romCache.get(entry.id);
 }
 // 棚の手ざわりの音（sfx/。Stable Audio で作って、カチッが1つだけの所を切り出した）。設定の音と大きさにしたがう。
@@ -190,6 +190,7 @@ async function openEntry(e, gesture) {
     $('cartName').textContent = e.title;
     guideKeys = e.keys?.length ? e.keys : [['PAD', ''], ['A', ''], ['B', ''], ['START', ''], ['SELECT', '']];
     renderGuide();
+    showHint(e);
     document.body.classList.add('playing');
     fit();
     if (cont) { if (room && roomPlay) setRoomPlay(true); else { draw(); await upTo(drawn(), 200); } }
@@ -424,15 +425,30 @@ let guideKeys = [];
 const BUTTON_LABEL = { PAD: TX('十字キー', 'D-pad'), A: 'A', B: 'B', START: 'START', SELECT: 'SELECT' };
 function renderGuide() {
   const k = input.keys.p1, first = (b) => (k[b][0] ? keyLabel(k[b][0]) : '—');
+  // 指の操作: ボタンの下に、そのソフトでの役目を小さく（v034。スマホでは下のキーの案内を出さないので）
+  const role = Object.fromEntries(guideKeys.map(([b, w]) => [b, String(w).replace(/^←→\s*/, '').split(/[（(]/)[0].trim()]));
+  for (const el of document.querySelectorAll('#pad [data-btn]')) el.dataset.role = role[el.dataset.btn] || '';
+  $('dpad').dataset.role = role.PAD || '';
   $('keys').innerHTML = guideKeys.map(([btn, what]) => {
-    const codes = btn === 'PAD' ? ['UP', 'DOWN', 'LEFT', 'RIGHT'].map(first) : k[btn].slice(0, 2).map(keyLabel);
+    const lr = btn === 'PAD' && /^←→/.test(what) && !/↑|↓/.test(what);   // 左右だけ使うソフトは ↑↓ を出さない
+    const codes = btn === 'PAD' ? (lr ? ['LEFT', 'RIGHT'] : ['UP', 'DOWN', 'LEFT', 'RIGHT']).map(first) : k[btn].slice(0, 2).map(keyLabel);
     const kb = (codes.length ? codes : ['—']).map((x) => `<kbd>${x}</kbd>`).join('');
-    if (btn === 'PAD') return `<span>${kb}<em>${what}</em></span>`;
+    if (btn === 'PAD') return `<span>${kb}<em>${lr ? String(what).replace(/^←→\s*/, '') : what}</em></span>`;
     const face = btn === 'A' || btn === 'B' ? `<b class="face">${btn}</b>` : `<b class="face word">${BUTTON_LABEL[btn]}</b>`;
     return `<span>${face}<i>＝</i>${kb}<em>${what}</em></span>`;
   }).join('') + `<button class="keyedit" id="keyEdit">${TX('キーを変える', 'Change keys')}</button>`;
   $('keyEdit').addEventListener('click', () => settings.open('keys'));
 }
+// はじめて遊ぶソフトだけ、画面の上に1行の遊び方（library.js の desc）。押すか 8 秒で消える（v034）
+let hintT = 0;
+function showHint(e) {
+  const el = $('hint'); clearTimeout(hintT); el.hidden = true;
+  if (!e.id || !e.desc || read('retro8.seen.' + e.id, '')) return;
+  save('retro8.seen.' + e.id, '1');
+  el.textContent = e.desc; el.hidden = false;
+  hintT = setTimeout(() => { el.hidden = true; }, 8000);
+}
+$('hint').addEventListener('click', () => { $('hint').hidden = true; });
 const buzz = () => { if (COARSE && vibrateOn && navigator.vibrate) navigator.vibrate(8); };
 for (const el of document.querySelectorAll('[data-btn]')) {
   const names = el.dataset.btn.split(' ');

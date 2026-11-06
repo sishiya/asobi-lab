@@ -2135,7 +2135,25 @@ race_update:
   jsr race_draw
   ; じぶんがゴールして、みんながゴールするか 3 秒たったら結果へ
   lda r_place
+  bne @mine
+  ; じぶんのほかがみんなゴールしたら、A か B で結果へとばせる（v034。遅い子は 1 分をこえることがある）。sub = 1 で「とばす」を出した
+  lda places
+  cmp #NRUN-1
+  bcc @r
+  lda sub
+  bne @sk
+  inc sub
+  lda #<m_skip
+  sta ptr
+  lda #>m_skip
+  sta ptr+1
+  jsr buf_data
+@sk:
+  lda pad_new
+  and #BTN_A|BTN_B
   beq @r
+  jmp go_result
+@mine:
   inc sub
   lda places
   cmp #NRUN
@@ -2637,6 +2655,11 @@ go_result:
   lda #<r_lose
   sta ptr
   lda #>r_lose
+  sta ptr+1
+  jsr text_now
+  lda #<r_tip        ; 負けたら、つぎにすること（v034）
+  sta ptr
+  lda #>r_tip
   sta ptr+1
   jsr text_now
   lda #SONG_LOSE

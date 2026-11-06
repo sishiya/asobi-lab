@@ -428,3 +428,55 @@ html.room3d #roombox[hidden]{display:block!important;background:#5a4c3f}   /* [h
 .stage.in3d .board .pcb{display:none}
 .stage.in3d .board .cap{min-height:2.4em}
 @media (pointer:coarse) and (orientation:landscape){ .stage.roomon.boardon .board{left:160px;right:168px;width:auto;bottom:8px;padding:8px 10px} }
+
+/* ---------- v034 UX の見なおし（2026-11-07。遊び手・UX 役の指摘） ---------- */
+/* 説明書: はじめに遊び方。機械のしくみはたたむ */
+.help h3{margin:14px 0 4px;font-size:15px}
+.help .howto{margin:4px 0 0;padding-left:1.4em;line-height:1.7}
+.help .tech{margin-top:14px}
+.help .tech summary{cursor:pointer;font-weight:700;min-height:40px;display:flex;align-items:center}
+/* はじめて遊ぶソフトの1行（画面の上。押すと消える） */
+.hint{position:absolute;left:50%;top:22px;transform:translateX(-50%);z-index:3;width:min(88%,460px);margin:0;padding:10px 14px;border-radius:10px;
+  background:rgba(11,15,26,.9);border:1px solid var(--line);color:var(--ink);font-size:14px;line-height:1.6;text-align:center;cursor:pointer;
+  box-shadow:0 6px 20px rgba(0,0,0,.4);animation:hintIn .3s ease-out}
+@keyframes hintIn{from{opacity:0;transform:translate(-50%,-6px)}}
+/* 指の操作: ボタンの下に、そのソフトでの役目 */
+.pad [data-role]:not([data-role=""])::after{content:attr(data-role);position:absolute;left:50%;top:calc(100% + 4px);transform:translateX(-50%);
+  white-space:nowrap;font-size:11px;font-weight:600;letter-spacing:0;color:var(--muted);pointer-events:none}
+.pad .round,.pad .pill{position:relative}
+.ab .round::after{transform:translateX(-50%) rotate(12deg)}
+.dpad[data-role]:not([data-role=""])::after{top:calc(100% + 2px)}
+.both[data-role]::after{display:none}
+.pad{padding-bottom:16px}
+/* スマホのたて: 上の帯の絵だけのボタンを小さくして、ソフトの名前の場所をあける */
+@media (max-width:520px){
+  .tools{gap:4px}
+  .tool{padding:6px 8px;min-width:40px}
+  #btnBoard [lang]{display:none}
+  .tools #btnReset{margin-left:6px}
+  .name{gap:6px}
+}
+/* スマホのたて: 基板を開いたら、画面と基板の場所だけ上下に動かす（コントローラーとかぶらない） */
+@media (pointer:coarse) and (orientation:portrait){
+  .stage.boardon{overflow-y:auto;justify-content:flex-start;touch-action:pan-y}
+  .stage.boardon .board{touch-action:pan-y}
+}
+/* スマホの横: SELECT・START は画面の下にかぶせず、右上へ */
+@media (pointer:coarse) and (orientation:landscape){
+  .app .pad .mid{position:fixed;right:max(16px,env(safe-area-inset-right));top:60px;flex-direction:column;align-items:flex-end;gap:8px;opacity:.9}
+  .pad .pill[data-role]::after{left:auto;right:calc(100% + 6px);top:50%;transform:translateY(-50%)}
+}
+/* 背の低い横長（スマホの横）の棚: 部屋を左、カセットを右に並べて、カセットがはじめから見えるように */
+@media (orientation:landscape) and (max-height:500px){
+  html.room3d .shelf:not([hidden]),.shelf:has(.roombox:not([hidden])):not([hidden]){display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);height:100vh;height:100dvh;min-height:0}
+  .shelf>.room{grid-column:1/-1}
+  .shelf .roombox{height:auto!important;min-height:0}
+  .shelf .desk{min-height:0;overflow-y:auto;margin-top:0;padding:10px 0 20px}
+  .shelf .desk-lead{margin-bottom:4px;font-size:13px}
+  .shelf .row{gap:22px 18px;padding:14px 10px 20px;zoom:.82}
+}
+/* スマホのたて（せまい）: 「部屋」はたての小さな画面では見えにくいので外し、ソフトの名前を読めるように。基板を開いたら1行の遊び方は出さない */
+@media (max-width:420px) and (orientation:portrait){ #btnRoom{display:none!important} }
+.stage.boardon .hint{display:none}
+@media (pointer:coarse) and (orientation:portrait){ .stage.boardon{padding-bottom:56px} }
+@media (pointer:coarse) and (orientation:portrait){ .app.boardon .both{display:none} }   /* 基板の「1命令」「1こま」とかさならないように */

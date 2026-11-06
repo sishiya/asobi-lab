@@ -79,6 +79,7 @@ bug_st = $70       ; 0 飛ぶ・1 舌にくっついた
 bug_dy = $76       ; いまの高さ
 lang = $7E          ; 0 かな・1 英語（タイトルのたびに $7FFF から）
 LANG = $7FFF
+SAVE = $6000       ; 電池の RAM: "FN01"・ハイスコア 6けた
 
 OAM = $0200
 BUF = $0300        ; 帰線のあいだに画面へ書くもの: 番地の上・下・長さ・中身…、0 でおわり
@@ -128,6 +129,7 @@ reset:
   lda #$ac
   sta rng+1
   jsr load_palette
+  jsr load_save
   lda #CTRL_ON
   sta PPUCTRL
   jsr go_title
@@ -1286,6 +1288,7 @@ go_end:
 @cp:
   lda score,x
   sta hi,x
+  sta SAVE+4,x
   dex
   bpl @cp
 @nohi:
@@ -1396,9 +1399,44 @@ say_ptr:
   sta ptr+1
   rts
 
+; ================= セーブ（ハイスコア） =================
+load_save:
+  ldx #3
+@c:
+  lda SAVE,x
+  cmp save_magic,x
+  bne @new
+  dex
+  bpl @c
+  ldx #5
+@d:
+  lda SAVE+4,x
+  cmp #10
+  bcs @new
+  sta hi,x
+  dex
+  bpl @d
+  rts
+@new:
+  ldx #3
+@w:
+  lda save_magic,x
+  sta SAVE,x
+  dex
+  bpl @w
+  ldx #5
+  lda #0
+@z:
+  sta hi,x
+  sta SAVE+4,x
+  dex
+  bpl @z
+  rts
+
 ; 曲の係（music_play・music_stop・music_update）は src/music.s（build がつなぐ）
 
 ; ================= 決まりの表 =================
+save_magic: .byte 'F', 'N', '0', '1'
 spawn_iv: .byte 60, 52, 44, 38, 32, 28
 fire_ch: .byte 2, 3, 4, 4, 5, 6        ; 16 のうちホタルになる数
 spd_si: .byte 1, 0, 0                  ; 速さの整数（ハエ・ガ・ホタル）
