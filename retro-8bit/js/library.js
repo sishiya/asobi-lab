@@ -1,7 +1,7 @@
 // 棚にならぶカートリッジ（あそびラボのオリジナルだけ）。frames = 棚の小さな画面に出すまで進めるフレーム
 // color = カセットのはじめの色（shelf.js の CART_COLORS から。本体の色とかぶらないもの）。keys = [コントローラーのボタン（PAD・A・B・START・SELECT）, そのソフトで何をするか]。押せるキーは main.js の BUTTON_KEYS
 // 名前・説明・キーの案内は TX(日本語, 英語)。ソフトの中の字も、ページのことばで かな／英語 になる（i18n.js の setRomLang）
-// ならびは カエル・ダンゴムシ・恐竜（2026-10-25 ユーザー）
+// ならびは カエル・ダンゴムシ（2026-10-25 ユーザー）。恐竜かけっこ牧場 8bit は 2026-11-07 に棚から外した（ユーザー。ROM と src/dino-ranch/ は残す）
 import { TX } from './i18n.js';
 
 export const LIBRARY = [
@@ -17,12 +17,5 @@ export const LIBRARY = [
       'A pillbug turns only when blocked: left, then right, then left. Place stones to walk it to the leaves. In the sun it curls up.'),
     keys: [['PAD', TX('カーソル', 'cursor')], ['A', TX('石を置く・とる', 'place / take stone')], ['START', TX('歩かせる', 'walk')], ['B', TX('止める', 'stop')], ['SELECT', TX('石をもどす', 'clear stones')]],
     frames: 70,
-  },
-  {
-    id: 'dino-ranch', file: 'roms/dino-ranch.nes', title: TX('恐竜かけっこ牧場 8bit', 'Dino Sprint Ranch 8bit'), color: '#d4a03a',
-    desc: TX('恐竜をかけ合わせて育て、100m を走らせる。大きい体は重く、長い脚は転びやすい。しっぽでつり合いをとる。',
-      'Breed dinosaurs and race them 100m. Big bodies are heavy, long legs trip easily, and the tail keeps balance.'),
-    keys: [['PAD', TX('えらぶ', 'choose')], ['A', TX('決める', 'OK')], ['B', TX('もどる', 'back')], ['START', TX('はじめる', 'start')]],
-    frames: 90,
   },
 ];
