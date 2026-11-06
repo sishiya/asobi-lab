@@ -6,52 +6,130 @@ const grid = (w, h, f) => Array.from({ length: h }, (_, y) => Array.from({ lengt
 // 乱数（絵を毎回同じにする）
 const hash = (x, y, s) => { let n = (x * 374761393 + y * 668265263 + s * 2147483647) | 0; n = (n ^ (n >>> 13)) * 1274126177; return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
 
-// --- 背景（パレット: 0 土と岩と石 / 1 葉っぱ / 2 ひなた / 3 字） ---
-// 土: 地の色（1）いっぱいに、こい粒（0）と、まれに灰の砂（2）。4 種類をます目でまぜる
-const soil = (s) => grid(16, 16, (x, y) => { const h = hash(x, y, s); return h < 0.04 ? '.' : h > 0.99 ? '2' : '1'; });
-// 岩（動かない）: ますいっぱいの大きな岩。0 のふちと右下の影、2 灰・3 明るい灰
-const rock = grid(16, 16, (x, y) => {
-  const inside = (xx, yy) => { const dx = (xx - 7.5) / 7.3, dy = (yy - 7.3) / 6.6; return dx * dx + dy * dy + 0.06 * Math.sin(xx * 1.9 + yy * 1.1) <= 1; };
-  if (!inside(x, y)) return inside(x - 1, y - 1) ? '.' : (hash(x, y, 5) < 0.07 ? '.' : '1');
-  if (!inside(x - 1, y) || !inside(x + 1, y) || !inside(x, y - 1) || !inside(x, y + 1)) return '.';
-  const dx = (x - 7.5) / 7.3, dy = (y - 7.3) / 6.6;
-  if (dx + dy < -0.95 && dx * dx + dy * dy < 0.7) return '3';
-  if (Math.abs(x - 9 - (y - 5) * 0.5) < 0.5 && y > 4 && y < 10) return '.'; // ひび
-  return hash(x, y, 3) < 0.03 ? '3' : '2';
-});
-// 小石（遊ぶ人が置く）: 小さく丸く、明るい。岩と見分けられるように
+// --- 背景（v036 で描きなおし。ユーザー「ちょっとチープにみえる」。アートディレクター役の採点で直した）
+// パレット: 0 土と小石 / 1 葉っぱ / 2 ひなた / 3 字と岩とふち石。どのパレットも土の色 $17 を持つので、ますのすみは土にとける
+// 土は 8×8 の絵 8 種（ふつう 4・しめった所 4）を、ますの 4 つの角に置く。どれを置くかは面ごとの表（data.mjs）。岩の右と下の土には影の絵
+// 土の色: 0 こげ茶（すきま・影）・1 土・2 明るい土（大きな土くれの光）・3 灰（遊ぶ人の小石と岩だけの色。土には使わない）
+const g8 = (f) => grid(8, 8, f);
+// 土くれ: 丸いかたまりを散らし、大きいものだけ左上のふちを明るく、右下のふちを こげ茶に（光は左上から）
+function clods(s, n, rmin = 1.2, rmax = 2.6, lit = 1) {
+  const cs = Array.from({ length: n }, (_, i) => ({ x: hash(i, 1, s) * 10 - 1, y: hash(i, 2, s) * 10 - 1, r: rmin + hash(i, 3, s) * (rmax - rmin) }));
+  return g8((x, y) => {
+    for (const c of cs) {
+      for (const ox of [-8, 0, 8]) for (const oy of [-8, 0, 8]) { // となりの絵とつながるよう、8 ずらしたところにも同じかたまり
+        const dx = x - c.x - ox, dy = y - c.y - oy, d = Math.hypot(dx, dy);
+        if (d > c.r + 0.8) continue;
+        if (d > c.r) return dx + dy > 0.5 ? '.' : '1';
+        if (lit && c.r > 1.8 && d > c.r - 0.9 && dx + dy < -1.0) return '2';
+      }
+    }
+    return '1';
+  });
+}
+// しめった所: かたまりが小さく暗い（光なし）
+const damp = (s) => { const b = clods(s, 4, 0.7, 1.2, 0); return g8((x, y) => (hash(x, y, s + 4) < 0.1 ? '.' : b[y][x])); };
+export const SOIL_POOL = [clods(11, 2), clods(12, 1), clods(13, 2), clods(16, 1, 2.0, 2.8), damp(21), damp(22), damp(23), damp(24)];
+// 岩の影（岩の右・下の土に落ちる）: 岩のそばの 2 ドットはこげ茶、その外の 1 ドットは市松（すきまなく続ける）
+const shadeL = (s) => { const b = clods(s, 2, 1.2, 2.6, 0); return g8((x, y) => (x < 2 || (x === 2 && (x + y) % 2) ? '.' : b[y][x])); };
+const shadeT = (s) => { const b = clods(s, 2, 1.2, 2.6, 0); return g8((x, y) => (y < 2 || (y === 2 && (x + y) % 2) ? '.' : b[y][x])); };
+const shadeTL = (s) => { const b = clods(s, 2, 1.2, 2.6, 0); return g8((x, y) => (Math.min(x, y) < 2 || (Math.min(x, y) === 2 && (x + y) % 2) ? '.' : b[y][x])); };
+
+// 岩（動かない。パレット 3: 0 こげ茶・1 白・2 灰・3 土）: ますいっぱいの丸い岩。左上が明るく、右下は灰とこげ茶の市松で暗く。すみは土
+function rock(seed, ex, ey, wob) {
+  const inside = (xx, yy) => {
+    const dx = (xx - 7.5) / ex, dy = (yy - 7.8) / (ey * (yy > 7.8 ? 0.9 : 1)); // 下を少し平らに
+    return dx * dx + dy * dy + wob * Math.sin(xx * 1.7 + yy * 1.3 + seed) <= 1;
+  };
+  const crack = (x, y) => (seed === 1 ? x - y === 6 && x >= 9 && x <= 11 : x + y === 13 && x >= 3 && x <= 5); // まん中から外した短いまっすぐなひび
+  return grid(16, 16, (x, y) => {
+    if (!inside(x, y)) return inside(x - 1, y - 1) || inside(x, y - 1) ? '.' : '3'; // 外は土（右下と真下は影。下のますの影につなぐ）
+    if (!inside(x + 1, y) || !inside(x, y + 1)) return '.';
+    if (crack(x, y)) return '.';                                      // ひび
+    const dx = (x - 7.5) / ex, dy = (y - 7.8) / ey;
+    const lit = -(dx * 0.7 + dy * 0.75);
+    if (lit > 0.6 && hash(x, y, seed) < 0.85) return '1';
+    if (lit > -0.5) return '2';
+    if (lit > -0.85) return (x + y) % 2 ? '2' : '.';   // 暗いがわは市松（形が残るように、べたの こげ茶にしない）
+    return '.';
+  });
+}
+// 小石（遊ぶ人が置く。パレット 0）: 土の上の、平たい丸い灰の石。右下のふちと影は こげ茶
 const stone = grid(16, 16, (x, y) => {
-  const inside = (xx, yy) => { const dx = (xx - 7.5) / 5.3, dy = (yy - 7.5) / 4.6; return dx * dx + dy * dy <= 1; };
-  if (!inside(x, y)) return inside(x - 1, y - 1) ? '.' : '1';
-  if (!inside(x - 1, y) || !inside(x + 1, y) || !inside(x, y - 1) || !inside(x, y + 1)) return '.';
-  return (x - 7.5) + (y - 7.5) > 2.5 ? '2' : '3';
-});
-// 葉っぱ（パレット 1: 1 土・2 こい緑・3 緑）: ななめの大きな葉、まん中に葉脈
-const leaf = grid(16, 16, (x, y) => {
-  const u = (x - y) / 1.414, v = (x + y - 15) / 1.414; // u = 葉の幅の向き、v = 葉の長さの向き
-  const len = 8.8, wid = 4.9 * (1 - (v / len) ** 2);
-  if (Math.abs(v) > len || Math.abs(u) > wid) {
-    return hash(x, y, 4) < 0.07 ? '.' : '1';
+  const inside = (xx, yy) => { const dx = (xx - 7.3) / 5.8, dy = (yy - 7.0) / 4.6; return dx * dx + dy * dy <= 1; };
+  if (inside(x, y)) {
+    const dx = (x - 7.3) / 5.8, dy = (y - 7.0) / 4.6;
+    if (!inside(x + 1, y + 1)) return '.';
+    if (dx * 0.7 + dy * 0.9 > 0.55 && (x + y) % 2) return '.';
+    return '3';
   }
-  if (Math.abs(u) < 0.5 || Math.abs(u) > wid - 0.9) return '2';
-  return '3';
-});
-// ひなた（パレット 2: 1 黄・2 うすい黄・3 だいだい）: 木もれ日。ますいっぱいに明るく、光のつぶ
-const sun = (s) => grid(16, 16, (x, y) => {
-  const h = hash(x, y, s);
-  if (h < 0.10) return '2';
-  if (h > 0.93) return '3';
+  if (inside(x - 1, y - 2) || inside(x - 2, y - 1)) return '.';
   return '1';
+});
+// 葉っぱ（パレット 1: 0 こげ茶・1 土・2 緑・3 黄緑の照り）: ななめに置いた木の葉。とがった先と葉柄、主脈と片がわ 2 本の側脈、右下に影。3 つの向き
+function leaf(seed, ang, len, wid, bend) {
+  const ca = Math.cos(ang), sa = Math.sin(ang);
+  const at = (xx, yy) => {
+    const px = xx - 7.5, py = yy - 7.5;
+    const v = px * ca + py * sa, u = -px * sa + py * ca - bend * (1 - (v / len) ** 2);
+    const t = (v + len) / (2 * len);                                  // 0 = 付け根・1 = 先
+    const w = wid * Math.sin(Math.PI * Math.min(1, t * 1.15)) ** 0.8 * (1 + 0.05 * Math.sin(v * 0.9 + seed));
+    return { v, u, w, on: Math.abs(v) <= len && Math.abs(u) <= w };
+  };
+  return grid(16, 16, (x, y) => {
+    const a = at(x, y);
+    if (a.on) {
+      if (Math.abs(a.u) < 0.5) return '3';                                               // 主脈
+      const k = a.v + Math.abs(a.u) * 0.9;                                              // 側脈（片がわ 2 本）
+      if ((Math.abs(k + 1.5) < 0.45 || Math.abs(k - 2.5) < 0.45) && Math.abs(a.u) > 1 && Math.abs(a.u) < a.w - 0.8) return '3';
+      return '2';
+    }
+    if (at(x - 1, y - 1).on) return '.';                                                  // 右下の影
+    const sv = (x - 7.5) * ca + (y - 7.5) * sa, su = -(x - 7.5) * sa + (y - 7.5) * ca;
+    if (sv < -len + 0.5 && sv > -len - 2.5 && Math.abs(su) < 0.6) return '.';             // 葉柄
+    return '1';
+  });
+}
+// 食べたあとの葉（パレット 1）: 土に、のこった主脈と小さなかけら
+const eaten = grid(16, 16, (x, y) => {
+  const h = hash(x, y, 61);
+  const u = (x - y) / 1.414;
+  if (Math.abs(u) < 0.5 && x > 3 && x < 12) return h < 0.6 ? '3' : '1';
+  if (h < 0.04) return '2';
+  return clods(61, 2)[y & 7][x & 7];
+});
+// ひなた（パレット 2: 0 こげ茶・1 土・2 うすい土・3 いちばん明るい土）: まわりと同じ土くれに光が当たって 1 段明るい。ふちは土へぼかす
+export function sunTile(seed, eL, eR, eT, eB) {
+  const b = clods(11 + (seed & 3), 2);
+  return g8((x, y) => {
+    const d = Math.min(eL ? x : 9, eR ? 7 - x : 9, eT ? y : 9, eB ? 7 - y : 9);
+    const h = hash(x, y, seed);
+    if (d < 3 && h < [0.8, 0.5, 0.2][d]) return b[y][x];           // ふち: 日の当たらない土のまま
+    return { '.': '1', 1: '2', 2: '3' }[b[y][x]] ?? '2';
+  });
+}
+// ふち石（字の段のいちばん下。パレット 3）: 花壇のふちの丸い石。大きさをそろえず、ときどきすきま
+const edgeStone = (seed) => g8((x, y) => {
+  if (seed === 3) return '.';
+  const r = [2.8, 3.9, 3.3][seed];
+  const dx = x - 3.5 - (seed === 2 ? 0.5 : 0), dy = y - (7.4 - r);
+  const d = Math.hypot(dx * 0.95, dy * 1.1);
+  if (d > r) return '.';
+  if (d > r - 0.9) return dx + dy > 0 ? '.' : '2';
+  if (dx + dy < -1.6) return '1';
+  return '2';
 });
 
 export const BG = {
   blank: grid(8, 8, () => '.'),
-  soil1: soil(1), soil2: soil(2), soil3: soil(3), soil4: soil(4),
-  rock, stone, leaf,
-  sun1: sun(1), sun2: sun(2),
-  // 字の段の小石の印（パレット 3: 1 白・2 灰・3 黒）。ある／使った
-  icon: ['........', '..2222..', '.211122.', '2111222.', '2112222.', '.22223..', '..333...', '........'],
-  iconOff: ['........', '........', '..3333..', '.3....3.', '.3....3.', '..3333..', '........', '........'],
+  shadeL: shadeL(51), shadeT: shadeT(52), shadeTL: shadeTL(53),
+  rock0: rock(1, 8.4, 7.2, 0.12), rock1: rock(2, 8.6, 7.0, 0.05),
+  stone,
+  leaf0: leaf(1, Math.PI / 4, 7.8, 5.2, 0.6), leaf1: leaf(2, -Math.PI / 5, 7.6, 5.0, -0.6), leaf2: leaf(3, Math.PI * 0.62, 7.8, 5.2, 0.4),
+  eaten,
+  edge0: edgeStone(0), edge1: edgeStone(1), edge2: edgeStone(2), edge3: edgeStone(3),
+  // 字の段の小石の印（パレット 3: 1 白・2 灰・0 こげ茶のふち）。ある／使った
+  icon: ['........', '..2222..', '.211122.', '2111222.', '2112222.', '.2222...', '........', '........'],
+  iconOff: ['........', '........', '..2222..', '.2....2.', '.2....2.', '..2222..', '........', '........'],
 };
 
 // 題字（16×16）: ダンゴムシのみち。1 = 字の色。影はビルドでつける
@@ -74,23 +152,31 @@ export const KANA = {
 };
 
 // --- スプライト（パレット: 0 ダンゴムシ / 1 しるし（カーソル・矢じるし） / 2 葉のかけら / 3 字のかわり） ---
-// ダンゴムシ（右むき）: 上から見たたまご形に、背中の節（すじ 1）。頭は右、触角と脚が少し出る。1 黒・2 灰・3 明るい灰
+// ダンゴムシ（右むき。v036 で描きなおし）: 上から見た、つやのある まるい背中。1 黒（ふち・節のすきま）・2 こい灰（背中）・3 明るい灰（光）
+// 背中の板は 7 枚＋しっぽ。光は左上から: 板ごとに上のほうへ光の点が並び、下のふちは黒く沈む。頭は右で少し細く、触角が前へのびる。脚は歩くと前後に
 function bugRight(step) {
+  const cx = 6.8, cy = 7.5, rx = 6.6, ry = 5.2;
+  const inside = (x, y) => {
+    const dx = (x - cx) / rx, dy = (y - cy) / (ry * (x > 11 ? 1 - (x - 11) * 0.12 : 1)); // 頭のほうは細く
+    return dx * dx + dy * dy <= 1;
+  };
+  const seg = [3.0, 5.6, 8.2, 10.8]; // 板のさかい（x）。16 ドットでは 7 枚は見えないので、大きな 4 枚＋しっぽ
   return grid(16, 16, (x, y) => {
-    const dx = (x - 7) / 6.9, dy = (y - 7.5) / 5.7;
-    const d = dx * dx + dy * dy;
-    if (d <= 1) {
-      if (d > 0.72) return '1';                             // ふち
-      if (x >= 12) return '1';                              // 頭
-      if (x === 2 || x === 4 || x === 6 || x === 8 || x === 10) return '1'; // 節
-      if (dy < -0.35) return '3';                           // 背中の光
+    if (inside(x, y)) {
+      if (!inside(x, y - 1) || !inside(x, y + 1) || !inside(x - 1, y) || !inside(x + 1, y)) return '1'; // ふち
+      const dy = (y - cy) / ry;
+      if (x >= 12) return dy < -0.2 && dy > -0.7 ? '3' : '2';                                      // 頭（光は小さく）
+      const onSeg = seg.some((s) => Math.abs(x - s) < 0.5);
+      if (onSeg) return dy > -0.25 ? '1' : '2';                                                    // 節のすきま（光の当たる上は見えない）
+      const k = seg.findIndex((s) => x < s), left = k <= 0 ? 0.5 : seg[k - 1];
+      if (dy < -0.2 && dy > -0.8 && x - left < 3.0) return '3';                                    // 板ごとの光（横長に）
       return '2';
     }
     // 脚（上と下にのぞく。歩くと前後にずれる）
-    const legs = step ? [3, 6, 9] : [4, 7, 10];
-    if ((y === 1 || y === 14) && legs.includes(x)) return '1';
-    // 触角
-    if ((x === 14 && (y === 4 || y === 11)) || (x === 15 && (y === 2 || y === 13))) return '1';
+    const legs = step ? [4, 9] : [5, 10];   // 上から見ると脚はほとんど殻にかくれる。ふちに短い点だけ
+    if ((y === 2 || y === 13) && legs.includes(x)) return '1';
+    // 触角（2 本。前へ、外へ開く）
+    if ((x === 13 && (y === 5 || y === 10)) || (x === 14 && (y === 4 || y === 11))) return '1';
     return '.';
   });
 }

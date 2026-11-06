@@ -101,6 +101,9 @@ lp_h = $2F
 lp_nx = $4D
 lp_n = $4E
 lp_pow = $4F
+qt = $50           ; draw_cell の 4 つの角の絵（4バイト）
+sqp = $54          ; 面の土の表（soil_q・soil_d）を指す
+sdp = $56
 LANG = $7FFF
 
 OAM = $0200
@@ -665,7 +668,7 @@ title_sprites:
 @nm:
   lda ttl_x
   sta m_x
-  lda #175
+  lda #191
   sta m_y
   lda ttl_x
   and #8
@@ -692,6 +695,14 @@ load_stage:
   sta ptr+1
   jsr draw_nt
   ldx stage
+  lda stage_sq_lo,x
+  sta sqp
+  lda stage_sq_hi,x
+  sta sqp+1
+  lda stage_sd_lo,x
+  sta sdp
+  lda stage_sd_hi,x
+  sta sdp+1
   lda stage_cells_lo,x
   sta ptr
   lda stage_cells_hi,x
@@ -817,6 +828,8 @@ hud_icons:
   rts
 
 ; ます X を描きなおす（MAP の中身で）。X はこわさない
+; 4 つの角の絵を qt〜qt+3（左上・右上・左下・右下）に決めてから送る。土は角ごとに soil_rt の表から（ビルドの画面と同じ）、
+; 左か上が岩なら影の絵。葉っぱを食べたあと（PLAN が葉っぱ）は食べあとの絵（v036）
 draw_cell:
   stx ci
   txa
@@ -831,40 +844,100 @@ draw_cell:
   lda MAP,x
   cmp #C_ROCK
   bne @n1
-  lda #T_ROCK
-  bne @have
+  lda #T_ROCK0
+  jmp @four
 @n1:
   cmp #C_LEAF
   bne @n2
-  lda #T_LEAF
-  bne @have
+  lda leaf_t,x
+  jmp @four
 @n2:
   cmp #C_SUN
   bne @n3
-  lda cx
-  eor cy
-  and #1
-  asl a
-  asl a
-  clc
-  adc #T_SUN1
-  bne @have
+  lda #T_SUNC
+  jmp @four
 @n3:
   cmp #C_STONE
   bne @soil
   lda #T_STONE
-  bne @have
+  jmp @four
 @soil:
-  lda cy
-  asl a
-  eor cx
-  and #3
-  asl a
-  asl a
-  clc
-  adc #T_SOIL1
-@have:
+  lda PLAN,x
+  cmp #C_LEAF
+  bne @dirt
+  lda #T_EATEN
+  jmp @four
+@dirt:
+  ; 角ごとの 2 ビット（soil_q）に、ふつう／しめった所（soil_d）を足す
+  ldy ci
+  lda (sqp),y
+  sta tmp
+  lda (sdp),y
   sta tmp3
+  ldy #0
+@q:
+  lda tmp3          ; この角がしめった所なら 4 を足す
+  and #1
+  asl a
+  asl a
+  sta tmp4
+  lda tmp
+  and #3
+  clc
+  adc tmp4
+  adc #T_SOILP0
+  sta qt,y
+  lsr tmp
+  lsr tmp
+  lsr tmp3
+  iny
+  cpy #4
+  bne @q
+  ; 左が岩 → 左の 2 つに影
+  lda cx
+  beq @nl
+  dex
+  lda MAP,x
+  inx
+  cmp #C_ROCK
+  bne @nl
+  lda #T_SHADEL
+  sta qt
+  sta qt+2
+@nl:
+  ; 上が岩 → 上の 2 つに影（左上は、左も岩ならかどの影）
+  lda cy
+  beq @out
+  txa
+  sec
+  sbc #16
+  tax
+  lda MAP,x
+  ldx ci
+  cmp #C_ROCK
+  bne @out
+  lda #T_SHADET
+  sta qt+1
+  lda qt
+  cmp #T_SHADEL
+  bne @t1
+  lda #T_SHADETL
+  sta qt
+  jmp @out
+@t1:
+  lda #T_SHADET
+  sta qt
+  jmp @out
+@four:
+  sta qt
+  clc
+  adc #1
+  sta qt+1
+  adc #1
+  sta qt+2
+  adc #1
+  sta qt+3
+@out:
   ; 番地 = $2080 + cy×64 + cx×2
   lda cy
   lsr a
@@ -894,11 +967,9 @@ draw_cell:
   ldx tmp2
   ldy #2
   jsr buf_head
-  lda tmp3
+  lda qt
   jsr buf_byte
-  ldx tmp3
-  inx
-  txa
+  lda qt+1
   jsr buf_byte
   lda tmp2
   clc
@@ -908,16 +979,9 @@ draw_cell:
   adc #0
   ldy #2
   jsr buf_head
-  ldx tmp3
-  inx
-  inx
-  txa
+  lda qt+2
   jsr buf_byte
-  ldx tmp3
-  inx
-  inx
-  inx
-  txa
+  lda qt+3
   jsr buf_byte
   ldx ci
   rts
