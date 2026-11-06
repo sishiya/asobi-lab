@@ -109,7 +109,15 @@ export const LEVELS = [
     hints: [], fail: TX('崖をわたったあと、キーウィは段をのぼれた？', 'After crossing the chasm, could the kiwi climb the step?'),
   },
   {
-    ...base, T: 30, id: 's2', plate: 'VII', name: TX('高い巣', 'The High Nest'),
+    // v093: 柱で早く引き返させ、板で崖をわたって、卵が光っているあいだに帰る（高い巣の手前の、やさしい組み合わせ）
+    ...base, T: 32, id: 'm1', plate: 'VII', name: TX('早く帰っておいで', 'Come Home Early'),
+    tops: tops([[12, 14, null]]), start: { x: 17, dir: 1 }, goal: { x: 3 },
+    window: [15, 24],
+    stock: { wall: 1, plank: 1 },
+    hints: [{ text: '__windowHint__', when: (c) => c.placed }], fail: '',
+  },
+  {
+    ...base, T: 30, id: 's2', plate: 'VIII', name: TX('高い巣', 'The High Nest'),
     tops: tops([[0, 6, 6], [7, 11, 3], [25, 29, null]]), start: { x: 16, dir: 1 }, goal: { x: 3 },
     window: [14, 26], // 柱でひきかえさせる「時刻」と、ななめ板の時刻を、両方合わせる（窓は広め）
     stock: { wall: 1, lift: 1 },
@@ -117,23 +125,48 @@ export const LEVELS = [
   },
   {
     // 崖が2つ: 広い崖はすべる板で運び、せまい崖は長い板。卵が光っているあいだに着く
-    ...base, T: 30, id: 's3', plate: 'VIII', name: TX('まにあう巣', 'Just in Time'),
+    ...base, T: 30, id: 's3', plate: 'IX', name: TX('まにあう巣', 'Just in Time'),
     tops: tops([[8, 16, null], [22, 26, null]]), start: { x: 1.6, dir: 1 }, goal: { x: 32 },
     window: [15, 22],
     stock: { beam: 1, slide: 1 },
     hints: [], fail: '',
   },
   {
+    // v093: 巣は広い崖の向こう。キーウィは右の端で引き返してから崖に着く。すべる板を回して、左へ運ぶ舟に
+    ...base, T: 38, id: 'm2', plate: 'X', name: TX('もどる舟', 'The Return Ferry'),
+    tops: tops([[8, 15, null]]), start: { x: 24, dir: 1 }, goal: { x: 3 },
+    stock: { slide: 1 },
+    hints: [
+      { text: TX('巣は崖の向こう。キーウィが崖に着くのは、帰り道', 'The nest is across the chasm. The kiwi reaches it on the way back'), when: (c) => c.seenEnd },
+      { text: TX('すべる板は、どちらへ運ぶ？', 'Which way does the sliding board carry?'), when: (c) => c.placed },
+    ],
+    fail: TX('キーウィが崖に着いたとき、板はどちらへすべっていた？', 'When the kiwi reached the chasm, which way was the board sliding?'),
+  },
+  {
     // ころがる石: 20秒に右の石がころがりだし、幅1マスの割れ目にはさまって「ふた」になる。それまで住人を待たせる
-    ...base, T: 55, id: 's4', plate: 'IX', name: TX('石のふた', 'The Stone Lid'),
+    ...base, T: 55, id: 's4', plate: 'XI', name: TX('石のふた', 'The Stone Lid'),
     tops: tops([[20, 20, null]]), start: { x: 1.6, dir: 1 }, goal: { x: 30 },
     stones: [{ x: 32.5, t: 20, dir: -1 }],
     stock: { wall: 1 },
     hints: [{ text: TX('石は、どこへころがっていく？', 'Where will the stone roll?'), when: (c) => c.placed }], fail: '',
   },
   {
+    // v093: 石がキーウィの先をころがる。石も崖をわたらせれば、小さな割れ目にはまって「ふた」になる（橋は、石とキーウィの両方に）
+    // 高い右がわから来るので、長い板の上の面は右の地面とそろう所に（石は板のふちにぶつかると止まる）
+    ...base, T: 30, id: 'm3', plate: 'XII', name: TX('石と歩く', 'Walking with the Stone'),
+    tops: tops([[6, 6, null], [18, 21, null], [22, 35, 5]]), start: { x: 34, dir: -1 }, goal: { x: 3 },
+    stones: [{ x: 31.5, t: 0, dir: -1 }],
+    stock: { beam: 1 },
+    reveal: ['beam', TX('石とキーウィが、順にわたる橋', 'a bridge the stone and the kiwi cross in turn'), TX('奥行きのある、長い板', 'a long board with depth')],
+    hints: [
+      { text: TX('石も、キーウィと同じ道をころがっていく', 'The stone rolls the same way the kiwi walks'), when: (c) => c.seenEnd },
+      { text: TX('小さな割れ目は、だれがふさぐ？', 'Who will fill the little crack?'), when: (c) => c.placed },
+    ],
+    fail: TX('石は、崖をわたれた？', 'Did the stone make it across the chasm?'),
+  },
+  {
     // ひし形の板: 断面は、まん中の秒にいちばん広くなり、また縮む。崖をわたるあいだに、広いところを合わせる
-    ...base, T: 30, id: 's5', plate: 'X', name: TX('ひし形の橋', 'The Diamond Bridge'),
+    ...base, T: 30, id: 's5', plate: 'XIII', name: TX('ひし形の橋', 'The Diamond Bridge'),
     tops: tops([[19, 22, null]]), start: { x: 1.6, dir: 1 }, goal: { x: 31 },
     stock: { diamond: 1 },
     hints: [{ text: TX('ひし形の板は、どの秒で切っても同じ幅？', 'Is a diamond board the same width at every second?'), when: (c) => c.placed }], fail: '',
@@ -141,15 +174,25 @@ export const LEVELS = [
   // ---- 2Dアクションのしかけの「舞台裏」（v073） ----
   {
     // 往復リフト: 高い台から低い地面へ、とびおりるとだめ（5マス）。「へ」の字の板に乗って、下ろしてもらう
-    ...base, T: 30, id: 'g1', plate: 'XI', name: TX('往復するリフト', 'The Shuttle Lift'),
+    ...base, T: 30, id: 'g1', plate: 'XIV', name: TX('往復するリフト', 'The Shuttle Lift'),
     tops: tops([[0, 19, 7], [20, 35, 2]]), start: { x: 1.6, dir: 1 }, goal: { x: 31 },
     stock: { hump: 1 },
     hints: [{ text: TX('この台から下へ落ちると、キーウィは助からない', 'If it drops off this ledge, the kiwi won’t survive'), when: (c) => c.placed }],
     fail: TX('リフトは、上がって、また下がる', 'The lift goes up, then comes back down'),
   },
   {
+    // v093: くぼみから台へのぼり、台から低い地面へおりる。のぼるのはななめの板、おりるのは「へ」の字の板（入れかえても解ける）
+    ...base, T: 30, id: 'm4', plate: 'XV', name: TX('のぼってくだる', 'Up and Down'),
+    tops: tops([[5, 9, 2], [10, 20, 5], [21, 35, 0]]), start: { x: 1.6, dir: 1 }, goal: { x: 31 },
+    stock: { lift: 1, hump: 1 },
+    hints: [
+      { text: TX('くぼみの先は高い台。台の先は、深い段', 'Past the hollow is high ground, and past that, a big drop'), when: (c) => c.placed },
+    ],
+    fail: TX('のぼったあと、キーウィはぶじに下りられた？', 'After climbing up, could the kiwi get down safely?'),
+  },
+  {
     // 消えるブロック: くし形の板は、出たり消えたりする。出ているあいだに、わたりきる
-    ...base, T: 30, id: 'g2', plate: 'XII', name: TX('消えるブロック', 'The Vanishing Blocks'),
+    ...base, T: 30, id: 'g2', plate: 'XVI', name: TX('消えるブロック', 'The Vanishing Blocks'),
     tops: tops([[18, 18, null]]), start: { x: 1.6, dir: 1 }, goal: { x: 31 },
     stock: { comb: 1 },
     hints: [{ text: TX('このブロックは、ときどき消える', 'These blocks vanish now and then'), when: (c) => c.placed }],
@@ -157,7 +200,7 @@ export const LEVELS = [
   },
   {
     // 回る棒: 巣はうしろ。回る棒にぶつかると、キーウィは引き返す
-    ...base, T: 35, id: 'g3', plate: 'XIII', name: TX('回る棒', 'The Spinning Bar'),
+    ...base, T: 35, id: 'g3', plate: 'XVII', name: TX('回る棒', 'The Spinning Bar'),
     tops: tops([[30, 33, null]]), start: { x: 14, dir: 1 }, goal: { x: 3 },
     stock: { spiral: 1 },
     hints: [{ text: TX('巣はうしろ。回る棒にぶつかると、キーウィは引き返す', 'The nest is behind. When the spinning bar bumps the kiwi, it turns back'), when: (c) => c.placed }],
@@ -166,7 +209,7 @@ export const LEVELS = [
   {
     // ふたりの住人（v082 で本番の図版へ。むずかしくはないので）: 二羽とも、自分の巣と反対へ歩きだし、崖に落ちる。住人どうしはぶつかると引き返す。
     // 崖に橋をかけて、二羽を出会わせれば、ぶつかって、そろって巣へ帰る（橋は、帰り道にもいる）
-    ...base, T: 30, id: 'x1', plate: 'XIV', name: TX('ふたりの住人', 'Two Residents'),
+    ...base, T: 30, id: 'x1', plate: 'XVIII', name: TX('ふたりの住人', 'Two Residents'),
     tops: tops([[17, 19, null]]), start: { x: 6, dir: 1 }, goal: { x: 2 },
     more: [{ start: { x: 31, dir: -1 }, goal: { x: 34 } }],
     reveal: ['plank', TX('ふたりが出会う、つかのまの橋', 'a fleeting bridge where the two meet'), TX('二羽の行きと帰りをつつむ、一枚の板', 'one board that holds both the way out and the way back')],
@@ -181,7 +224,7 @@ export const LEVELS = [
   {
     // 見えない手のスイッチ: 扉は、スイッチの板の上に何かがのっているあいだだけ開く。キーウィはスイッチに届かない。
     // 橋の板の断面が、スイッチを押しつづける（一枚で、橋とスイッチを押す手をかねる）
-    ...base, T: 30, id: 'x2', plate: 'XV', name: TX('見えない手のスイッチ', 'The Invisible Hand'), extra: true,
+    ...base, T: 30, id: 'x2', plate: 'XIX', name: TX('見えない手のスイッチ', 'The Invisible Hand'), extra: true,
     tops: tops([[0, 1, null], [18, 19, null]]), start: { x: 4, dir: 1 }, goal: { x: 31 },
     switches: [{ x: 21, w: 2, door: { x: 13, h: 3 } }],
     reveal: ['plank', TX('スイッチを押しつづける、見えない手', 'an invisible hand holding the switch'), TX('橋にかけた板の、はしのほう', 'the far end of the board bridging the chasm')],
@@ -195,7 +238,7 @@ export const LEVELS = [
   {
     // もう一羽が押すスイッチ（v082）: スイッチは、もう一羽のキーウィでも押せる。もう一羽は一度だけスイッチをふんで行ってしまう。
     // 壁で、もう一羽を引き返させてもう一度ふませる（または、こちらのキーウィを崖の手前で引き返させ、もう一羽の帰り道を待つ）
-    ...base, T: 40, id: 'x3', plate: 'XVI', name: TX('もう一羽が押すスイッチ', 'The Friend on the Switch'), extra: true,
+    ...base, T: 40, id: 'x3', plate: 'XX', name: TX('もう一羽が押すスイッチ', 'The Friend on the Switch'), extra: true,
     tops: tops([[0, 1, null]]), start: { x: 4, dir: 1 }, goal: { x: 31 },
     more: [{ start: { x: 27, dir: -1 }, goal: { x: 34 } }],
     switches: [{ x: 22, w: 3, door: { x: 12, h: 3 } }],
@@ -210,7 +253,7 @@ export const LEVELS = [
   {
     // 重いスイッチ（v082）: 石の重さでしか沈まないスイッチ。ころがる石は、スイッチの上を通りすぎてしまう。
     // 壁で、石をスイッチの上に止める（形の断面ではスイッチは沈まない）
-    ...base, T: 20, id: 'x4', plate: 'XVII', name: TX('重いスイッチ', 'The Heavy Switch'), extra: true,
+    ...base, T: 20, id: 'x4', plate: 'XXI', name: TX('重いスイッチ', 'The Heavy Switch'), extra: true,
     tops: tops([[0, 1, null]]), start: { x: 4, dir: 1 }, goal: { x: 18.5 },
     switches: [{ x: 22.5, w: 3, heavy: true, door: { x: 15.5, h: 3 } }],
     stones: [{ x: 33.5, t: 0, dir: -1 }],

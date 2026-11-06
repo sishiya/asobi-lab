@@ -1145,3 +1145,35 @@ kbd { border-width: 1px !important; border-style: solid !important; border-color
 /* v090: パレットの影も、形のボタンと同じ面取りの形に（ユーザー「パレットの影も形状あわせて」）。だ円の光の輪はやめる */
 .pal-list::before { content: none; }
 .kind-wrap { position: relative; display: inline-flex; isolation: isolate; }
+
+/* ===== v093: 公開前の点検（遊び手・UX 担当）で直したところ ===== */
+/* 形を1つも置いていないあいだと、形を持っているあいだは「正史にする」を控えめに（目立たせるのは、いまやること1つ。RULES 4章） */
+.bind-halo { transition: opacity .3s, filter .3s; }
+.bind-halo.idle { opacity: .5; filter: saturate(.45); }
+.bind-halo.idle .bind-btn { animation: none; }
+/* スマホのふちのあきを 16px に（前は「正史にする」が右から 6px、パレットが左から 8px） */
+@media (max-width: 760px), (max-height: 520px) { .headgroup { right: 16px; } }
+@media (max-width: 560px) { body.touch .palette { left: 16px; } }
+@media (max-height: 520px) and (max-width: 900px) { body.touch .palette { left: 16px; } }
+/* 字の切れ方（題・リンク・図版えらび・判定の文で、1字だけ次の行に落ちない） */
+.t-name > span[lang="ja"] { word-break: keep-all; }
+.t-foot a, .plate .st { white-space: nowrap; }
+.rp-result p, .rp-why figcaption, .pv-sub, .coach { text-wrap: pretty; }
+/* スマホたて: 「まだ」の理由の2枚を、たてに並べて大きく（前は 1 枚 145px ほどで、板もキーウィも読めなかった） */
+@media (max-width: 520px) {
+  .rp-why { flex-direction: column; align-items: center; gap: 8px; }
+  .rp-why figure { flex: none; width: 100%; max-width: 340px; }
+}
+/* スマホよこ: 判定の画面を2段組みに。左＝再生、右＝判定と次へのボタン（前は再生が 150px ほどで、ボタンが画面の下にかくれた） */
+@media (max-height: 520px) and (orientation: landscape) {
+  .replay-card { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); column-gap: 18px; align-items: start; width: min(900px, calc(100vw - 32px)); max-height: calc(100vh - 16px); padding-top: 12px; padding-bottom: 12px; }
+  .replay-card > .rp-head { grid-column: 1 / -1; margin-bottom: 6px; padding-bottom: 6px; }
+  .replay-card > .rp-row, .replay-card > .rp-ctrl { grid-column: 1; }
+  .replay-card > .rp-foot { grid-column: 2; grid-row: 2 / span 3; margin: 0; align-self: center; }
+  .replay-card .rp-row canvas { width: 100%; max-height: calc((100vh - 150px) / 2); object-fit: contain; }
+  .replay-card.with-why .rp-row canvas { max-height: calc(100vh - 130px); }
+  .rp-foot .rp-result { padding-top: 0; }
+  .rp-result .stamp { font-size: 20px; padding: 4px 16px; }
+  .rp-why figure { max-width: 48%; }
+  .rp-foot .win-acts { margin-top: 8px; }
+}

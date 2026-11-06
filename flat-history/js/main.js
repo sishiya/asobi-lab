@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
-import { LEVELS, REVEALS } from './level.js?v=75';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=75';
-import { drawSheet } from './sheet.js?v=75';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=75';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=75';
-import { makeHero, stepHero, groundAt } from './hero.js?v=75';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=75';
+import { LEVELS, REVEALS } from './level.js?v=93';
+import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=93';
+import { drawSheet } from './sheet.js?v=93';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=93';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=93';
+import { makeHero, stepHero, groundAt } from './hero.js?v=93';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=93';
 
 const $ = (id) => document.getElementById(id);
 
@@ -227,7 +227,7 @@ function renderSelect(from) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'plate' + (p ? ' done' : '');
-      b.innerHTML = `<span class="pn">Pl. ${l.plate} ・ ${TX(`${i + 1}代目`, `Gen. ${i + 1}`)}</span><span class="nm">${l.name}</span><span class="st">${p ? TX(`クリア ・ 使った形 ${p.best}つ`, `Cleared · ${p.best} shape${p.best > 1 ? 's' : ''} used`) : TX('まだクリアしていない', 'Not cleared yet')}</span>`;
+      b.innerHTML = `<span class="pn">Pl. ${l.plate} ・ ${TX(`${i + 1}代目`, `Gen. ${i + 1}`)}</span><span class="nm">${l.name}</span><span class="st">${p ? TX(`クリア ・ 使った形 ${p.best}つ`, `Cleared · ${p.best} shape${p.best > 1 ? 's' : ''} used`) : TX('まだ', 'Not yet')}</span>`;
       b.addEventListener('click', () => { se.click(); startGame(i); });
       box.appendChild(b);
     });
@@ -250,11 +250,12 @@ function drawEnding(dt) {
   ed.t += dt;
   const g = ed.g, n = LEVELS.length, t = ed.t;
   drawSheet(g, ENDL, 0, null, [], { paper: true });
-  // 代々の住人（先頭が1代目）。巣に着いた者から、よろこぶ
+  // 代々の住人（先頭が1代目）。巣に着いた者から、よろこぶ。図版がふえても全員が並べるよう、間をつめる（v093）
+  const gap = Math.min(1.6, (ENDL.goal.x - 2) / (n - 1));
   for (let i = 0; i < n; i++) {
-    const x = Math.min(ENDL.goal.x - i * 1.6, 1.6 + (t - i * 0.7) * 1.5);
+    const x = Math.min(ENDL.goal.x - i * gap, 1.6 + (t - i * 0.7) * 1.5);
     if (x < 1.2) continue;
-    const arrived = x >= ENDL.goal.x - i * 1.6 - 0.01;
+    const arrived = x >= ENDL.goal.x - i * gap - 0.01;
     look().drawWalker(g, ENDL, { x, y: 4, dir: 1, st: arrived ? 'goal' : 'walk', since: arrived ? t : null }, 20);
   }
   // 係（あなた）も、ただ一度だけ、この本に刷られる
@@ -265,10 +266,10 @@ function drawEnding(dt) {
     : ['図鑑が、一冊になった。', `${look().who}の ${n}代の正史が、ここに綴じられている。`, '光にかざすと、すみに見なれない形の透かしがひとつ。'];
   lines.forEach((s2, i) => { const a = Math.max(0, Math.min(1, (t - 1.5 - i * 2.2) / 1.2)); g.fillStyle = `rgba(74,51,32,${a})`; g.font = '18px "Yu Mincho", serif'; g.textAlign = 'center'; g.fillText(s2, 360, 46 + i * 28); });
   g.textAlign = 'left';
-  $('edClose').hidden = t < 1.5;
+  $('edClose').hidden = t < 6.5; // 文が出そろってから閉じられる（v093。前は 1.5 秒で、透かしを見る前に閉じてしまいやすかった）
 }
 $('edClose').addEventListener('click', closeEnding);
-$('edCanvas').addEventListener('click', () => { if (ed.t > 1.5) closeEnding(); });
+$('edCanvas').addEventListener('click', () => { if (ed.t > 6.5) closeEnding(); });
 $('selEnding').addEventListener('click', () => { se.click(); openEnding(); });
 
 const openMenu = () => { closeAll(); $('menu').hidden = false; keys.clear(); se.click(); };
@@ -929,6 +930,8 @@ function loop(now) {
     if ($('btnBind').innerHTML !== bindHtml) $('btnBind').innerHTML = bindHtml;
     // 形を置いて歴史が変わったのに、まだ正史にしていないあいだは、ボタンが脈打つ
     $('btnBind').classList.toggle('ready', !st.solved && st.dirty && blockPieces().length > 0);
+    // v093: 形を1つも置いていないあいだと、形を持っているあいだは、控えめに（目立たせるのは、いまやること1つだけ）
+    $('btnBind').parentElement.classList.toggle('idle', !st.solved && (blockPieces().length === 0 || !!st.carry));
     // 正史かどうかは、遊ぶ人が「正史にする」（Enter）まで判定しない
   }
   requestAnimationFrame(loop);

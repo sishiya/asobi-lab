@@ -38,7 +38,7 @@ function search(L, tries) {
   return best;
 }
 const known = {
-  s2: (L) => [mk(L, 'wall', 0, 16, 0), mk(L, 'lift', 0, 7, 2)],
+  s2: (L) => [mk(L, 'wall', 0, 20, 0), mk(L, 'lift', 0, 7, 8)],
 };
 const want = process.argv.slice(2);
 for (const L0 of LEVELS) {
