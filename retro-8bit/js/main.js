@@ -1,6 +1,6 @@
 // 棚（トップ）と遊ぶ画面。画面・音・入力・セーブをつなぐ（ブラウザの係）
 import { Console8, BTN } from './nes.js';
-import { LIBRARY } from './library.js?v=15';
+import { LIBRARY } from './library.js?v=16';
 import { createCRT } from './crt/crt-gl.js';
 import { createInput, keyLabel } from './input.js';
 import { initSettings } from './settings.js';
@@ -26,7 +26,7 @@ function save(k, v) { try { localStorage.setItem(k, v); return true; } catch { r
 // ---------- 棚 ----------
 const romCache = new Map();
 async function loadRom(entry) {
-  if (!romCache.has(entry.id)) romCache.set(entry.id, fetch(entry.file + '?v=6').then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
+  if (!romCache.has(entry.id)) romCache.set(entry.id, fetch(entry.file + '?v=7').then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
   return romCache.get(entry.id);
 }
 // 棚の手ざわりの音（sfx/。Stable Audio で作って、カチッが1つだけの所を切り出した）。設定の音と大きさにしたがう。
