@@ -1,12 +1,36 @@
-html, body { margin: 0; height: 100%; background: #2d5a3f; overflow: hidden; font-family: system-ui, sans-serif; color: #fff; }
-#view { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; }
-.hud { position: fixed; top: 16px; left: 16px; right: 72px; display: flex; gap: 12px; flex-wrap: wrap; font-size: 14px; text-shadow: 0 1px 2px #0008; pointer-events: none; }
-.hud span:empty { display: none; }
-#pauseBtn { position: fixed; top: 12px; right: 16px; width: 44px; height: 44px; border-radius: 22px; border: 0; background: #0005; color: #fff; font-size: 16px; font-weight: bold; }
-#overlay { position: fixed; inset: 0; display: grid; place-items: center; background: #0006; }
-#overlay[hidden] { display: none; }
-.card { background: #fffdf6; color: #2b2b2b; border-radius: 16px; padding: 24px; width: min(340px, calc(100vw - 32px)); box-sizing: border-box; text-align: center; }
-.card h1 { margin: 0 0 8px; font-size: 22px; }
-.card p { margin: 0 0 16px; line-height: 1.6; }
-.btn { display: block; width: 100%; min-height: 44px; margin-top: 12px; border: 0; border-radius: 22px; background: #e2709a; color: #fff; font-size: 16px; }
-.btn.sub { background: #eee6d8; color: #444; }
+/* 花の小川: 区割り（RULES 4章）
+   まん中＝川（ふさがない）、左上＝めずらしい花の数、右上＝止める、上のまん中＝教えることば・知らせ（1つずつ）、指のまわり＝輪 */
+:root { --ink: #5b4a3a; --paper: #fffaf0; --pink: #e2709a; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #f3ecdc; font-family: "Hiragino Maru Gothic ProN", "Yu Gothic UI", system-ui, sans-serif; color: var(--ink); }
+#stage { position: fixed; inset: 0; touch-action: none; }
+#stage canvas { display: block; }
+
+/* 箱庭のかすみ（上下）とふちの暗み。ぼかし（backdrop-filter）はスマホで重いので、紙の色のグラデーションにした */
+.tilt { position: fixed; left: 0; right: 0; pointer-events: none; }
+.tilt.top { top: 0; height: 22%; background: linear-gradient(#f3ecdcb0, #f3ecdc00); }
+.tilt.bot { bottom: 0; height: 14%; background: linear-gradient(#f3ecdc00, #f3ecdc80); }
+.vig { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 45%, transparent 58%, rgba(120, 90, 60, 0.2)); }
+
+#hud [hidden], [hidden] { display: none !important; }
+#rareChip { position: fixed; top: max(16px, env(safe-area-inset-top)); left: 16px; display: flex; align-items: center; gap: 8px; padding: 6px 14px 6px 8px; border-radius: 22px; background: #fffaf0d9; font-size: 15px; font-weight: bold; }
+#rareChip i { width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle, #ffe27a 0 22%, #ff5d8f 24% 62%, transparent 64%); }
+#pauseBtn { position: fixed; top: max(12px, env(safe-area-inset-top)); right: 16px; width: 44px; height: 44px; border-radius: 22px; border: 0; background: #fffaf0d9; color: var(--ink); font-size: 15px; font-weight: bold; }
+#hint { position: fixed; left: 50%; transform: translateX(-50%); margin: 0; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 8px 16px; border-radius: 20px; background: #fffaf0e6; font-size: 15px; line-height: 1.5; text-align: center; pointer-events: none; }
+#hint { top: calc(max(16px, env(safe-area-inset-top)) + 56px); }
+#hint.alert { background: #5b4a3ad9; color: #fff; }   /* 雷・大きな流れの知らせ（教えることばと同じ1行を借りる） */
+
+/* 指の輪: 上ほど速いので、輪の中の光が強くなる */
+#ring { position: fixed; left: -32px; top: -32px; width: 64px; height: 64px; border-radius: 50%; pointer-events: none; border: 2px solid #ffffffcc; box-shadow: 0 0 calc(6px + 18px * var(--u, 0.5)) rgba(255, 245, 210, calc(0.3 + 0.6 * var(--u, 0.5))) inset, 0 0 8px #0002; }
+
+/* タイトル・ひと休み・おわり */
+.panel { position: fixed; inset: 0; display: grid; place-items: center; background: linear-gradient(#f3ecdc00, #f3ecdc99 40%, #f3ecdccc); }
+.sheet { width: min(360px, calc(100vw - 32px)); box-sizing: border-box; padding: 24px 20px; border-radius: 20px; background: #fffaf0ee; box-shadow: 0 6px 30px #5b4a3a22; text-align: center; }
+.sheet h1 { margin: 0; font-size: 34px; letter-spacing: 0.1em; color: #d9608c; }
+.sheet h2 { margin: 4px 0 6px; font-size: 22px; }
+.lead { margin: 6px 0 12px; font-size: 15px; }
+.small { margin: 8px 0 0; font-size: 12px; opacity: 0.8; line-height: 1.6; }
+#garden { width: 100%; height: 64px; display: block; }
+.btn { display: block; width: 100%; min-height: 48px; margin-top: 12px; border: 0; border-radius: 24px; background: var(--pink); color: #fff; font: inherit; font-size: 17px; font-weight: bold; }
+.btn.sub { min-height: 44px; background: #eee3cf; color: var(--ink); font-size: 15px; font-weight: normal; }
+@media (max-height: 520px) { .sheet { padding: 14px 16px; } .sheet h1 { font-size: 26px; } #garden { height: 44px; } .btn { min-height: 44px; margin-top: 8px; } .keys { display: none; } }
+#result { place-items: end center; padding-bottom: max(16px, env(safe-area-inset-bottom)); background: linear-gradient(#f3ecdc00 45%, #f3ecdcaa); }   /* 池で咲いた花が上に見えるよう、下に寄せる */

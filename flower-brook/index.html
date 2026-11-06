@@ -3,17 +3,55 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%23234a3a'/><path d='M22 6 C40 20 18 38 34 58' stroke='%237cc6e8' stroke-width='9' fill='none' stroke-linecap='round'/><circle cx='48' cy='20' r='7' fill='%23f6a8c4'/><circle cx='48' cy='20' r='2.5' fill='%23ffe08a'/><circle cx='12' cy='44' r='6' fill='%23ffd36e'/></svg>">
-<title>花の小川（試し）</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%23f3ecdc'/><path d='M22 6 C40 20 18 38 34 58' stroke='%237cc6e8' stroke-width='9' fill='none' stroke-linecap='round'/><circle cx='48' cy='20' r='8' fill='%23f6a8c4'/><circle cx='48' cy='20' r='3' fill='%23ffe08a'/><circle cx='12' cy='44' r='6' fill='%23b7a6f0'/></svg>">
+<title>花の小川（試作）</title>
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="../assets/no-quirks.css"><script src="../assets/no-quirks.js" defer></script>
-<link rel="stylesheet" href="css/game.css?v=1">
+<link rel="stylesheet" href="css/game.css?v=3">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body>
-<canvas id="view"></canvas>
-<div id="hud" class="hud"><span id="time"></span><span id="pred"></span><span id="ev"></span></div>
-<button id="pauseBtn" aria-label="止める">II</button>
-<div id="overlay" hidden><div class="card"><h1 id="resName"></h1><p id="resInfo"></p><button id="again" class="btn">もう一度（ちがう川）</button><button id="same" class="btn sub">同じ川でもう一度</button></div></div>
-<script type="module" src="js/game.js?v=1"></script>
+<div id="stage"></div>
+<div class="tilt top"></div><div class="tilt bot"></div><div class="vig"></div>
+
+<div id="hud" hidden>
+  <div id="rareChip" aria-label="咲かせためずらしい花"><i></i><span id="rare"></span></div>
+  <button id="pauseBtn" aria-label="止める">II</button>
+</div>
+<p id="hint" hidden></p>
+<div id="ring" hidden></div>
+
+<div id="title" class="panel">
+  <div class="sheet">
+    <h1>花の小川</h1>
+    <p class="lead">しずくを流して、花畑を咲かせよう</p>
+    <canvas id="garden"></canvas>
+    <p id="gardenCount" class="small"></p>
+    <button id="startBtn" class="btn">はじめる</button>
+    <p class="small keys">指を置くと進む（上ほど速い）・はなすと止まる・左右で岸へ<br>キー: ←→ 岸　↑↓ 速さ　スペース 進む　Esc 止める</p>
+    <p class="small ver"><span id="ver"></span>　試作</p>
+  </div>
+</div>
+
+<div id="menu" class="panel" hidden>
+  <div class="sheet">
+    <h2>ひと休み</h2>
+    <button id="resumeBtn" class="btn">つづける</button>
+    <button id="soundBtn" class="btn sub">音: あり</button>
+    <button id="titleBtn" class="btn sub">タイトルへ</button>
+  </div>
+</div>
+
+<div id="result" class="panel" hidden>
+  <div class="sheet">
+    <h2 id="resName"></h2>
+    <p id="resRare" class="lead"></p>
+    <p class="small">庭に植えました</p>
+    <button id="againBtn" class="btn">ちがう小川へ</button>
+    <button id="sameBtn" class="btn sub">同じ小川でもう一度</button>
+    <button id="resTitleBtn" class="btn sub">タイトルへ</button>
+  </div>
+</div>
+<script type="module" src="js/game.js?v=3"></script>
 </body>
 </html>
