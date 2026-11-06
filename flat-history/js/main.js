@@ -227,7 +227,9 @@ function renderSelect(from) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'plate' + (p ? ' done' : '');
-      b.innerHTML = `<span class="pn">Pl. ${l.plate} ・ ${TX(`${i + 1}代目`, `Gen. ${i + 1}`)}</span><span class="nm">${l.name}</span><span class="st">${p ? TX(`クリア ・ 使った形 ${p.best}つ`, `Cleared · ${p.best} shape${p.best > 1 ? 's' : ''} used`) : TX('まだ', 'Not yet')}</span>`;
+      b.setAttribute('aria-label', `Pl. ${l.plate} ${l.name} ${p ? TX('クリア', 'Cleared') : TX('まだ', 'Not yet')}`);
+      // クリアの印（右上の丸。クリア＝金の丸にチェック、まだ＝点線の丸。同じ場所で、埋まっているかどうかだけで見分ける）
+      b.innerHTML = `<span class="seal" aria-hidden="true">${p ? '<svg viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9"/></svg>' : ''}</span><span class="pn">Pl. ${l.plate} ・ ${TX(`${i + 1}代目`, `Gen. ${i + 1}`)}</span><span class="nm">${l.name}</span><span class="st">${p ? TX(`クリア ・ 使った形 ${p.best}つ`, `Cleared · ${p.best} shape${p.best > 1 ? 's' : ''} used`) : TX('まだ', 'Not yet')}</span>`;
       b.addEventListener('click', () => { se.click(); startGame(i); });
       box.appendChild(b);
     });
