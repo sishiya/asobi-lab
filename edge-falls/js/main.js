@@ -83,9 +83,9 @@ const JAR_TALK = TX('命のつぼには、この世界の命が入っている�
 const RAD = { raise: 3.2, dig: 3.2, grass: 3, spring: 1.2, deer: 1, wolf: 1, fish: 1, bird: 1, human: 1 };
 const TOOLCOL = { raise: '#ffe9b0', dig: '#e8b48a', grass: '#b8e890', spring: '#bfe6ff', deer: '#e8c49a', wolf: '#c8ccd8', fish: '#ffc890', bird: '#e0e8f0', human: '#f0d0a8' };
 
-// 指で使うとき、効く所は指の少し上（指で隠れないように。v2。PLAYTEST #3）。マウスはそのまま
-const TOUCH_UP = 46;
-const toolPick = (p, touch) => pick(p.x, p.y - (touch ? TOUCH_UP : 0));
+// 指でも、効く所は押した所そのまま（v071。2026-11-07 ユーザー「タッチした所とアクションが起こる場所のずれが感覚とズレが多くて微妙」。
+//   v2 の「指の 46px 上で効く」はやめた。奥のふちの帯を押しても大地の外に効いて何も起きない、ということもあった）
+const toolPick = p => pick(p.x, p.y);
 function local(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
 function hitBody(p) {
   for (const k of ['sun', 'moon']) { const b = bodyHit[k]; if (b && Math.hypot(p.x - b.x, p.y - b.y) < b.r + 10) return k; }
@@ -168,11 +168,13 @@ cv.addEventListener('pointerdown', e => {
   // まん中のボタン・Shift を押しながら: 平行移動。右ボタン: 回す（土や命を持ったままでも。2026-10-13 ユーザー）
   if (e.button === 1 || e.shiftKey) { ptr.mode = 'pan'; cv.classList.add('grabbing'); return; }
   if (e.button === 2) { ptr.mode = 'view'; ptr.right = true; cv.classList.add('grabbing'); return; }
-  if (b) { ptr.mode = 'body'; ptr.body = b; W[b].drag = true; Sound.play('grab'); G.did[b] = 1; return; }
+  // 指で道具を持っているときは、太陽・月は引いたときだけつかむ（押しただけなら道具を使う。v071。泉をわかせたつもりが月を止めていた）
   const w = G.tool === 'look' || COL ? null : toolPick(p, e.pointerType === 'touch');
+  if (b && w && e.pointerType === 'touch') ptr.bodyMaybe = b;
+  else if (b) { ptr.mode = 'body'; ptr.body = b; W[b].drag = true; Sound.play('grab'); G.did[b] = 1; return; }
   // 指: すぐには使わず少し待つ（2本目の指が来たら、泉を置いたりせずに回す・寄るだけにする。2026-10-13 ユーザー）
   if (w) { hover = { x: w.x, y: w.y, z: w.z, r: RAD[G.tool], color: TOOLCOL[G.tool] }; ptr.touch = e.pointerType === 'touch'; }
-  if (w) { ptr.mode = 'tool'; ptr.w = w; if (e.pointerType === 'touch') ptr.wait = 0.12; else useTool(w, true); }
+  if (w) { ptr.mode = 'tool'; ptr.w = w; if (e.pointerType === 'touch') ptr.wait = ptr.bodyMaybe ? 0.3 : 0.12; else useTool(w, true); }
   else { ptr.mode = 'view'; cv.classList.add('grabbing'); }
 });
 cv.addEventListener('pointermove', e => {
@@ -193,6 +195,7 @@ cv.addEventListener('pointermove', e => {
   if (ptr && e.pointerId === ptr.id) {
     const dx = p.x - ptr.x, dy = p.y - ptr.y;
     ptr.moved += Math.abs(dx) + Math.abs(dy); ptr.x = p.x; ptr.y = p.y;
+    if (ptr.bodyMaybe && ptr.wait > 0 && ptr.moved > 14) { ptr.mode = 'body'; ptr.body = ptr.bodyMaybe; ptr.wait = 0; hover = null; W[ptr.body].drag = true; Sound.play('grab'); G.did[ptr.body] = 1; }
     if (ptr.mode === 'view') {
       if (ptr.moved > 12) G.follow = null;
       V.yaw -= dx * 0.008 * invX();                                         // 手前の地面が手の動きについてくる向き（2026-10-12 ユーザー「逆かも」）

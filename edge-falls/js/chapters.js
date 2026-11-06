@@ -90,7 +90,7 @@ const CHAPTERS = [
     truth: TX('食べる者がいないと、シカはふえすぎて草や若い木を食べつくすことがある。日本の各地でも、シカがふえて森の下草がなくなる問題が起きている。', 'With nothing to eat them, deer can grow too many and eat all the grass and young trees. In many parts of Japan, deer have increased so much that forests are losing their undergrowth.'),
   },
   {
-    key: 'winter', name: TX('冬', 'Winter'), title: TX('冬をこす', 'Through the winter'), get text() { return seasonOf() === 3 ? TX('シカ 10 頭以上で、冬をこして春をむかえる', 'Get through the winter to spring with 10 or more deer') : TX(`冬まで あと ${winterDays()} 日。冬の草をたくわえ、シカ 10 頭以上で春をむかえる`, `${winterDays()} days until winter. Store up grass for winter, and reach spring with 10 or more deer`); }, goal: 1, unit: '',
+    key: 'winter', name: TX('冬', 'Winter'), title: TX('冬をこす', 'Through the winter'), get text() { return seasonOf() === 3 ? TX('シカ 10 頭以上で、冬をこして春をむかえる', 'Get through the winter to spring with 10 or more deer') : TX(`冬まで あと ${winterDays()} 日。草地 20%・シカ 10 頭でそなえ、冬をこして春をむかえる`, `${winterDays()} days until winter. Get ready with 20% grassland and 10 deer, then get through to spring`); }, goal: 1, unit: '',
     gives: {}, arrive: TX('季節がはっきりしてきた。この冬は、きびしくなる', 'The seasons are getting clearer. This winter will be harsh'),
     prog: () => G.winterOk ? 1 : 0, show: () => L.counts.deer >= 10 ? TX(`春まで ${springDays()} 日`, `${springDays()} days until spring`) : TX('シカが 10 頭より少ない', 'Fewer than 10 deer'), knob: { winter: 1, tide: 0.35 },
     hint: TX('冬は草が育たない。秋にシカが増えすぎると、冬に食べものが足りなくなる。太陽をシカの草地の上で止めると、日ざしがたまってそこだけ暖かい（そのかわり反対がわは凍る）。', 'Grass doesn’t grow in winter. Too many deer in autumn means too little food in winter. Stop the Sun over the deer’s grassland and the sunlight builds up to keep just that place warm (but the far side freezes).'),
@@ -171,6 +171,7 @@ function enterChapter(n, quiet) {
   for (const k of ['deer', 'wolf', 'fish', 'bird', 'seed']) if (G.unlock[k] && !prevU[k] && !quiet) W.stock[k] = STOCK_START[k];
   if (!quiet && c) {
     yearCard(n, c, () => {
+      holdNew(c);
       if (c.key === 'grass') toast(JAR_TALK, 6);       // 命のつぼとは（v034。ユーザーの家族「ツボってなに？」）
       if (c.key === 'genes' && !G.gpick) later(0.6, () => { if (CHAPTERS[G.ch] && CHAPTERS[G.ch].key === 'genes' && !G.gpick && !ENDING) chooseGene(); });
     });
@@ -179,6 +180,15 @@ function enterChapter(n, quiet) {
     if (newKey) glowHand(newKey);
   }
   syncHands();
+}
+
+// 年の札を閉じたら、その年に来たものを手に持たせる（v071。札は「手にした」と言うのに手が空で、大地を押しても何も起きなかった）
+function holdNew(c) {
+  const k = Object.keys(c.gives)[0];
+  if (!k || k === 'genes') return;
+  if (k === 'water' || k === 'soil') setHand(k);
+  else { G.sub.life = k; setHand('life'); }
+  document.querySelectorAll('.hand.glow').forEach(b => b.classList.remove('glow'));
 }
 
 // 年の札（v009。2026-10-14 ユーザー「シティーズスカイラインのように、いったん時間をとめて、年が変わったときのメッセージをきちんとみせ、
@@ -327,7 +337,8 @@ function questLine(s) {
     $('qText').textContent = TX(`冬をこす。春まで あと ${springDays()} 日（シカ ${d} ／ 10）`, `Get through the winter. ${springDays()} days until spring (deer ${d} / 10)`);
     $('qBar').style.width = (50 + 50 * Math.min(1, 1 - springDays() / (YEAR / 4 + 0.01))) * (d >= 10 ? 1 : 0.6) + '%'; return;
   }
-  $('qText').textContent = c.key === 'winter' ? TX(`${c.text}（${fmt(v)}）`, `${c.text} (${fmt(v)})`) : TX(`${c.text}（${fmt(v)}${c.unit} ／ ${fmt(G.goal)}${c.unit}）`, `${c.text} (${fmt(v)}${c.unit} / ${fmt(G.goal)}${c.unit})`);
+  // 数のかっこは途中で折り返さない（v071。スマホで「（24頭 ／」と「30頭）」に分かれていた）
+  $('qText').innerHTML = c.key === 'winter' ? TX(`${c.text}<span class="qnum">（${fmt(v)}）</span>`, `${c.text} <span class="qnum">(${fmt(v)})</span>`) : TX(`${c.text}<span class="qnum">（${fmt(v)}${c.unit} ／ ${fmt(G.goal)}${c.unit}）</span>`, `${c.text} <span class="qnum">(${fmt(v)}${c.unit} / ${fmt(G.goal)}${c.unit})</span>`);
   $('qBar').style.width = Math.min(100, c.key === 'winter' ? (G.winterSeen ? 60 : L.counts.deer >= 10 ? 25 : 0) : v / G.goal * 100) + '%';
 }
 

@@ -11,9 +11,11 @@ if (LANG === 'en') {
 //   #toast は入れ物（置き場所）で、知らせは一つずつ .tmsg として下へ積む。それぞれ自分の時間で消え、消えるときは
 //   うすくなってから高さをちぢめるので、下のものがなめらかに上へよる。同じ文がまだ出ていれば、出ている時間をのばすだけ。いちどに 4 つまで
 // 置き場所: はじめから章のことばのすぐ下の高さ（CSS。v054）。章のことばが長くて（スマホで折り返すなど）かかるときだけ、もう少し下へ
+const narrowTall = () => innerWidth <= 640 && innerHeight > innerWidth * 1.3;
 function placeToast() {
   const t = $('toast'), l = $('line');
   t.style.top = '';
+  if (narrowTall()) return;   // スマホのたては下の決まった所（CSS）
   if (!l.classList.contains('on') || !l.textContent.trim()) return;
   const lb = l.getBoundingClientRect().bottom + 30, tt = t.getBoundingClientRect().top, fr = field.getBoundingClientRect();
   if (lb > tt) t.style.top = Math.round(lb - fr.top) + 'px';
@@ -37,7 +39,7 @@ function toast(msg, sec = 3) {
   else {
     if (!toastOn()) placeToast();                                    // 何も出ていないときだけ置き場所を決めなおす（出ているあいだは動かさない）
     const live = [...box.children].filter(el => !el.dataset.gone);
-    if (live.length >= 4) dropToast(live[0]);
+    if (live.length >= (narrowTall() ? 2 : 4)) dropToast(live[0]);   // スマホのたては 2 つまで（v071。積み重なって大地をふさいでいた）
     const el = document.createElement('div'); el.className = 'tmsg'; el.textContent = msg;
     box.appendChild(el); void el.offsetHeight; el.classList.add('on');
     el.tm = setTimeout(() => dropToast(el), sec * 1000);

@@ -137,7 +137,7 @@ function applyWorld(s) {
   G.sel = null;
   // 読みこんだら、見る向き（回した向き）だけ残して、寄り・平行移動・傾きははじめのカメラに（v034。2026-10-13 ユーザー「ロード直後にすごい寄ったカメラになってる」）
   if (s.view) V.yaw = num(s.view.yaw, V.yaw);
-  V.tilt = 0.56; V.zoom = 1; V.panX = 0; V.panY = 0;
+  V.tilt = homeTilt(); V.zoom = 1; V.panX = 0; V.panY = 0;
   updateLight(); stepClimate(0, true); stepMoist(0.25);
   prevCounts = { ...L.counts };
   layout(V.cw, V.ch);

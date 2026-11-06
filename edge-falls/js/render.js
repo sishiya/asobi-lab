@@ -4,7 +4,9 @@
 //   どの画風も、地形はまず低い解像度の画素の板 buf（ImageData d32）に描き、それを画面に広げる。
 //   dep は画素ごとの「手前からの近さ v」（生き物や木が山のかげに隠れるかを見る）。
 
-const V = { yaw: -0.5, tilt: 0.56, zoom: 1, cw: 0, ch: 0, s: 8, cx: 0, cy: 0, hf: 0.4, bs: 2 };
+// はじめの傾き: スマホのたて画面は少し上から見て、たての空きを大地で使う（v071）
+const homeTilt = () => innerHeight > innerWidth * 1.3 ? 0.68 : 0.56;
+const V = { yaw: -0.5, tilt: homeTilt(), zoom: 1, cw: 0, ch: 0, s: 8, cx: 0, cy: 0, hf: 0.4, bs: 2 };
 const THICK = 8;          // 大地の厚み（ふちの断面）
 const ROOT_D = 90;        // 岩の根の深さ（傾けて見ても、ふちのかげから先が出るように深く）
 const NN = N * N;

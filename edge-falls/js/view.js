@@ -56,7 +56,7 @@ function viewDown(e) {
   e.preventDefault(); Sound.unlock();
   try { b.setPointerCapture(e.pointerId); } catch (err) { /* 捕まえられなくても動かす */ }
   G.did.rotate = 1; noteGesture('pad');
-  if (b.dataset.view === 'home') { homeTw = { tilt: 0.56 }; Sound.play('click'); }
+  if (b.dataset.view === 'home') { homeTw = { tilt: homeTilt() }; Sound.play('click'); }
   else { viewHeld = b.dataset.view; viewT = 0; b.classList.add('on'); }
   viewLast = performance.now(); requestAnimationFrame(viewStep);
 }
