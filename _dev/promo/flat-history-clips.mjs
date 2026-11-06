@@ -17,7 +17,9 @@ const SOL = {
   t3: [['lift', 0, 14, 6]], t6: [['slide', 0, 9, 7]], m2: [['slide', 1, 6, 20]], m3: [['beam', 0, 14, 2]],
   g1: [['hump', 0, 20, 3]], g3: [['spiral', 0, 19, 5]], x1: [['plank', 0, 17, 7]], x2: [['plank', 0, 17, 2]],
 };
-const CLIPS = { play1: {}, ...Object.fromEntries(Object.keys(SOL).map((id) => ['pl-' + id, { id }])) };
+// pv-<id>: 図版の問題の場面だけ（開始の画面の「このままだと、こうなる」→ はじめる → 3D の遊び場とパレット）。答えは置かない（2026-11-07 ユーザー「自分で気づかせるゲームなのにネタバレ」）
+const PROB = ['t3', 't6', 'm3', 'g1', 'g3', 'x1'];
+const CLIPS = { play1: {}, ...Object.fromEntries(Object.keys(SOL).map((id) => ['pl-' + id, { id }])), ...Object.fromEntries(PROB.map((id) => ['pv-' + id, { id, pv: true }])) };
 const names = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(CLIPS);
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -71,7 +73,11 @@ for (const name of names) {
   } else {
     const i = await page.evaluate((id) => window.__fh.LEVELS.findIndex((l) => l.id === id), c.id);
     await mark('pick'); await page.evaluate((i) => window.__fh.startGame(i), i);
-    await page.waitForTimeout(1000); await page.click('#pvStart');
+    if (c.pv) {
+      await page.waitForTimeout(9000); await mark('pvStart'); await page.click('#pvStart');
+      await page.waitForTimeout(4500); await mark('end');
+    }
+    if (!c.pv) { await page.waitForTimeout(1000); await page.click('#pvStart');
     await page.waitForTimeout(1600); await mark('carry');
     for (const [k, r, x, t] of SOL[c.id]) {
       await page.evaluate(([k, r, x, t]) => { const f = window.__fh; f.choose(k); if (r) f.rotate(); f.lockTo({ kind: k, rot: r, x0: x, t0: t }); }, [k, r, x, t]);
@@ -79,13 +85,15 @@ for (const name of names) {
       await mark('place'); await page.evaluate(() => window.__fh.place());
       await page.waitForTimeout(2600);
     }
-    await mark('bind'); await page.click('#btnBind');
+    await mark('bind'); await page.click('#btnBind'); }
   }
+  if (!c.pv) {
   await page.waitForFunction(() => !document.getElementById('rpResult').hidden, null, { timeout: 60000 });
   await mark('result');
   info.result = await page.evaluate(() => document.getElementById('rpResult').innerText.replace(/\s+/g, ' '));
   await page.waitForTimeout(5500);
   await mark('end');
+  }
   await cdp.send('Page.stopScreencast');
   await page.waitForTimeout(300);
   await ctx.close();

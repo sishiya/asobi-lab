@@ -16,7 +16,8 @@
 <script>
 'use strict';
 // 台本: ぺらぺら世界の歴史係（ショート、縦長 36秒＋締め、?short で開く）（2026-11-07、ver. 1.0）
-// ミッション（キーウィを巣へ。さわれるのは形だけ）→ このままだと崖に落ちる → 前へ歩くと未来 → 板を置く → 正史にする → 舞台裏（形＝動き）を3つ
+// ミッション（キーウィを巣へ。さわれるのは形だけ）→ このままだと崖に落ちる → 前へ歩くと未来 → 板を置く → 正史にする → ほかの図版の問題を3つ（答えは見せない）
+// 2026-11-07 作り直し（ユーザー「自分で気づかせるゲームなのにネタバレ」）: ほかの図版の答えと舞台裏（形が2Dで何に化けるか）は出さない。見せるのは、ゲームが自分で教える図版 I まで
 // 素材は out/fh-clips（flat-history-clips.mjs）。上 330px は字幕・札、まんなかに金のふちの額に入れたゲームの画面。下の約25%は YouTube の表示が重なるので何も置かない
 const T_END = 36;
 const NAME = 'ぺらぺら世界の歴史係', SUB = '1秒ずつの2D世界に、3Dの形を置く';
@@ -31,14 +32,14 @@ const CAPS = [
     en: ['All you can place are 3D shapes', 'The flat world sees only their cross-section'] },
   { a: 21.7, b: 26.8, main: '「正史にする」で、住人の目で再生', sub: '板は、何秒かだけかかる橋になった',
     en: ['"Make it the true history" replays it through the resident\'s eyes', 'The board became a bridge that lasts a few seconds'] },
-  { a: 27.2, b: 35.8, main: '形は、時間の中で動きになる', sub: '',
-    en: ['In time, a shape becomes a motion', ''] },
+  { a: 27.2, b: 35.8, main: 'ほかの図版は、どうする？', sub: '形が何に化けるかは、置いてみてのお楽しみ',
+    en: ['What about the other plates?', 'What each shape turns into, you\'ll find out by placing it'] },
 ];
-// 舞台裏の札（ゲームの判定の画面と同じ言葉）
+// ほかの図版の問い（答えは書かない。使える形は、パレットに出ているものだけ）
 const REV = [
-  { a: 27.4, b: 30.4, two: 'ぐるぐる回る棒', three: '軸のまわりを玉が巻く、らせん' },
-  { a: 30.6, b: 33.4, two: 'せり上がるエレベーター', three: 'ななめに置いた、一枚の板' },
-  { a: 33.6, b: 36, two: '上がって下がる、往復リフト', three: '「へ」の字に曲がった、一枚の板' },
+  { a: 27.4, b: 30.4, q: 'この段を、どうのぼる？', shape: 'ななめの板', en: 'How does it climb this step? (shape: a slanted board)' },
+  { a: 30.6, b: 33.4, q: '高い台から、どう下りる？', shape: '「へ」の字の板', en: 'How does it get down from the ledge? (shape: a humped board)' },
+  { a: 33.6, b: 36, q: '巣はうしろ。どう帰す？', shape: 'らせん', en: 'The nest is behind it. How do you send it back? (shape: a spiral)' },
 ];
 const MUSIC = { style: 'calm', stopAt: SHORT_END, cues: [
   { t: 0.6, type: 'pop' }, ...CAPS.map((c) => ({ t: c.a, type: 'pop' })), ...REV.map((r) => ({ t: r.a, type: 'whoosh' })),
@@ -51,7 +52,7 @@ promoStart({
   subs: () => [
     { a: 0.6, b: 5.4, ja: 'ミッション: キーウィを、巣へ。\nただし、さわれるのは「形」だけ', en: 'Mission: get the kiwi to its nest.\nBut all you can touch are shapes' },
     ...capSubs(CAPS),
-    ...REV.map((r) => ({ a: r.a, b: r.b, ja: `2Dでは ${r.two}\n3Dでは ${r.three}`, en: '' })),
+    ...REV.map((r) => ({ a: r.a, b: r.b, ja: `${r.q}\n使える形: ${r.shape}`, en: r.en })),
     { a: T_END + 0.4, b: SHORT_END, ja: 'ぺらぺら世界の歴史係\nブラウザですぐ遊べます（パソコン・スマホ／日本語・英語）', en: 'Keeper of the Flat World\nPlay right in your browser (PC or phone, Japanese or English)' },
   ],
   ready: () => FIF.ready,
@@ -64,9 +65,9 @@ promoStart({
       { a: 16, b: 21.5, clip: 'play1', c0: fhM('play1', 'carry', 0.3), at: 'play' },            // 板を置く
       { a: 21.5, b: 26.4, clip: 'play1', c0: fhM('play1', 'bind', 0.4), at: 'bindNow' },        // 正史にする（再生）
       { a: 26.4, b: 27.2, clip: 'play1', c0: fhM('play1', 'result', 0.2), at: 'stamp' },        // 正史の判
-      { a: 27.2, b: 30.5, clip: 'pl-g3', c0: fhM('pl-g3', 'bind', 0.6), at: 'bindNow' },        // 回る棒
-      { a: 30.5, b: 33.5, clip: 'pl-t3', c0: fhM('pl-t3', 'bind', 0.6), at: 'bindNow' },        // エレベーター
-      { a: 33.5, b: 99, clip: 'pl-g1', c0: fhM('pl-g1', 'bind', 0.6), at: 'bindNow' },          // 往復リフト
+      { a: 27.2, b: 30.5, clip: 'pv-t3', c0: 2.6, rate: 1.4, at: 'preview' },                    // のぼる板の問題（このままだと、段で引き返す）
+      { a: 30.5, b: 33.5, clip: 'pv-g1', c0: 4.6, rate: 1.4, at: 'preview' },                    // 往復するリフトの問題（台から落ちる）
+      { a: 33.5, b: 99, clip: 'pv-g3', c0: 2.6, rate: 1.4, at: 'preview' },                      // 回る棒の問題（巣と反対へ歩いていく）
     ];
     return null;
   },
@@ -83,7 +84,7 @@ promoStart({
       fhView(g, s, FX, fy, FW, fh);
       if (f < 1) { g.fillStyle = `rgba(7,28,24,${1 - f})`; g.fillRect(FX, fy, FW, fh); }   // 場面の替わり目
     });
-    for (const r of REV) fhReveal(g, fade(t, r.a, r.b, 0.25), PW / 2, FY + FH + 40, 940, r.two, r.three, 46);
+    for (const r of REV) fhAsk(g, fade(t, r.a, r.b, 0.25), PW / 2, FY + FH + 40, 940, r.q, r.shape, 46);
     drMission(g, fade(t, 0.6, 5.4, 0.4), 330, 'MISSION', 'キーウィを、巣へ', 'さわれるのは「形」だけ');
     drawTitle(g, t, 0.6, 5.4, NAME, SUB);
     drPopCaps(g, t, CAPS, 205);

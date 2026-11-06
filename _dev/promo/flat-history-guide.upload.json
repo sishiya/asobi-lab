@@ -6,8 +6,8 @@
   "captions": {
     "en": "_dev/promo/out/flat-history-guide.en.srt"
   },
-  "title": "ぺらぺら世界の歴史係 ― 遊び方と見どころ（ページの束を歩く・形を置く・断面が動きになる）",
-  "description": "1秒ずつのぺらぺらな2D世界が、本のページのように並んでいる。前へ歩けば未来、うしろは昔。住人のキーウィにはさわれない。置けるのは3Dの形だけで、2D世界にはその秒の断面だけが現れる。ななめの板はせり上がるエレベーターに、平行四辺形の板は横に動く足場に、らせんはぐるぐる回る棒に。形は、時間の中で動きになる。キーウィを巣へ届ける正史を作ろう。しし屋 まなびラボの姉妹サイト「あそびラボ」のブラウザゲーム「ぺらぺら世界の歴史係」の、遊び方と見どころです。\n\n0:00 はじめに・このままだと崖に落ちる\n0:17 ページの束を歩いて、未来を見る\n0:30 形を置く・正史にする\n0:50 6つの図版の舞台裏（2Dではこう見えた形が、3Dでは）\n1:38 図版は21\n\nゲーム（ブラウザで遊べます。パソコン・スマホ／日本語・英語）:\nhttps://sishiya.github.io/asobi-lab/flat-history/\n\nしし屋 あそびラボ（ほかのゲーム）:\nhttps://sishiya.github.io/asobi-lab/\nしし屋 まなびラボ（学べるアプリ）:\nhttps://sishiya.github.io/manabi-lab/\n\n音楽: プログラムで合成したオリジナルの音です。\n\n#パズルゲーム #ブラウザゲーム #あそびラボ",
+  "title": "ぺらぺら世界の歴史係 ― 遊び方と見どころ（ページの束を歩く・形を置く・正史を作る）",
+  "description": "1秒ずつのぺらぺらな2D世界が、本のページのように並んでいる。前へ歩けば未来、うしろは昔。住人のキーウィにはさわれない。置けるのは3Dの形だけで、2D世界にはその秒の断面だけが現れる。形が2D世界で何に化けるかは、置いてみてのお楽しみ。キーウィを巣へ届ける正史を作ろう。しし屋 まなびラボの姉妹サイト「あそびラボ」のブラウザゲーム「ぺらぺら世界の歴史係」の、遊び方と見どころです。\n\n0:00 はじめに・このままだと崖に落ちる\n0:17 ページの束を歩いて、未来を見る\n0:30 形を置く・正史にする\n0:50 ほかの図版の問題（答えは見せません）\n1:38 図版は21\n\nゲーム（ブラウザで遊べます。パソコン・スマホ／日本語・英語）:\nhttps://sishiya.github.io/asobi-lab/flat-history/\n\nしし屋 あそびラボ（ほかのゲーム）:\nhttps://sishiya.github.io/asobi-lab/\nしし屋 まなびラボ（学べるアプリ）:\nhttps://sishiya.github.io/manabi-lab/\n\n音楽: プログラムで合成したオリジナルの音です。\n\n#パズルゲーム #ブラウザゲーム #あそびラボ",
   "tags": [
     "ぺらぺら世界の歴史係",
     "パズルゲーム",
@@ -26,9 +26,9 @@
   ],
   "localizations": {
     "en": {
-      "title": "Keeper of the Flat World ― How to Play: Walk the Pages, Place Shapes, Watch Them Move",
-      "description": "How to play \"Keeper of the Flat World\", a browser game. A flat world, one second per page, lined up like a book. Walk forward into the future, back into the past. You can't touch the kiwi — all you can place are 3D shapes, and the flat world sees only their cross-section at each second. A slanted board becomes a rising elevator, a parallelogram becomes a moving platform, a spiral becomes a spinning bar. In time, a shape becomes a motion. Make the true history that gets the kiwi home. A browser game on Shishiya Asobi Lab, the sister site of Manabi Lab. Turn on English subtitles (CC).\n\n0:00 Intro: left alone, the kiwi falls\n0:17 Walk the stack of pages to see the future\n0:30 Place a shape, make it the true history\n0:50 Backstage of 6 plates (what each shape was in 3D)\n1:38 21 plates\n\nGame (Japanese / English; switch with JP / EN on the title screen):\nhttps://sishiya.github.io/asobi-lab/flat-history/\n\nShishiya Asobi Lab (more games): https://sishiya.github.io/asobi-lab/\nShishiya Manabi Lab (learning apps): https://sishiya.github.io/manabi-lab/\n\nMusic: original sounds synthesized by code.\n\n#PuzzleGame #BrowserGame"
+      "title": "Keeper of the Flat World ― How to Play: Walk the Pages, Place Shapes, Make History",
+      "description": "How to play \"Keeper of the Flat World\", a browser game. A flat world, one second per page, lined up like a book. Walk forward into the future, back into the past. You can't touch the kiwi — all you can place are 3D shapes, and the flat world sees only their cross-section at each second. What each shape turns into in the flat world, you find out by placing it. Make the true history that gets the kiwi home. A browser game on Shishiya Asobi Lab, the sister site of Manabi Lab. Turn on English subtitles (CC).\n\n0:00 Intro: left alone, the kiwi falls\n0:17 Walk the stack of pages to see the future\n0:30 Place a shape, make it the true history\n0:50 Puzzles from other plates (no answers shown)\n1:38 21 plates\n\nGame (Japanese / English; switch with JP / EN on the title screen):\nhttps://sishiya.github.io/asobi-lab/flat-history/\n\nShishiya Asobi Lab (more games): https://sishiya.github.io/asobi-lab/\nShishiya Manabi Lab (learning apps): https://sishiya.github.io/manabi-lab/\n\nMusic: original sounds synthesized by code.\n\n#PuzzleGame #BrowserGame"
     }
   },
-  "videoId": "wsN5oG5eIq0"
+  "videoId": "zvLBLRdfiWo"
 }

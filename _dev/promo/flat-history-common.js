@@ -2,7 +2,8 @@
 // 素材は flat-history-clips.mjs が撮った out/fh-clips/<名前>.mp4（PC の横の画面 1920×1080、本物の速さ）と .json（場面の時刻 marks）。
 // 描き方は名画の顔ハメと同じ（face-in-frame-common.js の fifSeek・fifView・fifFrame を使う。クリップは FIF.v に入れる）。
 'use strict';
-const FH_CLIPS = ['play1', 'pl-t3', 'pl-t6', 'pl-m2', 'pl-m3', 'pl-g1', 'pl-g3', 'pl-x1', 'pl-x2'];
+// 答えを置いた pl-<id> は使わない（2026-11-07 ユーザー「自分で気づかせるゲームなのにネタバレ」）。ほかの図版は問題の場面 pv-<id> だけ
+const FH_CLIPS = ['play1', 'pv-t3', 'pv-t6', 'pv-m3', 'pv-g1', 'pv-g3', 'pv-x1'];
 // クリップの中の場所（0〜1。ゲームの 1280×720 の画面で測った）: [寄る点 x, y, 見せる幅]
 const FH_AT = {
   full: [0.5, 0.5, 1],
@@ -56,5 +57,22 @@ function fhReveal(g, f, cx, y, w, two, three, size = 44) {
   const vx = lx + size * 2.6;
   setFont(g, size, true); g.fillStyle = '#fff3d8'; g.fillText(two, vx, size * 1.0);
   g.fillStyle = '#ffd27a'; g.fillText(three, vx, size * 2.55);
+  g.restore();
+}
+// 問いの札（「？ この段を、どうのぼる？」と、パレットにある形の名前）。答えは書かない
+function fhAsk(g, f, cx, y, w, q, shape, size = 46) {
+  if (f <= 0) return;
+  const k = backOut(clamp(f * 1.3, 0, 1));
+  g.save(); g.shadowBlur = 0; g.globalAlpha = clamp(f * 2, 0, 1);
+  g.translate(cx, y); g.scale(0.9 + 0.1 * k, 0.9 + 0.1 * k);
+  const h = size * 3.4;
+  g.fillStyle = 'rgba(12,40,35,0.92)'; g.strokeStyle = '#e0b14c'; g.lineWidth = 3;
+  g.beginPath(); g.roundRect(-w / 2, 0, w, h, 18); g.fill(); g.stroke();
+  g.textBaseline = 'middle'; g.textAlign = 'left';
+  const lx = -w / 2 + size * 0.6;
+  setFont(g, size * 1.5, true); g.fillStyle = '#ffd27a'; g.fillText('？', lx, size * 1.65);
+  const vx = lx + size * 1.7;
+  setFont(g, size, true); g.fillStyle = '#fff3d8'; g.fillText(q, vx, size * 1.1);
+  setFont(g, size * 0.62, true); g.fillStyle = '#d9c38a'; g.fillText('使える形: ' + shape, vx, size * 2.35);
   g.restore();
 }

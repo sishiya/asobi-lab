@@ -17,26 +17,27 @@
 'use strict';
 // 台本: ぺらぺら世界の歴史係 ― あそびかたと見どころ（横長の説明動画、110秒＋締め、案内役のライオン＝あそびラボのオーバーオール）（2026-11-07、ver. 1.0）
 // 左に金のふちの額（ゲームの画面。out/fh-clips）、上の帯に字幕（下は英語の CC にあける）、右下はライオン、右上に札。
-// 図版 I を通して遊び方 → 6つの図版の「舞台裏」（2Dではこう見えた形が、3Dではこうだった）→ 図版21
+// 図版 I を通して遊び方 → 6つの図版の問題（答えは見せない）→ 図版21
 const END = 110, DUR = END + IDENT_CLOSE;
 const FX = 70, FY = 210, FW = 1380, FHM = 776;   // 額（高さは寄せ方で変わる。いちばん高くて 776）
 const NAME = 'ぺらぺら世界の歴史係';
-// 図版ごとの舞台裏（ゲームの判定の画面と同じ言葉）
+// ほかの図版は、問題の場面だけ（開始の画面の「このままだと」→ 遊び場とパレット）。答え・舞台裏は見せない
+// （2026-11-07 作り直し。ユーザー「自分で気づかせるゲームなのにネタバレ」。使える形は、パレットに出ているものの名前だけ）
 const PL = [
-  { clip: 'pl-t3', main: 'Pl. II　のぼる板', sub: 'キーウィには高すぎる段', two: 'せり上がるエレベーター', three: 'ななめに置いた、一枚の板',
-    en: ['Pl. II  The Rising Board', 'A step too high for the kiwi'], enR: 'In 2D: a rising elevator / In 3D: a single slanted board' },
-  { clip: 'pl-t6', main: 'Pl. V　はこぶ板', sub: 'どの板でも届かない、広い崖', two: '横に動く足場', three: '横にずれた、平行四辺形の板',
-    en: ['Pl. V  The Carrying Board', 'A chasm too wide for any board'], enR: 'In 2D: a platform that moves sideways / In 3D: a board skewed into a parallelogram' },
-  { clip: 'pl-m3', main: 'Pl. XII　石と歩く', sub: '石も、キーウィと同じ道をころがる', two: '石とキーウィが、順にわたる橋', three: '奥行きのある、長い板',
-    en: ['Pl. XII  Walking with the Stone', 'The stone rolls the same way the kiwi walks'], enR: 'In 2D: a bridge the stone and the kiwi cross in turn / In 3D: a long board with depth' },
-  { clip: 'pl-g1', main: 'Pl. XIV　往復するリフト', sub: '高い台から下りると、キーウィは助からない', two: '上がって下がる、往復リフト', three: '「へ」の字に曲がった、一枚の板',
-    en: ['Pl. XIV  The Shuttle Lift', 'If it drops off the ledge, the kiwi won\'t survive'], enR: 'In 2D: a lift that goes up and comes back down / In 3D: a single board bent into a hump' },
-  { clip: 'pl-g3', main: 'Pl. XVII　回る棒', sub: '巣はうしろ。回る棒にぶつかると、引き返す', two: 'ぐるぐる回る棒', three: '軸のまわりを玉が巻く、らせん',
-    en: ['Pl. XVII  The Spinning Bar', 'The nest is behind. When the bar hits the kiwi, it turns back'], enR: 'In 2D: a spinning bar / In 3D: a spiral of balls around an axis' },
-  { clip: 'pl-x1', main: 'Pl. XVIII　ふたりの住人', sub: '二羽とも、自分の巣と反対へ歩いていく', two: 'ふたりが出会う、つかのまの橋', three: '二羽の行きと帰りをつつむ、一枚の板',
-    en: ['Pl. XVIII  Two Residents', 'Both kiwis walk away from their own nests'], enR: 'In 2D: a fleeting bridge where the two meet / In 3D: one board that holds the way out and the way back' },
+  { clip: 'pv-t3', main: 'Pl. II　のぼる板', sub: 'キーウィには高すぎる段', q: 'この段を、どうのぼる？', shape: 'ななめの板',
+    en: ['Pl. II  The Rising Board', 'A step too high for the kiwi'], enQ: 'How does it climb this step?\nShape: a slanted board' },
+  { clip: 'pv-t6', main: 'Pl. V　はこぶ板', sub: 'どの板でも届かない、広い崖', q: 'この崖を、どうわたる？', shape: '平行四辺形の板',
+    en: ['Pl. V  The Carrying Board', 'A chasm too wide for any board'], enQ: 'How does it cross this chasm?\nShape: a parallelogram board' },
+  { clip: 'pv-m3', main: 'Pl. XII　石と歩く', sub: '石も、キーウィと同じ道をころがる', q: '小さな割れ目は、だれがふさぐ？', shape: '長い板',
+    en: ['Pl. XII  Walking with the Stone', 'The stone rolls the same way the kiwi walks'], enQ: 'Who will fill the little crack?\nShape: a long board' },
+  { clip: 'pv-g1', main: 'Pl. XIV　往復するリフト', sub: '高い台から落ちると、キーウィは助からない', q: '高い台から、どう下りる？', shape: '「へ」の字の板',
+    en: ['Pl. XIV  The Shuttle Lift', 'If it drops off the ledge, the kiwi won\'t survive'], enQ: 'How does it get down from the ledge?\nShape: a humped board' },
+  { clip: 'pv-g3', main: 'Pl. XVII　回る棒', sub: '巣はうしろ。でも、キーウィは前へ歩いていく', q: 'どうやって、引き返させる？', shape: 'らせん',
+    en: ['Pl. XVII  The Spinning Bar', 'The nest is behind, but the kiwi walks ahead'], enQ: 'How do you turn it back?\nShape: a spiral' },
+  { clip: 'pv-x1', main: 'Pl. XVIII　ふたりの住人', sub: '二羽とも、自分の巣と反対へ歩いていく', q: '二羽とも巣へ帰すには？', shape: '板',
+    en: ['Pl. XVIII  Two Residents', 'Both kiwis walk away from their own nests'], enQ: 'How do you get both of them home?\nShape: a board' },
 ];
-const R0 = 50, RL = 8;   // 舞台裏の場面のはじまりと長さ
+const R0 = 50, RL = 8;   // ほかの図版の問題の場面のはじまりと長さ
 const CAPS = [
   { a: 8.3, b: 16.8, main: '1秒ずつの、ぺらぺらな世界が並ぶ', sub: '住人のキーウィは巣へ。でも、このままだと崖に落ちる',
     en: ['A flat world, one second per page', 'The kiwi heads for its nest. Left alone, it falls into the chasm'] },
@@ -51,8 +52,8 @@ const CAPS = [
   { a: 43.8, b: 49.8, main: '巣に着いたら、正史', sub: '最後に「舞台裏」。2Dで見えたものは、3Dではどんな形だった？',
     en: ['Reach the nest, and it becomes the true history', 'Then the backstage: what was that shape in 3D?'] },
   ...PL.map((p, i) => ({ a: R0 + i * RL + 0.3, b: R0 + (i + 1) * RL - 0.2, main: p.main, sub: p.sub, en: p.en })),
-  { a: 98.3, b: 101.8, main: '図版は21。ひとつずつ覚えて、組み合わせへ', sub: '1マス・1秒ずれたら失敗、にはしない',
-    en: ['21 plates. Learn one idea at a time, then combine them', 'Off by one square or one second? It still works'] },
+  { a: 98.3, b: 101.8, main: '図版は21。形が何に化けるかは、置いてみて', sub: '1マス・1秒ずれたら失敗、にはしない',
+    en: ['21 plates. What each shape turns into, find out by placing it', 'Off by one square or one second? It still works'] },
 ];
 const MUSIC = { style: 'calm', stopAt: END, cues: [{ t: END, type: 'jingle' }, { t: 1.0, type: 'pop' },
   ...[8, 17, 24, 30, 37.5, 43.5, ...PL.map((_, i) => R0 + i * RL), 98].map((t) => ({ t, type: 'whoosh' })), { t: 43.6, type: 'stamp' }] };
@@ -75,8 +76,8 @@ promoStart({
       { a: 37.5, b: 43.5, clip: 'play1', c0: fhM('play1', 'bind', 0.3), at: 'bindBoth' },
       { a: 43.5, b: 50, clip: 'play1', c0: fhM('play1', 'result', 0.1), at: 'stamp', rev: ['何秒かだけかかる橋', '奥行きのある、一枚の板'] },
       ...PL.flatMap((p, i) => [
-        { a: R0 + i * RL, b: R0 + i * RL + 3, clip: p.clip, c0: fhM(p.clip, 'carry', 0.4), at: 'full' },
-        { a: R0 + i * RL + 3, b: R0 + (i + 1) * RL, clip: p.clip, c0: fhM(p.clip, 'bind', 0.6), at: 'bindNow', rev: [p.two, p.three] },
+        { a: R0 + i * RL, b: R0 + i * RL + 5.5, clip: p.clip, c0: 1.5, rate: 1.2, at: 'preview' },                 // このままだと、こうなる
+        { a: R0 + i * RL + 5.5, b: R0 + (i + 1) * RL, clip: p.clip, c0: fhM(p.clip, 'pvStart', 0.8), at: 'full' },  // 遊び場とパレット（使える形）
       ]),
       { a: 98, b: 999, clip: 'play1', c0: 1.2, rate: 0.4, at: 'full' },
     ];
@@ -85,8 +86,8 @@ promoStart({
   subs: () => [
     { a: 0.6, b: 6.6, ja: 'ぺらぺら世界の歴史係\nあそびかたと見どころ（まなびラボの姉妹サイト「あそびラボ」）', en: 'Keeper of the Flat World\nHow to play (from Asobi Lab, the sister site of Manabi Lab)' },
     ...capSubs(CAPS),
-    ...SC.filter((s) => s.rev).map((s) => ({ a: s.a + 0.2, b: s.b - 0.2, ja: `2Dでは ${s.rev[0]}\n3Dでは ${s.rev[1]}`,
-      en: (PL.find((p) => p.two === s.rev[0]) || { enR: 'In 2D: a bridge that lasts a few seconds / In 3D: a single board with depth' }).enR.replace(' / ', '\n') })),
+    { a: 44.1, b: 49.8, ja: '2Dでは 何秒かだけかかる橋\n3Dでは 奥行きのある、一枚の板', en: 'In 2D: a bridge that lasts a few seconds\nIn 3D: a single board with depth' },
+    ...PL.map((p, i) => ({ a: R0 + i * RL + 0.8, b: R0 + (i + 1) * RL - 0.2, ja: `${p.q}\n使える形: ${p.shape}`, en: p.enQ })),
     { a: END - 7.8, b: END, ja: 'ぺらぺら世界の歴史係\nブラウザですぐ遊べます（パソコン・スマホ／日本語・英語）', en: 'Keeper of the Flat World\nPlay right in your browser (PC or phone, Japanese or English)' },
   ],
   async renderAt(t) { await fifSeek(SC, t); },
@@ -102,6 +103,9 @@ promoStart({
       if (f < 1) { g.fillStyle = `rgba(7,28,24,${1 - f})`; g.fillRect(FX, fy, FW, fh); }
     });
     if (s.rev) fhReveal(g, fade(t, s.a + 0.6, s.b - 0.1, 0.3), FX + FW / 2, FY + FHM - 200, 980, s.rev[0], s.rev[1], 44);
+    // ほかの図版の問い（場面2つにまたがって出しつづける。遊び場の場面では、下のパレット＝使える形を隠さないよう上に）
+    const ip = PL.findIndex((_, i) => t >= R0 + i * RL && t < R0 + (i + 1) * RL);
+    if (ip >= 0) fhAsk(g, fade(t, R0 + ip * RL + 0.8, R0 + (ip + 1) * RL - 0.1, 0.3), FX + FW / 2, s.at === 'full' ? FY + 70 : FY + FHM - 160, 980, PL[ip].q, PL[ip].shape, 44);
     // 右上の札
     drawPanel(g, 1490, 230, 400, 'この動画で遊ぶ図版', ['Pl. I　時をめくる', '（はじめの図版。板が1枚）'], fade(t, 8.6, 16.8, 0.4));
     drawPanel(g, 1490, 230, 400, '図版は21', ['はじめの図版 5', '本番の図版 13', '次の巻より（むずかしい）3'], fade(t, 98.4, 101.8, 0.4), '#ffd27a');
