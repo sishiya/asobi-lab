@@ -58,8 +58,9 @@ const SETUP = {
     const d = w.document, st = w.__fh.st, L = w.__fh.L, lk = look();
     const hist = w.__fh.simulate(L, st.pieces);
     // ページ1枚の絵（切り抜き: 横 12.6 マスから 9 マス。地面の線をページの上から 46% に置き、下は地層の断面）。どのページも同じ大きさで描いて、置くときに縮める
-    const PW = 760, PH = 400, CX = 12.6, S = PW / 9, TOP = 4 + (PH * 0.46) / S;
-    const mk = () => { const c = d.createElement('canvas'); c.width = PW; c.height = PH; return c; };
+    const K = +(q.get('k') || 1);   // 絵の細かさ（YouTube のサムネイルの元にするときは 2 で 2560×1440）
+    const PW = 760, PH = 400, CX = 12.6, S = PW * K / 9, TOP = 4 + (PH * 0.46) / (PW / 9);
+    const mk = () => { const c = d.createElement('canvas'); c.width = PW * K; c.height = PH * K; return c; };
     const terr = mk(), tg = terr.getContext('2d');
     tg.translate(-CX * S, -(L.H - TOP) * S);
     const gr = tg.createLinearGradient(0, 0, 0, L.H * S); gr.addColorStop(0, lk.paper[0]); gr.addColorStop(1, lk.paper[1]);
@@ -73,12 +74,12 @@ const SETUP = {
       const f = hist.frames[Math.max(0, Math.min(hist.frames.length - 1, Math.round(t / 0.1)))];
       if (f.st !== 'dead') lk.drawWalker(pg, L, f, S, (S / 20) * 1.6);
       // 秒の札（ページの左上。銅版画の図版の番号のように）
-      pg.setTransform(1, 0, 0, 1, 0, 0);
+      pg.setTransform(K, 0, 0, K, 0, 0);
       pg.font = 'italic 600 30px "Cormorant Garamond", Georgia, serif'; pg.fillStyle = 'rgba(59,42,28,.62)';
       pg.fillText(`${Math.floor(t)} s`, 22, 44);
     };
     // 画面いっぱいの絵（3D はかくす）
-    const cv = d.createElement('canvas'); cv.width = 1280; cv.height = 720;
+    const cv = d.createElement('canvas'); cv.width = 1280 * K; cv.height = 720 * K;
     cv.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;z-index:50';
     d.body.append(cv);
     const g = cv.getContext('2d');
@@ -102,7 +103,7 @@ const SETUP = {
     };
     const N = 4;
     w.__thumbDraw = (t, tm) => {
-      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.setTransform(K, 0, 0, K, 0, 0);
       const bg = g.createRadialGradient(560, 300, 60, 640, 360, 860); bg.addColorStop(0, '#1f5249'); bg.addColorStop(0.55, '#123a33'); bg.addColorStop(1, '#071c18');
       g.fillStyle = bg; g.fillRect(0, 0, 1280, 720);
       // 時間の軸（金の細い線と目盛り。手前＝いま、奥＝未来）

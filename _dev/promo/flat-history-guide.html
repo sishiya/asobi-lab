@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>紹介動画づくり</title>
+<link rel="stylesheet" href="promo.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.min.js"></script>
+<script src="promo.js"></script>
+<script src="promo-audio.js"></script>
+<script src="dino-race-common.js"></script>
+<script src="face-in-frame-common.js"></script>
+<script src="flat-history-common.js"></script>
+<script>
+'use strict';
+// 台本: ぺらぺら世界の歴史係 ― あそびかたと見どころ（横長の説明動画、110秒＋締め、案内役のライオン＝あそびラボのオーバーオール）（2026-11-07、ver. 1.0）
+// 左に金のふちの額（ゲームの画面。out/fh-clips）、上の帯に字幕（下は英語の CC にあける）、右下はライオン、右上に札。
+// 図版 I を通して遊び方 → 6つの図版の「舞台裏」（2Dではこう見えた形が、3Dではこうだった）→ 図版21
+const END = 110, DUR = END + IDENT_CLOSE;
+const FX = 70, FY = 210, FW = 1380, FHM = 776;   // 額（高さは寄せ方で変わる。いちばん高くて 776）
+const NAME = 'ぺらぺら世界の歴史係';
+// 図版ごとの舞台裏（ゲームの判定の画面と同じ言葉）
+const PL = [
+  { clip: 'pl-t3', main: 'Pl. II　のぼる板', sub: 'キーウィには高すぎる段', two: 'せり上がるエレベーター', three: 'ななめに置いた、一枚の板',
+    en: ['Pl. II  The Rising Board', 'A step too high for the kiwi'], enR: 'In 2D: a rising elevator / In 3D: a single slanted board' },
+  { clip: 'pl-t6', main: 'Pl. V　はこぶ板', sub: 'どの板でも届かない、広い崖', two: '横に動く足場', three: '横にずれた、平行四辺形の板',
+    en: ['Pl. V  The Carrying Board', 'A chasm too wide for any board'], enR: 'In 2D: a platform that moves sideways / In 3D: a board skewed into a parallelogram' },
+  { clip: 'pl-m3', main: 'Pl. XII　石と歩く', sub: '石も、キーウィと同じ道をころがる', two: '石とキーウィが、順にわたる橋', three: '奥行きのある、長い板',
+    en: ['Pl. XII  Walking with the Stone', 'The stone rolls the same way the kiwi walks'], enR: 'In 2D: a bridge the stone and the kiwi cross in turn / In 3D: a long board with depth' },
+  { clip: 'pl-g1', main: 'Pl. XIV　往復するリフト', sub: '高い台から下りると、キーウィは助からない', two: '上がって下がる、往復リフト', three: '「へ」の字に曲がった、一枚の板',
+    en: ['Pl. XIV  The Shuttle Lift', 'If it drops off the ledge, the kiwi won\'t survive'], enR: 'In 2D: a lift that goes up and comes back down / In 3D: a single board bent into a hump' },
+  { clip: 'pl-g3', main: 'Pl. XVII　回る棒', sub: '巣はうしろ。回る棒にぶつかると、引き返す', two: 'ぐるぐる回る棒', three: '軸のまわりを玉が巻く、らせん',
+    en: ['Pl. XVII  The Spinning Bar', 'The nest is behind. When the bar hits the kiwi, it turns back'], enR: 'In 2D: a spinning bar / In 3D: a spiral of balls around an axis' },
+  { clip: 'pl-x1', main: 'Pl. XVIII　ふたりの住人', sub: '二羽とも、自分の巣と反対へ歩いていく', two: 'ふたりが出会う、つかのまの橋', three: '二羽の行きと帰りをつつむ、一枚の板',
+    en: ['Pl. XVIII  Two Residents', 'Both kiwis walk away from their own nests'], enR: 'In 2D: a fleeting bridge where the two meet / In 3D: one board that holds the way out and the way back' },
+];
+const R0 = 50, RL = 8;   // 舞台裏の場面のはじまりと長さ
+const CAPS = [
+  { a: 8.3, b: 16.8, main: '1秒ずつの、ぺらぺらな世界が並ぶ', sub: '住人のキーウィは巣へ。でも、このままだと崖に落ちる',
+    en: ['A flat world, one second per page', 'The kiwi heads for its nest. Left alone, it falls into the chasm'] },
+  { a: 17.3, b: 23.8, main: 'あなたは、ページの束の外の者', sub: '2D世界の住人にも物にも、じかにはさわれない',
+    en: ['You are outside the stack of pages', 'You can\'t touch the residents or anything in the flat world'] },
+  { a: 24.3, b: 29.8, main: '前へ歩けば未来、うしろは昔', sub: 'クリックした所へ歩く（W A S D でも）',
+    en: ['Walk forward into the future, back into the past', 'Click where you want to go (or use W A S D)'] },
+  { a: 30.3, b: 37.2, main: '置けるのは、3Dの形だけ', sub: 'パレットの形を置くと、2D世界にはその秒の断面だけが現れる',
+    en: ['All you can place are 3D shapes', 'Place one from the palette, and the flat world sees only its cross-section at each second'] },
+  { a: 37.8, b: 43.3, main: '「正史にする」で、住人の目で再生', sub: 'はじめの歴史（上）と、いまの歴史（下）',
+    en: ['"Make it the true history" replays it through the resident\'s eyes', 'The first history (top) and the history now (bottom)'] },
+  { a: 43.8, b: 49.8, main: '巣に着いたら、正史', sub: '最後に「舞台裏」。2Dで見えたものは、3Dではどんな形だった？',
+    en: ['Reach the nest, and it becomes the true history', 'Then the backstage: what was that shape in 3D?'] },
+  ...PL.map((p, i) => ({ a: R0 + i * RL + 0.3, b: R0 + (i + 1) * RL - 0.2, main: p.main, sub: p.sub, en: p.en })),
+  { a: 98.3, b: 101.8, main: '図版は21。ひとつずつ覚えて、組み合わせへ', sub: '1マス・1秒ずれたら失敗、にはしない',
+    en: ['21 plates. Learn one idea at a time, then combine them', 'Off by one square or one second? It still works'] },
+];
+const MUSIC = { style: 'calm', stopAt: END, cues: [{ t: END, type: 'jingle' }, { t: 1.0, type: 'pop' },
+  ...[8, 17, 24, 30, 37.5, 43.5, ...PL.map((_, i) => R0 + i * RL), 98].map((t) => ({ t, type: 'whoosh' })), { t: 43.6, type: 'stamp' }] };
+const EXP = [[0, 'calm'], [8.4, 'think'], [12, 'calm'], [17.4, 'smile'], [24.4, 'calm'], [30.4, 'think'], [34, 'calm'], [37.9, 'smile'], [43.9, 'proud'], [46, 'calm'],
+  ...PL.flatMap((_, i) => [[R0 + i * RL + 0.4, 'think'], [R0 + i * RL + 3.4, 'wow'], [R0 + i * RL + 5, 'smile']]), [98.4, 'proud'], [102, 'calm'], [END - 7.6, 'smile']];
+let SC = [];
+const scAt = (t) => SC.find((s) => t < s.b) || SC[SC.length - 1];
+promoStart({
+  name: 'ぺらぺら世界の歴史係（あそびかた）', out: 'flat-history-guide', src: 'about:blank', iw: 1920, ih: 1080, dur: DUR, peek: 40,
+  music: MUSIC,
+  ready: () => !!LION.api && FIF.ready,
+  setup() {
+    MUSIC.cues.push(...lionSetup({ caps: CAPS, cur: [], exp: EXP, end: END, bye: END - 5.8 }));
+    SC = [
+      { a: 0, b: 8, clip: 'play1', c0: 0.4, rate: 0.4, at: 'full' },
+      { a: 8, b: 17, clip: 'play1', c0: fhM('play1', 'tStart', 0.6), at: 'preview' },
+      { a: 17, b: 24, clip: 'play1', c0: fhM('play1', 'pvStart', 0.1), at: 'full' },
+      { a: 24, b: 30, clip: 'play1', c0: fhM('play1', 'walk', -0.2), at: 'full' },
+      { a: 30, b: 37.5, clip: 'play1', c0: fhM('play1', 'carry', 0.1), at: 'full' },
+      { a: 37.5, b: 43.5, clip: 'play1', c0: fhM('play1', 'bind', 0.3), at: 'bindBoth' },
+      { a: 43.5, b: 50, clip: 'play1', c0: fhM('play1', 'result', 0.1), at: 'stamp', rev: ['何秒かだけかかる橋', '奥行きのある、一枚の板'] },
+      ...PL.flatMap((p, i) => [
+        { a: R0 + i * RL, b: R0 + i * RL + 3, clip: p.clip, c0: fhM(p.clip, 'carry', 0.4), at: 'full' },
+        { a: R0 + i * RL + 3, b: R0 + (i + 1) * RL, clip: p.clip, c0: fhM(p.clip, 'bind', 0.6), at: 'bindNow', rev: [p.two, p.three] },
+      ]),
+      { a: 98, b: 999, clip: 'play1', c0: 1.2, rate: 0.4, at: 'full' },
+    ];
+    return null;
+  },
+  subs: () => [
+    { a: 0.6, b: 6.6, ja: 'ぺらぺら世界の歴史係\nあそびかたと見どころ（まなびラボの姉妹サイト「あそびラボ」）', en: 'Keeper of the Flat World\nHow to play (from Asobi Lab, the sister site of Manabi Lab)' },
+    ...capSubs(CAPS),
+    ...SC.filter((s) => s.rev).map((s) => ({ a: s.a + 0.2, b: s.b - 0.2, ja: `2Dでは ${s.rev[0]}\n3Dでは ${s.rev[1]}`,
+      en: (PL.find((p) => p.two === s.rev[0]) || { enR: 'In 2D: a bridge that lasts a few seconds / In 3D: a single board with depth' }).enR.replace(' / ', '\n') })),
+    { a: END - 7.8, b: END, ja: 'ぺらぺら世界の歴史係\nブラウザですぐ遊べます（パソコン・スマホ／日本語・英語）', en: 'Keeper of the Flat World\nPlay right in your browser (PC or phone, Japanese or English)' },
+  ],
+  async renderAt(t) { await fifSeek(SC, t); },
+  drawSource(g) { g.fillStyle = '#0b2420'; g.fillRect(0, 0, PW * RES, PH * RES); },
+  overlay(g, t) {
+    const s = scAt(t), f = Math.min(clamp((t - s.a) / 0.3, 0, 1), s.b > 900 ? 1 : clamp((s.b - t) / 0.3, 0, 1));
+    const bg = g.createRadialGradient(PW * 0.4, PH * 0.5, 80, PW * 0.45, PH * 0.5, PW * 0.75);
+    bg.addColorStop(0, '#1f5249'); bg.addColorStop(1, '#071c18'); g.fillStyle = bg; g.fillRect(0, 0, PW, PH);
+    // 額（高さは寄せた所の縦横の割合に合わせる。まん中の高さはそろえる）
+    const fh = Math.min(FHM, FW * 1080 / (FH_AT[s.at || 'full'][2] * 1920)), fy = FY + (FHM - fh) / 2;
+    fifFrame(g, FX, fy, FW, fh, 1, () => {
+      fhView(g, s, FX, fy, FW, fh);
+      if (f < 1) { g.fillStyle = `rgba(7,28,24,${1 - f})`; g.fillRect(FX, fy, FW, fh); }
+    });
+    if (s.rev) fhReveal(g, fade(t, s.a + 0.6, s.b - 0.1, 0.3), FX + FW / 2, FY + FHM - 200, 980, s.rev[0], s.rev[1], 44);
+    // 右上の札
+    drawPanel(g, 1490, 230, 400, 'この動画で遊ぶ図版', ['Pl. I　時をめくる', '（はじめの図版。板が1枚）'], fade(t, 8.6, 16.8, 0.4));
+    drawPanel(g, 1490, 230, 400, '図版は21', ['はじめの図版 5', '本番の図版 13', '次の巻より（むずかしい）3'], fade(t, 98.4, 101.8, 0.4), '#ffd27a');
+    drPopCaps(g, t, CAPS, 40, 'top');
+    drawTitle(g, t, 0.6, 6.6, NAME, 'あそびかたと見どころ');
+    const fc = fade(t, 1.5, 6.6, 0.6);
+    if (fc > 0) { prep(g); g.globalAlpha = fc; g.textAlign = 'right'; txt(g, 'CC: English subtitles', PW - 50, PH - 40, 30, '#ddd', true); g.globalAlpha = 1; g.shadowBlur = 0; }
+    drawEnd(g, t, END - 7.8, NAME, 'ブラウザですぐ遊べます（パソコン・スマホ／日本語・英語）', '音楽: プログラムで合成したオリジナルの音');
+    drawLion(g, t);
+    drawIdentMini(g, t, 0.3); drSister(g, t, 0.3);
+    drawIdent(g, t, END); drSisterClose(g, t, END);
+  },
+});
+fhLoad();
+lionOpen();   // 裏の iframe でライオンを開く（ready で待つ。服はあそびラボのオーバーオールが既定）
+</script>
+</body>
+</html>

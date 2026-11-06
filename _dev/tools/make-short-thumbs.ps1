@@ -6,7 +6,8 @@
 # headless Chrome screenshots short-thumb.html?app=<app> (file://, no server needed), ffmpeg turns it into
 # _dev/promo/thumbs/<app>-short.jpg (under 2MB, the YouTube limit). Then set it with youtube-upload.ps1 -Thumb.
 # Needs ffmpeg on PATH and Chrome or Edge. Keep this file ASCII only (Windows PowerShell 5.1 reads BOM-less scripts as ANSI).
-param([string[]]$Apps = @())
+# -NoFrame: keep the picture already in _dev/promo/out/thumbsrc/<app>.jpg (made by hand, e.g. a drawing) instead of a frame of the short.
+param([string[]]$Apps = @(), [switch]$NoFrame)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $promo = Join-Path $root '_dev/promo'
@@ -27,8 +28,10 @@ foreach ($e in $list) {
   $app = $e.App
   $mp4 = Join-Path $promo "out/$app-short.mp4"
   if (-not (Test-Path $mp4)) { Write-Host "skip $app (no $mp4)"; continue }
-  & ffmpeg -v error -y -ss $e.T -i $mp4 -frames:v 1 -q:v 2 (Join-Path $srcDir "$app.jpg")
-  if ($LASTEXITCODE -ne 0) { Write-Host "FAILED frame $app"; continue }
+  if (-not $NoFrame) {
+    & ffmpeg -v error -y -ss $e.T -i $mp4 -frames:v 1 -q:v 2 (Join-Path $srcDir "$app.jpg")
+    if ($LASTEXITCODE -ne 0) { Write-Host "FAILED frame $app"; continue }
+  }
   # two sizes from the same frame: the short (1080x1920) and the long guide video (1280x720, ?wide)
   foreach ($k in @(@{ Kind = 'short'; Size = '1080,1920'; Q = '' }, @{ Kind = 'guide'; Size = '1280,720'; Q = '&wide' })) {
     $png = Join-Path $tmp "$app-$($k.Kind).png"; if (Test-Path $png) { Remove-Item $png }

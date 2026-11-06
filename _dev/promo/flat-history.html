@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>紹介動画づくり</title>
+<link rel="stylesheet" href="promo.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.min.js"></script>
+<script src="promo.js"></script>
+<script src="promo-audio.js"></script>
+<script src="dino-race-common.js"></script>
+<script src="face-in-frame-common.js"></script>
+<script src="flat-history-common.js"></script>
+<script>
+'use strict';
+// 台本: ぺらぺら世界の歴史係（ショート、縦長 36秒＋締め、?short で開く）（2026-11-07、ver. 1.0）
+// ミッション（キーウィを巣へ。さわれるのは形だけ）→ このままだと崖に落ちる → 前へ歩くと未来 → 板を置く → 正史にする → 舞台裏（形＝動き）を3つ
+// 素材は out/fh-clips（flat-history-clips.mjs）。上 330px は字幕・札、まんなかに金のふちの額に入れたゲームの画面。下の約25%は YouTube の表示が重なるので何も置かない
+const T_END = 36;
+const NAME = 'ぺらぺら世界の歴史係', SUB = '1秒ずつの2D世界に、3Dの形を置く';
+const FX = 40, FY = 380, FW = 1000, FH = 860;   // 額
+let SC = [];
+const CAPS = [
+  { a: 5.7, b: 10.8, main: '1秒ずつの、ぺらぺらな世界', sub: 'このままだと、キーウィは崖に落ちる',
+    en: ['A flat world, one second per page', 'Left alone, the kiwi falls into the chasm'] },
+  { a: 11.2, b: 15.8, main: '前へ歩くと、未来のページ', sub: 'あなたは、ページの束の外の者',
+    en: ['Walk forward into future pages', 'You are outside the stack of pages'] },
+  { a: 16.2, b: 21.3, main: '置けるのは、3Dの形だけ', sub: '2D世界には、その秒の断面だけが現れる',
+    en: ['All you can place are 3D shapes', 'The flat world sees only their cross-section'] },
+  { a: 21.7, b: 26.8, main: '「正史にする」で、住人の目で再生', sub: '板は、何秒かだけかかる橋になった',
+    en: ['"Make it the true history" replays it through the resident\'s eyes', 'The board became a bridge that lasts a few seconds'] },
+  { a: 27.2, b: 35.8, main: '形は、時間の中で動きになる', sub: '',
+    en: ['In time, a shape becomes a motion', ''] },
+];
+// 舞台裏の札（ゲームの判定の画面と同じ言葉）
+const REV = [
+  { a: 27.4, b: 30.4, two: 'ぐるぐる回る棒', three: '軸のまわりを玉が巻く、らせん' },
+  { a: 30.6, b: 33.4, two: 'せり上がるエレベーター', three: 'ななめに置いた、一枚の板' },
+  { a: 33.6, b: 36, two: '上がって下がる、往復リフト', three: '「へ」の字に曲がった、一枚の板' },
+];
+const MUSIC = { style: 'calm', stopAt: SHORT_END, cues: [
+  { t: 0.6, type: 'pop' }, ...CAPS.map((c) => ({ t: c.a, type: 'pop' })), ...REV.map((r) => ({ t: r.a, type: 'whoosh' })),
+  { t: 5.5, type: 'whoosh' }, { t: 11, type: 'whoosh' }, { t: 16, type: 'whoosh' }, { t: 21.5, type: 'whoosh' }, { t: 26.4, type: 'stamp' },
+  { t: T_END + 0.4, type: 'whoosh' }, { t: SHORT_END, type: 'jingle' }] };
+const scAt = (t) => SC.find((s) => t < s.b) || SC[SC.length - 1];
+promoStart({
+  name: NAME, out: 'flat-history', src: 'about:blank', iw: 1080, ih: 1920, dur: SHORT_END + IDENT_CLOSE, peek: 28,
+  music: MUSIC,
+  subs: () => [
+    { a: 0.6, b: 5.4, ja: 'ミッション: キーウィを、巣へ。\nただし、さわれるのは「形」だけ', en: 'Mission: get the kiwi to its nest.\nBut all you can touch are shapes' },
+    ...capSubs(CAPS),
+    ...REV.map((r) => ({ a: r.a, b: r.b, ja: `2Dでは ${r.two}\n3Dでは ${r.three}`, en: '' })),
+    { a: T_END + 0.4, b: SHORT_END, ja: 'ぺらぺら世界の歴史係\nブラウザですぐ遊べます（パソコン・スマホ／日本語・英語）', en: 'Keeper of the Flat World\nPlay right in your browser (PC or phone, Japanese or English)' },
+  ],
+  ready: () => FIF.ready,
+  setup() {
+    // 場面（クリップの印 marks から）
+    SC = [
+      { a: 0, b: 5.5, clip: 'play1', c0: 0.4, rate: 0.5, at: 'full' },                          // タイトル
+      { a: 5.5, b: 11, clip: 'play1', c0: fhM('play1', 'tStart', 2.2), at: 'preview' },          // このままだと、こうなる
+      { a: 11, b: 16, clip: 'play1', c0: fhM('play1', 'walk', -0.2), at: 'play' },               // 歩いて未来へ
+      { a: 16, b: 21.5, clip: 'play1', c0: fhM('play1', 'carry', 0.3), at: 'play' },            // 板を置く
+      { a: 21.5, b: 26.4, clip: 'play1', c0: fhM('play1', 'bind', 0.4), at: 'bindNow' },        // 正史にする（再生）
+      { a: 26.4, b: 27.2, clip: 'play1', c0: fhM('play1', 'result', 0.2), at: 'stamp' },        // 正史の判
+      { a: 27.2, b: 30.5, clip: 'pl-g3', c0: fhM('pl-g3', 'bind', 0.6), at: 'bindNow' },        // 回る棒
+      { a: 30.5, b: 33.5, clip: 'pl-t3', c0: fhM('pl-t3', 'bind', 0.6), at: 'bindNow' },        // エレベーター
+      { a: 33.5, b: 99, clip: 'pl-g1', c0: fhM('pl-g1', 'bind', 0.6), at: 'bindNow' },          // 往復リフト
+    ];
+    return null;
+  },
+  async renderAt(t) { await fifSeek(SC, t); },
+  drawSource(g) { g.fillStyle = '#0b2420'; g.fillRect(0, 0, PW * RES, PH * RES); },
+  overlay(g, t) {
+    const s = scAt(t), f = Math.min(clamp((t - s.a) / 0.3, 0, 1), clamp((s.b - t) / 0.3, 0, 1) + (s === SC[SC.length - 1] ? 1 : 0));
+    // 深い青緑の地（ゲームの3Dの色）
+    const bg = g.createRadialGradient(PW / 2, PH * 0.42, 80, PW / 2, PH * 0.45, PH * 0.8);
+    bg.addColorStop(0, '#1f5249'); bg.addColorStop(1, '#071c18'); g.fillStyle = bg; g.fillRect(0, 0, PW, PH);
+    // 額の高さは、寄せた所の縦横の割合に合わせる（クリップの外を描かない）。まん中の高さはそろえる
+    const fh = Math.min(FH, FW * 1080 / (FH_AT[s.at || 'full'][2] * 1920)), fy = FY + (FH - fh) / 2;
+    fifFrame(g, FX, fy, FW, fh, 1, () => {
+      fhView(g, s, FX, fy, FW, fh);
+      if (f < 1) { g.fillStyle = `rgba(7,28,24,${1 - f})`; g.fillRect(FX, fy, FW, fh); }   // 場面の替わり目
+    });
+    for (const r of REV) fhReveal(g, fade(t, r.a, r.b, 0.25), PW / 2, FY + FH + 40, 940, r.two, r.three, 46);
+    drMission(g, fade(t, 0.6, 5.4, 0.4), 330, 'MISSION', 'キーウィを、巣へ', 'さわれるのは「形」だけ');
+    drawTitle(g, t, 0.6, 5.4, NAME, SUB);
+    drPopCaps(g, t, CAPS, 205);
+    // 終わり
+    const fe = clamp((t - T_END) / 0.5, 0, 1);
+    if (fe > 0) {
+      g.shadowBlur = 0; g.globalAlpha = 0.82 * fe; g.fillStyle = '#071c18'; g.fillRect(0, 0, PW, PH); g.globalAlpha = 1;
+      drPopCaps(g, t, [{ a: T_END + 0.1, b: SHORT_END + 0.3, main: 'キーウィを、巣へ。', size: 84, color: '#ffd27a' }], 640);
+      prep(g); g.globalAlpha = fe;
+      drawBlock(g, [{ s: NAME, size: 70, color: '#fff', bold: true }, { s: '図版は21。ブラウザですぐ遊べる', size: 38, color: '#f2c79a', gap: 14 },
+        { s: 'パソコン・スマホ／日本語・英語', size: 30, color: '#bbb', gap: 18 }], 1180, 'bottom');
+      g.globalAlpha = 1; g.shadowBlur = 0;
+    }
+    drawIdentMini(g, t, 0.3); drSister(g, t, 0.3);
+    drawIdent(g, t, SHORT_END); drSisterClose(g, t, SHORT_END);
+  },
+  short: { iw: 1080, ih: 1920 },
+});
+fhLoad();
+</script>
+</body>
+</html>
