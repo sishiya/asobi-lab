@@ -1,0 +1,12 @@
+html, body { margin: 0; height: 100%; background: #2d5a3f; overflow: hidden; font-family: system-ui, sans-serif; color: #fff; }
+#view { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; }
+.hud { position: fixed; top: 16px; left: 16px; right: 72px; display: flex; gap: 12px; flex-wrap: wrap; font-size: 14px; text-shadow: 0 1px 2px #0008; pointer-events: none; }
+.hud span:empty { display: none; }
+#pauseBtn { position: fixed; top: 12px; right: 16px; width: 44px; height: 44px; border-radius: 22px; border: 0; background: #0005; color: #fff; font-size: 16px; font-weight: bold; }
+#overlay { position: fixed; inset: 0; display: grid; place-items: center; background: #0006; }
+#overlay[hidden] { display: none; }
+.card { background: #fffdf6; color: #2b2b2b; border-radius: 16px; padding: 24px; width: min(340px, calc(100vw - 32px)); box-sizing: border-box; text-align: center; }
+.card h1 { margin: 0 0 8px; font-size: 22px; }
+.card p { margin: 0 0 16px; line-height: 1.6; }
+.btn { display: block; width: 100%; min-height: 44px; margin-top: 12px; border: 0; border-radius: 22px; background: #e2709a; color: #fff; font-size: 16px; }
+.btn.sub { background: #eee6d8; color: #444; }

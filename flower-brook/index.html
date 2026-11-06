@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%23234a3a'/><path d='M22 6 C40 20 18 38 34 58' stroke='%237cc6e8' stroke-width='9' fill='none' stroke-linecap='round'/><circle cx='48' cy='20' r='7' fill='%23f6a8c4'/><circle cx='48' cy='20' r='2.5' fill='%23ffe08a'/><circle cx='12' cy='44' r='6' fill='%23ffd36e'/></svg>">
+<title>花の小川（試し）</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="../assets/no-quirks.css"><script src="../assets/no-quirks.js" defer></script>
+<link rel="stylesheet" href="css/game.css?v=1">
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="hud" class="hud"><span id="time"></span><span id="pred"></span><span id="ev"></span></div>
+<button id="pauseBtn" aria-label="止める">II</button>
+<div id="overlay" hidden><div class="card"><h1 id="resName"></h1><p id="resInfo"></p><button id="again" class="btn">もう一度（ちがう川）</button><button id="same" class="btn sub">同じ川でもう一度</button></div></div>
+<script type="module" src="js/game.js?v=1"></script>
+</body>
+</html>
