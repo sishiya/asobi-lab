@@ -1,6 +1,6 @@
 // 1秒のページ（2D世界）の絵。空は透明にして、ページを重ねると地面が奥行きにのびて見えるようにする。
-import { look, kindColor } from './look/index.js?v=93';
-import { dizzyStars } from './look/ink.js?v=93';
+import { look, kindColor } from './look/index.js?v=94';
+import { dizzyStars } from './look/ink.js?v=94';
 
 export const S = 20; // 1マスのピクセル
 
@@ -71,6 +71,8 @@ function drawSwitch(g, L, sw, on) {
 }
 
 // ページを描く。opt.paper: 紙の地を敷く、opt.label: 秒の札
+// opt.draftFrom: この秒より先は「下書き」（住人・石をうすく。刷りそこないも出さない）、opt.noJoy: 巣に着いても、よろこぶ・卵がかえるを描かない
+// （v095。正史にする前に、3D の未来で巣の喜びが見えて答えがわかってしまうのをふせぐ。ユーザー「正史にする前に答えがわかっちゃう」）
 export function drawSheet(g, L, t, frame, secs, opt = {}) {
   const W = L.W * S, H = L.H * S;
   g.clearRect(0, 0, W, H);
@@ -82,19 +84,23 @@ export function drawSheet(g, L, t, frame, secs, opt = {}) {
   }
   g.drawImage(terrainCanvas(L), 0, 0);
   // 巣に着いてからの時間（よろこぶ・卵がかえる）。住人が二羽いれば、それぞれ自分が着いた時刻から（v081）
-  const since = frame && frame.st === 'goal' && (frame.gt != null || opt.goalT != null) ? t - (frame.gt != null ? frame.gt : opt.goalT) : null;
+  const since = !opt.noJoy && frame && frame.st === 'goal' && (frame.gt != null || opt.goalT != null) ? t - (frame.gt != null ? frame.gt : opt.goalT) : null;
   // 時刻の窓のあいだは、ゴールが光る（まだ着いていなければ）
   if (since === null && L.window && t >= L.window[0] && t <= L.window[1] && look().drawGoalReady) look().drawGoalReady(g, L, S, t);
   if (since !== null && look().drawGoalJoy) look().drawGoalJoy(g, L, S, since);
   const others = (frame && frame.others) || [];
-  others.forEach((o, n) => { const m = L.more && L.more[n]; if (m && o.st === 'goal' && o.gt != null && look().drawGoalJoy) look().drawGoalJoy(g, { ...L, start: m.start, goal: m.goal }, S, t - o.gt); });
+  if (!opt.noJoy) others.forEach((o, n) => { const m = L.more && L.more[n]; if (m && o.st === 'goal' && o.gt != null && look().drawGoalJoy) look().drawGoalJoy(g, { ...L, start: m.start, goal: m.goal }, S, t - o.gt); });
   if (L.switches) L.switches.forEach((sw, n) => drawSwitch(g, L, sw, !!(frame && frame.sw && frame.sw[n])));
   for (const s of secs) look().drawSection(g, L, s, S, kindColor(s.p.kind));
+  // 下書き: 確かな所から 1.5 秒かけて、うすい鉛筆のように
+  const draft = opt.draftFrom != null && t > opt.draftFrom ? Math.min(1, (t - opt.draftFrom) / 1.5) : 0;
+  g.save(); if (draft) { g.globalAlpha = 1 - 0.68 * draft; g.filter = `grayscale(${draft}) sepia(${0.5 * draft})`; }
   if (frame && frame.stones) for (const st of frame.stones) if (st.st !== 'gone') look().drawStone(g, L, st, S);
   drawWalker(g, L, since !== null ? { ...frame, since } : frame, 1, t);
-  others.forEach((o) => drawWalker(g, L, o.st === 'goal' && o.gt != null ? { ...o, since: t - o.gt } : o, 1, t));
-  // 刷りそこない（だめな歴史の、つまずいたあとのページ）: 紙の色をかぶせてかすれさせる
-  if (opt.misprintAfter != null && t > opt.misprintAfter) {
+  others.forEach((o) => drawWalker(g, L, !opt.noJoy && o.st === 'goal' && o.gt != null ? { ...o, since: t - o.gt } : o, 1, t));
+  g.restore();
+  // 刷りそこない（だめな歴史の、つまずいたあとのページ）: 紙の色をかぶせてかすれさせる。下書きの先でつまずくなら出さない
+  if (opt.misprintAfter != null && t > opt.misprintAfter && !(opt.draftFrom != null && opt.misprintAfter > opt.draftFrom)) {
     const u = Math.min(1, (t - opt.misprintAfter) / 1.5);
     g.save();
     g.globalCompositeOperation = 'source-atop';

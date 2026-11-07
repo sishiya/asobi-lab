@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・主人公・置いた形・置き場所のゴースト・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=93';
-import { radialTexture } from './look/util.js?v=93';
-import { S, drawSheet } from './sheet.js?v=93';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=93';
-import { groundAt } from './hero.js?v=93';
+import { look, kindColor } from './look/index.js?v=94';
+import { radialTexture } from './look/util.js?v=94';
+import { S, drawSheet } from './sheet.js?v=94';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=94';
+import { groundAt } from './hero.js?v=94';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -405,13 +405,15 @@ export function createStage(canvas, L) {
     const seg = pts.length * 2;
     const rc = look().ribbon || {};
     const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'centripetal'), seg, 0.07, 6, false),
-      ribbonMat(h.end.type === 'goal' ? (rc.gold || '#c9942e') : (rc.line || '#5a3d22'), 0.95));
+      ribbonMat(h.end.type === 'goal' && !draft.noJoy ? (rc.gold || '#c9942e') : (rc.line || '#5a3d22'), 0.95));
     m.userData = { seg, tEnd: -pts[pts.length - 1].z / GAP };
     return m;
   }
   function setEndMark(h) {
     if (endMark) { scene.remove(endMark); endMark = null; }
     const e = h.end, rc = look().ribbon || {};
+    if (e.type === 'goal' && draft.noJoy) return;          // 巣の輪は、正史にしてから
+    if (e.type !== 'goal' && e.t > draft.from) return;     // つまずきの印も、下書きの先なら出さない
     if (e.type === 'goal') {
       endMark = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.07, 8, 24), new THREE.MeshBasicMaterial({ color: rc.gold || '#c9942e' }));
       endMark.position.set(e.x, e.y + 0.5, Z(e.t));
@@ -428,6 +430,16 @@ export function createStage(canvas, L) {
   }));
   scene.add(wave);
   let waveT = null, waveFrom = 0, hist = null, pieces = [];
+  // 下書き（v095）: from より先のページは住人をうすく、noJoy なら巣の喜びを描かない。setHistory の前に決める
+  const draft = { from: Infinity, noJoy: false, lo: Infinity };
+  function setDraft(from, noJoy, redraw) {
+    draft.lo = Math.min(draft.lo, draft.from, from); // 下書きの境が動いた所から先は、描きなおす
+    draft.from = from; draft.noJoy = noJoy;
+    if (!redraw || !hist) return;
+    setEndMark(hist);
+    if (ribbon) ribbon.material = ribbonMat(hist.end.type === 'goal' && !noJoy ? ((look().ribbon || {}).gold || '#c9942e') : ((look().ribbon || {}).line || '#5a3d22'), 0.95);
+    for (const sh of sheets) if (!sh.pending) drawOne(sh);
+  }
 
   // 主人公の軌跡（ページごとの、点線の押し跡）
   const trails = new Map();
@@ -439,7 +451,7 @@ export function createStage(canvas, L) {
   function drawOne(sh) {
     if (sh.t > L.T) { sh.pending = false; return; } // この図版にはないページ
     const fr = hist.frames[Math.round(sh.t / DT)];
-    drawSheet(sh.g, L, sh.t, fr, sectionsAt(pieces, sh.t), { goalT: hist.end.type === 'goal' ? hist.end.t : null, misprintAfter: misprintOf(hist) });
+    drawSheet(sh.g, L, sh.t, fr, sectionsAt(pieces, sh.t), { goalT: hist.end.type === 'goal' ? hist.end.t : null, misprintAfter: misprintOf(hist), draftFrom: draft.from, noJoy: draft.noJoy });
     if (trails.has(sh.t)) sh.g.drawImage(trails.get(sh.t), 0, 0);
     sh.tex.needsUpdate = true;
     sh.pending = false;
@@ -477,7 +489,8 @@ export function createStage(canvas, L) {
       oldRibbons = [];
       return;
     }
-    for (const sh of sheets) if (sh.t >= Math.floor(fromT)) sh.pending = true;
+    for (const sh of sheets) if (sh.t >= Math.floor(fromT)) sh.pending = true; else if (sh.t > draft.lo) drawOne(sh);
+    draft.lo = Infinity;
     waveFrom = Math.floor(fromT);
     waveT = waveFrom - 0.3;
   }
@@ -866,5 +879,5 @@ export function createStage(canvas, L) {
 
   const setInvert = (x, y) => { invX = !!x; invY = !!y; };
   const setShot = (a) => { shot = a; };
-  return { setShot, setInvert, setLevel, setHistory, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, heroPortrait, pickGround, set onTap(f) { onTap = f; }, set onHover(f) { onHover = f; }, set onRight(f) { onRight = f; }, set onShapeGrab(f) { onShapeGrab = f; }, set onShapeMove(f) { onShapeMove = f; }, set onShapeDrop(f) { onShapeDrop = f; }, setCursor: (c) => { if (!drag && canvas.style.cursor !== c) canvas.style.cursor = c; }, closeBook, openBook, waving: () => waveT !== null };
+  return { setShot, setInvert, setLevel, setHistory, setDraft, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, heroPortrait, pickGround, set onTap(f) { onTap = f; }, set onHover(f) { onHover = f; }, set onRight(f) { onRight = f; }, set onShapeGrab(f) { onShapeGrab = f; }, set onShapeMove(f) { onShapeMove = f; }, set onShapeDrop(f) { onShapeDrop = f; }, setCursor: (c) => { if (!drag && canvas.style.cursor !== c) canvas.style.cursor = c; }, closeBook, openBook, waving: () => waveT !== null };
 }

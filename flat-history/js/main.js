@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
-import { LEVELS, REVEALS } from './level.js?v=93';
-import { simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=93';
-import { drawSheet } from './sheet.js?v=93';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=93';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=93';
-import { makeHero, stepHero, groundAt } from './hero.js?v=93';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=93';
+import { LEVELS, REVEALS } from './level.js?v=94';
+import { DT, simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=94';
+import { drawSheet } from './sheet.js?v=94';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=94';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=94';
+import { makeHero, stepHero, groundAt } from './hero.js?v=94';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=94';
 
 const $ = (id) => document.getElementById(id);
 
@@ -85,9 +85,10 @@ function loadLevel(i) {
   st.pieces = []; st.nextId = 1; st.carry = null; st.aim = null; st.hoverPiece = null;
   st.base = simulate(L, []); st.hist = st.base;
   st.hero = makeHero(L);
-  st.revealT = 3; st.walked = 0;
+  st.revealT = 3; st.walked = 0; st.draftFrom = Infinity;
   st.hintIdx = 0; st.solved = false; st.lastEnd = st.base.end.type; st.failedOnce = false; st.boundOnce = false; st.rotatedOnce = false;
   stage.setLevel(L);
+  stage.setDraft(Infinity, false);
   stage.setHistory(st.hist, st.pieces, 0, false);
   stage.resetCamera(st.hero.x);
   st.lock = null; st.dirty = false;
@@ -403,10 +404,35 @@ function tapAt(x, t) {
   if (isTouch && !(before && before.x0 === c.x0 && before.t0 === c.t0)) { lockTo(c); se.click(); return; }
   place();
 }
+// 下書き（v095）: 書きかえで歴史が前と分かれた秒から DRAFT_SURE 秒先までは、確かな未来としてはっきり見せる（形の手ごたえ）。
+// その先は下書き（住人がうすい）。巣でよろこぶ姿は、正史にして再生するまで見せない
+const DRAFT_SURE = 4;
+function divergeT(a, b) {
+  const n = Math.min(a.frames.length, b.frames.length);
+  const same = (p, q) => !p === !q && (!p || (Math.abs(p.x - q.x) < 0.02 && Math.abs(p.y - q.y) < 0.02 && p.st === q.st));
+  for (let k = 0; k < n; k++) {
+    const p = a.frames[k], q = b.frames[k];
+    if (!same(p, q)) return k * DT;
+    const po = p.others || [], qo = q.others || [];
+    if (po.length !== qo.length || po.some((o, i) => !same(o, qo[i]))) return k * DT;
+    const ps = p.stones || [], qs = q.stones || [];
+    if (ps.length !== qs.length || ps.some((o, i) => !same(o, qs[i]))) return k * DT;
+  }
+  return null;
+}
+function applyDraft(redraw) {
+  if (st.solved) stage.setDraft(Infinity, false, redraw);
+  else stage.setDraft(st.hist === st.base ? Infinity : st.draftFrom, true, redraw);
+}
 function recompute(fromT) {
   st.solved = false;
   st.dirty = true;
+  const prev = st.hist;
   st.hist = simulate(L, st.pieces);
+  const d = divergeT(prev, st.hist);
+  if (!st.pieces.length) st.draftFrom = Infinity;
+  else if (d !== null) st.draftFrom = d + DRAFT_SURE;
+  applyDraft(false);
   stage.setHistory(st.hist, st.pieces, fromT, true);
   se.wave();
   // 書きかえたら、その先の知っていた未来はぼやける（見に行きなおす）
@@ -582,11 +608,11 @@ function drawInset(focus, cand, ok) {
   // 持っているあいだは、ゴーストがかかるページのうち、いちばん近い秒を見せる
   if (cand && Number.isFinite(cand.y0)) { const dz = pieceDims(cand).dz; focus = Math.max(0, Math.min(L.T, Math.max(Math.ceil(cand.t0), Math.min(Math.floor(cand.t0 + dz - 0.01), focus)))); }
   const h = st.hero;
-  const k = `${cand ? [cand.x0, cand.t0, cand.rot, ok].join(',') : ''}:${focus}:${st.pieces.length}:${h.x.toFixed(1)}:${h.y.toFixed(1)}:${h.t.toFixed(2)}:${st.hist === st.base}:${stage.waving()}`;
+  const k = `${cand ? [cand.x0, cand.t0, cand.rot, ok].join(',') : ''}:${focus}:${st.pieces.length}:${h.x.toFixed(1)}:${h.y.toFixed(1)}:${h.t.toFixed(2)}:${st.hist === st.base}:${stage.waving()}:${st.solved}:${st.draftFrom}`;
   if (k === insetKey) return;
   insetKey = k;
   const fr = st.hist.frames[Math.round(focus / 0.1)];
-  drawSheet(insetG, L, focus, fr, sectionsAt(blockPieces(), focus), { paper: true, label: focus + TX('秒', 's'), goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null, misprintAfter: misprintOf(st.hist) });
+  drawSheet(insetG, L, focus, fr, sectionsAt(blockPieces(), focus), { paper: true, label: focus + TX('秒', 's'), goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null, misprintAfter: misprintOf(st.hist), draftFrom: st.solved || st.hist === st.base ? null : st.draftFrom, noJoy: !st.solved });
   // 持っている形を置いたら、このページに出る断面（点線）
   if (cand && Number.isFinite(cand.y0) && cand.x0 + pieceDims(cand).wx > 0) {
     const S = insetG.canvas.width / L.W;
@@ -639,7 +665,7 @@ function drawTimeline() {
   tg.textAlign = 'left'; tg.fillText(TX('昔', 'Past'), 4, 28); tg.textAlign = 'right'; tg.fillText(TX('未来', 'Future'), w - 2, 28);
   // 結末は、見に行っていれば
   const e = st.hist.end;
-  if (e.type !== 'time' && e.t <= st.revealT && !stage.waving()) {
+  if (e.type !== 'time' && e.t <= st.revealT && !stage.waving() && (e.type === 'goal' ? st.solved : e.t <= st.draftFrom || st.hist === st.base)) { // 巣の印は正史にしてから（v095）
     const x = X(e.t);
     if (e.type === 'goal') { tg.fillStyle = '#f0cf7a'; tg.beginPath(); tg.arc(x, 13, 5, 0, 7); tg.fill(); }
     else { tg.fillStyle = '#e07a5f'; tg.beginPath(); tg.moveTo(x, 7); tg.lineTo(x + 5, 13); tg.lineTo(x, 19); tg.lineTo(x - 5, 13); tg.fill(); }
@@ -768,6 +794,7 @@ function judge() {
   el.className = 'rp-result ' + (ok ? 'ok' : 'ng');
   if (ok) {
     st.solved = true;
+    applyDraft(true); // 正史になったので、3D の未来にも巣の喜びを描く
     const n = blockPieces().length;
     const prev = progress[L.id];
     progress[L.id] = { best: prev ? Math.min(prev.best, n) : n };
