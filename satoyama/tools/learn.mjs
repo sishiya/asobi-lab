@@ -4,8 +4,9 @@
 import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath } from 'node:url';
 import R from '@dimforge/rapier3d-compat';
 import { trial, score } from '../js/trial.js';
-import { PARAMS, setHeadFused } from '../js/hare.js';
+import { PARAMS, setHeadFused, setAnatomical } from '../js/hare.js';
 await R.init();
+const anat = process.env.ANAT === '1'; setAnatomical(anat); // ANAT=1 で関節を本物の向きだけに
 const fused = process.env.HEAD !== 'head'; setHeadFused(fused); // いまは頭をまとめた体がふつう。HEAD=head で頭あり
 // OUT=名前 で gait-hare-名前.json に書く。FROM=名前 で、つづきを gait-hare-名前.json から始める（8の字の跳び方を手直しするとき）
 const here = path.dirname(fileURLToPath(import.meta.url)), gf = n => path.join(here, `../js/gait-hare${n ? '-' + n : ''}.json`), out = gf(process.env.OUT || (fused ? '' : 'head')), src = process.env.FROM ? gf(process.env.FROM) : out;
@@ -39,6 +40,6 @@ for (let it = 0; it < iters; it++) {
   const b = pop[0].r;
   console.log(`${String(it).padStart(3)} 点 ${pop[0].s.toFixed(2)}  進む ${b.dist.toFixed(2)}m  曲がる ${b.yaw.toFixed(2)}  Y字 ${(b.yRatio * 100).toFixed(0)}%(${b.hindTD}) 前後${((b.yLead ?? 0) * 30).toFixed(1)}cm  手本 ${(b.match * 100).toFixed(0)}%[${Object.values(b.parts || {}).map(v => Math.round(v * 9)).join('')}] ${(b.freq || 0).toFixed(1)}回/秒  宙 ${(b.flight * 100).toFixed(0)}%  すべり ${(b.slip * 100).toFixed(1)}cm/秒  転ぶ ${b.fell ? 'はい' : 'いいえ'}`);
   const m = evalV(mean);
-  fs.writeFileSync(out, JSON.stringify({ v: (m.s > best.s ? m : best).v.map(x => +x.toFixed(4)), score: +Math.max(m.s, best.s).toFixed(3), at: new Date().toISOString() }, null, 0));
+  fs.writeFileSync(out, JSON.stringify({ v: (m.s > best.s ? m : best).v.map(x => +x.toFixed(4)), score: +Math.max(m.s, best.s).toFixed(3), anat, at: new Date().toISOString() }, null, 0));
 }
 console.log('いちばん', best.s.toFixed(2));

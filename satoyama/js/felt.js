@@ -79,9 +79,13 @@ export function makeFeltGround(scene, { size = 12, n = 200, cx = 0, cz = 0, shel
   return { ground, shells: sh, setWet(w) { mat.color.setScalar(1 - w * 0.3); mat.userData.u.uWetAll.value = w * 0.6; mudMat.opacity = 0.55 + w * 0.12; } };
 }
 
+// 顔（耳と目）の形: 頭の中心（皮の頭）からの位置と大きさ。耳は 0..2 の玉を size でのばした板（size＝はば・長さ・あつさの半分）
+// ノウサギ: 耳は長さ 10cm・はば 2.8cm（本物の耳は 7.6〜8.3cm＋根もと）、少し後ろへ寝かせて外へ開く。先は黒褐色。目は琥珀色で白っぽい輪
+export const HARE_FACE = { eye: [0.012, 0.012, 0.039], eyeR: 0.009, iris: 0x5a3a16, ring: [0.82, 0.82, 0.82],
+  ear: { at: [-0.012, 0.03, 0.016], size: [0.014, 0.05, 0.006], out: 0.18, back: 0.35, tipAt: 0.8, tip: [0.13, 0.10, 0.08], inner: [0.80, 0.72, 0.66], outer: [0.42, 0.33, 0.24] } };
 // ---- 体: 肉の形（flesh-*.js）から皮の網を作って骨に貼り、殻の毛羽・耳・目をつける ----
 // opt.furColor(part, p, n)＝点ごとの毛の色、opt.headOff＝皮の頭のずらし、opt.bends＝見た目の関節の範囲、opt.ears＝耳を付けるか
-export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], bends = [], ears = true, cell = 0.0055, shellsN = 6, sheenColor = 0xb9a68c } = {}) {
+export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], bends = [], ears = true, face = null, cell = 0.0055, shellsN = 6, sheenColor = 0xb9a68c } = {}) {
   const t0 = performance.now(), SK = buildSkinData(shapes, { cell }), ms = performance.now() - t0;
   const bodyKey = SK.bodies.map(b => Object.entries(H.parts).find(([, p]) => p.body === b)[0]); // 骨（剛体）ごとの部位の名前（起き直したときに付けかえる）
   const geo = new THREE.BufferGeometry(), nv = SK.position.length / 3;
@@ -89,12 +93,12 @@ export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], 
   geo.setAttribute('rest', new THREE.BufferAttribute(SK.position.slice(), 3));
   geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(SK.skinIndex, 4)); geo.setAttribute('skinWeight', new THREE.Float32BufferAttribute(SK.skinWeight, 4));
   geo.computeVertexNormals();
-  const hc0 = H.parts.head.c.map((v, i) => v + headOff[i]), eyeAt = s => [hc0[0] + 0.012, hc0[1] + 0.012, hc0[2] + 0.039 * s]; // 目の場所（生まれたとき）
+  const F = face || HARE_FACE, hc0 = H.parts.head.c.map((v, i) => v + headOff[i]), eyeAt = s => [hc0[0] + F.eye[0], hc0[1] + F.eye[1], hc0[2] + F.eye[2] * s]; // 目の場所（生まれたとき）
   const fur = new Float32Array(nv * 3), col = new Float32Array(nv * 3), flf = new Float32Array(nv).fill(1), wetA = new Float32Array(nv), low = new Float32Array(nv), speck = new Float32Array(nv);
   { const n = geo.attributes.normal; for (let q = 0; q < nv; q++) {
     const p = [SK.position[q * 3], SK.position[q * 3 + 1], SK.position[q * 3 + 2]], c = furColor(SK.part[q], p, [n.getX(q), n.getY(q), n.getZ(q)]); fur.set(c, q * 3); col.set(c, q * 3);
     low[q] = p[1] - height(p[0], p[2]); // 生まれたときの地面からの高さ（泥は下から上がる）
-    if (ears) for (const s of [1, -1]) { const e = eyeAt(s), d = Math.hypot(p[0] - e[0], p[1] - e[1], p[2] - e[2]); if (d < 0.018) { flf[q] = Math.min(flf[q], 0.15 + 0.85 * Math.max(0, (d - 0.009) / 0.009)); const k = Math.max(0, 1 - d / 0.018) * 0.5; for (let j = 0; j < 3; j++) fur[q * 3 + j] = col[q * 3 + j] = c[j] + (0.82 - c[j]) * k; } } // 目のまわりは毛が短く、白っぽい輪
+    if (ears) for (const s of [1, -1]) { const e = eyeAt(s), d = Math.hypot(p[0] - e[0], p[1] - e[1], p[2] - e[2]), R2 = F.eyeR * 2; if (d < R2) { flf[q] = Math.min(flf[q], 0.15 + 0.85 * Math.max(0, (d - F.eyeR) / F.eyeR)); if (F.ring) { const k = Math.max(0, 1 - d / R2) * 0.5; for (let j = 0; j < 3; j++) fur[q * 3 + j] = col[q * 3 + j] = c[j] + (F.ring[j] - c[j]) * k; } } } // 目のまわりは毛が短い（ノウサギは白っぽい輪）
     speck[q] = 0.5 + 0.5 * Math.sin(p[0] * 517 + p[2] * 263) * Math.sin(p[1] * 331 - p[0] * 197); // 泥のはねのまだら
   } }
   const baseF = flf.slice(); // 毛羽のもとの高さ（目のまわりは短い）
@@ -117,16 +121,16 @@ export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], 
   const headBone = bones[SK.bodies.indexOf(H.parts.head.body)], hc = H.parts.head.c.map((v, i) => v + headOff[i]), hbp = headBone.position.clone(), earList = [];
   if (ears) for (const s of [1, -1]) {
     const eg = new THREE.SphereGeometry(1, 20, 14), ep = eg.attributes.position, ec = new Float32Array(ep.count * 3);
-    for (let i = 0; i < ep.count; i++) { const y = ep.getY(i), z = ep.getZ(i), tip = y > 0.8 ? 1 : 0, inner = z * s > 0.3 ? 1 : 0; const c = tip ? [0.13, 0.10, 0.08] : inner ? [0.80, 0.72, 0.66] : [0.42, 0.33, 0.24]; ec.set(c, i * 3); ep.setY(i, y + 1); }
+    for (let i = 0; i < ep.count; i++) { const y = ep.getY(i), z = ep.getZ(i), tip = y > F.ear.tipAt ? 1 : 0, inner = z * s > 0.3 ? 1 : 0; const c = tip ? F.ear.tip : inner ? F.ear.inner : F.ear.outer; ec.set(c, i * 3); ep.setY(i, y + 1); }
     eg.setAttribute('wet', attr1(ep.count)); eg.setAttribute('color', new THREE.BufferAttribute(ec, 3)); eg.setAttribute('fluff', attr1(ep.count, 1)); eg.computeVertexNormals();
     const ear = new THREE.Mesh(eg, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 1, sheenRoughness: 0.7, sheenColor: 0xf0dcc8 }), { freq: 330, rest: false }));
-    ear.position.set(hc[0] - hbp.x - 0.012, hc[1] - hbp.y + 0.03, hc[2] - hbp.z + 0.016 * s);
-    ear.scale.set(0.014, 0.05, 0.006); ear.rotation.set(0.18 * s, 0, 0.35); ear.castShadow = true; headBone.add(ear); // 長さ 10cm・はば 2.8cm（本物の耳は 7.6〜8.3cm＋根もと）。少し後ろへ寝かせ、外へ開く
+    ear.position.set(hc[0] - hbp.x + F.ear.at[0], hc[1] - hbp.y + F.ear.at[1], hc[2] - hbp.z + F.ear.at[2] * s);
+    ear.scale.set(...F.ear.size); ear.rotation.set(F.ear.out * s, 0, F.ear.back); ear.castShadow = true; headBone.add(ear);
     earList.push({ ear, s, a: 0, va: 0, b: 0, vb: 0 });
     // 目: 頭の横の高い所に、まぶたのふちから少しだけ出る（飛び出して見えないよう、平たくして皮にうめる。まわりの毛は短く白っぽい＝下の eyeAt）
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.009, 16, 12), new THREE.MeshPhysicalMaterial({ color: 0x5a3a16, roughness: 0.25, clearcoat: 0.6 }));
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(F.eyeR, 16, 12), new THREE.MeshPhysicalMaterial({ color: F.iris, roughness: 0.35, clearcoat: 0.35 }) /* てかりが強いと白目に見えて飛び出して見える */);
     const ea = eyeAt(s); eye.position.set(ea[0] - hbp.x, ea[1] - hbp.y, ea[2] - hbp.z); eye.scale.set(1, 1, 0.5); headBone.add(eye);
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.006, 12, 8), new THREE.MeshBasicMaterial({ color: 0x0e0906 })); pupil.position.set(0.001, 0.0005, 0.005 * s); pupil.scale.set(1, 1, 0.6); eye.add(pupil);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(F.eyeR * 0.67, 12, 8), new THREE.MeshBasicMaterial({ color: 0x0e0906 })); pupil.position.set(F.eyeR * 0.11, F.eyeR * 0.05, F.eyeR * 0.56 * s); pupil.scale.set(1, 1, 0.6); eye.add(pupil);
   }
   // 見た目だけの関節の範囲（opt.bends）: 物理の骨がまれに本物では曲がらない向きへ折れても、皮は本物の範囲で描く（GAME.md 9.7。物理と学習はそのまま）
   const bi = part => SK.bodies.indexOf(H.parts[part].body);
@@ -162,7 +166,7 @@ export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], 
       for (const e of earList) {
         e.va += (-60 * e.a - 5 * e.va + 0.4 * acc.y) * h; e.a = Math.max(-0.25, Math.min(0.4, e.a + e.va * h)); // 上へ加速すると耳は後ろへ倒れる
         e.vb += (-80 * e.b - 6 * e.vb + 0.3 * acc.z * e.s) * h; e.b = Math.max(-0.3, Math.min(0.3, e.b + e.vb * h));
-        e.ear.rotation.set(0.18 * e.s + e.b, 0, 0.35 + e.a);
+        e.ear.rotation.set(F.ear.out * e.s + e.b, 0, F.ear.back + e.a);
       }
     },
     // 泥とぬれ（dirt.js の部位ごとの数）を、毛の色・毛羽の高さ・てかりに。泥は低い所から上がり、ふちはまだらのはね

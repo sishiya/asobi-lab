@@ -8,6 +8,10 @@ export const SELF = (0x0002 << 16) | 0x0001; // 体の部位どうしはぶつ�
 export let HEAD_FUSED = true; export const setHeadFused = b => (HEAD_FUSED = !!b);
 export let NODE_M = 0.02, NODE_I = 1e-4; export const setNodeM = (m, i = NODE_I) => { NODE_M = m; NODE_I = i; };
 export const GROUND = (0x0001 << 16) | 0x0002;
+// ANAT: 関節を本物の曲がる向きだけにする（2026-11-08 ユーザー「後ろ足が変に折れ曲がったまま走れるようになってしまった。本来の動きを参考に学習し直しても」）
+// 向きは tools/jointsign.mjs で測った（＋で先の骨が前・上へ）。ひざ −0.3 曲げ〜＋1.8 のばす、かかと −2.2 のばす〜＋0.3 曲げ、ひじ −0.1〜＋1.8、手首 −1.4〜＋0.15
+// これまでの跳び方（turn2 など）は両向きに曲がる体で覚えたので、ANAT=false のまま使う。学習した数の json に anat: true があれば、その体で作る
+export let ANAT = false; export const setAnatomical = b => (ANAT = !!b);
 
 // リズムの数（0..1）→ 意味のある値。足ごとの位相は「周」
 export const PARAMS = [
@@ -84,8 +88,8 @@ export function buildHare(R, world, o, groundH, yaw = 0) {
     const X = { x: 1, y: 0, z: 0 }, hn = NODE_M ? node('hipN' + L, [-0.12, 0.15, z], NODE_M) : pelvis;
     if (NODE_M) J['abh' + L] = hinge('abh' + L, pelvis, hn, [-0.12, 0.15, z], 30, 0.9, [-0.5, 0.5], X);
     J['hip' + L] = hinge('hip' + L, hn, th, [-0.12, 0.15, z], 40, 1.2, [-1.4, 1.4]);
-    J['knee' + L] = hinge('knee' + L, th, sh, [-0.03, 0.10, z], 30, 0.9, [-1.6, 1.6]);
-    J['ank' + L] = hinge('ank' + L, sh, ft, [-0.15, 0.04, z], 20, 0.6, [-1.6, 1.6]);
+    J['knee' + L] = hinge('knee' + L, th, sh, [-0.03, 0.10, z], 30, 0.9, ANAT ? [-0.3, 1.8] : [-1.6, 1.6]);
+    J['ank' + L] = hinge('ank' + L, sh, ft, [-0.15, 0.04, z], 20, 0.6, ANAT ? [-2.2, 0.3] : [-1.6, 1.6]);
     // 前足: 肩 → ひじ → 手首 → 指先
     const ua = seg('uarm' + L, [0.12, 0.15, zf], [0.13, 0.08, zf], 0.012, 0.05);
     const fa = seg('farm' + L, [0.13, 0.08, zf], [0.14, 0.025, zf], 0.009, 0.03);
@@ -93,8 +97,8 @@ export function buildHare(R, world, o, groundH, yaw = 0) {
     const sn = NODE_M ? node('shN' + L, [0.12, 0.15, zf], NODE_M / 2) : chest;
     if (NODE_M) J['abf' + L] = hinge('abf' + L, chest, sn, [0.12, 0.15, zf], 10, 0.3, [-0.5, 0.5], X);
     J['sh' + L] = hinge('sh' + L, sn, ua, [0.12, 0.15, zf], 12, 0.36, [-1.4, 1.4]);
-    J['el' + L] = hinge('el' + L, ua, fa, [0.13, 0.08, zf], 8, 0.24, [-1.6, 1.6]);
-    J['wr' + L] = hinge('wr' + L, fa, ff, [0.14, 0.025, zf], 4, 0.12, [-1.2, 1.2]);
+    J['el' + L] = hinge('el' + L, ua, fa, [0.13, 0.08, zf], 8, 0.24, ANAT ? [-0.1, 1.8] : [-1.6, 1.6]);
+    J['wr' + L] = hinge('wr' + L, fa, ff, [0.14, 0.025, zf], 4, 0.12, ANAT ? [-1.4, 0.15] : [-1.2, 1.2]);
   }
   for (const j of joints) j.jt.configureMotorPosition(0, j.k, j.d);
   return { parts, joints: J, list: joints, feet, mass: Object.values(parts).reduce((t, p) => t + p.mass, 0) };

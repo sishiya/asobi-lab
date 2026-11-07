@@ -34,7 +34,7 @@
 import * as THREE from 'three';
 import R from '@dimforge/rapier3d-compat';
 import { height, SIZE } from '../js/ground.js';
-import { buildHare, drive, pose, decodeParams, PARAMS } from '../js/hare.js';
+import { buildHare, drive, pose, decodeParams, PARAMS, setAnatomical } from '../js/hare.js';
 import { makeField, contactPoint } from '../js/trial.js';
 import { hareShapes, hareFurColor, hareBends, HEAD_OFF } from '../js/flesh-hare.js';
 import { mud, makeDirt, stepDirt, MUD_WET } from '../js/dirt.js';
@@ -42,7 +42,7 @@ import { feltify, makeFeltGround, makeFeltBody, makeDiorama } from '../js/felt.j
 await R.init();
 const qs = new URLSearchParams(location.search);
 let v = PARAMS.map(() => 0.5);
-try { v = (await (await fetch(`../js/gait-hare-${qs.get('gait') || 'turn2'}.json`, { cache: 'no-store' })).json()).v; } catch (e) { /* まだ学習していない */ }
+try { const j = (await (await fetch(`../js/gait-hare-${qs.get('gait') || 'turn2'}.json`, { cache: 'no-store' })).json()); v = j.v; setAnatomical(!!j.anat); } catch (e) { /* まだ学習していない */ } // anat＝関節を本物の向きだけにした体で覚えた跳び方
 const Q = decodeParams(v);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, devicePixelRatio));

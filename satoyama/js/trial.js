@@ -21,8 +21,10 @@ export function contactPoint(f) {
 }
 
 // 1回の試し。v＝リズムの数（0..1 の並び）。dur 秒。turn(t) で曲がり方を決める
-export function trial(R, v, { dur = 8, at = [0, 0, 0], turn = t => (t < dur / 2 ? 1 : -1), onFrame = null, H: H0 = null, world: W0 = null, setup = null } = {}) {
-  const world = W0 || makeField(R), H = H0 || buildHare(R, world, at, height), q = decodeParams(v);
+// body＝体の作り方（ふつうはノウサギ。声の子は { build, drive, decode } を渡す。kid.js）
+export const HARE = { build: (R, world, at, h) => buildHare(R, world, at, h), drive, decode: decodeParams };
+export function trial(R, v, { dur = 8, at = [0, 0, 0], turn = t => (t < dur / 2 ? 1 : -1), onFrame = null, H: H0 = null, world: W0 = null, setup = null, body = HARE } = {}) {
+  const world = W0 || makeField(R), H = H0 || body.build(R, world, at, height), q = body.decode(v);
   if (setup) setup(world, H); // 確かめ用（摩擦を変えるなど）
   const steps = Math.round(dur * 240), stand = 0.4;
   let dist = 0, yawGain = 0, drift = 0, slip = 0, contactT = 0, hindTD = 0, yTD = 0, lead = 0, fell = false, last = pose(H), ms = 0, lastFore = {}, flight = 0, samples = 0;
@@ -30,7 +32,7 @@ export function trial(R, v, { dur = 8, at = [0, 0, 0], turn = t => (t < dur / 2 
   const spineAng = () => { const a = H.parts.pelvis.body.rotation(), b = H.parts.chest.body.rotation(), w = a.w * b.w + a.x * b.x + a.y * b.y + a.z * b.z, z = a.w * b.z - a.z * b.w + a.x * b.y - a.y * b.x; return 2 * Math.atan2(z, w); };
   for (let k = 0; k < steps; k++) {
     const t = k / 240, g = t < stand ? 0 : Math.min(1, (t - stand) * 3), tc = turn(t);
-    drive(H, q, t, g, tc);
+    body.drive(H, q, t, g, tc);
     const t0 = performance.now(); world.step(); ms += performance.now() - t0;
     const P = pose(H);
     if (k % 4 === 0) {
@@ -49,7 +51,8 @@ export function trial(R, v, { dur = 8, at = [0, 0, 0], turn = t => (t < dur / 2 
       }
       if (t > stand + 0.5) { samples++; if (!H.feet.some(f => f.down)) flight++; }
       last = P;
-      if (P.up < 0.35 || P.y - height(P.x, P.z) < 0.05) { fell = true; break; }
+      if (P.up < 0.35 || P.y - height(P.x, P.z) < (H.fallH ?? 0.05)) { fell = true; break; }
+      if (H.noTouch && H.noTouch.some(p => { const c = p.body.translation(); return c.y - p.r - height(c.x, c.z) < 0.004; })) { fell = true; break; } // 頭や胴が地面につく（鼻先で体を支えて這う）のも転んだ // fallH＝これより胴が低いと転んだ（足の短い体は胴の太さで決める）
       if (onFrame) onFrame(t, H, P);
     }
   }

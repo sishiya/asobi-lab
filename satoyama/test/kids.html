@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>里山 声の子の体</title>
+<meta name="robots" content="noindex">
+<style>
+  :root { --ink: #2c2a26; --dim: rgba(44,42,38,.62); --panel: rgba(250,247,240,.88); --on: #6b5a3e; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #e9e2d4; color: var(--ink); font: 14px system-ui, sans-serif; }
+  canvas { display: block; }
+  #hud { position: fixed; left: 16px; top: 14px; background: var(--panel); border-radius: 12px; padding: 8px 12px; line-height: 1.6; font-size: 12px; }
+  #bar { position: fixed; left: 16px; right: 16px; bottom: 14px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .grp { display: flex; background: var(--panel); border-radius: 999px; padding: 3px; }
+  .grp button { border: 0; background: none; font: inherit; font-size: 13px; color: var(--ink); padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+  .grp button.on { background: var(--on); color: #fff; }
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","@dimforge/rapier3d-compat":"https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"}}</script>
+</head>
+<body>
+<div id="hud">読みこみ中…</div>
+<div id="bar"><div class="grp" id="skin"><button data-v="felt" class="on">フェルト</button><button data-v="bone">骨</button></div><div class="grp" id="walk"><button data-v="1" class="on">歩く</button><button data-v="0">止まる</button></div></div>
+<script type="module">
+// 声の子の体の確かめ（GAME.md 9.7「整った形」・9.5 学習）: 番号の遺伝子から体を作り、並べて歩かせる。?ids=1,3,8 で番号、学習した歩き方があれば js/gait-kid-<番号>.json
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import R from '@dimforge/rapier3d-compat';
+import { height } from '../js/ground.js';
+import { pose } from '../js/hare.js';
+import { makeField } from '../js/trial.js';
+import { kidGenes, kidBody, kidPlan, kidShapes, KID_SEED, decodeKid } from '../js/kid.js';
+import { makeFeltGround, makeFeltBody, makeDiorama } from '../js/felt.js';
+import { TANUKI, tanukiFur, TANUKI_FACE } from '../js/tanuki.js';
+await R.init();
+const qs = new URLSearchParams(location.search), ids = (qs.get('ids') || 'tanuki,3,8,6').split(',').map(x => (x === 'tanuki' ? x : +x));
+const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xe9e2d4); scene.fog = new THREE.Fog(0xe9e2d4, 3, 10);
+const cam = new THREE.PerspectiveCamera(35, 1, 0.01, 60); cam.position.set(0.2, 1.1, 2.6);
+const ctl = new OrbitControls(cam, renderer.domElement); ctl.target.set(0, 0.1, 0); ctl.enableDamping = true;
+scene.add(new THREE.HemisphereLight(0xf6efe0, 0x6a6448, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d6, 2.2); sun.position.set(2, 5, 3); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.radius = 4;
+Object.assign(sun.shadow.camera, { left: -2.5, right: 2.5, top: 2.5, bottom: -2.5, near: 0.5, far: 20 }); scene.add(sun);
+makeFeltGround(scene, { size: 8, n: 160, cx: 0.5, cz: 0 });
+const world = makeField(R), kids = [];
+// 毛の色: 子ごとに少しちがう灰褐色〜こげ茶（声の色あいはあとで）
+const furOf = (i) => (part, p, n) => { const b = [0.42 + 0.06 * Math.sin(i * 2.1), 0.33 + 0.05 * Math.sin(i * 1.3), 0.24], w = [0.82, 0.78, 0.7], t = Math.max(0, -n[1] - 0.2) * 1.4; return b.map((v, k) => v + (w[k] - v) * Math.min(1, t)); };
+for (const [i, id] of ids.entries()) {
+  const tan = id === 'tanuki', g = tan ? {} : kidGenes(id * 7919), B = kidBody(g, tan ? TANUKI : null), z = (i - (ids.length - 1) / 2) * 0.6, H = B.build(R, world, [-0.6, 0, z], height);
+  let v = KID_SEED; try { const j = await (await fetch(`../js/gait-${tan ? 'tanuki' : 'kid-' + id}.json`, { cache: 'no-store' })).json(); v = j.v; } catch (e) { /* 学習していない子は手本の出発点 */ }
+  // 声の子の顔は仮（小さな丸い耳・目）。声の遺伝子（crest など）で耳とかざりを変えるのはあと
+  const hs = (H.plan.headR + (H.plan.fur ?? 0.006 + 0.008 * H.plan.fluff)) * 0.95, KF = { ...TANUKI_FACE, eye: [hs * 0.47, hs * 0.3, hs * 0.83], eyeR: H.plan.headR * 0.17, iris: 0x3a2412, ear: { ...TANUKI_FACE.ear, at: [-hs * 0.2, hs * 0.8, hs * 0.5], outer: [0.4, 0.33, 0.25] } }; // 目と耳は毛の表に
+  const FB = makeFeltBody(scene, H, kidShapes(H), { furColor: tan ? tanukiFur(H) : furOf(i), face: tan ? TANUKI_FACE : KF });
+  // 物理の骨（くらべ用）
+  const bones = Object.values(H.parts).filter(p => p.r > 0.006).map(p => { const m = new THREE.Mesh(p.len ? new THREE.CapsuleGeometry(p.r, Math.max(0.001, p.len - p.r * 0.4), 6, 12) : new THREE.SphereGeometry(p.r, 16, 12), new THREE.MeshStandardMaterial({ color: 0xcdbfa6, roughness: 0.9 })); m.visible = false; scene.add(m); return { m, p, rq: p.len ? new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(...p.b).sub(new THREE.Vector3(...p.a)).normalize()) : new THREE.Quaternion() }; });
+  kids.push({ id, H, B, q: B.decode(v), FB, bones, K: H.plan, x0: pose(H).x, falls: 0 });
+}
+let t = 0, walk = 1, skin = 'felt';
+function step(dt) {
+  const n = Math.round(dt * 240);
+  for (let k = 0; k < n; k++) { for (const c of kids) c.B.drive(c.H, c.q, t, t < 0.4 ? 0 : walk, 0); world.step(); t += 1 / 240; }
+}
+const DIO = makeDiorama(renderer, scene, cam);
+function render(dt) {
+  for (const c of kids) { c.FB.pose(dt); c.FB.breathe(dt, walk); if (skin === 'bone') for (const o of c.bones) { const p = o.p.body.translation(), r = o.p.body.rotation(); o.m.position.set(p.x, p.y, p.z); o.m.quaternion.set(r.x, r.y, r.z, r.w).multiply(o.rq); } }
+  ctl.update(); DIO.render(1.2, 0.5, 0.25);
+  document.getElementById('hud').innerHTML = '声の子の体（遺伝子の番号）<br>' + kids.map(c => { const P = pose(c.H); return `${c.id === 'tanuki' ? 'タヌキ' : '#' + c.id} 節${c.K.seg} 足${c.K.pairs}対 首${c.K.neck} 尾${c.K.tail} ${c.H.mass.toFixed(1)}kg → ${(P.x - c.x0).toFixed(2)}m${P.up < 0.35 ? '（ころんだ）' : ''}`; }).join('<br>');
+}
+for (const [gid, key] of [['skin', 'skin'], ['walk', 'walk']]) document.getElementById(gid).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; document.querySelectorAll(`#${gid} button`).forEach(x => x.classList.toggle('on', x === b)); if (key === 'skin') { skin = b.dataset.v; for (const c of kids) { c.FB.setVisible(skin === 'felt'); c.bones.forEach(o => (o.m.visible = skin === 'bone')); } } else walk = +b.dataset.v; });
+function resize() { renderer.setSize(innerWidth, innerHeight); DIO.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+let last = performance.now();
+function loop(now) { const dt = Math.min(1 / 20, (now - last) / 1000); last = now; step(dt); render(dt); requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+window.__kids = { look(x, y, z, tx, ty, tz) { cam.position.set(x, y, z); ctl.target.set(tx, ty, tz); }, advance(sec) { for (let i = 0; i < sec * 60; i++) { step(1 / 60); render(1 / 60); } }, set(k, v) { document.querySelector(`#${k} button[data-v="${v}"]`).dispatchEvent(new MouseEvent('click', { bubbles: true })); }, kids };
+</script>
+</body>
+</html>
