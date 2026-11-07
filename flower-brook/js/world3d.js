@@ -109,7 +109,7 @@ export function makeWorld(parent) {
   // 空の光（Poly Haven の CC0 の HDRI を縮めた assets/sky-env.hdr）: しずくに本物の空を映す。写実の株（ver. 0.7）はユーザーの判断で外した（ver. 0.8）
   let skyTex = null;
   const props = makeProps();   // 岸の石・アーチの根もと（TripoSG の形。ver. 0.9）
-  let propsOn = true, propMeshes = [];
+  let propMeshes = [];
   const ready = Promise.all([new RGBELoader().loadAsync('./assets/sky-env.hdr').then(t => { t.mapping = THREE.EquirectangularReflectionMapping; skyTex = t; }).catch(e => console.warn('空の光を読めなかったので、手作りの空で', e)), props.loaded]);
   const raycaster = new THREE.Raycaster(), ground0 = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const touches = [floraMat.uniforms.touch.value, grassMat.uniforms.touch.value], touches2 = [floraMat.uniforms.touch2.value, grassMat.uniforms.touch2.value];
@@ -312,7 +312,6 @@ export function makeWorld(parent) {
     const pred = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.75), new THREE.MeshBasicMaterial({ map: predT, transparent: true, depthWrite: false, opacity: 0.85 }));
     pred.renderOrder = 3; built.add(pred);
 
-    for (const m of propMeshes) m.visible = propsOn;
     Object.assign(state, { water, river, bank, arches, straws, strawMesh, foam, foamMat, bud, bouquet, end, petals, petalMesh, motes, moteMesh, blob, jig, conn, vis, pos: [], pred, predC, predT, predGrade: 0, glints, glintMesh, glintNext: 0, bursts, burstMesh, burstAt: 0, shafts, shaftMat, cardMats: [burstMesh, petalMesh, moteMesh, strawMesh, glintMesh].map(m => m.material) });
     state.R = R;
     camPos.set(0, 0, 0); camLook.set(0, 0, 0);
@@ -559,6 +558,5 @@ export function makeWorld(parent) {
   function setFingerSim(fs, fx) { setFinger(P(fs, fx), true); }
   function holdCam(on) { camHold = !!on; }
   function hover(pt) { hov.on = !!pt; if (pt) { hov.x = pt.x; hov.z = pt.z; } }
-  const setProps = on => { propsOn = on; for (const m of propMeshes) m.visible = on; };   // 見くらべ用（ひと休みの画面のボタン）
-  return { ready, setCourse, setProps, update, finish, resize, camera, pick, touch, hover, splash, wobble, setFinger, setFingerSim, holdCam, speed: () => speedSm, _state: state };   // _state はしらべ用
+  return { ready, setCourse, update, finish, resize, camera, pick, touch, hover, splash, wobble, setFinger, setFingerSim, holdCam, speed: () => speedSm, _state: state };   // _state はしらべ用
 }
