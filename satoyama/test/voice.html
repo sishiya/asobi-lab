@@ -38,10 +38,7 @@ import { pose } from '../js/hare.js';
 import { makeField } from '../js/trial.js';
 import { kidBody, kidShapes, KID_SEED, decodeKid } from '../js/kid.js';
 import { makeFeltGround, makeFeltBody, makeDiorama, HARE_FACE } from '../js/felt.js';
-import { analyze } from '../../voice-pet/js/features.js';
-import * as A from '../../voice-pet/js/audio.js';
-import { sampleVoice } from '../../voice-pet/js/synth.js';
-import { founder, rng } from '../../voice-pet/evo/life.js';
+import { analyze, A, sampleVoice, founder, rng } from '../js/voice-in.js';
 await R.init();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, devicePixelRatio));
