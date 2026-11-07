@@ -32,6 +32,7 @@ FOOD_Y = 183
 CHG_T = 12         ; 色を変えるのにかかるフレーム（本物のタコも 0.2〜0.7 秒）
 NH = 2             ; サメの数
 NF = 2             ; カニ・エビの数
+BITE_Y = 166        ; かみつくときのサメの上の y
 ZONE = 12          ; サメのまん中とタコのまん中が これより近いと 見られる
 LVL_FR = 240       ; 240 フレーム × 3 = 12 秒ごとに段が上がる
 
@@ -125,6 +126,10 @@ fd_t = $76
 demo_t = $77
 eaten = $78
 hidden = $79
+shake_t = $7A      ; 画面のゆれ
+shake_x = $7B
+opal_cur = $7C     ; いまのタコのパレット（$FF = 書きなおす）
+found_t = $7D      ; 「みつかった!」を出しているあいだ
 LANG = $7FFF
 SAVE = $6000       ; 電池の RAM: "OH01"・さいこうの点 4 けた
 
@@ -313,6 +318,8 @@ wait_frame:
   rts
 @hit:
   lda sx
+  clc
+  adc shake_x
   sta PPUSCROLL
   lda #0
   sta PPUSCROLL
@@ -500,16 +507,16 @@ say_buf:
 
 ; タコの色をスプライトのパレット 0 へ（A = 0 砂・1 岩・2 海藻・3 とちゅう）
 oct_palette:
-  sta tmp
+  sta tmp4
   asl a
   clc
-  adc tmp
-  sta tmp
+  adc tmp4
+  sta tmp4
   lda #$3f
   ldx #$11
   ldy #3
   jsr buf_head
-  ldx tmp
+  ldx tmp4
   lda oct_pal,x
   jsr buf_byte
   lda oct_pal+1,x
@@ -835,8 +842,8 @@ go_title:
   jsr oam_start
   jsr hide_rest
   jsr screen_on
-  lda #0
-  jsr oct_palette
+  lda #$ff
+  sta opal_cur
   rts
 
 reset_octo:
@@ -936,6 +943,7 @@ title_update:
   jsr blink_push
   jsr demo_input
   jsr update_octo
+  jsr pal_update
   jsr draw_all
   lda pad_new
   and #BTN_START
@@ -973,6 +981,9 @@ start_game:
   sta eaten
   sta hidden
   sta hint_cur
+  sta shake_t
+  sta shake_x
+  sta found_t
   sta seg_t            ; はじめはタコの まわりが砂（タコも砂の色）
   lda #22
   sta seg_n
@@ -991,8 +1002,8 @@ start_game:
   jsr oam_start
   jsr hide_rest
   jsr screen_on
-  lda #0
-  jsr oct_palette
+  lda #$ff
+  sta opal_cur
   rts
 
 set_speed:
@@ -1037,6 +1048,12 @@ play_update:
   jsr spawn
   jsr update_hz
   jsr update_food
+  jsr pal_update
+  jsr do_shake
+  lda found_t
+  beq @nf
+  dec found_t
+@nf:
   lda inv
   beq @ni
   dec inv
@@ -1138,11 +1155,6 @@ update_octo:
   ldx #0
 @ok:
   stx ocol
-  lda chg_t
-  bne @was
-  lda #3
-  jsr oct_palette
-@was:
   lda #CHG_T
   sta chg_t
   jsr sfx_change
@@ -1150,10 +1162,47 @@ update_octo:
   lda chg_t
   beq @r
   dec chg_t
-  bne @r
-  lda ocol
-  jsr oct_palette
 @r:
+  rts
+
+; タコのパレット: 色を変えているあいだは白く光る、足もとと合って じっとしていれば ふちも底の色になって なじむ
+pal_update:
+  lda chg_t
+  beq @n
+  lda #3
+  bne @set
+@n:
+  jsr hiding
+  beq @plain
+  lda ocol
+  clc
+  adc #4
+  bne @set
+@plain:
+  lda ocol
+@set:
+  cmp opal_cur
+  beq @r
+  sta opal_cur
+  jmp oct_palette
+@r:
+  rts
+
+; 画面のゆれ（字の段より下を横に）
+do_shake:
+  lda #0
+  ldx shake_t
+  beq @s
+  dec shake_t
+  txa
+  and #2
+  beq @p
+  lda #$fd
+  bne @s
+@p:
+  lda #3
+@s:
+  sta shake_x
   rts
 
 ; タコが かくれているか → A（1 = かくれている）
@@ -1161,12 +1210,19 @@ hiding:
   lda chg_t
   ora moving
   bne @no
+  lda ox                 ; 体の まん中の左右どちらかが 合っていれば よい（さかい目で きびしくしない）
+  clc
+  adc #7
+  jsr floor_at
+  cmp ocol
+  beq @yes
   lda ox
   clc
-  adc #12
+  adc #17
   jsr floor_at
   cmp ocol
   bne @no
+@yes:
   lda #1
   rts
 @no:
@@ -1271,6 +1327,24 @@ update_hz:
 @n0:
   jmp @next
 @go:
+  cmp #2
+  bne @swim
+  jsr dive               ; 見つけた: タコへ まっすぐ おりてくる
+  jmp @next
+@swim:
+  cmp #3
+  bne @mv
+  lda hz_t,x             ; かみついたまま 少し止まる
+  beq @rise
+  dec hz_t,x
+  jmp @next
+@rise:
+  lda hz_y,x             ; かみついたあと: 上へ もどりながら 去る
+  cmp #90
+  bcc @mv
+  dec hz_y,x
+  dec hz_y,x
+@mv:
   lda hz_dir,x
   bne @left
   lda hz_xl,x
@@ -1389,14 +1463,96 @@ update_hz:
 @done:
   rts
 
+; X のサメが見つけた: 向きを変えて タコへ おりてくる（かみつくのは dive の中）
 found:
+  lda #2
+  sta hz_st,x
+  lda hz_xh,x            ; 画面のはしにいたら 中へ
+  beq @in
+  lda #0
+  sta hz_xh,x
+  sta hz_x,x
+@in:
+  lda #200               ; かみつかれるまで ほかのサメは見ない
+  sta inv
+  lda #90
+  sta found_t
+  jsr sfx_alert
+  rts
+
+; X のサメ: タコの上へ（よこ 3・たて 4 ドットずつ）。着いたら かみつく
+dive:
+  lda ox
+  sec
+  sbc #4
+  bcs @t
+  lda #0
+@t:
+  sta tmp
+  lda hz_x,x
+  cmp tmp
+  beq @xd
+  bcc @xr
+  sbc #3
+  bcc @xl0
+  cmp tmp
+  bcs @xs
+@xl0:
+  lda tmp
+@xs:
+  sta hz_x,x
+  lda #1
+  sta hz_dir,x
+  jmp @xd
+@xr:
+  adc #3
+  cmp tmp
+  bcc @xs2
+  lda tmp
+@xs2:
+  sta hz_x,x
+  lda #0
+  sta hz_dir,x
+@xd:
+  lda hz_y,x
+  cmp #BITE_Y
+  bcs @yd
+  adc #4
+  cmp #BITE_Y
+  bcc @ys
+  lda #BITE_Y
+@ys:
+  sta hz_y,x
+  rts
+@yd:
+  lda hz_x,x
+  cmp tmp
+  bne @r
+  lda #3                 ; かみついた → 少し止まってから 去る
+  sta hz_st,x
+  sta hz_vh,x
+  lda #0
+  sta hz_v,x
+  lda #14
+  sta hz_t,x
+  txa
+  pha
+  jsr bite
+  pla
+  tax
+@r:
+  rts
+
+bite:
   lda lives
   beq @z
   dec lives
 @z:
   lda #100
   sta inv
-  lda #40
+  lda #24
+  sta shake_t
+  lda #54                ; すみは サメが はなれるときに（40 から下で出す）
   sta ink_t
   lda ox
   clc
@@ -1574,6 +1730,9 @@ draw_all:
   lda ink_t
   beq @noink
   dec ink_t
+  lda ink_t
+  cmp #40
+  bcs @noink
   lda #OY-6
   sta tmp
   lda #3
@@ -1594,10 +1753,147 @@ draw_all:
   sta gt
   jsr put_grid
 @noink:
+  ; サメ（タコより前。かみつく所が見える）
+  ldx #NH-1
+@h:
+  lda hz_type,x
+  bne @hd
+  jmp @hn
+@hd:
+  lda hz_st,x
+  bne @body
+  lda frame            ; ！（来るほうのはしで点めつ）
+  and #8
+  beq @wv
+  jmp @hn
+@wv:
+  lda hz_y,x
+  sta tmp
+  lda #S_WARN
+  sta gt
+  lda #3
+  sta tmp3
+  lda #12
+  ldy hz_dir,x
+  beq @wl
+  lda #236
+@wl:
+  sta gxl
+  lda #0
+  sta gxh
+  lda #1
+  sta gw
+  lda #2
+  sta gh
+  txa
+  pha
+  jsr put_grid
+  pla
+  tax
+  jmp @hn
+@body:
+  lda hz_y,x
+  sta tmp
+  lda #1
+  ldy hz_dir,x
+  beq @sr
+  lda #$41
+@sr:
+  sta tmp3
+  lda hz_x,x
+  sta gxl
+  lda hz_xh,x
+  sta gxh
+  lda #4
+  sta gw
+  lda #2
+  sta gh
+  lda #S_SHARKA
+  sta gt
+  lda frame
+  and #8
+  beq @sa
+  lda #S_SHARKB
+  sta gt
+@sa:
+  txa
+  pha
+  jsr put_grid
+  pla
+  tax
+  lda hz_st,x            ; 底に うつる サメの かげ（ねらっている所）
+  cmp #3
+  beq @hn
+  lda #191
+  sta tmp
+  lda #3
+  sta tmp3
+  lda hz_x,x
+  clc
+  adc #8
+  sta gxl
+  lda hz_xh,x
+  adc #0
+  sta gxh
+  lda #2
+  sta gw
+  lda #1
+  sta gh
+  lda #S_SHADOW
+  sta gt
+  txa
+  pha
+  jsr put_grid
+  pla
+  tax
+@hn:
+  dex
+  bmi @sdone
+  jmp @h
+@sdone:
+  ; 色を変えた: タコのまわりに きらきら
+  lda chg_t
+  cmp #4
+  bcc @nosp
+  lda #3
+  sta tmp3
+  lda #S_SPARKA
+  ldx chg_t
+  cpx #8
+  bcs @spk
+  lda #S_SPARKB
+@spk:
+  sta tmp2
+  lda #OY+3
+  sta tmp
+  lda ox
+  sec
+  sbc #5
+  bcs @sp1
+  lda #0
+@sp1:
+  sta tmp4
+  jsr put_spr
+  lda ox
+  clc
+  adc #21
+  sta tmp4
+  jsr put_spr
+  lda #OY-8
+  sta tmp
+  lda ox
+  clc
+  adc #8
+  sta tmp4
+  jsr put_spr
+@nosp:
   ; タコ（見つかったあとは点めつ）
   lda inv
+  cmp #101               ; かみつかれる前は点めつしない
+  bcs @oshow
   and #4
   bne @nooct
+@oshow:
   lda chg_t
   beq @k
   lda #3
@@ -1681,76 +1977,6 @@ draw_all:
 @fn:
   dex
   bpl @fd
-  ; サメ
-  ldx #NH-1
-@h:
-  lda hz_type,x
-  bne @hd
-  jmp @hn
-@hd:
-  lda hz_st,x
-  bne @body
-  lda frame            ; ！（来るほうのはしで点めつ）
-  and #8
-  bne @hn
-  lda hz_y,x
-  sta tmp
-  lda #S_WARN
-  sta gt
-  lda #3
-  sta tmp3
-  lda #12
-  ldy hz_dir,x
-  beq @wl
-  lda #236
-@wl:
-  sta gxl
-  lda #0
-  sta gxh
-  lda #1
-  sta gw
-  lda #2
-  sta gh
-  txa
-  pha
-  jsr put_grid
-  pla
-  tax
-  jmp @hn
-@body:
-  lda hz_y,x
-  sta tmp
-  lda #1
-  ldy hz_dir,x
-  beq @sr
-  lda #$41
-@sr:
-  sta tmp3
-  lda hz_x,x
-  sta gxl
-  lda hz_xh,x
-  sta gxh
-  lda #4
-  sta gw
-  lda #2
-  sta gh
-  lda #S_SHARKA
-  sta gt
-  lda frame
-  and #8
-  beq @sa
-  lda #S_SHARKB
-  sta gt
-@sa:
-  txa
-  pha
-  jsr put_grid
-  pla
-  tax
-@hn:
-  dex
-  bmi @hearts
-  jmp @h
 @hearts:
   lda state
   beq @end
@@ -1795,6 +2021,9 @@ hud:
 
 ; 字の段の 2 行め: はじめは操作、サメが来ると「じっと!」（段 2 から消す）
 hint:
+  ldy #3
+  lda found_t
+  bne @set
   ldy #0
   lda level
   cmp #2
@@ -1819,6 +2048,7 @@ go_end:
   sta state
   lda #0
   sta end_t
+  sta found_t
   ldx #0
 @c:
   lda score,x
@@ -1853,6 +2083,7 @@ end_update:
   lda end_t
   cmp #60
   bcs @res
+  jsr do_shake
   jsr draw_all         ; しばらく そのまま（すみが広がる）
   rts
 @res:
@@ -1909,12 +2140,13 @@ end_update:
   jsr oam_start
   jsr hide_rest
   jsr screen_on
-  lda #0
-  jsr oct_palette
+  lda #$ff
+  sta opal_cur
   rts
 @wait:
   jsr demo_input       ; 結果の画面でも タコは見本と同じに
   jsr update_octo
+  jsr pal_update
   jsr draw_all
   lda end_t
   cmp #90
@@ -1947,6 +2179,17 @@ sfx_warn:              ; サメが来る: 低い 2 つの音
   lda #$40
   sta $4002
   lda #$0b
+  sta $4003
+  rts
+
+sfx_alert:             ; 見つかった!: 高く短い 2 つの音
+  lda #%10011000
+  sta $4000
+  lda #%10000010
+  sta $4001
+  lda #$70
+  sta $4002
+  lda #$08
   sta $4003
   rts
 
@@ -2030,7 +2273,7 @@ load_save:
 ; ================= 決まりの表 =================
 save_magic: .byte 'O', 'H', '0', '1'
 nt_tab: .word nt_title_0, nt_title_1, nt_play_0, nt_play_1, nt_end_0, nt_end_1
-hint_msg: .byte M_HINT0, M_HINT1, M_HINT2
+hint_msg: .byte M_HINT0, M_HINT1, M_HINT2, M_HINT3
 spawn_iv: .byte 220, 190, 165, 145, 130, 118, 106, 96
 warn_tab: .byte 70, 64, 58, 52, 48, 44, 40, 36
 dbl_tab: .byte 0, 0, 0, 1, 1, 2, 2, 3

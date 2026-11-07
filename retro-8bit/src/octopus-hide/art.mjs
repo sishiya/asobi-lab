@@ -238,6 +238,9 @@ const one = dig(['..1.....', '.11.....', '..1.....', '..1.....', '..1.....', '.1
 const zero = dig(['.111....', '1...1...', '1..11...', '1.1.1...', '11..1...', '.111....', '........', '........']);
 const five = dig(['11111...', '1.......', '1111....', '....1...', '1...1...', '.111....', '........', '........']);
 const mark = g8((x, y) => (x === 0 && y === 7 ? '3' : '.'));
+// サメのかげ（底の砂に うつる。黒の網で うすく）16×8、色を変えたときの きらきら 8×8
+const shadowSp = grid(16, 8, (x, y) => { const d = Math.hypot((x + 0.5 - 8) / 7.5, (y + 0.5 - 3) / 2.6); return d < 1 && (x + y) % 2 === 0 ? '3' : d < 0.6 && hash(x, y, 5) < 0.6 ? '3' : '.'; });
+const spark = (f) => g8((x, y) => { const dx = Math.abs(x - 3.5), dy = Math.abs(y - 3.5); const r = f ? 2.6 : 3.6; return (dx < 0.6 && dy < r) || (dy < 0.6 && dx < r) ? '1' : !f && dx < 1.2 && dy < 1.2 ? '1' : '.'; });
 
 export const SP = {
   mark,
@@ -245,5 +248,5 @@ export const SP = {
   sharkA: shark(0), sharkB: shark(1),
   crabA: crab(0), crabB: crab(1), shrA: shrimp(0), shrB: shrimp(1),
   inkA: ink(0), inkB: ink(1),
-  warn, heart, heartOff, plus, one, zero, five,
+  warn, heart, heartOff, plus, one, zero, five, shadow: shadowSp, sparkA: spark(0), sparkB: spark(1),
 };

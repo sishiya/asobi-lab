@@ -1,7 +1,7 @@
 // タコの かくれんぼ を画面なしで遊ぶボット。node retro-8bit/tools/octopus-hide-play.mjs <bot|none|mash|hold> [絵のフォルダ] [たね] [en]
 //   bot = サメが近づいたら止まって 足もとの底の色に合わせ、いないあいだにカニ・エビへ歩く（RAM を読む。人のように 12 フレームおくれて気づく）
 //   none = 何もしない・mash = A を連打して でたらめに歩く・hold = → と A を おしっぱなし
-//   絵のフォルダをわたすと、タイトル・あそぶ画面いくつか・！・サメが通る所・見つかった所・おわりを PNG に
+//   絵のフォルダをわたすと、タイトル・あそぶ画面いくつか・！・サメが通る所・色を変えた所・なじんだ所・サメがおりてくる所・かみつかれた所・おわりを PNG に
 import { readFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,7 +24,7 @@ tap('START');
 const score = () => +R().slice(0x1c, 0x20).join('');
 const btn = { A: false, LEFT: false, RIGHT: false };
 const set = (b, v) => { if (btn[b] !== v) { nes.setButton(0, BTN[b], v); btn[b] = v; } };
-let warnShot = false, passShot = false, foundShot = false, lastLives = 3, found = 0;
+let diveShot = false, chgShot = false, blendShot = false, warnShot = false, passShot = false, foundShot = false, lastLives = 3, found = 0;
 const shotsAt = new Set([30, 600, 1500, 3000]);
 const s16 = (lo, hi) => ((hi << 8 | lo) << 16) >> 16;
 const seenAt = [0, 0];
@@ -64,8 +64,11 @@ for (let g = 0; g < 60 * 600 && R()[7] === 1; g++) {
   for (const b of ['A', 'LEFT', 'RIGHT']) set(b, want[b]);
   run(1);
   const n = R();
-  if (n[0x24] < lastLives) { found++; lastLives = n[0x24]; if (!foundShot && g > 200) { run(6); shot('found'); foundShot = true; } if (process.env.DBG) console.log('見つかった', g, 'sx', n[0x18], 'サメ', [0,1].map(i=>[n[0x40+i],n[0x42+i],s16(n[0x46+i],n[0x48+i]),n[0x4e+i],n[0x54+i]].join(':')).join(' '), 'ox', n[0x10], 'col', n[0x12], 'chg', n[0x13], 'mv', n[0x14], 'floor', n[0x400 + (((n[0x18] + n[0x10] + 12) & 255) >> 3)]); }
+  if (n[0x24] < lastLives) { found++; lastLives = n[0x24]; if (!foundShot && g > 200) { run(3); shot('bite'); run(16); shot('found'); foundShot = true; } if (process.env.DBG) console.log('見つかった', g, 'sx', n[0x18], 'サメ', [0,1].map(i=>[n[0x40+i],n[0x42+i],s16(n[0x46+i],n[0x48+i]),n[0x4e+i],n[0x54+i]].join(':')).join(' '), 'ox', n[0x10], 'col', n[0x12], 'chg', n[0x13], 'mv', n[0x14], 'floor', n[0x400 + (((n[0x18] + n[0x10] + 12) & 255) >> 3)]); }
   if (shotsAt.has(g)) shot('play' + g);
+  if (!diveShot && [0, 1].some((i) => n[0x40 + i] && n[0x42 + i] === 2 && n[0x4c + i] > 140)) { diveShot = true; run(1); shot('dive'); } // サメが おりてくる
+  if (!chgShot && g > 300 && n[0x13] === 8) { chgShot = true; run(1); shot('change'); }                                          // 色を変えた（白く光る）
+  if (!blendShot && g > 400 && n[0x13] === 0 && n[0x14] === 0 && n[0x12] === 1 && n[0x400 + (((n[0x18] + n[0x10] + 12) & 255) >> 3)] === 1) { blendShot = true; run(1); shot('blend'); } // 岩になじむ
   if (!warnShot && g > 100 && Array.from({ length: 64 }, (_, i) => n.length && nes.ram[0x200 + i * 4 + 2] === 3 && [12, 236].includes(nes.ram[0x203 + i * 4])).some(Boolean)) { warnShot = true; run(2); shot('warn'); } // ！が出ている（画面は 1 フレームおくれ）
   if (!passShot && g > 300 && [0, 1].some((i) => n[0x40 + i] && n[0x42 + i] && Math.abs(s16(n[0x46 + i], n[0x48 + i]) + 4 - n[0x10]) < 10) && n[0x25] === 0) { passShot = true; shot('pass'); }
 }
