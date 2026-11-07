@@ -100,6 +100,14 @@ foreach ($f in $files) {
     if (-not $extrasOk -or $json -match '"(copyright|author)"|[A-Za-z]:[\\/]|/Users/|/home/') { [void]$hits.Add("$rel : glb に作者・付加情報・パスがある（書き出しの設定を見直す）") }
     continue
   }
+  if ($ext -eq '.hdr') {
+    # 空の光（flower-brook/tools/build-flora.py。Poly Haven の CC0 の HDRI を縮めたもの）: 頭の文字が形式の行だけか（コメント・ソフト名・撮影情報がないか）。絵は目で確かめる
+    $head = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($f), 0, 512)
+    $lines = @(($head -split "`n`n")[0] -split "`n")
+    $bad = @($lines | Where-Object { $_ -and $_ -notmatch '^(#\?RADIANCE|#\?RGBE|FORMAT=32-bit_rle_(rgbe|xyze)|EXPOSURE=[0-9.eE+-]+|GAMMA=[0-9.]+)$' })
+    if ($bad.Count) { [void]$hits.Add("$rel : hdr の頭に付加情報がある（$($bad -join ' / ')）") }
+    continue
+  }
   if ($ext -eq '.wav') {
     # 音のもと（retro-32bit/src/*/sound/。Stable Audio で作り ffmpeg で書き出す）: 作者・題・コメントなどの付加情報がないか（ffprobe）。中身は耳で確かめる
     $probe = Get-Command ffprobe -ErrorAction SilentlyContinue

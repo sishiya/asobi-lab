@@ -27,7 +27,7 @@ class RefractPass extends Pass {
     m.material.uniforms.vp.value.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
     const ac = renderer.autoClear; renderer.autoClear = false;
     renderer.setRenderTarget(readBuffer);
-    this.camera.layers.set(1); renderer.render(m, this.camera); this.camera.layers.set(0);
+    const L = this.camera.layers.mask; this.camera.layers.set(1); renderer.render(m, this.camera); this.camera.layers.mask = L;
     renderer.autoClear = ac;
   }
 }

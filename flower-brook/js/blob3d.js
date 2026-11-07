@@ -8,16 +8,16 @@ import * as THREE from 'three';
 
 export const NMAX = 32;
 
-export function makeBlob(sun, coarse) {
+export function makeBlob(sun, coarse, sky = null) {   // sky: 映りこみに使う空の写真（equirect の HDR。なければ手作りの空）
   const P = Array.from({ length: NMAX }, () => new THREE.Vector4(0, -9, 0, 0));   // xyz＝中心、w＝半径
   const D = Array.from({ length: NMAX }, () => new THREE.Vector4(0, 0, 0, 0));    // x＝塊の番号、y＝乾き 0〜1、z＝かたい粒 1・指でつかんでいる 2、w＝ぷるん
   const E = Array.from({ length: NMAX }, () => new THREE.Vector4(1, 0, 0, 0));    // x＝つながりぐあい 0〜1（くっついた直後は 0 から、むにゅっと首がのびる）、yz＝速さの向き（のびる）
   const STEPS = coarse ? 36 : 56;
   const mat = new THREE.ShaderMaterial({
     transparent: false, depthWrite: true,
-    uniforms: { P: { value: P }, D: { value: D }, E: { value: E }, n: { value: 0 }, t: { value: 0 }, sun: { value: sun }, bmin: { value: new THREE.Vector3() }, bmax: { value: new THREE.Vector3() }, tScene: { value: null }, res: { value: new THREE.Vector2(1, 1) }, vp: { value: new THREE.Matrix4() } },
+    uniforms: { P: { value: P }, D: { value: D }, E: { value: E }, n: { value: 0 }, t: { value: 0 }, sun: { value: sun }, bmin: { value: new THREE.Vector3() }, bmax: { value: new THREE.Vector3() }, tScene: { value: null }, res: { value: new THREE.Vector2(1, 1) }, vp: { value: new THREE.Matrix4() }, sky: { value: sky }, useSky: { value: sky ? 1 : 0 } },
     vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
-    fragmentShader: `uniform vec4 P[${NMAX}]; uniform vec4 D[${NMAX}]; uniform vec4 E[${NMAX}]; uniform int n; uniform float t; uniform vec3 sun; uniform vec3 bmin; uniform vec3 bmax; uniform sampler2D tScene; uniform vec2 res; uniform mat4 vp; varying vec3 vW;
+    fragmentShader: `uniform vec4 P[${NMAX}]; uniform vec4 D[${NMAX}]; uniform vec4 E[${NMAX}]; uniform int n; uniform float t; uniform vec3 sun; uniform vec3 bmin; uniform vec3 bmax; uniform sampler2D tScene; uniform vec2 res; uniform mat4 vp; uniform sampler2D sky; uniform float useSky; varying vec3 vW;
       float smin(float a, float b, float k){ k = max(k, 1e-3); float h = max(k - abs(a - b), 0.) / k; return min(a, b) - h * h * k * .25; }
       float ball(vec3 p, int i){
         vec4 c = P[i]; vec4 d = D[i]; vec4 e = E[i];
@@ -46,7 +46,7 @@ export function makeBlob(sun, coarse) {
         for (int k = 0; k < ${STEPS}; k++) {
           float d = sdf(ro + rd * tt);
           if (d < .004) { hit = 1.; break; }
-          tt += d; if (tt > tFar) break;
+          tt += d * .8; if (tt > tFar) break;   // 変形した距離は大きめに出るので、少しずつ（すり抜けて穴があかないように）
         }
         if (hit < .5) discard;
         vec3 p = ro + rd * tt;
@@ -70,8 +70,9 @@ export function makeBlob(sun, coarse) {
         trans += bgc * pow(cosv, 6.) * .12;   // 中心は少し明るく（レンズで光が集まる）
         // 映りこみ: 空（上ほど青く、地平はあたたかい）と、花畑の緑（下向きの面）
         vec3 R = reflect(rd, N);
-        vec3 sky = mix(vec3(1., .95, .86), vec3(.55, .74, .98), smoothstep(0., .6, R.y));
-        vec3 env = R.y > 0. ? sky : mix(vec3(.30, .48, .20), vec3(1., .95, .86), smoothstep(-.25, 0., R.y));
+        vec3 skyc = mix(vec3(1., .95, .86), vec3(.55, .74, .98), smoothstep(0., .6, R.y));
+        vec3 env = R.y > 0. ? skyc : mix(vec3(.30, .48, .20), vec3(1., .95, .86), smoothstep(-.25, 0., R.y));
+        if (useSky > .5) { vec2 eu = vec2(atan(R.z, R.x) * .15915 + .5, asin(clamp(R.y, -1., 1.)) * .31831 + .5); env = min(texture2D(sky, eu).rgb * .8, vec3(6.)); }   // 花畑を照らすのと同じ空の写真を映す
         vec3 c = mix(trans, env, F);
         // 太陽のハイライト（小さく鋭い）と、窓のような やわらかい光
         float spec = pow(max(dot(R, normalize(sun)), 0.), 700.) * 14. + pow(max(dot(R, normalize(sun)), 0.), 60.) * .5;

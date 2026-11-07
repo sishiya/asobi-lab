@@ -18,15 +18,16 @@ const MEL = [
   [[0, 7, 2], [2, 4, 1], [3, 7, 1], [4, 11, 2], [6, 9, 2]],
   [[0, 9, 6]],
   [[0, 9, 2], [2, 7, 1], [3, 9, 1], [4, 14, 3]],
-  [[0, 12, 2], [2, 11, 1], [3, 9, 1], [4, 7, 3]],
-  [[0, 7, 2], [2, 9, 1], [3, 11, 1], [4, 12, 2], [6, 14, 2]],
+  [[0, 14, 2], [2, 12, 1], [3, 11, 1], [4, 7, 3]],   // G6 の上: 頭は D（C だと B とぶつかる。C は裏の経過音に）
+  [[0, 7, 2], [2, 9, 1], [3, 11, 1], [4, 11, 2], [6, 14, 2]],   // Em7 の上: 3拍めは B
   [[0, 16, 4], [4, 12, 4]],
 ];
 const SECTIONS = [0.1, 0.32, 0.58, 0.93];   // ここをこえると Aメロ・Bメロ・サビ・おわり
-let t0 = 0, nextStep = 0, stepN = 0, prog = 0, mode = 'title', outroBar = -1, lay = null;
+let t0 = 0, nextStep = 0, stepN = 0, prog = 0, mode = 'title', outroBar = -1, lay = null, lastSec = -1, lastMode = '';
 const chordAt = n => CHORDS[Math.floor(n / 8) % 4];
-const chordNow = () => chordAt(Math.max(0, Math.floor(((ac?.currentTime || 0) - t0) / E8)));
-const chordTone = n => { const c = chordNow(), k = ((n % c.length) + c.length) % c.length; return c[k] + 12 * Math.floor(n / c.length); };
+// その時刻 t（なければ いま）に鳴っている和音。拍にそろえて予約する音は、鳴る時刻の和音で（小節をまたいでも合う）
+const chordNow = (t = ac?.currentTime || 0) => chordAt(Math.max(0, Math.floor((t - t0) / E8)));
+const chordTone = (n, t) => { const c = chordNow(t), k = ((n % c.length) + c.length) % c.length; return c[k] + 12 * Math.floor(n / c.length); };
 
 export function startAudio() {
   if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
@@ -55,7 +56,10 @@ export function setProgress(p, m = 'play') {
   if (!ac) { prog = p; mode = m; return; }
   if (m === 'play' && mode !== 'play') outroBar = -1;
   prog = p; mode = m;
-  const sec = m === 'play' ? SECTIONS.filter(s => p >= s).length : m === 'end' ? 4 : 0;
+  const sec0 = m === 'play' ? SECTIONS.filter(s => p >= s).length : m === 'end' ? 4 : 0;
+  if (sec0 === lastSec && m === lastMode) return;   // 場面が変わったときだけ大きさを変える（毎こま積まない）
+  lastSec = sec0; lastMode = m;
+  const sec = sec0;
   const want = { bass: sec >= 1 ? 0.07 : 0, arp: sec >= 1 ? 0.035 : 0, mel: sec >= 2 ? 0.05 : 0, shk: sec >= 2 ? 0.02 : 0, pad: sec >= 3 ? 0.03 : 0.022 };
   if (sec >= 4) { want.bass = 0.05; want.shk = 0; want.arp = 0.02; }
   for (const k in want) lay[k].gain.setTargetAtTime(want[k], ac.currentTime, 0.8);
@@ -63,13 +67,22 @@ export function setProgress(p, m = 'play') {
 // 8分音符ごとに、少し先まで音を予約する
 function schedule() {
   if (!ac) return;
+  if (nextStep < ac.currentTime - 0.05) { stepN = Math.ceil((ac.currentTime - t0) / E8); nextStep = t0 + stepN * E8; }   // タブを隠して遅れた分は鳴らさず飛ばす
   while (nextStep < ac.currentTime + 0.12) { play(stepN, nextStep); stepN++; nextStep = t0 + stepN * E8; }
 }
 function play(n, t) {
   const pos = n % 8, bar = Math.floor(n / 8), c = chordAt(n), r = ROOT[bar % 4];
   const sec = mode === 'play' ? SECTIONS.filter(s => prog >= s).length : mode === 'end' ? 4 : 0;
-  // 和音（小節のはじめに、のばす）
-  if (pos === 0) for (const st of [c[0] - 12, ...c]) for (const det of [-5, 5]) voice(hz(st), t, BAR + 0.8, 'sine', 1, lay.pad, 1.0, det);
+  // おわり: 主和音（C△9）のあとは何も鳴らさない
+  if (sec >= 4 && outroBar >= 0 && bar - outroBar >= 1 && !(bar - outroBar === 1 && pos === 0)) return;
+  // 和音（小節のはじめに、のばす。おわりの小節は C△9）
+  if (pos === 0 && sec >= 4 && outroBar >= 0 && bar - outroBar === 1) {
+    for (const st of [-12, 0, 4, 7, 11, 14]) for (const det of [-5, 5]) voice(hz(st), t, BAR * 2, 'sine', 1, lay.pad, 1.0, det);
+    voice(hz(-24), t, BAR * 1.5, 'triangle', 1, lay.bass, 0.02);
+    [0, 7, 12, 14, 16, 19].forEach((st, i) => pluckTo(hz(st + 12), t + i * 0.09, 1, lay.fx, 2.6, 0.05));
+    return;
+  }
+  else if (pos === 0) for (const st of [c[0] - 12, ...c]) for (const det of [-5, 5]) voice(hz(st), t, BAR + 0.8, 'sine', 1, lay.pad, 1.0, det);
   if (sec === 0) return;
   // ベース（1拍めと3拍め、その小節の根音）
   if (pos === 0 || pos === 4) voice(hz(r - 24), t, E8 * 3.5, 'triangle', 1, lay.bass, 0.02);
@@ -86,7 +99,6 @@ function play(n, t) {
     if (outroBar < 0 && pos === 0) outroBar = bar;
     const k = bar - outroBar;
     if (k === 0) for (const [p, st, l] of MEL[6]) if (p === pos) pluckTo(hz(st + 12), t, 1, lay.mel, E8 * l + 0.5);
-    if (k === 1 && pos === 0) [0, 7, 12, 14, 16, 19].forEach((st, i) => pluckTo(hz(st + 12), t + i * 0.09, 1, lay.fx, 2.6, 0.05));
   }
 }
 // 1つの声: 音の高さ・はじまり・長さ・波の形・大きさ・送り先。atk＝立ち上がり（秒）
@@ -162,7 +174,7 @@ let lastJoin = 0, joinRun = 0;
 export function sJoin(size = 0) {
   if (!ac) return; const now = ac.currentTime; if (now - lastJoin < 0.09) return;
   joinRun = now - lastJoin < 0.8 ? joinRun + 1 : 0; lastJoin = now;
-  const t = q16(), f = hz(chordTone(Math.round(size * 6) + Math.min(joinRun, 3)));
+  const t = q16(), f = hz(chordTone(Math.round(size * 6) + Math.min(joinRun, 3), t));
   tone(f, t, 0.5, 'sine', 0.06, 0.85); tone(f * 2, t, 0.18, 'sine', 0.012, 0.85);
 }
 let lastBreak = 0;
@@ -172,9 +184,9 @@ export function sFling() { if (!ac) return; const t = ac.currentTime; const f = 
 export function sBreak() {
   if (!ac) return; const now = ac.currentTime; if (now - lastBreak < 0.08) return; lastBreak = now;
   const t = q16(), n = 8 + Math.floor(Math.random() * 2);
-  tone(hz(chordTone(n)), t, 0.08, 'sine', 0.045); tone(hz(chordTone(n - 2)), t + E8 / 2, 0.25, 'sine', 0.04);
+  tone(hz(chordTone(n, t)), t, 0.08, 'sine', 0.045); tone(hz(chordTone(n - 2, t)), t + E8 / 2, 0.25, 'sine', 0.04);
 }
-export function sClump() { if (ac) tone(hz(chordNow()[0] - 12), q16(), 0.2, 'triangle', 0.05, 1.15); }
+export function sClump() { if (!ac) return; const t = q16(); tone(hz(chordNow(t)[0] - 12), t, 0.2, 'triangle', 0.05, 1.15); }
 export function sFiber() { if (ac) noise(ac.currentTime, 0.12, 2400, 2, 0.05); }
 export function sThunder() {
   if (!ac) return; const t = ac.currentTime;
