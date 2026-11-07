@@ -1,13 +1,14 @@
-// 花の小川 段階A2 の画面: 3D の世界（js/world3d.js）・指・タイトル・教える順・おわり・庭。決まりは js/sim.js。
-// 手: 指を置いた位置で決める（左右＝寄る岸、高さ＝速さ。上ほど速い）。はなすと、その場でとどまる。
-// キー: ←→ 岸、↑↓ 速さ、スペース（押しているあいだ）進む、Esc 止める。?seed=<番号> で川を選ぶ。
+// 花の小川 の画面: 3D の世界（js/world3d.js）・指・タイトル・教える順・おわり・庭。決まりは js/sim.js。
+// 手（段階A3）: さわらなくても流れる（まん中ほど速く、岸ほどおそい）。水面に指を置くと、しずくの先頭が指へ引かれる
+// （左右＝岸へ、前＝速く、うしろ＝とどまる）。はなすと、その場から流れにまかせる。どこにさわっても波紋と花のおじぎ。
+// キー: ←→（A/D）岸、↑（W）前へ、↓（S）うしろへ、Esc 止める。?seed=<番号> で川を選ぶ。
 import { RULE, newState, step, gradeOf, bloomOf } from './sim.js';
 import { makeWorld } from './world3d.js';
 import { GRADE_NAME, drawGradeFlower } from './flowers.js';
 import * as A from './audio.js';
 
 const $ = id => document.getElementById(id);
-const VER = 'ver. 0.2';
+const VER = 'ver. 0.3';
 const world = makeWorld($('stage'));
 const q = new URLSearchParams(location.search);
 let seed = +(q.get('seed') || 1 + Math.floor(Math.random() * 9999));
@@ -24,41 +25,53 @@ let tut = store.get('tut', 0);             // 教える順: 0〜3（3 で終わ�
 A.setSound(store.get('sound', true));
 
 // ---------- 入力 ----------
-const input = { hold: false, u: 0.5, x: 0 };
+// input.x: 先頭が寄っていく左右（指の左右の位置。はなしても残る）
+// input.pull: 押した点から上へなぞると前へ（速く）、下へなぞるとうしろへ（とどまる）。指は列の下に置いたままでいい（指で列を隠さない）
+const input = { x: 0, pull: 0 };
 const keys = new Set();
-let pointerId = null;
-const ring = $('ring');
-function fromPointer(e) {
-  const W = innerWidth, H = innerHeight;
-  input.x = Math.max(-1, Math.min(1, (e.clientX - W / 2) / (W * 0.32)));
-  input.u = Math.max(0, Math.min(1, (H * 0.92 - e.clientY) / (H * 0.8)));
-  ring.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
-  ring.style.setProperty('--u', input.u.toFixed(2));
-}
+let pointerId = null, grabT = 0, finger = null, press = null, lastTouchAt = 0;
 const stage = $('stage');
-stage.addEventListener('pointerdown', e => {
+function aimFinger(now) {   // 毎こま: 指を止めていても、カメラは動くので、置いた点を世界の点に置きなおす
+  if (!press) return;
+  const p = world.pick(press.cx, press.cy, S.beads[0].s);
+  if (!p) return;
+  finger = p;
+  if (now - lastTouchAt > 0.25 || press.moved) { world.touch(p.point, 0.8); lastTouchAt = now; press.moved = false; }
   if (mode !== 'play') return;
+  input.x = Math.max(-1, Math.min(1, p.x));
+  input.pull = Math.max(-1, Math.min(1, (press.y0 - press.cy) / (innerHeight * 0.16)));
+}
+stage.addEventListener('pointerdown', e => {
+  if (mode === 'title' || mode === 'pause') return;
   A.startAudio();
   pointerId = e.pointerId; try { stage.setPointerCapture(e.pointerId); } catch {}
-  input.hold = true; fromPointer(e); ring.hidden = false;
+  press = { cx: e.clientX, cy: e.clientY, y0: e.clientY, moved: true };
+  aimFinger(performance.now() / 1000);
+  if (finger) { A.sTouch(finger.x); world.splash(finger.point); }
+  navigator.vibrate?.(8);
 });
-stage.addEventListener('pointermove', e => { if (e.pointerId === pointerId) fromPointer(e); });
-const up = e => { if (e.pointerId === pointerId) { pointerId = null; input.hold = false; ring.hidden = true; } };
+stage.addEventListener('pointermove', e => {
+  if (e.pointerId === pointerId && press) { if (Math.hypot(e.clientX - press.cx, e.clientY - press.cy) > 18) press.moved = true; press.cx = e.clientX; press.cy = e.clientY; }
+  else if (e.pointerType === 'mouse' && pointerId === null) { const p = world.pick(e.clientX, e.clientY, S.beads[0].s); world.hover(p && p.point); }   // マウスでなでるだけでも、花がゆれる
+});
+const up = e => { if (e.pointerId === pointerId) { pointerId = null; finger = null; press = null; } };
 stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+stage.addEventListener('pointerleave', () => world.hover(null));
 addEventListener('keydown', e => {
-  keys.add(e.key);
-  if (e.key === ' ') e.preventDefault();
+  keys.add(e.key.length === 1 ? e.key.toLowerCase() : e.key);
+  if (e.key.startsWith('Arrow')) e.preventDefault();
   if (e.key === 'Escape' && (mode === 'play' || mode === 'pause')) togglePause();
   if (mode === 'play') A.startAudio();
 });
-addEventListener('keyup', e => keys.delete(e.key));
-function keyInput(dt) {
-  if (!keys.size) return;
-  if (keys.has('ArrowLeft')) input.x = Math.max(-1, input.x - 1.6 * dt);
-  if (keys.has('ArrowRight')) input.x = Math.min(1, input.x + 1.6 * dt);
-  if (keys.has('ArrowUp')) input.u = Math.min(1, input.u + 0.8 * dt);
-  if (keys.has('ArrowDown')) input.u = Math.max(0, input.u - 0.8 * dt);
-  if (pointerId === null) input.hold = keys.has(' ');
+addEventListener('keyup', e => keys.delete(e.key.length === 1 ? e.key.toLowerCase() : e.key));
+function handInput(dt) {
+  const k = a => a.some(x => keys.has(x));
+  if (k(['ArrowLeft', 'a'])) input.x = Math.max(-1, input.x - 1.4 * dt);
+  if (k(['ArrowRight', 'd'])) input.x = Math.min(1, input.x + 1.4 * dt);
+  const kp = k(['ArrowUp', 'w']) ? 1 : k(['ArrowDown', 's']) ? -1 : 0;
+  if (pointerId !== null) { grabT += dt; aimFinger(performance.now() / 1000); }
+  else if (kp) input.pull += (kp - input.pull) * Math.min(1, dt * 6);
+  else input.pull *= Math.exp(-dt * 5);   // はなすと引く力は消える（しずくの勢いは決まりの側で少し残る）
 }
 
 // ---------- 画面の切りかえ ----------
@@ -70,7 +83,7 @@ function toTitle() {
 }
 function start(sd) {
   seed = sd; S = newState(seed); world.setCourse(S); logAt = 0; acc = 0;
-  input.hold = false; input.u = 0.5; input.x = 0;
+  input.pull = 0; input.x = 0; grabT = 0;
   mode = 'play'; show('title', false); show('result', false); show('menu', false); show('hud', true);
   toastT = 0; hintStep = tut < 3 ? Math.max(1, tut + 1) : 0; hintT = 0; setHint();
 }
@@ -90,13 +103,13 @@ $('ver').textContent = VER;
 
 // ---------- 教える順（1つずつ。PLAN.md の手ざわり） ----------
 let hintStep = 0, hintT = 0;
-const HINTS = ['', '指を置くと流れに乗って進む（上ほど速い）', '指をはなすと止まる。岸に寄ると、花が水を飲んで咲く', '乾いたしずくは、花のアーチでちぎれる'];
+const HINTS = ['', '水面にさわると、しずくが指の左右へ寄る。上へなぞると速く、下へなぞるととどまる', '岸に寄せると流れがゆるみ、花が水を飲んで咲く', '乾いたしずくは、花のアーチでちぎれる'];
 function setHint() { if (toastT > 0) return; $('hint').classList.remove('alert'); $('hint').textContent = HINTS[hintStep] || ''; $('hint').hidden = !hintStep; }
 function hints(dt, bloomedNow) {
   if (!hintStep) return;
   hintT += dt;
   const lead = S.beads[0].s, arch0 = S.course.arches[0].s;
-  const next = hintStep === 1 ? lead > 420 :
+  const next = hintStep === 1 ? grabT > 1.5 || lead > 600 :
     hintStep === 2 ? (bloomCount > 6 && hintT > 4) || hintT > 22 :
     hintT > 6 && lead > arch0 + 40;
   if (toastT > 0) return;   // 知らせが出ているあいだは待つ（1行に1つ）
@@ -112,15 +125,15 @@ function toast(t, sec = 2.5) { const h = $('hint'); h.textContent = t; h.classLi
 function events() {
   for (; logAt < S.log.length; logAt++) {
     const e = S.log[logAt];
-    if (e.ev === 'break') A.sBreak();
+    if (e.ev === 'break') { A.sBreak(); navigator.vibrate?.(12); }
     else if (e.ev === 'clump') A.sClump();
     else if (e.ev === 'fiber') A.sFiber();
     else if (e.ev === 'thunder') { A.sThunder(); toast(e.kind === 'squeeze' ? '雷　アーチが強く締まる' : '雷　流れが急に', 4); }
-    else if (e.ev === 'ride') { A.sWave(true); toast('大きな流れに乗った！'); }
+    else if (e.ev === 'ride') { A.sWave(true); toast('大きな流れに乗った'); }
     else if (e.ev === 'wave-miss') A.sWave(false);
   }
   const wv = S.course.waves.find(w => w.front !== null && !w.used);
-  if (wv && S.beads[0].s - wv.front < 260 && toastT <= 0.2) toast('大きな流れ！　指を上へ', 0.4);
+  if (wv && S.beads[0].s - wv.front < 260 && toastT <= 0.2) toast('大きな流れ　まん中にいると乗る、岸ならよける', 0.4);
 }
 
 // ---------- 庭（咲いた花の列） ----------
@@ -140,7 +153,7 @@ function rareStretches() {
 function finish() {
   mode = 'end'; endAt = performance.now();
   world.finish(S.grade); A.sFinish(S.grade);
-  input.hold = false; ring.hidden = true; $('hint').hidden = true; toastT = 0;
+  input.pull = 0; $('hint').hidden = true; toastT = 0;
   const r = rareStretches();
   garden.push({ g: S.grade, r: r.got }); garden = garden.slice(-200); store.set('garden', garden);
   setTimeout(() => {
@@ -154,7 +167,8 @@ function finish() {
 // ---------- まわす ----------
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
-  keyInput(dt);
+  handInput(dt);
+  A.setFlow(world.speed());
   if (thumbBot) { Object.assign(input, thumbBot(S)); toastT = 0; $('hint').hidden = true; }
   if (mode === 'play') {
     acc += dt;

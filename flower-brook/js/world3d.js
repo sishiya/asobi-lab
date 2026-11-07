@@ -1,9 +1,12 @@
-// 花の小川: 3D の世界（ART.md。斜め見下ろしの箱庭、水彩の花を立てたカード）。
+// 花の小川: 3D の世界（ART.md。斜め見下ろしの箱庭）。花・草は js/flora3d.js、川の水は js/water3d.js、画面のしあげは js/post3d.js。
 // 決まり（js/sim.js）の s・x を、奥行き・左右に置きかえて見せるだけ。決まりは変えない。
 // makeWorld(three の親要素) → { setCourse(S), update(S, dt, view), finish(grade) ... }
 import * as THREE from 'three';
 import { RULE, squeezeAt } from './sim.js';
 import { drawBankFlower, drawGradeFlower } from './flowers.js';
+import { floraMaterial, floraMesh, grassMaterial, grassMesh } from './flora3d.js';
+import { makeRiver } from './water3d.js';
+import { makePost } from './post3d.js';
 
 const K = 0.04;                    // sim の長さ 1 → 3D の 0.04
 const HALF = 1.7;                  // 川はばの半分
@@ -51,7 +54,7 @@ function cardMaterial(atlas, additive = false) {
         vNear = smoothstep(3.5, 7.5, -mvPosition.z);   // カメラのすぐ前の大きなカードは、うすく（四角いふちが見えるので）
         #include <fog_vertex> }`),
     fragmentShader: inc(`uniform sampler2D map; varying vec2 vUv; varying float vNear; #include <fog_pars_fragment>
-      void main(){ vec4 c = texture2D(map, vUv); c.a *= vNear; if (c.a < .04) discard; gl_FragColor = c; #include <fog_fragment> }`),
+      void main(){ vec4 c = texture2D(map, vUv); c.a *= vNear; if (c.a < .04) discard; gl_FragColor = c; ${additive ? 'gl_FragColor.rgb *= .45;' : ''} #include <fog_fragment> }`),   // 足し合わせる光（光の粒・後光・星）は弱め（光のにじみが足すので）
   });
 }
 function cards(list, mat, R) {
@@ -76,22 +79,32 @@ function place(m, i, x, y, z, size, rx = TILT, ry = 0) {
 // しずくの色（水 w → 水色・はちみつ色・琥珀。茶色にしない）
 function wcol(w, out) {
   const t = Math.max(0, Math.min(1, (RULE.w0 - w) / (RULE.w0 - 0.62)));
-  const a = [0.66, 0.89, 0.95], b = [1.0, 0.84, 0.42], c = [1.0, 0.74, 0.30];   // 終わりは はちみつの金（茶色に寄せない）
+  const a = [0.42, 0.84, 0.97], b = [1.0, 0.80, 0.36], c = [1.0, 0.68, 0.26];   // 終わりは はちみつの金（茶色に寄せない）
   const m = t < 0.65 ? a.map((v, i) => v + (b[i] - v) * t / 0.65) : b.map((v, i) => v + (c[i] - v) * (t - 0.65) / 0.35);
   return out.setRGB(m[0], m[1], m[2], THREE.SRGBColorSpace);
 }
 
 export function makeWorld(parent) {
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(matchMedia('(pointer: coarse)').matches ? 1.5 : 2, devicePixelRatio));   // スマホは 1.5 まで（重さ）
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  const renderer = new THREE.WebGLRenderer({ antialias: false });   // ふちのなめらかさは画面のしあげの描き先（MSAA）で
+  const DPR = Math.min(coarse ? 1.5 : 2, devicePixelRatio);   // スマホは 1.5 まで（重さ）
+  renderer.setPixelRatio(DPR);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   parent.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
   const PAPER = new THREE.Color('#f3ecdc'), CLOUD = new THREE.Color('#9aa0c0');
   scene.background = PAPER.clone();
   scene.fog = new THREE.Fog(PAPER.clone(), 18, 42);
-  const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 80);
-  scene.add(new THREE.HemisphereLight('#fff6e6', '#9fb6c8', 1.6));
+  const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 46);
+  scene.add(new THREE.HemisphereLight('#fff6e6', '#9fb6c8', 1.3));
+  // 太陽は川下の奥の低め（花びらが逆光で透け、遠くの川面に光の道ができる。高いと手前の水面が白くとぶ）
+  const SUN = new THREE.Vector3(0.45, 0.42, -0.79).normalize();
+  const sunL = new THREE.DirectionalLight('#fff1d6', 1.4); sunL.position.copy(SUN); scene.add(sunL);
+  const floraMat = floraMaterial(SUN), grassMat = grassMaterial(SUN);
+  const post = makePost(renderer, scene, camera, coarse);
+  const raycaster = new THREE.Raycaster(), ground0 = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const touches = [floraMat.uniforms.touch.value, grassMat.uniforms.touch.value], touches2 = [floraMat.uniforms.touch2.value, grassMat.uniforms.touch2.value];
+  const tch = { x: 0, z: 0, s: 0, r: 1.2 }, hov = { x: 0, z: 0, s: 0, r: 0.9 };
   const atlas = makeAtlas();
   let course = null, built = null;
   const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
@@ -99,7 +112,7 @@ export function makeWorld(parent) {
 
   function resize() {
     const w = parent.clientWidth || innerWidth, h = parent.clientHeight || innerHeight;
-    renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
+    renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); post.resize(w, h, DPR);
   }
   addEventListener('resize', resize); resize();
 
@@ -112,9 +125,9 @@ export function makeWorld(parent) {
 
     // 地面
     const gc = document.createElement('canvas'); gc.width = gc.height = 512; const gg = gc.getContext('2d');
-    gg.fillStyle = '#cfdcae'; gg.fillRect(0, 0, 512, 512);
+    gg.fillStyle = '#8fae6e'; gg.fillRect(0, 0, 512, 512);
     for (let i = 0; i < 260; i++) {
-      const x = R() * 512, y = R() * 512, r = 20 + R() * 60, col = R() < 0.5 ? '118,170,105' : R() < 0.5 ? '170,200,120' : '220,214,150';
+      const x = R() * 512, y = R() * 512, r = 20 + R() * 60, col = R() < 0.5 ? '96,140,84' : R() < 0.5 ? '150,180,100' : '190,190,120';
       for (const dx of [-512, 0, 512]) for (const dy of [-512, 0, 512]) { const gr = gg.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r); gr.addColorStop(0, `rgba(${col},0.22)`); gr.addColorStop(1, `rgba(${col},0)`); gg.fillStyle = gr; gg.fillRect(x + dx - r, y + dy - r, r * 2, r * 2); }
     }
     const gt = new THREE.CanvasTexture(gc); gt.wrapS = gt.wrapT = THREE.RepeatWrapping; gt.repeat.set(6, 40); gt.colorSpace = THREE.SRGBColorSpace;
@@ -123,37 +136,9 @@ export function makeWorld(parent) {
 
     // 川（出口の前で池にふくらみ、奥で閉じる）
     const widthAt = s => s < pond0 - 80 ? 1 : s < L ? 1 + 1.5 * Math.sin(Math.PI * smooth(pond0 - 80, L + 30, s)) : 1 + 1.5 * Math.sin(Math.PI * smooth(pond0 - 80, L + 30, s)) * (1 - smooth(L, L + 60, s));
-    const pos = [], uv = [], idx = []; let n = 0;
-    for (let s = -400; s <= L + 60; s += 20) {
-      const c = P(s), c2 = P(s + 1), d = c2.sub(c).normalize(), nx = -d.z, nz = d.x, hw = HALF * 1.12 * widthAt(s);
-      const c0 = P(s);
-      for (const side of [-1, 1]) { pos.push(c0.x + nx * side * hw, 0, c0.z + nz * side * hw); uv.push(side < 0 ? 0 : 1, s / 100); }
-      if (n) idx.push(2 * n - 2, 2 * n - 1, 2 * n, 2 * n - 1, 2 * n + 1, 2 * n);
-      n++;
-    }
-    const rg = new THREE.BufferGeometry();
-    rg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); rg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); rg.setIndex(idx);
-    const water = new THREE.ShaderMaterial({
-      transparent: true, depthWrite: false, fog: true,
-      uniforms: { t: { value: 0 }, ...THREE.UniformsLib.fog },
-      vertexShader: inc(`varying vec2 vUv; #include <fog_pars_vertex>
-        void main(){ vUv = uv; vec4 mvPosition = modelViewMatrix * vec4(position,1.0); gl_Position = projectionMatrix * mvPosition; #include <fog_vertex> }`),
-      fragmentShader: inc(`uniform float t; varying vec2 vUv; #include <fog_pars_fragment>
-        float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
-        float n(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f); return mix(mix(h(i),h(i+vec2(1,0)),f.x), mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x), f.y); }
-        void main(){
-          float e = abs(vUv.x - .5) * 2.;
-          vec3 col = mix(vec3(.38,.66,.82), vec3(.70,.88,.93), smoothstep(.2, 1., e));
-          float r = n(vec2(vUv.x * 6., vUv.y * 3. + t)) * n(vec2(vUv.x * 13. + 3., vUv.y * 7. + t * 1.5));
-          col += smoothstep(.45, .7, r) * .12;                                         // 大きな模様は濃淡だけ
-          vec2 q = vec2(vUv.x * 46., vUv.y * 30. + t * 2.); float k = h(floor(q) + floor(t * 3.));
-          col += step(.965, k) * smoothstep(.22, 0., length(fract(q) - .5)) * 1.2;      // 小さくまたたく光の点
-          col = mix(col, col * vec3(.86,.92,1.), smoothstep(.55, .58, n(vUv * vec2(3., 1.5))) * .25);
-          gl_FragColor = vec4(col, (1. - smoothstep(.82, 1., e)) * .92);
-          #include <fog_fragment>
-        }`),
-    });
-    built.add(new THREE.Mesh(rg, water));
+    const river = makeRiver({ P, HALF, widthAt, L, sun: SUN });
+    built.add(river.mesh);
+    const water = river.mat;
 
     // 土手の花: 区画ごと。区画が飲んだ水の割合で、岸に近い花から順に咲く
     const bank = [];
@@ -168,28 +153,37 @@ export function makeWorld(parent) {
         bank.push({ patch: p && near ? p : null, need: Math.min(1, 0.12 + 0.88 * ((off - 1) / 3) * (0.6 + 0.4 * R())), x: c.x + side * (hw + off - 1 + 0.2), z: c.z, col: kind, row: p && near ? 0 : 2, size: 0.7 + R() * 0.45 + (kind === 3 ? 0.25 : 0), pop: -1 });
       }
     }
-    const bankMesh = cards(bank, cardMaterial(atlas), R); built.add(bankMesh);
-    bank.forEach((f, i) => place(bankMesh, i, f.x, 0, f.z, f.size));
-    // 遠くの花畑（いつも満開）としげみ
-    // 川の長さ 200 ごとに分け、カメラに映らない分は描かない（スマホの重さ）
-    const meadowMat = cardMaterial(atlas), meadowMeshes = [];
+    // 種類: めずらしい花＝3、ほかは 0・1・2・4・5 から
+    const KINDS = [0, 1, 2, 4, 5];
+    bank.forEach(f => { f.kind = f.col === 3 ? 3 : KINDS[Math.floor(R() * KINDS.length)]; f.o = f.row === 2 ? 1 : 0.06; f.size = 1.15 + (f.size - 0.7) * 1.1; f.phase = R(); f.open = f.o; });
+    // 土手の花も川の長さ 200 ごとに分け、映らない分は描かない。f.m＝その花の入った区切り、f.j＝区切りの中の番号
+    const bankMeshes = [];
     for (let s0 = -400; s0 < L + 300; s0 += 200) {
-      const meadow = [];
-      for (let i = 0; i < 230; i++) {
-        const s = s0 + R() * 200, side = R() < 0.5 ? -1 : 1, off = 4.6 + R() * 8, leaf = R() < 0.35, c = P(s);
-        meadow.push({ x: c.x + side * (HALF * 1.12 * widthAt(s) + off), z: c.z, col: leaf ? 0 : Math.floor(R() * 3), row: leaf ? 3 : 2, size: leaf ? 1.2 + R() * 0.9 : 0.55 + R() * 0.5 });
-      }
-      const mm = cards(meadow, meadowMat, R); meadow.forEach((f, i) => place(mm, i, f.x, 0, f.z, f.size));
-      mm.frustumCulled = true; mm.computeBoundingSphere(); built.add(mm); meadowMeshes.push(mm);
+      const part = bank.filter(f => -f.z / K >= s0 && -f.z / K < s0 + 200); if (!part.length) continue;
+      const m = floraMesh(part, floraMat); m.computeBoundingSphere(); m.boundingSphere.radius += 1; built.add(m); bankMeshes.push(m);
+      part.forEach((f, j) => { f.m = m; f.j = j; });
     }
-    const meadowMesh = meadowMeshes[0];
+    // 遠くの花畑（いつも満開）と草。川の長さ 200 ごとに分け、カメラに映らない分は描かない（スマホの重さ）
+    const meadowMeshes = [];
+    for (let s0 = -400; s0 < L + 300; s0 += 200) {
+      const meadow = [], grass = [];
+      for (let i = 0; i < 170; i++) {
+        const s = s0 + R() * 200, side = R() < 0.5 ? -1 : 1, off = 4.4 + R() * 8.5, c = P(s);
+        meadow.push({ x: c.x + side * (HALF * 1.12 * widthAt(s) + off), z: c.z, kind: KINDS[Math.floor(R() * KINDS.length)], size: 1.0 + R() * 0.6, open: 1, phase: R() });
+      }
+      for (let i = 0, nG = coarse ? 650 : 1300; i < nG; i++) {
+        const s = s0 + R() * 200, side = R() < 0.5 ? -1 : 1, off = 0.05 + R() * R() * 13, c = P(s);
+        grass.push({ x: c.x + side * (HALF * 1.12 * widthAt(s) + off), z: c.z, size: 0.9 + R() * 0.8 - (off < 0.4 ? 0.4 : 0), phase: R() });
+      }
+      for (const mm of [floraMesh(meadow, floraMat), grassMesh(grass, grassMat)]) { mm.frustumCulled = true; mm.computeBoundingSphere(); mm.boundingSphere.radius += 1; built.add(mm); meadowMeshes.push(mm); }
+    }
 
     // 日なた: 光の筋と、地面のあたたかい光
-    const glow = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,236,160,0.55)'); gr.addColorStop(1, 'rgba(255,236,160,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+    const glow = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,236,160,0.3)'); gr.addColorStop(1, 'rgba(255,236,160,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
     // 光の筋: カメラへ向く板。横はふわっと消え、上ほど濃い（筒にすると、ななめの四角い板に見えた）
     const shaftMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { t: { value: 0 } },
-      vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }`,
-      fragmentShader: `uniform float t; varying vec2 vUv; void main(){ float x = 1. - abs(vUv.x * 2. - 1.); float a = pow(x, 2.2) * smoothstep(0., .5, vUv.y) * (.8 + .2 * sin(t * .7 + vUv.x * 9.)); gl_FragColor = vec4(1., .94, .72, a * .24); }` });
+      vertexShader: `varying vec2 vUv; varying float vD; void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position,1.); vD = -mv.z; gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform float t; varying vec2 vUv; varying float vD; void main(){ float x = 1. - abs(vUv.x * 2. - 1.); float a = pow(x, 2.2) * smoothstep(0., .5, vUv.y) * (.8 + .2 * sin(t * .7 + vUv.x * 9.)); a *= 1. - smoothstep(14., 26., vD); gl_FragColor = vec4(1., .94, .72, a * .07); }` });   // 光のにじみが足すので、うすく。遠い（霧の中の）筋は消す
     const shafts = [];
     const rares = course.patches.filter(p => p.rare);
     for (let i = 0; i < rares.length; i += 2) {
@@ -216,10 +210,9 @@ export function makeWorld(parent) {
       const d = P(a.s + 1).sub(c); grp.rotation.y = Math.atan2(-d.x, -d.z);
       const hw = HALF * 1.2;
       const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(-hw, 0, 0), new THREE.Vector3(-hw * 0.95, 1.8, 0), new THREE.Vector3(0, 2.7, 0), new THREE.Vector3(hw * 0.95, 1.8, 0), new THREE.Vector3(hw, 0, 0)]);
-      grp.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 30, 0.06, 6), new THREE.MeshLambertMaterial({ color: '#7d9a62' })));
-      const bl = []; for (let i = 0; i < 24; i++) bl.push({ u: i / 23, col: 2, row: 2, size: 0.4 + R() * 0.2 });
-      const bm = cards(bl, cardMaterial(atlas), R); grp.add(bm);
-      bl.forEach((b, i) => { const p = curve.getPoint(b.u); place(bm, i, p.x, p.y - 0.25, p.z + 0.05, b.size); });
+      grp.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.085, 8), new THREE.MeshLambertMaterial({ color: '#6f8f55' })));
+      const bl = []; for (let i = 0; i < 34; i++) { const p = curve.getPoint(i / 33); bl.push({ x: p.x + (R() - 0.5) * 0.12, y: p.y - 0.32, z: p.z + (R() - 0.5) * 0.2, kind: R() < 0.6 ? 2 : 1, size: 0.6 + R() * 0.3, open: 1, phase: R() }); }
+      grp.add(floraMesh(bl, floraMat));
       const cur = []; for (let i = 0; i < 20; i++) cur.push({ side: i < 10 ? -1 : 1, k: i % 10, col: i % 2 === 0 ? 2 : 0, row: i % 2 === 0 ? 2 : 3, size: 0.75 + R() * 0.3 });
       const cm = cards(cur, cardMaterial(atlas), R); grp.add(cm);
       // 水面の光の帯: 通れる幅と色で、アーチの開きぐあいを見せる（開いている＝明るい水色、締まる＝赤むらさき）
@@ -248,12 +241,19 @@ export function makeWorld(parent) {
     bud.position.set(end.x, 0.6, end.z); bud.rotation.x = TILT; built.add(bud);
     drawBud(budC, 0); budT.needsUpdate = true;
     // 池のハスの葉
-    for (let i = 0; i < 7; i++) { const s = pond0 + 40 + R() * (RULE.pond.len - 60), side = R() < 0.5 ? -1 : 1, c = P(s, side * (1.3 + R() * 0.8)); const lp = new THREE.Mesh(new THREE.CircleGeometry(0.35 + R() * 0.25, 18), new THREE.MeshLambertMaterial({ color: '#9cc888', transparent: true, opacity: 0.9 })); lp.rotation.x = -Math.PI / 2; lp.position.set(c.x, 0.015, c.z); built.add(lp); }
+    const padFlowers = [];
+    for (let i = 0; i < 9; i++) {
+      const s = pond0 + 40 + R() * (RULE.pond.len - 60), side = R() < 0.5 ? -1 : 1, c = P(s, side * (1.3 + R() * 0.8)), r = 0.35 + R() * 0.3;
+      const lp = new THREE.Mesh(new THREE.CircleGeometry(r, 28, 0.25, Math.PI * 2 - 0.5), new THREE.MeshLambertMaterial({ color: new THREE.Color().setHSL(0.27 + R() * 0.05, 0.42, 0.42 + R() * 0.1), emissive: '#1f3a14' }));
+      lp.rotation.set(-Math.PI / 2, 0, R() * 6.28); lp.position.set(c.x, 0.02, c.z); built.add(lp);
+      if (R() < 0.5) padFlowers.push({ x: c.x, y: -0.12, z: c.z, kind: 1, size: 0.75, open: 1, phase: R(), color: '#ffb3cf' });
+    }
+    if (padFlowers.length) built.add(floraMesh(padFlowers, floraMat));
 
     // 舞う花びら・光の粒
     const petals = []; for (let i = 0; i < 160; i++) petals.push({ col: 1, row: 3, size: 0.12 + R() * 0.08, x: 0, y: -1, z: 0, vy: 0.2 + R() * 0.25, ph: R() * 6 });
     const petalMesh = cards(petals, cardMaterial(atlas), R); built.add(petalMesh);
-    const motes = []; for (let i = 0; i < 90; i++) motes.push({ col: 2, row: 3, size: 0.25 + R() * 0.3, x: 0, y: 0.4 + R() * 3, z: 99, ph: R() * 6 });
+    const motes = []; for (let i = 0; i < 60; i++) motes.push({ col: 2, row: 3, size: 0.18 + R() * 0.22, x: 0, y: 0.8 + R() * 3, z: 99, ph: R() * 6 });
     const moteMesh = cards(motes, cardMaterial(atlas, true), R); built.add(moteMesh);
 
     // しずく
@@ -265,16 +265,16 @@ export function makeWorld(parent) {
         fragmentShader: `uniform vec3 col; uniform float t; uniform float ph; uniform float dry; varying vec3 vN; varying vec3 vV;
           vec3 hue(float h){ return clamp(abs(fract(h + vec3(0., .333, .667)) * 6. - 3.) - 1., 0., 1.); }
           void main(){ float f = 1. - max(dot(vN, vV), 0.);
-            vec3 c = mix(col * 1.15, col * .85, f * f);
-            c += (1. - f) * (.12 + .45 * dry) * col;                                       // 内からの光（乾くほど、はちみつのように中が光る）
-            c = mix(c, hue(f * 1.4 + t * .15 + ph + vN.x * .3), smoothstep(.45, .95, f) * (.75 - .4 * dry));  // 虹色のふち（湿っているほど強い）
-            float sp = pow(max(dot(vN, normalize(vec3(-.45, .6, .65))), 0.), 60.) * 1.4;
-            float sp2 = pow(max(dot(vN, normalize(vec3(.35, -.4, .85))), 0.), 18.) * .45;
-            gl_FragColor = vec4(c + sp + sp2, mix(.28, .7, dry) + .5 * f + sp); }` });   // 湿っているほど、すけて縁だけ光る
+            vec3 c = mix(col * .95, col * col * .7, f * f);                               // 宝石のように、ふちほど色が濃い
+            c += (1. - f) * (.06 + .4 * dry) * col;                                       // 内からの光（乾くほど、はちみつのように中が光る）
+            c = mix(c, hue(f * 1.4 + t * .15 + ph + vN.x * .3) * .8, smoothstep(.55, .98, f) * (.55 - .3 * dry));  // 虹色のふち（湿っているほど強い）
+            float sp = pow(max(dot(vN, normalize(vec3(-.45, .6, .65))), 0.), 80.) * 1.6;
+            float sp2 = pow(max(dot(vN, normalize(vec3(.35, -.4, .85))), 0.), 18.) * .25;
+            gl_FragColor = vec4(c + sp + sp2, mix(.5, .85, dry) + .35 * f + sp); }` });   // 湿っているほど、すける
       const b = new THREE.Mesh(new THREE.SphereGeometry(0.3, 24, 16), m); b.renderOrder = 2; built.add(b); beads.push(b);
     }
     // しずくのまわりの光（うしろの、ほのかな後光）と、きらめきの星
-    const halos = S.beads.map(() => ({ col: 2, row: 3, size: 1.0 }));
+    const halos = S.beads.map(() => ({ col: 2, row: 3, size: 0.75 }));
     const haloMesh = cards(halos, cardMaterial(atlas, true), R); haloMesh.renderOrder = 1; built.add(haloMesh);
     const glints = []; for (let i = 0; i < 70; i++) glints.push({ col: 0, row: 4, size: 0, born: -9, life: 1, x: 0, y: 0, z: 0, rot: 0 });
     const glintMesh = cards(glints, cardMaterial(atlas, true), R); glintMesh.renderOrder = 4; built.add(glintMesh);
@@ -287,7 +287,7 @@ export function makeWorld(parent) {
     const pred = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.75), new THREE.MeshBasicMaterial({ map: predT, transparent: true, depthWrite: false, opacity: 0.85 }));
     pred.renderOrder = 3; built.add(pred);
 
-    Object.assign(state, { water, bank, bankMesh, arches, straws, strawMesh, foam, foamMat, bud, budC, budT, end, petals, petalMesh, motes, moteMesh, beads, pred, predC, predT, predGrade: 0, halos, haloMesh, glints, glintMesh, glintNext: 0, bursts, burstMesh, burstAt: 0, shafts, shaftMat, cardMats: [bankMesh, meadowMesh, burstMesh, petalMesh, moteMesh, strawMesh, haloMesh, glintMesh, ...arches.map(a => a.cm)].map(m => m.material) });
+    Object.assign(state, { water, river, bank, arches, straws, strawMesh, foam, foamMat, bud, budC, budT, end, petals, petalMesh, motes, moteMesh, beads, pred, predC, predT, predGrade: 0, halos, haloMesh, glints, glintMesh, glintNext: 0, bursts, burstMesh, burstAt: 0, shafts, shaftMat, cardMats: [burstMesh, petalMesh, moteMesh, strawMesh, haloMesh, glintMesh, ...arches.map(a => a.cm)].map(m => m.material) });
     state.R = R;
     camPos.set(0, 0, 0); camLook.set(0, 0, 0);
     prevLead = S.beads[0].s; speedSm = 0;
@@ -309,8 +309,13 @@ export function makeWorld(parent) {
     clock += dt;
     const st = state, B = S.beads, L = RULE.len;
     const thSq = S.thunder?.kind === 'squeeze', thRush = S.thunder?.kind === 'rush';
-    for (const m of st.cardMats) { m.uniforms.t.value = clock; m.uniforms.wind.value = S.thunder ? 2.2 : 1; }
-    st.water.uniforms.t.value += dt * (thRush ? 2.2 : S.ride > 0 ? 3 : 0.9);
+    for (const m of [...st.cardMats, floraMat, grassMat]) { m.uniforms.t.value = clock; m.uniforms.wind.value += ((S.thunder ? 2.2 : 1) - m.uniforms.wind.value) * Math.min(1, dt * 2); }
+    st.water.uniforms.t.value = clock; st.water.uniforms.flow.value += dt * (thRush ? 2.6 : S.ride > 0 ? 3.4 : 1.1);
+    st.water.uniforms.cloud.value += ((S.thunder ? 1 : 0) - st.water.uniforms.cloud.value) * Math.min(1, dt * 2);
+    // 指: さわった強さは少しずつ消える。花・草はおじぎし、ゆれがおさまる
+    tch.s *= Math.exp(-dt * 1.6); hov.s += ((hov.on ? 0.22 : 0) - hov.s) * Math.min(1, dt * 5);
+    for (const v of touches) v.set(tch.x, tch.z, tch.s, tch.r);
+    for (const v of touches2) v.set(hov.x, hov.z, hov.s, hov.r);
 
     // 速さ（カメラの引き）
     const sp = (B[0].s - prevLead) / Math.max(dt, 1e-3); prevLead = B[0].s;
@@ -324,9 +329,18 @@ export function makeWorld(parent) {
       const r = b.pellet ? 0.72 : 1;
       let y = 0.18 * r + 0.03 * Math.sin(clock * 3 + i * 0.7);
       if (b.s > L - RULE.pond.len) p.x += Math.sin(i * 2.1 + clock * 0.8) * 0.45 * smooth(L - RULE.pond.len, L - RULE.pond.len + 120, b.s);   // 池では、ゆらゆらと左右に広がる
-      if (fin > 0) { const e = Math.min(1, fin * 1.3 - i * 0.02); p.lerp(st.end, Math.max(0, e)); y += Math.sin(Math.max(0, e) * Math.PI) * 0.6; m.scale.setScalar(r * (1 - Math.max(0, e))); }
-      else m.scale.set(r, 0.75 * r, r);
+      // 指が近いと、ぷるんとゆれる
+      const dx = p.x - tch.x, dz = p.z - tch.z, jig = tch.s * Math.exp(-(dx * dx + dz * dz) / 1.2) * Math.sin(clock * 16 + i);
+      if (fin > 0) { const e = Math.min(1, fin * 1.3 - i * 0.02); p.lerp(st.end, Math.max(0, e)); y += Math.sin(Math.max(0, e) * Math.PI) * 0.6; m.scale.setScalar(r * (1 - Math.max(0, e))); m.rotation.set(0, 0, 0); }
+      else {
+        // つながっている玉は、流れの向きにのびて、となりと重なる（玉の列でなく、ひとつながりのゼリーに見えるように）
+        const linked = (i > 0 && S.links[i - 1].on) || (i < B.length - 1 && S.links[i].on);
+        const q = P(b.s + 1, b.x); m.rotation.set(0, Math.atan2(q.x - p.x, q.z - p.z), 0);
+        const sq = 1 + jig * 0.25;
+        m.scale.set(r * (linked && !b.pellet ? 0.96 : 1) / sq, 0.82 * r * sq, r * (linked && !b.pellet ? 1.32 : 1) / sq);
+      }
       m.position.set(p.x, y, p.z);
+      st.river.setBead(i, p.x, p.z, b.out ? 0 : m.scale.x * (1 - fin), Math.max(0, Math.min(1, (RULE.w0 - b.w) / (RULE.w0 - 0.65))));
       m.material.uniforms.col.value.copy(wcol(b.w, col)); m.material.uniforms.t.value = clock; m.material.uniforms.dry.value = Math.max(0, Math.min(1, (RULE.w0 - b.w) / (RULE.w0 - 0.65)));
       const hs = m.scale.x * (0.95 + 0.12 * Math.sin(clock * 2.3 + i));
       _s.setScalar(hs); _v.set(m.position.x, m.position.y, m.position.z - 0.05); _m.compose(_v, camera.quaternion, _s); st.haloMesh.setMatrixAt(i, _m);
@@ -349,7 +363,6 @@ export function makeWorld(parent) {
 
     // 土手の花: 区画が飲んだ割合で咲く。咲くとき、ぽんとはずむ
     const need = p => p.rare ? RULE.patch.rareBloom : RULE.patch.bloom;
-    const cell = st.bankMesh.geometry.attributes.aCell;
     let moved = false, bloomed = 0, rareBloomed = 0;
     const near0 = B[0].s + 500, near1 = B[B.length - 1].s - 200;
     for (let i = 0; i < st.bank.length; i++) {
@@ -359,16 +372,17 @@ export function makeWorld(parent) {
       const frac = f.patch.drunk / need(f.patch);
       const row = frac >= f.need ? 2 : frac >= f.need * 0.45 ? 1 : 0;
       if (row !== f.row) {
-        if (row === 2) { f.pop = clock; bloomed++; if (f.col === 3) rareBloomed++; if (Math.abs(f.z - P(B[0].s).z) < 30) burst(f.x, 0.5, f.z, f.col === 3 ? 10 : 3, f.col === 3); }
-        f.row = row; cell.setXY(i, f.col, row); cell.needsUpdate = true;
+        if (row === 2) { f.pop = clock; bloomed++; if (f.kind === 3) rareBloomed++; if (Math.abs(f.z - P(B[0].s).z) < 30) burst(f.x, 0.6, f.z, f.kind === 3 ? 10 : 3, f.kind === 3); }
+        f.row = row;
       }
+      const to = row === 2 ? 1 : row === 1 ? 0.45 : 0.06;   // つぼみ → 半分 → 満開。開きはなめらかに
+      if (Math.abs(f.o - to) > 0.002) { f.o += (to - f.o) * Math.min(1, dt * 2.2); const oa = f.m.geometry.attributes.aOpen; oa.array[f.j] = f.o; oa.needsUpdate = true; }
       if (f.pop >= 0) {
-        const age = clock - f.pop, k = age < 0.6 ? 1 + 0.35 * Math.sin(age / 0.6 * Math.PI) : 1;
-        place(st.bankMesh, i, f.x, 0, f.z, f.size * k); moved = true;
-        if (age >= 0.6) f.pop = -1;
+        const age = clock - f.pop, k = age < 0.7 ? 1 + 0.3 * Math.sin(age / 0.7 * Math.PI) : 1;
+        _m.makeScale(f.size * k, f.size * k, f.size * k).setPosition(f.x, 0, f.z); f.m.setMatrixAt(f.j, _m); f.m.instanceMatrix.needsUpdate = true;
+        if (age >= 0.7) f.pop = -1;
       }
     }
-    if (moved) st.bankMesh.instanceMatrix.needsUpdate = true;
 
     // アーチ: すぼまりは決まりと同じ squeezeAt。雷で強く締まるときは色を赤むらさきに
     const tailS = B[B.length - 1].s;
@@ -442,18 +456,19 @@ export function makeWorld(parent) {
     const leadS = Math.min(B[0].s, L - 40), lead = P(leadS, B[0].x * 0.5);
     const dir = P(leadS + 120, B[0].x * 0.3).sub(lead).setY(0).normalize();
     const back = Math.max(12.5, 4.75 / Math.tan(hf / 2)) + speedSm * 0.015 - fin * 2;
-    const target = lead.clone().addScaledVector(dir, -1.2);   // 列のまん中より少し前を見る（列が画面のまん中に来る）
+    const wide = Math.max(0, Math.min(1, (camera.aspect - 0.7) / 0.8)), target = lead.clone().addScaledVector(dir, -4 * (1 - wide) - 1.2 * wide);   // たての画面は列のうしろを見る（列が画面の上〜中ほど。下に置いた指で隠れない）。横の画面は列がまん中に
     const want = target.clone().addScaledVector(dir, -back * Math.cos(PITCH)).setY(back * Math.sin(PITCH));
     const first = camPos.lengthSq() === 0;
     camPos.lerp(want, first ? 1 : Math.min(1, dt * 3)); camLook.lerp(target, first ? 1 : Math.min(1, dt * 4.5));
     camera.position.copy(camPos); camera.lookAt(camLook);
 
     // 雷: 一瞬白く、そのあとしばらく青むらさきにくもる
-    let bg = PAPER.clone();
-    if (S.thunder) { const age = S.t - (S.thunder.until - RULE.thunder.dur); bg = age < 0.15 ? bg.lerp(new THREE.Color('#ffffff'), 0.9) : bg.lerp(CLOUD, 0.42); }
+    let bg = PAPER.clone(), flash = 0;
+    if (S.thunder) { const age = S.t - (S.thunder.until - RULE.thunder.dur); flash = age < 0.15 ? 0.7 : 0; bg.lerp(CLOUD, 0.42); }
     scene.background.lerp(bg, Math.min(1, dt * 6)); scene.fog.color.copy(scene.background);
+    const G = post.grade.uniforms; G.flash.value = flash; G.dim.value += ((S.thunder ? 0.55 : 0) - G.dim.value) * Math.min(1, dt * 3);
 
-    renderer.render(scene, camera);
+    post.render();
     return { bloomed, rareBloomed };
   }
 
@@ -469,5 +484,30 @@ export function makeWorld(parent) {
     cell.needsUpdate = true;
   }
   function finish(grade) { state.finishT = clock; state.grade = grade; state.drawnGrade = false; }
-  return { setCourse, update, finish, resize, camera };
+
+  // 画面の点 → 地面の点と、川の道 s・左右 x（near のまわりで、いちばん近い道の点をさがす）
+  const _nd = new THREE.Vector2();
+  function pick(cx, cy, near) {
+    const r = renderer.domElement.getBoundingClientRect();
+    _nd.set((cx - r.left) / r.width * 2 - 1, -(cy - r.top) / r.height * 2 + 1);
+    raycaster.setFromCamera(_nd, camera);
+    const pt = new THREE.Vector3(); if (!raycaster.ray.intersectPlane(ground0, pt)) return null;
+    let best = near, bd = 1e9;
+    for (let s = near - 200; s <= near + 500; s += 4) { const c = P(s), d = (c.x - pt.x) ** 2 + (c.z - pt.z) ** 2; if (d < bd) { bd = d; best = s; } }
+    return { s: best, x: (pt.x - P(best).x) / (HALF * 0.82), point: pt };   // P と同じく、左右は x の向きでずらす
+  }
+  // さわる: 波紋と、花・草のおじぎ。hover は押していないマウス（弱く、なでるだけ）
+  let lastRip = -9;
+  function touch(pt, str = 1) {
+    tch.x = pt.x; tch.z = pt.z; tch.s = Math.max(tch.s, 0.55 * str);
+    if (clock - lastRip > 0.2 && state.river) { lastRip = clock; state.river.ripple(pt.x, pt.z, clock, str); }
+  }
+  // 押した瞬間: 花の上なら花びらが散る（岸から離れたところ）、水なら強い波紋
+  function splash(pt) {
+    const c = P(-pt.z / K), off = Math.abs(pt.x - c.x) - HALF * 1.12;
+    if (off > 0.1) burst(pt.x, 0.6, pt.z, 5, false, 0.7);
+    else if (state.river) { state.river.ripple(pt.x, pt.z, clock, 1.6); lastRip = clock; }
+  }
+  function hover(pt) { hov.on = !!pt; if (pt) { hov.x = pt.x; hov.z = pt.z; } }
+  return { setCourse, update, finish, resize, camera, pick, touch, hover, splash, speed: () => speedSm };
 }

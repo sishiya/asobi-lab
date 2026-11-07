@@ -11,7 +11,7 @@ export const RULE = {
   gap: 14,              // 玉のあいだ
   w0: 0.90,             // はじめの水
   wFloor: 0.55,         // 花が飲んでも、これより下には乾かない
-  speed: { linger: 3, min: 8, max: 66 },  // はなす＝linger、指の高さ 0〜1 で min〜max
+  speed: { bank: 4, mid: 40, curve: 1.7, pull: 0.9, back: 0.85, ease: 1.6 },  // 流れ: まん中 mid・岸 bank（本物の川と同じく、まん中ほど速い）。指で引くと流れの ×(1＋pull)〜×(1−back)。速く下りたければ、まん中へ出るしかない。ease＝速さが目あてへ近づく速さ（1/秒。はなしても勢いが少し残る）
   steer: 3.0,           // 先頭の玉が指の左右へ寄る速さ（1/秒）
   drink: { k: 0.012, mid: 0.12, sun: 1.9 },  // 花が飲む速さ。岸から遠い（まん中）ほど mid に近づく。日なたは ×sun
   bond: { top: 1.15, peak: 0.73, width: 0.06, fiber: 0.28, fiberMax: 2, clump: 0.55 },  // つながりの強さ（いちばん強い top は、ふだんの締めつけ squeeze より強い。雷のときは負ける）
@@ -26,7 +26,7 @@ export const RULE = {
   fiber: { n: 26, reach: 12, side: 0.28, hold: 0.55, spread: 0.25, speed: 0.06 },  // わら: hold＝飲まれにくさ、speed＝かさで速く
   patch: { every: 90, bloom: 0.010, rareBloom: 0.22, sun: 8 },  // 花の区画。咲くのに飲む水（玉の水の合計で）
   thunder: { n: 2, dur: 14, squeeze: 1.7, rush: 46 },
-  wave: { n: 3, speed: 160, ride: 5, rideSpeed: 95, catch: 0.85 },
+  wave: { n: 3, speed: 160, ride: 5, rideSpeed: 95, catchX: 0.45 },  // 先頭が |x|<catchX（まん中の流れ）にいると乗ってしまう
   pond: { len: 260, speed: 16, settle: 4 },  // 出口の前の池: 切れがここに集まって押しあう（直腸にたまるたとえ）。全部が入って settle 秒で花へ
   wHard: 0.64,          // これより乾いた粒は、池で押されてもかたまらない（ばらばらの粒のまま）
 };
@@ -86,7 +86,7 @@ export function newState(seed) {
   for (let i = 0; i < RULE.n - 1; i++) links.push({ on: true, clump: false });
   return {
     t: 0, course, beads, links,
-    lead: { x: 0 },
+    lead: { x: 0, v: RULE.speed.mid },
     thunder: null,   // { kind, until }
     ride: 0,         // 大きな流れに乗っているのこり秒
     log: [],         // できごと（画面で使う）
@@ -101,7 +101,12 @@ export function bondStrength(w, f) {
 }
 
 // ---------- 1刻み進める ----------
-// input: { hold: bool, u: 0〜1（指の高さ。上ほど 1）, x: -1〜1（指の左右） }
+// input: { x: -1〜1（先頭が寄っていく左右）, pull: -1〜1（指で引く向き。前へ＋、うしろへ−、はなすと 0） }
+// 川の流れの速さ（左右の位置 x で。まん中ほど速い）
+export function currentAt(x) {
+  const sp = RULE.speed;
+  return sp.bank + (sp.mid - sp.bank) * (1 - Math.min(1, Math.abs(x)) ** sp.curve);
+}
 export function step(S, input) {
   if (S.done) return S;
   const dt = RULE.dt, C = S.course, B = S.beads;
@@ -118,7 +123,7 @@ export function step(S, input) {
       wv.front += RULE.wave.speed * dt;
       if (lead && wv.front >= lead.s) {
         wv.used = true;
-        if (input.hold && input.u >= RULE.wave.catch) { S.ride = RULE.wave.ride; S.log.push({ t: S.t, ev: 'ride' }); }
+        if (Math.abs(lead.x) < RULE.wave.catchX) { S.ride = RULE.wave.ride; S.log.push({ t: S.t, ev: 'ride' }); }
         else S.log.push({ t: S.t, ev: 'wave-miss' });
       }
     }
@@ -126,8 +131,10 @@ export function step(S, input) {
   if (S.ride > 0) S.ride -= dt;
 
   // 流れの速さ
-  const sp = RULE.speed;
-  let base = input.hold ? sp.min + (sp.max - sp.min) * clamp(input.u, 0, 1) : sp.linger;
+  const sp = RULE.speed, pull = clamp(input.pull || 0, -1, 1);
+  const want = currentAt(S.lead.x) * (pull < 0 ? 1 + pull * sp.back : 1 + pull * sp.pull);
+  S.lead.v += (want - S.lead.v) * Math.min(1, sp.ease * dt);   // しずくの勢い
+  let base = S.lead.v;
   if (S.thunder?.kind === 'rush') base = Math.max(base, RULE.thunder.rush);
   if (S.ride > 0) base = RULE.wave.rideSpeed;
 
@@ -136,7 +143,7 @@ export function step(S, input) {
   for (let i = 0; i < B.length; i++) {
     const b = B[i]; if (b.out) continue;
     const tx = i === 0 || B[i - 1].out ? S.lead.x : B[i - 1].x;
-    b.x += (tx - b.x) * Math.min(1, dt * base / RULE.gap * 0.6);
+    b.x += (tx - b.x) * Math.min(1, dt * (base / RULE.gap * 0.6 + 0.5));   // 流れがおそくても、うしろの玉は少しずつ同じ岸へ寄る
   }
 
   // 進む（アーチがすぼまっていると、そこでおそくなる）

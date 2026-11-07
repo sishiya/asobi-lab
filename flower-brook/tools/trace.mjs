@@ -11,7 +11,7 @@ while (!S.done && S.t < 600) {
     next += every;
     const B = S.beads, mw = B.reduce((a, b) => a + b.w, 0) / B.length, mid = B[B.length >> 1];
     const pr = [-1, 1].map(sd => { const p = patchAt(S.course, sd, mid.s); return p ? (p.rare ? 'R' + p.drunk.toFixed(2) : '.') : '-'; }).join(' ');
-    console.log(`${S.t.toFixed(0).padStart(4)}s  s ${B[0].s.toFixed(0).padStart(5)}  水 ${mw.toFixed(3)}  ${inp.hold ? '押す u' + inp.u : 'はなす'} x${inp.x}  先頭x ${S.lead.x.toFixed(2)} まん中x ${mid.x.toFixed(2)}  岸 ${pr}  切れ ${shapeOf(S).pieces}${S.thunder ? ' 雷' + S.thunder.kind : ''}`);
+    console.log(`${S.t.toFixed(0).padStart(4)}s  s ${B[0].s.toFixed(0).padStart(5)}  水 ${mw.toFixed(3)}  引く ${inp.pull} x${inp.x}  先頭x ${S.lead.x.toFixed(2)} まん中x ${mid.x.toFixed(2)}  岸 ${pr}  切れ ${shapeOf(S).pieces}${S.thunder ? ' 雷' + S.thunder.kind : ''}`);
   }
 }
 console.log('段', S.grade, JSON.stringify(shapeOf(S)));

@@ -1,6 +1,6 @@
 // 花の小川: 音（Web Audio でその場で作る。録った音は使わない）。
 // はじめて押したときに鳴らしはじめる（ブラウザの決まり）。音の大きさは設定の on/off だけ。
-let ac = null, master = null, water = null, on = true;
+let ac = null, master = null, water = null, lp = null, on = true;
 const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];   // 花が咲く音（ペンタトニック）
 
 export function startAudio() {
@@ -11,13 +11,18 @@ export function startAudio() {
   const len = ac.sampleRate * 2, buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
   let last = 0; for (let i = 0; i < len; i++) { last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = last * 3.5; }
   const src = ac.createBufferSource(); src.buffer = buf; src.loop = true;
-  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
+  lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
   water = ac.createGain(); water.gain.value = 0.18;
   const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 0.17; lg.gain.value = 0.06; lfo.connect(lg); lg.connect(water.gain); lfo.start();
   src.connect(lp); lp.connect(water); water.connect(master); src.start();
 }
 export function setSound(v) { on = v; if (master) master.gain.setTargetAtTime(v ? 0.8 : 0, ac.currentTime, 0.05); }
 export function soundOn() { return on; }
+// 流れの速さ（3D の単位で 0〜120）で、水音を明るく大きく。とどまると静かなせせらぎ
+export function setFlow(v) {
+  if (!ac) return; const k = Math.max(0, Math.min(1, v / 70));
+  lp.frequency.setTargetAtTime(500 + 1900 * k, ac.currentTime, 0.3); water.gain.setTargetAtTime(0.1 + 0.2 * k, ac.currentTime, 0.3);
+}
 
 function tone(freq, t0, dur, type = 'sine', vol = 0.12, bend = 0) {
   const o = ac.createOscillator(), g = ac.createGain();
@@ -44,6 +49,13 @@ export function sBloom(rare) {
   const f = 523.25 * Math.pow(2, PENTA[step] / 12);
   tone(f, t, 0.5, 'sine', 0.07); tone(f * 2, t, 0.25, 'triangle', 0.02);
   if (rare) { tone(f * 1.5, t + 0.06, 0.8, 'sine', 0.06); tone(f * 3, t + 0.12, 0.6, 'sine', 0.03); }
+}
+// 水面にさわった「ぽちゃ」: 岸の左右で少し音の高さがかわる（短く上がる水の音）
+let lastTouch = 0;
+export function sTouch(x = 0) {
+  if (!ac) return; const t = ac.currentTime; if (t - lastTouch < 0.08) return; lastTouch = t;
+  const f = 620 + 140 * x + Math.random() * 60;
+  tone(f, t, 0.12, 'sine', 0.05, 1.9); tone(f * 1.5, t + 0.02, 0.08, 'sine', 0.015, 1.6);
 }
 export function sBreak() { if (ac) { const t = ac.currentTime; tone(880, t, 0.09, 'sine', 0.06, 0.55); } }   // ちぎれる「ぷちっ」
 export function sClump() { if (ac) { const t = ac.currentTime; tone(330, t, 0.07, 'triangle', 0.05, 0.8); } }

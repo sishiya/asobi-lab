@@ -17,8 +17,8 @@ function run(seed, policy) {
 }
 
 const policies = [];
-for (const u of [0, 0.2, 0.4, 0.6, 0.8, 1]) for (const x of [0, 0.5, 0.9]) policies.push({ name: `u${u} x${x}`, fn: constant(u, x) });
-policies.push({ name: 'はなしたまま', fn: constant(0, 0, false) });
+for (const pull of [-0.5, 0, 0.5, 1]) for (const x of [0, 0.4, 0.6, 0.8, 1]) policies.push({ name: `p${pull} x${x}`, fn: constant(x, pull) });
+policies.push({ name: 'さわらない', fn: constant(0, 0) });
 policies.push({ name: 'smart', fn: smart });
 
 console.log(`種 ${SEEDS} 個。段の数（1〜7）・4段の割合・めずらしい花（平均／全部）・かかった秒`);
@@ -30,7 +30,7 @@ for (const p of policies) {
   rows.push({ name: p.name, four: hist[4] / SEEDS, rare: rare / SEEDS });
   console.log(`${p.name.padEnd(10)} 段 ${hist.slice(1).join(' ')}  4段 ${(100 * hist[4] / SEEDS).toFixed(0).padStart(3)}%  めずらしい ${(rare / SEEDS).toFixed(1)}/${(rareAll / SEEDS).toFixed(1)}  ${(t / SEEDS).toFixed(0)}秒  水 ${(w / SEEDS).toFixed(3)}`);
 }
-const cons = rows.filter(r => r.name !== 'smart' && r.name !== 'はなしたまま');
+const cons = rows.filter(r => r.name !== 'smart' && r.name !== 'さわらない');
 const best4 = cons.reduce((a, b) => (b.four > a.four ? b : a));
 const sm = rows.find(r => r.name === 'smart');
 console.log(`\n決まった押し方で 4段がいちばん出たもの: ${best4.name}（${(best4.four * 100).toFixed(0)}%、めずらしい ${best4.rare.toFixed(1)}）`);

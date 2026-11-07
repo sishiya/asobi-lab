@@ -8,8 +8,8 @@
 <title>花の小川（試作）</title>
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="../assets/no-quirks.css"><script src="../assets/no-quirks.js" defer></script>
-<link rel="stylesheet" href="css/game.css?v=3">
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<link rel="stylesheet" href="css/game.css?v=4">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 </head>
 <body>
 <div id="stage"></div>
@@ -20,7 +20,6 @@
   <button id="pauseBtn" aria-label="止める">II</button>
 </div>
 <p id="hint" hidden></p>
-<div id="ring" hidden></div>
 
 <div id="title" class="panel">
   <div class="sheet">
@@ -29,7 +28,7 @@
     <canvas id="garden"></canvas>
     <p id="gardenCount" class="small"></p>
     <button id="startBtn" class="btn">はじめる</button>
-    <p class="small keys">指を置くと進む（上ほど速い）・はなすと止まる・左右で岸へ<br>キー: ←→ 岸　↑↓ 速さ　スペース 進む　Esc 止める</p>
+    <p class="small keys">水面にさわると、しずくが指の左右へ寄る<br>上へなぞると速く、下へなぞるととどまる<br>キー: ←→ 岸へ　↑ 前へ　↓ とどまる　Esc 止める</p>
     <p class="small ver"><span id="ver"></span>　試作</p>
   </div>
 </div>
@@ -53,6 +52,6 @@
     <button id="resTitleBtn" class="btn sub">タイトルへ</button>
   </div>
 </div>
-<script type="module" src="js/game.js?v=4"></script>
+<script type="module" src="js/game.js?v=5"></script>
 </body>
 </html>
