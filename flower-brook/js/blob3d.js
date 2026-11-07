@@ -1,6 +1,7 @@
 // 花の小川: しずくのもちもちの形（PLAN.md 段階A4）。粒を1つずつ玉で描かず、同じ塊の粒どうしだけを なめらかにつないだ1つの形にする。
 // やり方: 粒のまわりの箱を描き、画素ごとに光線を進めて形の表面をさがす（レイマーチング）。形は「粒の球の距離」を塊ごとに
 // なめらかな min（smin）で合わせ、塊どうしはふつうの min（まざらない）。乾いた粒（かたい粒）は合わせかたを小さく、丸くかたく。
+// 見た目は本物の水（ver. 0.7）: 景色を屈折させて透かし、フレネルで空を映す。色は厚みによる吸収だけ。
 // 軽くするため（批判役 2026-11-07）: 粒は CPU で塊の番号順に並べて渡し、shader は1つのループで「同じ塊のあいだは smin、
 // 塊が変わったら min」。色・乾き・つかみは当たった点で1回だけ。光線は箱を出たら打ち切る。スマホは歩数を減らす。
 import * as THREE from 'three';
@@ -13,12 +14,11 @@ export function makeBlob(sun, coarse) {
   const E = Array.from({ length: NMAX }, () => new THREE.Vector4(1, 0, 0, 0));    // x＝つながりぐあい 0〜1（くっついた直後は 0 から、むにゅっと首がのびる）、yz＝速さの向き（のびる）
   const STEPS = coarse ? 36 : 56;
   const mat = new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false,
-    uniforms: { P: { value: P }, D: { value: D }, E: { value: E }, n: { value: 0 }, t: { value: 0 }, sun: { value: sun }, bmin: { value: new THREE.Vector3() }, bmax: { value: new THREE.Vector3() } },
+    transparent: false, depthWrite: true,
+    uniforms: { P: { value: P }, D: { value: D }, E: { value: E }, n: { value: 0 }, t: { value: 0 }, sun: { value: sun }, bmin: { value: new THREE.Vector3() }, bmax: { value: new THREE.Vector3() }, tScene: { value: null }, res: { value: new THREE.Vector2(1, 1) }, vp: { value: new THREE.Matrix4() } },
     vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
-    fragmentShader: `uniform vec4 P[${NMAX}]; uniform vec4 D[${NMAX}]; uniform vec4 E[${NMAX}]; uniform int n; uniform float t; uniform vec3 sun; uniform vec3 bmin; uniform vec3 bmax; varying vec3 vW;
+    fragmentShader: `uniform vec4 P[${NMAX}]; uniform vec4 D[${NMAX}]; uniform vec4 E[${NMAX}]; uniform int n; uniform float t; uniform vec3 sun; uniform vec3 bmin; uniform vec3 bmax; uniform sampler2D tScene; uniform vec2 res; uniform mat4 vp; varying vec3 vW;
       float smin(float a, float b, float k){ k = max(k, 1e-3); float h = max(k - abs(a - b), 0.) / k; return min(a, b) - h * h * k * .25; }
-      vec3 hue(float h){ return clamp(abs(fract(h + vec3(0., .333, .667)) * 6. - 3.) - 1., 0., 1.); }
       float ball(vec3 p, int i){
         vec4 c = P[i]; vec4 d = D[i]; vec4 e = E[i];
         vec3 q = p - c.xyz; q.y /= mix(.78, .95, d.y);                              // 水っぽいほど平たく、乾くほど丸く
@@ -56,22 +56,34 @@ export function makeBlob(sun, coarse) {
         float ws = 0., dry = 0., held = 0.;
         for (int i = 0; i < ${NMAX}; i++) { if (i >= n) break; float w = exp(-max(ball(p, i), 0.) * 14.); ws += w; dry += w * D[i].y; held += w * step(1.5, D[i].z); }
         dry /= max(ws, 1e-4); held /= max(ws, 1e-4);
-        vec3 V = -rd; float f = 1. - max(dot(N, V), 0.);
-        // 色: 水色 → はちみつの金（茶色にしない）。すけて、ふちほど濃い。内からの光は乾くほど
-        vec3 wet = vec3(.42, .84, .97), honey = vec3(1., .80, .38), gold = vec3(1., .70, .30);
-        vec3 col = dry < .65 ? mix(wet, honey, dry / .65) : mix(honey, gold, (dry - .65) / .35);
-        vec3 c = mix(col * .95, col * col * .72, f * f);
-        c += (1. - f) * (.08 + .38 * dry) * col;
-        c = mix(c, hue(f * 1.3 + t * .12 + N.x * .4) * .85, smoothstep(.55, .98, f) * (.5 - .3 * dry));   // 虹色のふち（湿っているほど）
-        float sp = pow(max(dot(N, normalize(sun + V)), 0.), 90.) * 1.4 + pow(max(dot(N, normalize(vec3(-.45, .7, .55))), 0.), 50.) * .9;
-        c += sp + vec3(1., .97, .9) * pow(max(dot(N, normalize(vec3(.4, .8, .45))), 0.), 6.) * .12;   // もちもちのつや
-        c += vec3(1., .9, .7) * pow(f, 2.5) * held * (.55 + .2 * sin(t * 6.));                       // 指でつかんでいる塊は、ふちがあたたかく光る
-        float a = mix(.62, .9, dry) + .3 * f + sp;
-        gl_FragColor = vec4(pow(max(c, 0.), vec3(2.2)), min(a, 1.));
+        // 本物の水のように（ver. 0.7）: 色を塗らず、後ろの景色を曲げて透かし、角度で空を映す
+        vec3 V = -rd; float cosv = max(dot(N, V), 0.), F = .02 + .98 * pow(1. - cosv, 5.);   // フレネル（水の屈折率 1.33）
+        // 厚み: 中心を通る光ほど長く水の中を進む（近い粒の半径から）
+        float thick = 0.; for (int i = 0; i < ${NMAX}; i++) { if (i >= n) break; float d = length((p - P[i].xyz).xz); thick = max(thick, P[i].w * sqrt(max(0., 1. - pow(d / max(P[i].w, 1e-3), 2.)))); }
+        // 屈折: 画面の上の後ろの絵を、表面の向きでずらして読む（色ごとに少しずつ＝虹のにじみ）
+        vec3 Nv = normalize((viewMatrix * vec4(N, 0.)).xyz);
+        vec2 uv = gl_FragCoord.xy / res, off = -Nv.xy * (.035 + .05 * thick) * (1. - .4 * dry);
+        vec3 bgc = vec3(texture2D(tScene, uv + off * 1.06).r, texture2D(tScene, uv + off).g, texture2D(tScene, uv + off * .94).b);
+        // 吸収: 湿ったしずくはほとんど透明（わずかに青緑）、乾くほど はちみつ色（茶色にしない）
+        vec3 absorb = mix(vec3(.55, .16, .10), vec3(.08, .55, 1.6), smoothstep(.2, .9, dry));
+        vec3 trans = bgc * exp(-absorb * thick * 1.6);
+        trans += bgc * pow(cosv, 6.) * .12;   // 中心は少し明るく（レンズで光が集まる）
+        // 映りこみ: 空（上ほど青く、地平はあたたかい）と、花畑の緑（下向きの面）
+        vec3 R = reflect(rd, N);
+        vec3 sky = mix(vec3(1., .95, .86), vec3(.55, .74, .98), smoothstep(0., .6, R.y));
+        vec3 env = R.y > 0. ? sky : mix(vec3(.30, .48, .20), vec3(1., .95, .86), smoothstep(-.25, 0., R.y));
+        vec3 c = mix(trans, env, F);
+        // 太陽のハイライト（小さく鋭い）と、窓のような やわらかい光
+        float spec = pow(max(dot(R, normalize(sun)), 0.), 700.) * 14. + pow(max(dot(R, normalize(sun)), 0.), 60.) * .5;
+        c += vec3(1., .97, .9) * spec;
+        c += vec3(1., .9, .7) * pow(1. - cosv, 2.5) * held * (.35 + .15 * sin(t * 6.));   // 指でつまんでいる塊は、ふちがあたたかく光る
+        vec4 clip = vp * vec4(p, 1.);
+        gl_FragDepth = clip.z / clip.w * .5 + .5;   // 景色と深さをくらべる（花の陰に入れば隠れる）
+        gl_FragColor = vec4(c, 1.);
       }`,
   });
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mat);
-  mesh.renderOrder = 2; mesh.frustumCulled = false;
+  mesh.renderOrder = 2; mesh.frustumCulled = false; mesh.layers.set(1);   // 景色のあとに別に描く（js/post3d.js の RefractPass）
   const box = new THREE.Box3(), order = [];
   return {
     mesh, mat,

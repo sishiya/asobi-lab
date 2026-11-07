@@ -7,12 +7,37 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
+import { CopyShader } from 'three/addons/shaders/CopyShader.js';
+
+// しずく（ver. 0.7）: 景色を描いたあと、その絵を写しておき、しずくはそれを屈折させて読む（本物の水のように後ろが曲がって透ける）。
+// しずくは layer 1 にいて、ふつうの描画（layer 0）には入らない。深さは景色の描き先のものをそのまま使う（花の陰に入れば隠れる）。
+class RefractPass extends Pass {
+  constructor(camera) {
+    super(); this.needsSwap = false; this.camera = camera; this.mesh = null;
+    this.copy = new FullScreenQuad(new THREE.ShaderMaterial({ uniforms: THREE.UniformsUtils.clone(CopyShader.uniforms), vertexShader: CopyShader.vertexShader, fragmentShader: CopyShader.fragmentShader }));
+    this.rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
+  }
+  setSize(w, h) { this.rt.setSize(w, h); }
+  render(renderer, writeBuffer, readBuffer) {
+    const m = this.mesh; if (!m || !m.visible) return;
+    this.copy.material.uniforms.tDiffuse.value = readBuffer.texture;
+    renderer.setRenderTarget(this.rt); this.copy.render(renderer);
+    m.material.uniforms.tScene.value = this.rt.texture; m.material.uniforms.res.value.set(this.rt.width, this.rt.height);
+    m.material.uniforms.vp.value.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
+    const ac = renderer.autoClear; renderer.autoClear = false;
+    renderer.setRenderTarget(readBuffer);
+    this.camera.layers.set(1); renderer.render(m, this.camera); this.camera.layers.set(0);
+    renderer.autoClear = ac;
+  }
+}
 
 const VS = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }';
 
 export function makePost(renderer, scene, camera, coarse) {
   const composer = new EffectComposer(renderer);   // MSAA の描き先（samples）は、この PC の Chrome で画面が真っ黒になったので使わない。ふちは FXAA で
   composer.addPass(new RenderPass(scene, camera));
+  const refract = new RefractPass(camera); composer.addPass(refract);
   const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.35, 0.5, 0.88); composer.addPass(bloom);
   composer.addPass(new OutputPass());
   const fxaa = new ShaderPass(FXAAShader); composer.addPass(fxaa);   // 草・花びらのふちのギザギザ
@@ -42,5 +67,5 @@ export function makePost(renderer, scene, camera, coarse) {
     for (const p of [tiltH, tiltV]) p.uniforms.amount.value = 1.8 * dpr;
     grade.uniforms.aspect.value = w / h;
   }
-  return { composer, bloom, grade, resize, render() { composer.render(); } };
+  return { composer, bloom, grade, resize, render() { composer.render(); }, setRefract(mesh) { refract.mesh = mesh; } };
 }

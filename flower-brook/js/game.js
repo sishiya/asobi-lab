@@ -8,7 +8,7 @@ import { GRADE_NAME, drawGradeFlower } from './flowers.js';
 import * as A from './audio.js';
 
 const $ = id => document.getElementById(id);
-const VER = 'ver. 0.6';
+const VER = 'ver. 0.7';
 const world = makeWorld($('stage'));
 const q = new URLSearchParams(location.search);
 let seed = +(q.get('seed') || 1 + Math.floor(Math.random() * 9999));

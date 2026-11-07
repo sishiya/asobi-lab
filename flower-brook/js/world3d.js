@@ -268,7 +268,7 @@ export function makeWorld(parent) {
     const moteMesh = cards(motes, cardMaterial(atlas, true), R); built.add(moteMesh);
 
     // しずく: 同じ塊の粒どうしをなめらかにつないだ、もちもちの形（js/blob3d.js）
-    const blob = makeBlob(SUN, coarse); built.add(blob.mesh);
+    const blob = makeBlob(SUN, coarse); built.add(blob.mesh); post.setRefract(blob.mesh);
     const jig = S.beads.map(() => 0);   // くっついた・ちぎれたときの、ぷるん
     const conn = S.beads.map(() => 1);  // つながりぐあい（くっついた直後は 0 から 1 へ）
     const vis = S.beads.map(() => null); // 描く位置: 決まりの位置へ、ばねで遅れてついていく（止まる・放る・締まるときに、もちっと揺れ戻る）
@@ -345,7 +345,7 @@ export function makeWorld(parent) {
     });
     st.blob.set(list, clock);
     // きらめき: しずくの上にぽっと生まれ、少しうしろへ流れて消える（速いほど多い）
-    st.glintNext -= dt * (6 + speedSm * 0.12);
+    st.glintNext -= dt * (1.2 + speedSm * 0.03);   // きらめきの札は少なく（ver. 0.7: 本物の水の光は しずくの形の上で出す）
     while (st.glintNext < 0) {
       st.glintNext += 1;
       const g = st.glints.find(q => clock - q.born > q.life); let bi = Math.floor(Math.random() * B.length); if (Math.random() < 0.5) { const j = Math.floor(Math.random() * B.length); if (B[j].w < B[bi].w) bi = j; } const b = list[bi];   // 乾いた（金の）粒ほど、よくきらめく

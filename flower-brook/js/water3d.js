@@ -63,7 +63,7 @@ export function makeRiver({ P, HALF, widthAt, L, sun }) {
         vec3 col = mix(bed, mix(shallow, deep, depth), .35 + .55 * depth);
         col += vec3(1., .98, .86) * caus * .1;
         col *= 1. - .38 * min(shade, 1.);   // しずくの影
-        col += mix(vec3(.8, 1., 1.), vec3(1., .86, .45), gold / max(focus, 1e-3)) * min(focus, 1.2) * .55;   // しずくが集めた光
+        col += mix(vec3(.8, 1., 1.), vec3(1., .86, .45), gold / max(focus, 1e-3)) * min(focus, 1.2) * .2;   // しずくが集めた光（ver. 0.7: しずくが後ろを透かすようになったので、弱く。強いと しずくごと白く見える）
         // つや: 遠くほど空を映す（フレネル）。太陽のまぶしい点がまたたく
         vec3 V = normalize(cameraPosition - vW); vec3 N = normalize(vec3(wob.x * 3., 1., wob.y * 3.));
         float fr = pow(1. - max(dot(N, V), 0.), 4.);
