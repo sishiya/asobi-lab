@@ -4,7 +4,7 @@
 // - くらべる相手は「考える遊び手」（smart）: 水の量を見て、日なたの岸で飲ませるか、まん中を急ぐかを選ぶ。
 // ねらい: 決まった押し方では 4段とめずらしい花を両方は取れず、smart は取れること。
 import { newState, step, bloomOf, shapeOf } from '../js/sim.js';
-import { constant, smart } from './bots.mjs';
+import { constant, none, smart } from './bots.mjs';
 
 const arg = Object.fromEntries(process.argv.slice(2).map(a => a.replace(/^--/, '').split('=')));
 const SEEDS = +(arg.seeds || 20);
@@ -13,12 +13,12 @@ const LIMIT = 600;  // 秒
 function run(seed, policy) {
   const S = newState(seed);
   while (!S.done && S.t < LIMIT) step(S, policy(S));
-  return { grade: S.done ? S.grade : 1, t: S.t, ...bloomOf(S), ...shapeOf(S), rides: S.log.filter(e => e.ev === 'ride').length };
+  return { grade: S.done ? S.grade : 1, t: S.t, ...bloomOf(S), ...shapeOf(S), rides: S.log.filter(e => e.ev === 'ride').length, groups: S.groups };
 }
 
 const policies = [];
-for (const pull of [-0.5, 0, 0.5, 1]) for (const x of [0, 0.4, 0.6, 0.8, 1]) policies.push({ name: `p${pull} x${x}`, fn: constant(x, pull) });
-policies.push({ name: 'さわらない', fn: constant(0, 0) });
+for (const d of [0, 10, 20, 30]) for (const x of [0, 0.4, 0.6, 0.8, 1]) policies.push({ name: `d${d} x${x}`, fn: constant(d, x) });
+policies.push({ name: 'さわらない', fn: none });
 policies.push({ name: 'smart', fn: smart });
 
 console.log(`種 ${SEEDS} 個。段の数（1〜7）・4段の割合・めずらしい花（平均／全部）・かかった秒`);

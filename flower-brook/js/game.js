@@ -8,7 +8,7 @@ import { GRADE_NAME, drawGradeFlower } from './flowers.js';
 import * as A from './audio.js';
 
 const $ = id => document.getElementById(id);
-const VER = 'ver. 0.3';
+const VER = 'ver. 0.4';
 const world = makeWorld($('stage'));
 const q = new URLSearchParams(location.search);
 let seed = +(q.get('seed') || 1 + Math.floor(Math.random() * 9999));
@@ -25,36 +25,37 @@ let tut = store.get('tut', 0);             // 教える順: 0〜3（3 で終わ�
 A.setSound(store.get('sound', true));
 
 // ---------- 入力 ----------
-// input.x: 先頭が寄っていく左右（指の左右の位置。はなしても残る）
-// input.pull: 押した点から上へなぞると前へ（速く）、下へなぞるとうしろへ（とどまる）。指は列の下に置いたままでいい（指で列を隠さない）
-const input = { x: 0, pull: 0 };
+// 指は「せき」（段階A4）: 水面に指を置くと、まわりのしずくが塊ごと指へ寄って、そこにたまる。
+// 指を止めていても、カメラはいちばん大きな塊を追うので、指が塊より先（画面の上）にあれば群れは進み、塊の上ならとどまる。
+// input: { on, fs, fx }（js/sim.js の step）。キーは群れのまわりに「見えない指」を置く
+const input = { on: false, fs: 0, fx: 0 };
 const keys = new Set();
 let pointerId = null, grabT = 0, finger = null, press = null, lastTouchAt = 0;
+const kf = { x: 0, d: 18 };
 const stage = $('stage');
 function aimFinger(now) {   // 毎こま: 指を止めていても、カメラは動くので、置いた点を世界の点に置きなおす
   if (!press) return;
-  const p = world.pick(press.cx, press.cy, S.beads[0].s);
+  const p = world.pick(press.cx, press.cy, S.main.s);
   if (!p) return;
   finger = p;
   if (now - lastTouchAt > 0.25 || press.moved) { world.touch(p.point, 0.8); lastTouchAt = now; press.moved = false; }
   if (mode !== 'play') return;
-  input.x = Math.max(-1, Math.min(1, p.x));
-  input.pull = Math.max(-1, Math.min(1, (press.y0 - press.cy) / (innerHeight * 0.16)));
+  input.on = true; input.fs = p.s; input.fx = Math.max(-1.3, Math.min(1.3, p.x));
 }
 stage.addEventListener('pointerdown', e => {
   if (mode === 'title' || mode === 'pause') return;
   A.startAudio();
   pointerId = e.pointerId; try { stage.setPointerCapture(e.pointerId); } catch {}
-  press = { cx: e.clientX, cy: e.clientY, y0: e.clientY, moved: true };
+  press = { cx: e.clientX, cy: e.clientY, moved: true };
   aimFinger(performance.now() / 1000);
   if (finger) { A.sTouch(finger.x); world.splash(finger.point); }
-  navigator.vibrate?.(8);
+  buzz(8);
 });
 stage.addEventListener('pointermove', e => {
   if (e.pointerId === pointerId && press) { if (Math.hypot(e.clientX - press.cx, e.clientY - press.cy) > 18) press.moved = true; press.cx = e.clientX; press.cy = e.clientY; }
-  else if (e.pointerType === 'mouse' && pointerId === null) { const p = world.pick(e.clientX, e.clientY, S.beads[0].s); world.hover(p && p.point); }   // マウスでなでるだけでも、花がゆれる
+  else if (e.pointerType === 'mouse' && pointerId === null) { const p = world.pick(e.clientX, e.clientY, S.main.s); world.hover(p && p.point); }   // マウスでなでるだけでも、花がゆれる
 });
-const up = e => { if (e.pointerId === pointerId) { pointerId = null; finger = null; press = null; } };
+const up = e => { if (e.pointerId === pointerId) { pointerId = null; finger = null; press = null; input.on = false; } };
 stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
 stage.addEventListener('pointerleave', () => world.hover(null));
 addEventListener('keydown', e => {
@@ -65,13 +66,16 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => keys.delete(e.key.length === 1 ? e.key.toLowerCase() : e.key));
 function handInput(dt) {
+  if (pointerId !== null) { grabT += dt; aimFinger(performance.now() / 1000); return; }
   const k = a => a.some(x => keys.has(x));
-  if (k(['ArrowLeft', 'a'])) input.x = Math.max(-1, input.x - 1.4 * dt);
-  if (k(['ArrowRight', 'd'])) input.x = Math.min(1, input.x + 1.4 * dt);
-  const kp = k(['ArrowUp', 'w']) ? 1 : k(['ArrowDown', 's']) ? -1 : 0;
-  if (pointerId !== null) { grabT += dt; aimFinger(performance.now() / 1000); }
-  else if (kp) input.pull += (kp - input.pull) * Math.min(1, dt * 6);
-  else input.pull *= Math.exp(-dt * 5);   // はなすと引く力は消える（しずくの勢いは決まりの側で少し残る）
+  const any = k(['ArrowLeft', 'a', 'ArrowRight', 'd', 'ArrowUp', 'w', 'ArrowDown', 's']);
+  if (!any) { input.on = false; kf.x = S.main.x; return; }
+  // 見えない指: ←→ で左右、↑ で先へ（急ぐ）、↓ で塊の上（とどまる）、どちらも押さなければ流れの速さくらい
+  if (k(['ArrowLeft', 'a'])) kf.x = Math.max(-1.2, kf.x - 1.4 * dt);
+  if (k(['ArrowRight', 'd'])) kf.x = Math.min(1.2, kf.x + 1.4 * dt);
+  const want = k(['ArrowUp', 'w']) ? 40 : k(['ArrowDown', 's']) ? 0 : 18;
+  kf.d += (want - kf.d) * Math.min(1, dt * 4);
+  if (mode === 'play') { input.on = true; input.fs = S.main.s + kf.d; input.fx = kf.x; }
 }
 
 // ---------- 画面の切りかえ ----------
@@ -83,7 +87,7 @@ function toTitle() {
 }
 function start(sd) {
   seed = sd; S = newState(seed); world.setCourse(S); logAt = 0; acc = 0;
-  input.pull = 0; input.x = 0; grabT = 0;
+  input.on = false; kf.x = 0; kf.d = 18; grabT = 0;
   mode = 'play'; show('title', false); show('result', false); show('menu', false); show('hud', true);
   toastT = 0; hintStep = tut < 3 ? Math.max(1, tut + 1) : 0; hintT = 0; setHint();
 }
@@ -103,12 +107,12 @@ $('ver').textContent = VER;
 
 // ---------- 教える順（1つずつ。PLAN.md の手ざわり） ----------
 let hintStep = 0, hintT = 0;
-const HINTS = ['', '水面にさわると、しずくが指の左右へ寄る。上へなぞると速く、下へなぞるととどまる', '岸に寄せると流れがゆるみ、花が水を飲んで咲く', '乾いたしずくは、花のアーチでちぎれる'];
+const HINTS = ['', '水面にさわると、まわりのしずくが指に集まって、ひとつになる', '岸へつれていくと流れがゆるみ、花が水を飲んで咲く', '乾いたしずくは、花のアーチでちぎれる'];
 function setHint() { if (toastT > 0) return; $('hint').classList.remove('alert'); $('hint').textContent = HINTS[hintStep] || ''; $('hint').hidden = !hintStep; }
 function hints(dt, bloomedNow) {
   if (!hintStep) return;
   hintT += dt;
-  const lead = S.beads[0].s, arch0 = S.course.arches[0].s;
+  const lead = S.main.s, arch0 = S.course.arches[0].s;
   const next = hintStep === 1 ? grabT > 1.5 || lead > 600 :
     hintStep === 2 ? (bloomCount > 6 && hintT > 4) || hintT > 22 :
     hintT > 6 && lead > arch0 + 40;
@@ -119,21 +123,25 @@ function hints(dt, bloomedNow) {
 }
 
 // ---------- できごと（音と、短い知らせ） ----------
+// ふるえ（Android）: 人がさわったあとだけ、0.25 秒に1回まで（水っぽい塊はちぎれてはくっつくをくり返すので）
+let lastBuzz = 0;
+function buzz(ms) { const t = performance.now(); if (t - lastBuzz < 250 || !navigator.userActivation?.hasBeenActive) return; lastBuzz = t; navigator.vibrate?.(ms); }
 let bloomCount = 0, toastT = 0;
 // 知らせ: 教えることばと同じ1行を借りる（一度に1つ。RULES 4章）
 function toast(t, sec = 2.5) { const h = $('hint'); h.textContent = t; h.classList.add('alert'); h.hidden = false; toastT = sec; }
 function events() {
   for (; logAt < S.log.length; logAt++) {
     const e = S.log[logAt];
-    if (e.ev === 'break') { A.sBreak(); navigator.vibrate?.(12); }
+    if (e.ev === 'break') { A.sBreak(); world.wobble(e.i); world.wobble(e.j); buzz(12); }
+    else if (e.ev === 'join') { A.sJoin(); world.wobble(e.i, 0.8); world.wobble(e.j, 0.8); }
     else if (e.ev === 'clump') A.sClump();
     else if (e.ev === 'fiber') A.sFiber();
     else if (e.ev === 'thunder') { A.sThunder(); toast(e.kind === 'squeeze' ? '雷　アーチが強く締まる' : '雷　流れが急に', 4); }
-    else if (e.ev === 'ride') { A.sWave(true); toast('大きな流れに乗った'); }
+    else if (e.ev === 'ride') { A.sWave(true); toast(e.n >= S.beads.length / 2 ? '大きな流れに乗った' : '大きな流れに、なかまの一部が乗った'); }
     else if (e.ev === 'wave-miss') A.sWave(false);
   }
   const wv = S.course.waves.find(w => w.front !== null && !w.used);
-  if (wv && S.beads[0].s - wv.front < 260 && toastT <= 0.2) toast('大きな流れ　まん中にいると乗る、岸ならよける', 0.4);
+  if (wv && S.main.s - wv.front < 260 && toastT <= 0.2) toast('大きな流れ　まん中にいると乗る、岸ならよける', 0.4);
 }
 
 // ---------- 庭（咲いた花の列） ----------
@@ -153,7 +161,7 @@ function rareStretches() {
 function finish() {
   mode = 'end'; endAt = performance.now();
   world.finish(S.grade); A.sFinish(S.grade);
-  input.pull = 0; $('hint').hidden = true; toastT = 0;
+  input.on = false; $('hint').hidden = true; toastT = 0;
   const r = rareStretches();
   garden.push({ g: S.grade, r: r.got }); garden = garden.slice(-200); store.set('garden', garden);
   setTimeout(() => {

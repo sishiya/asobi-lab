@@ -57,7 +57,11 @@ export function sTouch(x = 0) {
   const f = 620 + 140 * x + Math.random() * 60;
   tone(f, t, 0.12, 'sine', 0.05, 1.9); tone(f * 1.5, t + 0.02, 0.08, 'sine', 0.015, 1.6);
 }
-export function sBreak() { if (ac) { const t = ac.currentTime; tone(880, t, 0.09, 'sine', 0.06, 0.55); } }   // ちぎれる「ぷちっ」
+// しずくどうしがくっついた「むにゅ」: 低めにふくらむ音（続けて鳴りすぎないように）
+let lastJoin = 0;
+export function sJoin() { if (!ac) return; const t = ac.currentTime; if (t - lastJoin < 0.1) return; lastJoin = t; tone(300 + Math.random() * 80, t, 0.16, 'sine', 0.05, 1.35); }
+let lastBreak = 0;
+export function sBreak() { if (ac) { const t = ac.currentTime; if (t - lastBreak < 0.08) return; lastBreak = t; tone(880, t, 0.09, 'sine', 0.06, 0.55); } }   // ちぎれる「ぷちっ」
 export function sClump() { if (ac) { const t = ac.currentTime; tone(330, t, 0.07, 'triangle', 0.05, 0.8); } }
 export function sFiber() { if (ac) { const t = ac.currentTime; noise(t, 0.12, 2400, 2, 0.05); } }
 export function sThunder() {

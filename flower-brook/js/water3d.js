@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 
 const inc = src => src.replace(/#include <(\w+)>/g, '\n#include <$1>\n');
-export const NR = 12, NBEAD = 12;   // 波紋の数・しずくの数（シェーダーの配列の長さ）
+export const NR = 12, NBEAD = 32;   // 波紋の数・しずくの数（シェーダーの配列の長さ）
 
 // P(s, x) → 川の中の位置、widthAt(s) → 川はばの倍率、HALF → 川はばの半分
 export function makeRiver({ P, HALF, widthAt, L, sun }) {

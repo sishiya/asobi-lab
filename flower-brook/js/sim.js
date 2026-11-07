@@ -7,12 +7,18 @@
 export const RULE = {
   dt: 1 / 30,
   len: 3600,            // 川の長さ
-  n: 12,                // 玉の数
-  gap: 14,              // 玉のあいだ
+  n: 28,                // 粒の数（段階A4。はじめはばらばら）
+  r: 5.5,               // 粒の半径（ふれる＝2r）
+  rest: 9.5,            // つながった粒のあいだ（2r より短い＝重なって、もちもちの1つの形に）
+  W: 35,                // 左右 1 が、道の長さでいくつか（川はばの半分）
+  mass: 12 / 28,        // 1粒の水の量（玉 12 個のころとそろえる。花が飲む量の計算に）
+  scatter: { s0: 10, len: 320, x: 0.9 },   // はじめに散らばる範囲
+  herd: { R: 70, k: 1.4, max: 70 },         // 指（せき）: とどく半径・寄る速さ（距離×k）・上限
+  crowd: { far: 150, k: 0.5 },
+  tension: { s: 0.25, x: 1.4 },   // 表面の張り（1/秒）: 塊の粒が塊のまん中へ寄る速さ。横に強く、流れの向きに弱い＝流れにそって細長い形に              // 群れのまん中から far より離れた粒は、群れへ寄る
   w0: 0.90,             // はじめの水
   wFloor: 0.55,         // 花が飲んでも、これより下には乾かない
-  speed: { bank: 4, mid: 40, curve: 1.7, pull: 0.9, back: 0.85, ease: 1.6 },  // 流れ: まん中 mid・岸 bank（本物の川と同じく、まん中ほど速い）。指で引くと流れの ×(1＋pull)〜×(1−back)。速く下りたければ、まん中へ出るしかない。ease＝速さが目あてへ近づく速さ（1/秒。はなしても勢いが少し残る）
-  steer: 3.0,           // 先頭の玉が指の左右へ寄る速さ（1/秒）
+  speed: { bank: 4, mid: 40, curve: 1.7, ease: 1.6 },  // 流れ: まん中 mid・岸 bank（本物の川と同じく、まん中ほど速い）。指で引くと流れの ×(1＋pull)〜×(1−back)。速く下りたければ、まん中へ出るしかない。ease＝速さが目あてへ近づく速さ（1/秒。はなしても勢いが少し残る）
   drink: { k: 0.012, mid: 0.12, sun: 1.9 },  // 花が飲む速さ。岸から遠い（まん中）ほど mid に近づく。日なたは ×sun
   bond: { top: 1.15, peak: 0.73, width: 0.06, fiber: 0.28, fiberMax: 2, clump: 0.55 },  // つながりの強さ（いちばん強い top は、ふだんの締めつけ squeeze より強い。雷のときは負ける）
   wJoin: 0.83,          // これより湿った切れは、離れていても寄りあってまた混ざる（どろりとしたかたまり）
@@ -22,7 +28,7 @@ export const RULE = {
   wMush: 0.805,         // これより湿ると、ふちがくずれる（6段）
   wSoft: 0.775,         // これより湿ると、やわらかい（5段）
   wSmooth: 0.70,        // 1本のままで、これより湿っていればなめらか（4段）。下ならひび（3段）
-  arch: { n: 8, half: 22, squeeze: 0.9, slow: 0.75, periodMin: 3.2, periodMax: 5.5 },
+  arch: { n: 8, half: 22, squeeze: 0.9, slow: 0.75, pinch: 0.8, periodMin: 3.2, periodMax: 5.5 },
   fiber: { n: 26, reach: 12, side: 0.28, hold: 0.55, spread: 0.25, speed: 0.06 },  // わら: hold＝飲まれにくさ、speed＝かさで速く
   patch: { every: 90, bloom: 0.010, rareBloom: 0.22, sun: 8 },  // 花の区画。咲くのに飲む水（玉の水の合計で）
   thunder: { n: 2, dur: 14, squeeze: 1.7, rush: 46 },
@@ -76,162 +82,171 @@ export function squeezeAt(a, t) {
 }
 
 // ---------- はじめの状態 ----------
+// しずくは小さな粒 RULE.n 個。はじめは川のはじめに広く散らばる（段階A4: なかまが集まる）。
+// 粒: s（川の道）・x（左右 -1〜1）・vs・vx（速さ）・w（水）・f（わら）・pellet（かたい粒）・g（いまの塊の番号）
 export function newState(seed) {
-  const course = makeCourse(seed);
+  const course = makeCourse(seed), R = rng(seed * 7 + 1), sc = RULE.scatter;
   const beads = [];
   for (let i = 0; i < RULE.n; i++) {
-    beads.push({ s: (RULE.n - 1 - i) * RULE.gap + 10, x: 0, w: RULE.w0, f: 0, pellet: false, out: false });
+    beads.push({ s: sc.s0 + R() * sc.len, x: (R() * 2 - 1) * sc.x, vs: RULE.speed.mid * 0.5, vx: 0, w: RULE.w0 + (R() - 0.5) * 0.02, f: 0, pellet: false, out: false, g: i, ride: 0 });
   }
-  const links = [];
-  for (let i = 0; i < RULE.n - 1; i++) links.push({ on: true, clump: false });
   return {
-    t: 0, course, beads, links,
-    lead: { x: 0, v: RULE.speed.mid },
-    thunder: null,   // { kind, until }
-    ride: 0,         // 大きな流れに乗っているのこり秒
-    log: [],         // できごと（画面で使う）
+    t: 0, course, beads,
+    links: new Map(),   // key＝i*64+j（i<j） → { clump }
+    groups: RULE.n, center: 0, front: 0, main: { s: 0, x: 0, n: 1, g: 0 },
+    thunder: null,
+    log: [],
     done: false, grade: null,
   };
 }
 
-// つながりの強さ（2つの玉の平均の水 w とわら f から）
+// つながりの強さ（2つの粒の平均の水 w とわら f から）
 export function bondStrength(w, f) {
   const b = RULE.bond;
   return b.top * Math.exp(-(((w - b.peak) / b.width) ** 2)) + b.fiber * Math.min(f, b.fiberMax);
 }
 
-// ---------- 1刻み進める ----------
-// input: { x: -1〜1（先頭が寄っていく左右）, pull: -1〜1（指で引く向き。前へ＋、うしろへ−、はなすと 0） }
 // 川の流れの速さ（左右の位置 x で。まん中ほど速い）
 export function currentAt(x) {
   const sp = RULE.speed;
   return sp.bank + (sp.mid - sp.bank) * (1 - Math.min(1, Math.abs(x)) ** sp.curve);
 }
+// 川はばの倍率（出口の前の池でふくらむ）。3D の川と同じ形
+const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+export function riverWidth(s) {
+  const L = RULE.len, p0 = L - RULE.pond.len;
+  if (s < p0 - 80) return 1;
+  const k = 1 + 1.5 * Math.sin(Math.PI * smooth(p0 - 80, L + 30, s));
+  return s < L ? k : k * (1 - smooth(L, L + 60, s));
+}
+
+// ---------- 1刻み進める ----------
+// input: { on: 指を置いているか, fs: 指の川の道 s, fx: 指の左右 x }。指は「せき」: まわりの粒を寄せて、そこにためる
 export function step(S, input) {
   if (S.done) return S;
-  const dt = RULE.dt, C = S.course, B = S.beads;
+  const dt = RULE.dt, C = S.course, B = S.beads, N = B.length, W = RULE.W, L = RULE.len, pond0 = L - RULE.pond.len;
   S.t += dt;
 
-  // 雷・大きな流れの始まり
+  // 雷・大きな流れ
   for (const th of C.thunders) if (!th.on && S.t >= th.t) { th.on = true; S.thunder = { kind: th.kind, until: S.t + RULE.thunder.dur }; S.log.push({ t: S.t, ev: 'thunder', kind: th.kind }); }
   if (S.thunder && S.t > S.thunder.until) S.thunder = null;
   const squeezeMul = S.thunder?.kind === 'squeeze' ? RULE.thunder.squeeze : 1;
-  const lead = B.find(b => !b.out);
   for (const wv of C.waves) {
-    if (wv.front === null && S.t >= wv.t) wv.front = 0;
-    if (wv.front !== null && !wv.used) {
-      wv.front += RULE.wave.speed * dt;
-      if (lead && wv.front >= lead.s) {
-        wv.used = true;
-        if (Math.abs(lead.x) < RULE.wave.catchX) { S.ride = RULE.wave.ride; S.log.push({ t: S.t, ev: 'ride' }); }
-        else S.log.push({ t: S.t, ev: 'wave-miss' });
-      }
-    }
-  }
-  if (S.ride > 0) S.ride -= dt;
-
-  // 流れの速さ
-  const sp = RULE.speed, pull = clamp(input.pull || 0, -1, 1);
-  const want = currentAt(S.lead.x) * (pull < 0 ? 1 + pull * sp.back : 1 + pull * sp.pull);
-  S.lead.v += (want - S.lead.v) * Math.min(1, sp.ease * dt);   // しずくの勢い
-  let base = S.lead.v;
-  if (S.thunder?.kind === 'rush') base = Math.max(base, RULE.thunder.rush);
-  if (S.ride > 0) base = RULE.wave.rideSpeed;
-
-  // 左右: 先頭は指へ、うしろは前の玉を追う（川の道すじをなぞる）
-  S.lead.x += (clamp(input.x, -1, 1) - S.lead.x) * Math.min(1, RULE.steer * dt);
-  for (let i = 0; i < B.length; i++) {
-    const b = B[i]; if (b.out) continue;
-    const tx = i === 0 || B[i - 1].out ? S.lead.x : B[i - 1].x;
-    b.x += (tx - b.x) * Math.min(1, dt * (base / RULE.gap * 0.6 + 0.5));   // 流れがおそくても、うしろの玉は少しずつ同じ岸へ寄る
+    if (wv.front === null && S.t >= wv.t) { wv.front = 0; wv.rode = 0; }
+    if (wv.front === null || wv.used) continue;
+    const f0 = wv.front; wv.front += RULE.wave.speed * dt;
+    for (const b of B) if (b.s > f0 && b.s <= wv.front && b.s < pond0 && Math.abs(b.x) < RULE.wave.catchX) { b.ride = RULE.wave.ride; wv.rode++; }   // まん中の流れにいる粒は乗ってしまう
+    if (wv.front > S.front + 10) { wv.used = true; S.log.push({ t: S.t, ev: wv.rode ? 'ride' : 'wave-miss', n: wv.rode }); }
   }
 
-  // 進む（アーチがすぼまっていると、そこでおそくなる）
-  const pond0 = RULE.len - RULE.pond.len;
+  // 群れのまん中（なかまから遠い粒は、群れへ寄る）
+  let sc = 0; for (const b of B) sc += b.s; sc /= N;
+  const sp = RULE.speed, hd = RULE.herd, cr = RULE.crowd;
+  // 指（せき）がとどく強さは塊ごと: 塊のどれかの粒に指がとどけば、塊ごと寄ってくる
+  const gk = new Array(N).fill(0);
+  if (input.on) for (const b of B) { const d = Math.hypot(input.fs - b.s, (input.fx - b.x) * W); if (d < hd.R) gk[b.g] = Math.max(gk[b.g], 1 - (d / hd.R) ** 2); }
   for (const b of B) {
-    if (b.out) continue;
-    let v = base * (1 + RULE.fiber.speed * Math.min(b.f, 2));
-    if (S.ride <= 0) for (const a of C.arches) if (Math.abs(b.s - a.s) < RULE.arch.half) v *= 1 - RULE.arch.slow * squeezeAt(a, S.t);
-    if (b.s >= pond0) v = RULE.pond.speed;               // 池の中は指に関係なく、ゆっくり奥へ
-    b.s = Math.min(b.s + v * dt, RULE.len);              // 池の奥は行き止まり
+    // ほしい速さ: 自分の左右の流れ（アーチがすぼまっていると、そこでおそい）
+    let vs = currentAt(b.x) * (1 + RULE.fiber.speed * Math.min(b.f, 2)), vx = 0;
+    if (S.thunder?.kind === 'rush') vs = Math.max(vs, RULE.thunder.rush);
+    if (b.ride > 0) { b.ride -= dt; vs = RULE.wave.rideSpeed; }
+    for (const a of C.arches) if (Math.abs(b.s - a.s) < RULE.arch.half) vs *= 1 - RULE.arch.slow * squeezeAt(a, S.t);
+    if (b.s < sc - cr.far) vs += cr.k * (sc - cr.far - b.s);
+    if (b.s > sc + cr.far) vs -= cr.k * (b.s - sc - cr.far);
+    if (b.s >= pond0) { vs = RULE.pond.speed; vx = -b.x * 0.15; }
+    // 指（せき）: 近い粒ほど、指のほうへ向かう
+    const k = gk[b.g];
+    if (k > 0) { const ds = input.fs - b.s, dx = (input.fx - b.x) * W; vs += (clamp(ds * hd.k, -hd.max, hd.max) - vs) * k; vx += (clamp(dx * hd.k, -hd.max, hd.max) / W - vx) * k; }
+    b.vs += (vs - b.vs) * Math.min(1, sp.ease * dt);
+    b.vx += (vx - b.vx) * Math.min(1, 3 * dt);
   }
-  // つながり（ばね）と、ぶつかり（重ならない）
-  for (let it = 0; it < 3; it++) {
-    for (let i = 0; i < B.length - 1; i++) {
-      const a = B[i], c = B[i + 1]; if (a.out || c.out) continue;
-      const d = a.s - c.s;
-      if (S.links[i].on) { const e = (d - RULE.gap) * 0.25; a.s -= e; c.s += e; }
-      else if (d < RULE.gap * 0.9) { const e = (d - RULE.gap * 0.9) * 0.5; a.s -= e; c.s += e; }
-      else if (a.w > RULE.wJoin && c.w > RULE.wJoin && d < RULE.gap * 1.6) { const e = (d - RULE.gap * 0.9) * 0.08; a.s -= e; c.s += e; }  // 湿った切れは寄りあう
-    }
+  // つながった粒は、速さをわけあう（ひとつの塊として動く）
+  for (const [key] of S.links) { const a = B[key >> 6], c = B[key & 63], m = (a.vs - c.vs) * 0.12, mx = (a.vx - c.vx) * 0.12; a.vs -= m; c.vs += m; a.vx -= mx; c.vx += mx; }
+  // 進む。アーチがすぼまると、通れる幅がせまくなって、粒はまん中へ寄せられる
+  for (const b of B) {
+    b.s += b.vs * dt; b.x += b.vx * dt;
+    let lim = riverWidth(b.s);
+    for (const a of C.arches) if (Math.abs(b.s - a.s) < RULE.arch.half) lim = Math.min(lim, 1 - RULE.arch.pinch * Math.min(1, squeezeAt(a, S.t) * squeezeMul));
+    b.x = clamp(b.x, -lim, lim);
+    b.s = Math.min(b.s, L - RULE.r);
   }
-  // 池の奥の行き止まりから、うしろへ押しもどす（重ならない）
-  B[0].s = Math.min(B[0].s, RULE.len);
-  for (let i = 1; i < B.length; i++) {
-    const min = S.links[i - 1].on ? RULE.gap * 0.97 : RULE.gap * 0.9;
-    if (B[i].s > B[i - 1].s - min) B[i].s = B[i - 1].s - min;
+  // つながり（ばね）・ぶつかり（重ならない）・湿った粒どうしは寄りあう。左右は W 倍して道と同じ長さで
+  const two = RULE.r * 2;
+  for (let it = 0; it < 3; it++) for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) {
+    const a = B[i], c = B[j], ds = c.s - a.s, dx = (c.x - a.x) * W, d = Math.hypot(ds, dx) || 1e-3;
+    if (d > two * 3) continue;
+    const L1 = S.links.get(i * 64 + j);
+    let e = 0;
+    if (L1) e = (d - RULE.rest) * 0.25;
+    else if (d < two) e = (d - two) * 0.5;
+    else if (a.w > RULE.wJoin && c.w > RULE.wJoin && !a.pellet && !c.pellet) e = (d - two) * 0.03;
+    if (!e) continue;
+    const us = ds / d, ux = dx / d;
+    a.s += us * e; c.s -= us * e; a.x += ux * e / W; c.x -= ux * e / W;
   }
 
-  // 花が飲む
+  // 表面の張り: 塊の粒は、塊のまん中へ寄る（列にのびず、丸いもちになる。アーチで細くされても、また丸まる）
+  const gs = new Array(N).fill(0), gx = new Array(N).fill(0), gn = new Array(N).fill(0);
+  for (const b of B) { gs[b.g] += b.s; gx[b.g] += b.x; gn[b.g]++; }
+  for (const b of B) { const n = gn[b.g]; if (n < 2 || b.pellet) continue; b.s += (gs[b.g] / n - b.s) * Math.min(1, RULE.tension.s * dt); b.x += (gx[b.g] / n - b.x) * Math.min(1, RULE.tension.x * dt); }
+
+  // 花が飲む（1粒の水の量は、玉 12 個のころの RULE.mass 倍）
   const dk = RULE.drink;
   for (const b of B) {
-    if (b.out) continue;
     const hold = 1 / (1 + RULE.fiber.hold * Math.min(b.f, 3));
     for (const side of [-1, 1]) {
-      const near = clamp(side * b.x, 0, 1);              // その岸へどれだけ寄っているか
-      const p = patchAt(C, side, b.s);
+      const near = clamp(side * b.x, 0, 1), p = patchAt(C, side, b.s);
       if (!p) continue;
       const rate = dk.k * (dk.mid + (1 - dk.mid) * near * near) * (p.sun ? dk.sun : 1) * hold;
       const dw = rate * (b.w - RULE.wFloor) * dt;
-      b.w -= dw; p.drunk += dw;
+      b.w -= dw; p.drunk += dw * RULE.mass;
     }
   }
-
-  // わらを拾う・となりへ広がる
+  // わらを拾う・つながりで広がる
   for (const fb of C.fibers) {
     if (fb.taken) continue;
-    for (const b of B) if (!b.out && Math.abs(b.s - fb.s) < RULE.fiber.reach && Math.abs(b.x - fb.x) < RULE.fiber.side) { fb.taken = true; b.f += 1; S.log.push({ t: S.t, ev: 'fiber' }); break; }
+    for (const b of B) if (Math.abs(b.s - fb.s) < RULE.fiber.reach && Math.abs(b.x - fb.x) < RULE.fiber.side) { fb.taken = true; b.f += 1; S.log.push({ t: S.t, ev: 'fiber' }); break; }
   }
-  for (let i = 0; i < B.length - 1; i++) {
-    if (!S.links[i].on) continue;
-    const a = B[i], c = B[i + 1], m = (a.f - c.f) * RULE.fiber.spread * dt;
-    a.f -= m; c.f += m;
-  }
+  for (const [key] of S.links) { const a = B[key >> 6], c = B[key & 63], m = (a.f - c.f) * RULE.fiber.spread * dt; a.f -= m; c.f += m; }
 
-  // アーチで締める: つながりの強さより締める力が大きいと、ちぎれる
-  if (S.ride <= 0) for (let i = 0; i < B.length - 1; i++) {
-    const L = S.links[i], a = B[i], c = B[i + 1];
-    if (!L.on || a.out || c.out) continue;
+  const cuts = [];   // 切れたつながり。塊が本当に2つに分かれたときだけ、あとで「ちぎれた」と記す（塊の中のつなぎかえは数えない）
+  // ちぎれる: アーチで締める力がつながりより強い・のびすぎ（水っぽいほど、のびにくい＝すぐちぎれる）
+  for (const [key, Lk] of S.links) {
+    const i = key >> 6, j = key & 63, a = B[i], c = B[j];
+    const w = (a.w + c.w) / 2, f = (a.f + c.f) / 2, strength = Lk.clump ? RULE.bond.clump : bondStrength(w, f);
     const mid = (a.s + c.s) / 2;
-    for (const ar of C.arches) {
-      if (Math.abs(mid - ar.s) > RULE.arch.half * 0.5) continue;
-      const force = RULE.arch.squeeze * squeezeAt(ar, S.t) * squeezeMul;
-      const w = (a.w + c.w) / 2, f = (a.f + c.f) / 2;
-      const strength = L.clump ? RULE.bond.clump : bondStrength(w, f);
-      if (force > strength) { L.on = false; L.clump = false; S.log.push({ t: S.t, ev: 'break', i }); }
-    }
+    let cut = Math.hypot(c.s - a.s, (c.x - a.x) * W) > RULE.rest * (1.7 + 0.9 * Math.min(1, strength));
+    for (const ar of C.arches) if (Math.abs(mid - ar.s) < RULE.arch.half * 0.5 && RULE.arch.squeeze * squeezeAt(ar, S.t) * squeezeMul > strength) cut = true;
+    if (cut) { S.links.delete(key); cuts.push(i, j); }
   }
-  // ちぎれたままの乾いた玉は丸まって粒に。湿った玉はふれるとまたくっつく。乾いた粒もアーチで詰まると房にかたまる
-  for (let i = 0; i < B.length - 1; i++) {
-    const L = S.links[i], a = B[i], c = B[i + 1];
-    if (L.on || a.out || c.out) continue;
-    const touching = a.s - c.s < RULE.gap * 0.95;
-    if (touching && a.w > RULE.wStick && c.w > RULE.wStick) { L.on = true; continue; }  // やわらかい切れは、ふれるとくっつく
-    if (touching && Math.min(a.w, c.w) >= RULE.wHard) {  // 乾いた粒も、締められたり池で押されたりすると、かたまって房に
-      const mid = (a.s + c.s) / 2;
-      let pressed = mid >= pond0;
+  // くっつく: やわらかい粒はふれると合わさる。乾いた粒も、締められたり池で押されたりすると房に
+  for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) {
+    const key = i * 64 + j; if (S.links.has(key)) continue;
+    const a = B[i], c = B[j];
+    if (Math.hypot(c.s - a.s, (c.x - a.x) * W) > two * 1.04) continue;
+    if (a.w > RULE.wStick && c.w > RULE.wStick && !a.pellet && !c.pellet) { S.links.set(key, { clump: false }); if (a.g !== c.g) S.log.push({ t: S.t, ev: 'join', i, j }); continue; }
+    if (Math.min(a.w, c.w) >= RULE.wHard) {
+      const mid = (a.s + c.s) / 2; let pressed = mid >= pond0;
       for (const ar of C.arches) if (Math.abs(mid - ar.s) < RULE.arch.half && squeezeAt(ar, S.t) * squeezeMul > 0.5) pressed = true;
-      if (pressed) { L.on = true; L.clump = true; S.log.push({ t: S.t, ev: 'clump', i }); }
+      if (pressed) { S.links.set(key, { clump: true }); S.log.push({ t: S.t, ev: 'clump', i, j }); }
     }
   }
-  for (let i = 0; i < B.length; i++) {
-    const b = B[i];
-    const free = (i === 0 || !S.links[i - 1].on) && (i === B.length - 1 || !S.links[i].on);
-    if (free && b.w < RULE.wPellet) b.pellet = true;
-  }
+  // 塊の番号（つながりをたどる）と、ひとりになった乾いた粒はかたい粒に
+  const par = B.map((_, i) => i), find = i => (par[i] === i ? i : (par[i] = find(par[i])));
+  const deg = new Array(N).fill(0);
+  for (const [key] of S.links) { const i = key >> 6, j = key & 63; par[find(i)] = find(j); deg[i]++; deg[j]++; }
+  const ids = new Map(); let fr = -1e9;
+  B.forEach((b, i) => { const r = find(i); if (!ids.has(r)) ids.set(r, ids.size); b.g = ids.get(r); if (!deg[i] && b.w < RULE.wPellet) b.pellet = true; fr = Math.max(fr, b.s); });
+  S.groups = ids.size; S.center = sc; S.front = fr;
+  for (let k = 0; k < cuts.length; k += 2) if (B[cuts[k]].g !== B[cuts[k + 1]].g) S.log.push({ t: S.t, ev: 'break', i: cuts[k], j: cuts[k + 1] });
+  // いちばん大きな塊（カメラと指の基準）
+  const cnt = new Array(N).fill(0), ms = new Array(N).fill(0), mx = new Array(N).fill(0);
+  for (const b of B) { cnt[b.g]++; ms[b.g] += b.s; mx[b.g] += b.x; }
+  let gi = 0; for (let g = 1; g < S.groups; g++) if (cnt[g] > cnt[gi] || (cnt[g] === cnt[gi] && ms[g] / cnt[g] > ms[gi] / cnt[gi])) gi = g;
+  S.main = { s: ms[gi] / cnt[gi], x: mx[gi] / cnt[gi], n: cnt[gi], g: gi };
 
   // 池: 全部が入ってしばらくしたら、花に吸いこまれて終わり
-  if (B[B.length - 1].s >= pond0) {
+  if (B.every(b => b.s >= pond0)) {
     S.inPond = (S.inPond || 0) + dt;
     if (S.inPond >= RULE.pond.settle) { S.done = true; S.grade = gradeOf(S); }
   }
@@ -248,20 +263,22 @@ export function patchAt(C, side, s) {
 export function shapeOf(S) {
   const B = S.beads, n = B.length;
   const meanW = B.reduce((a, b) => a + b.w, 0) / n;
-  let pieces = 1, clumps = 0;
-  for (const L of S.links) { if (!L.on) pieces++; else if (L.clump) clumps++; }
-  const pellets = B.filter(b => b.pellet).length;
-  return { meanW, pieces, clumps, pellets };
+  const inClump = new Set();
+  for (const [key, L] of S.links) if (L.clump) { inClump.add(key >> 6); inClump.add(key & 63); }
+  const pellets = B.filter((b, i) => b.pellet && !inClump.has(i)).length;
+  // 小さな切れ（2粒まで）は数えない（大きな塊がいくつに分かれたか）
+  const size = new Map(); for (const b of B) size.set(b.g, (size.get(b.g) || 0) + 1);
+  const pieces = [...size.values()].filter(v => v >= 3).length || 1;
+  return { meanW, pieces, clumps: inClump.size, pellets, groups: S.groups };
 }
 export function gradeOf(S) {
-  const { meanW, pieces, clumps, pellets } = shapeOf(S);
+  const { meanW, pieces, clumps, pellets } = shapeOf(S), n = S.beads.length;
   if (meanW >= RULE.wMelt) return 7;
   if (meanW >= RULE.wMush) return 6;
-  if (pellets + clumps >= S.beads.length / 2) return clumps >= pellets / 2 ? 2 : 1;
-  if (clumps >= 2) return 2;
+  if (pellets + clumps >= n / 2) return clumps >= pellets ? 2 : 1;
+  if (clumps >= n / 4) return 2;
   if (meanW >= RULE.wSoft) return 5;
-  if (pieces === 1 && clumps < 2) return meanW >= RULE.wSmooth ? 4 : 3;
-  if (clumps >= 2) return 2;
+  if (pieces === 1) return meanW >= RULE.wSmooth ? 4 : 3;
   return pieces <= 3 ? 3 : 1;
 }
 

@@ -7,6 +7,7 @@ import { drawBankFlower, drawGradeFlower } from './flowers.js';
 import { floraMaterial, floraMesh, grassMaterial, grassMesh } from './flora3d.js';
 import { makeRiver } from './water3d.js';
 import { makePost } from './post3d.js';
+import { makeBlob } from './blob3d.js';
 
 const K = 0.04;                    // sim の長さ 1 → 3D の 0.04
 const HALF = 1.7;                  // 川はばの半分
@@ -256,26 +257,9 @@ export function makeWorld(parent) {
     const motes = []; for (let i = 0; i < 60; i++) motes.push({ col: 2, row: 3, size: 0.18 + R() * 0.22, x: 0, y: 0.8 + R() * 3, z: 99, ph: R() * 6 });
     const moteMesh = cards(motes, cardMaterial(atlas, true), R); built.add(moteMesh);
 
-    // しずく
-    const beads = [];
-    for (let i = 0; i < S.beads.length; i++) {
-      // しずく: すけたまん中・虹色にゆらぐふち・白いつや2つ・内からのほのかな光（ユーザー「もっとキラキラ綺麗な感じに」）
-      const m = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { col: { value: new THREE.Color() }, t: { value: 0 }, ph: { value: i * 0.7 }, dry: { value: 0 } },
-        vertexShader: `varying vec3 vN; varying vec3 vV; void main(){ vec4 mv = modelViewMatrix * vec4(position,1.); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
-        fragmentShader: `uniform vec3 col; uniform float t; uniform float ph; uniform float dry; varying vec3 vN; varying vec3 vV;
-          vec3 hue(float h){ return clamp(abs(fract(h + vec3(0., .333, .667)) * 6. - 3.) - 1., 0., 1.); }
-          void main(){ float f = 1. - max(dot(vN, vV), 0.);
-            vec3 c = mix(col * .95, col * col * .7, f * f);                               // 宝石のように、ふちほど色が濃い
-            c += (1. - f) * (.06 + .4 * dry) * col;                                       // 内からの光（乾くほど、はちみつのように中が光る）
-            c = mix(c, hue(f * 1.4 + t * .15 + ph + vN.x * .3) * .8, smoothstep(.55, .98, f) * (.55 - .3 * dry));  // 虹色のふち（湿っているほど強い）
-            float sp = pow(max(dot(vN, normalize(vec3(-.45, .6, .65))), 0.), 80.) * 1.6;
-            float sp2 = pow(max(dot(vN, normalize(vec3(.35, -.4, .85))), 0.), 18.) * .25;
-            gl_FragColor = vec4(c + sp + sp2, mix(.5, .85, dry) + .35 * f + sp); }` });   // 湿っているほど、すける
-      const b = new THREE.Mesh(new THREE.SphereGeometry(0.3, 24, 16), m); b.renderOrder = 2; built.add(b); beads.push(b);
-    }
-    // しずくのまわりの光（うしろの、ほのかな後光）と、きらめきの星
-    const halos = S.beads.map(() => ({ col: 2, row: 3, size: 0.75 }));
-    const haloMesh = cards(halos, cardMaterial(atlas, true), R); haloMesh.renderOrder = 1; built.add(haloMesh);
+    // しずく: 同じ塊の粒どうしをなめらかにつないだ、もちもちの形（js/blob3d.js）
+    const blob = makeBlob(SUN); built.add(blob.mesh);
+    const jig = S.beads.map(() => 0);   // くっついた・ちぎれたときの、ぷるん
     const glints = []; for (let i = 0; i < 70; i++) glints.push({ col: 0, row: 4, size: 0, born: -9, life: 1, x: 0, y: 0, z: 0, rot: 0 });
     const glintMesh = cards(glints, cardMaterial(atlas, true), R); glintMesh.renderOrder = 4; built.add(glintMesh);
     // 花が咲いたときの、花びらと光のふき出し
@@ -287,10 +271,10 @@ export function makeWorld(parent) {
     const pred = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.75), new THREE.MeshBasicMaterial({ map: predT, transparent: true, depthWrite: false, opacity: 0.85 }));
     pred.renderOrder = 3; built.add(pred);
 
-    Object.assign(state, { water, river, bank, arches, straws, strawMesh, foam, foamMat, bud, budC, budT, end, petals, petalMesh, motes, moteMesh, beads, pred, predC, predT, predGrade: 0, halos, haloMesh, glints, glintMesh, glintNext: 0, bursts, burstMesh, burstAt: 0, shafts, shaftMat, cardMats: [burstMesh, petalMesh, moteMesh, strawMesh, haloMesh, glintMesh, ...arches.map(a => a.cm)].map(m => m.material) });
+    Object.assign(state, { water, river, bank, arches, straws, strawMesh, foam, foamMat, bud, budC, budT, end, petals, petalMesh, motes, moteMesh, blob, jig, pos: [], pred, predC, predT, predGrade: 0, glints, glintMesh, glintNext: 0, bursts, burstMesh, burstAt: 0, shafts, shaftMat, cardMats: [burstMesh, petalMesh, moteMesh, strawMesh, glintMesh, ...arches.map(a => a.cm)].map(m => m.material) });
     state.R = R;
     camPos.set(0, 0, 0); camLook.set(0, 0, 0);
-    prevLead = S.beads[0].s; speedSm = 0;
+    prevLead = S.main.s; speedSm = 0;
     state.finishT = -1;
   }
   const state = {};
@@ -310,7 +294,7 @@ export function makeWorld(parent) {
     const st = state, B = S.beads, L = RULE.len;
     const thSq = S.thunder?.kind === 'squeeze', thRush = S.thunder?.kind === 'rush';
     for (const m of [...st.cardMats, floraMat, grassMat]) { m.uniforms.t.value = clock; m.uniforms.wind.value += ((S.thunder ? 2.2 : 1) - m.uniforms.wind.value) * Math.min(1, dt * 2); }
-    st.water.uniforms.t.value = clock; st.water.uniforms.flow.value += dt * (thRush ? 2.6 : S.ride > 0 ? 3.4 : 1.1);
+    st.water.uniforms.t.value = clock; st.water.uniforms.flow.value += dt * (thRush ? 2.6 : 1.1);
     st.water.uniforms.cloud.value += ((S.thunder ? 1 : 0) - st.water.uniforms.cloud.value) * Math.min(1, dt * 2);
     // 指: さわった強さは少しずつ消える。花・草はおじぎし、ゆれがおさまる
     tch.s *= Math.exp(-dt * 1.6); hov.s += ((hov.on ? 0.22 : 0) - hov.s) * Math.min(1, dt * 5);
@@ -318,40 +302,29 @@ export function makeWorld(parent) {
     for (const v of touches2) v.set(hov.x, hov.z, hov.s, hov.r);
 
     // 速さ（カメラの引き）
-    const sp = (B[0].s - prevLead) / Math.max(dt, 1e-3); prevLead = B[0].s;
+    const sp = (S.main.s - prevLead) / Math.max(dt, 1e-3); prevLead = S.main.s;
     speedSm += (Math.max(0, Math.min(120, sp)) - speedSm) * Math.min(1, dt * 2);
 
-    // しずく
-    const col = new THREE.Color();
-    const fin = st.finishT >= 0 ? Math.min(1, (clock - st.finishT) / 1.4) : 0;
+    // しずく: 粒の位置を 3D へ。池ではゆらゆら広がり、おわりはつぼみへ吸いこまれる
+    const fin = st.finishT >= 0 ? Math.min(1, (clock - st.finishT) / 1.4) : 0, K3 = K * RULE.r;
+    const list = st.pos;
     B.forEach((b, i) => {
-      const p = P(b.s, b.x), m = st.beads[i];
-      const r = b.pellet ? 0.72 : 1;
-      let y = 0.18 * r + 0.03 * Math.sin(clock * 3 + i * 0.7);
-      if (b.s > L - RULE.pond.len) p.x += Math.sin(i * 2.1 + clock * 0.8) * 0.45 * smooth(L - RULE.pond.len, L - RULE.pond.len + 120, b.s);   // 池では、ゆらゆらと左右に広がる
-      // 指が近いと、ぷるんとゆれる
-      const dx = p.x - tch.x, dz = p.z - tch.z, jig = tch.s * Math.exp(-(dx * dx + dz * dz) / 1.2) * Math.sin(clock * 16 + i);
-      if (fin > 0) { const e = Math.min(1, fin * 1.3 - i * 0.02); p.lerp(st.end, Math.max(0, e)); y += Math.sin(Math.max(0, e) * Math.PI) * 0.6; m.scale.setScalar(r * (1 - Math.max(0, e))); m.rotation.set(0, 0, 0); }
-      else {
-        // つながっている玉は、流れの向きにのびて、となりと重なる（玉の列でなく、ひとつながりのゼリーに見えるように）
-        const linked = (i > 0 && S.links[i - 1].on) || (i < B.length - 1 && S.links[i].on);
-        const q = P(b.s + 1, b.x); m.rotation.set(0, Math.atan2(q.x - p.x, q.z - p.z), 0);
-        const sq = 1 + jig * 0.25;
-        m.scale.set(r * (linked && !b.pellet ? 0.96 : 1) / sq, 0.82 * r * sq, r * (linked && !b.pellet ? 1.32 : 1) / sq);
-      }
-      m.position.set(p.x, y, p.z);
-      st.river.setBead(i, p.x, p.z, b.out ? 0 : m.scale.x * (1 - fin), Math.max(0, Math.min(1, (RULE.w0 - b.w) / (RULE.w0 - 0.65))));
-      m.material.uniforms.col.value.copy(wcol(b.w, col)); m.material.uniforms.t.value = clock; m.material.uniforms.dry.value = Math.max(0, Math.min(1, (RULE.w0 - b.w) / (RULE.w0 - 0.65)));
-      const hs = m.scale.x * (0.95 + 0.12 * Math.sin(clock * 2.3 + i));
-      _s.setScalar(hs); _v.set(m.position.x, m.position.y, m.position.z - 0.05); _m.compose(_v, camera.quaternion, _s); st.haloMesh.setMatrixAt(i, _m);
+      const p = P(b.s, b.x), dry = Math.max(0, Math.min(1, (RULE.w0 - b.w) / (RULE.w0 - 0.65)));
+      let r = (b.pellet ? 1.1 : 1.6) * K3, y = r * 0.7;
+      if (b.s > L - RULE.pond.len) p.x += Math.sin(b.g * 2.1 + clock * 0.8) * 0.25 * smooth(L - RULE.pond.len, L - RULE.pond.len + 120, b.s);
+      const dx = p.x - tch.x, dz = p.z - tch.z;
+      st.jig[i] = Math.max(st.jig[i] * Math.exp(-dt * 3), tch.s * Math.exp(-(dx * dx + dz * dz) / 1.5));   // 指が近いと、ぷるん
+      if (fin > 0) { const e = Math.max(0, Math.min(1, fin * 1.3 - i * 0.01)); p.lerp(st.end, e); y += Math.sin(e * Math.PI) * 0.6; r *= 1 - e; }
+      list[i] = Object.assign(list[i] || {}, { x: p.x, y, z: p.z, r, g: b.g, dry, pellet: b.pellet, jig: st.jig[i] });
+      st.river.setBead(i, p.x, p.z, r / 0.3, dry);
     });
-    st.haloMesh.instanceMatrix.needsUpdate = true;
+    st.blob.set(list, clock);
     // きらめき: しずくの上にぽっと生まれ、少しうしろへ流れて消える（速いほど多い）
     st.glintNext -= dt * (6 + speedSm * 0.12);
     while (st.glintNext < 0) {
       st.glintNext += 1;
-      const g = st.glints.find(q => clock - q.born > q.life); let bi = Math.floor(Math.random() * B.length); if (Math.random() < 0.5) { const j = Math.floor(Math.random() * B.length); if (B[j].w < B[bi].w) bi = j; } const b = st.beads[bi];   // 乾いた（金の）玉ほど、よくきらめく
-      if (g && b.scale.x > 0.05) { g.born = clock; g.life = 0.5 + Math.random() * 0.6; g.size = 0.25 + Math.random() * 0.35; g.x = b.position.x + (Math.random() - 0.5) * 0.4; g.y = b.position.y + 0.1 + Math.random() * 0.25; g.z = b.position.z + (Math.random() - 0.5) * 0.3; g.rot = Math.random() * 0.8; }
+      const g = st.glints.find(q => clock - q.born > q.life); let bi = Math.floor(Math.random() * B.length); if (Math.random() < 0.5) { const j = Math.floor(Math.random() * B.length); if (B[j].w < B[bi].w) bi = j; } const b = list[bi];   // 乾いた（金の）粒ほど、よくきらめく
+      if (g && b.r > 0.05) { g.born = clock; g.life = 0.5 + Math.random() * 0.6; g.size = 0.18 + Math.random() * 0.25; g.x = b.x + (Math.random() - 0.5) * 0.3; g.y = b.y + 0.12 + Math.random() * 0.15; g.z = b.z + (Math.random() - 0.5) * 0.3; g.rot = Math.random() * 0.8; }
     }
     st.glints.forEach((g, i) => {
       const a = (clock - g.born) / g.life;
@@ -364,7 +337,7 @@ export function makeWorld(parent) {
     // 土手の花: 区画が飲んだ割合で咲く。咲くとき、ぽんとはずむ
     const need = p => p.rare ? RULE.patch.rareBloom : RULE.patch.bloom;
     let moved = false, bloomed = 0, rareBloomed = 0;
-    const near0 = B[0].s + 500, near1 = B[B.length - 1].s - 200;
+    const near0 = S.front + 500, near1 = S.center - 400;
     for (let i = 0; i < st.bank.length; i++) {
       const f = st.bank[i];
       if (!f.patch) continue;
@@ -372,7 +345,7 @@ export function makeWorld(parent) {
       const frac = f.patch.drunk / need(f.patch);
       const row = frac >= f.need ? 2 : frac >= f.need * 0.45 ? 1 : 0;
       if (row !== f.row) {
-        if (row === 2) { f.pop = clock; bloomed++; if (f.kind === 3) rareBloomed++; if (Math.abs(f.z - P(B[0].s).z) < 30) burst(f.x, 0.6, f.z, f.kind === 3 ? 10 : 3, f.kind === 3); }
+        if (row === 2) { f.pop = clock; bloomed++; if (f.kind === 3) rareBloomed++; if (Math.abs(f.z - P(S.main.s).z) < 30) burst(f.x, 0.6, f.z, f.kind === 3 ? 10 : 3, f.kind === 3); }
         f.row = row;
       }
       const to = row === 2 ? 1 : row === 1 ? 0.45 : 0.06;   // つぼみ → 半分 → 満開。開きはなめらかに
@@ -385,11 +358,11 @@ export function makeWorld(parent) {
     }
 
     // アーチ: すぼまりは決まりと同じ squeezeAt。雷で強く締まるときは色を赤むらさきに
-    const tailS = B[B.length - 1].s;
+    let tailS = 1e9; for (const b of B) tailS = Math.min(tailS, b.s);
     for (const A of st.arches) {
       A.grp.visible = A.a.s > tailS - 30;   // 列がくぐり終えたアーチは消す（カメラと列のあいだに来て、列を隠すので）
       if (!A.grp.visible) continue;
-      const sq = Math.min(1, squeezeAt(A.a, S.t) * (thSq ? RULE.thunder.squeeze : 1)) * (S.ride > 0 ? 0 : 1);
+      const sq = Math.min(1, squeezeAt(A.a, S.t) * (thSq ? RULE.thunder.squeeze : 1));
       A.cur.forEach((c, i) => { const y = 0.15 + (c.k % 5) * 0.38, z = (Math.floor(c.k / 5) - 0.5) * 0.4; place(A.cm, i, c.side * (A.hw * 0.98 - sq * A.hw * 0.62 + (c.k % 2) * 0.12), y - 0.35, z, c.size); });
       A.cm.instanceMatrix.needsUpdate = true;
       A.band.scale.x = Math.max(0.05, A.hw * 2 * (1 - 0.85 * sq));
@@ -409,7 +382,7 @@ export function makeWorld(parent) {
     if (wv) { const p = P(wv.front), d = P(wv.front + 1).sub(p); st.foam.position.set(p.x, 0.03, p.z); st.foam.rotation.set(-Math.PI / 2, 0, Math.atan2(d.x, -d.z)); }
 
     // 花びら・光の粒（カメラのまわりに置き直す）
-    const lz = P(B[0].s).z, R = st.R;
+    const lz = P(S.main.s).z, R = st.R;
     st.petals.forEach((p, i) => {
       p.y -= p.vy * dt * (S.thunder ? 2 : 1); p.x += Math.sin(clock + p.ph) * 0.3 * dt; p.z += 0.4 * dt;
       if (p.y < 0 || p.z > lz + 8 || p.z < lz - 34) { p.y = 3 + R() * 3; p.z = lz + 4 - R() * 30; p.x = cxS(-p.z / K) + (R() - 0.5) * 14; }
@@ -440,7 +413,7 @@ export function makeWorld(parent) {
     st.pred.visible = !!view.showPred && fin === 0;
     if (st.pred.visible) {
       if (view.grade !== st.predGrade) { st.predGrade = view.grade; const g = st.predC.getContext('2d'); g.clearRect(0, 0, 128, 128); const gr = g.createRadialGradient(64, 64, 0, 64, 64, 62); gr.addColorStop(0, 'rgba(255,255,250,0.95)'); gr.addColorStop(0.6, 'rgba(255,252,240,0.7)'); gr.addColorStop(1, 'rgba(255,252,240,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); drawGradeFlower(g, view.grade, 64, 64, 40); st.predT.needsUpdate = true; }
-      const p = P(B[0].s + 8, B[0].x); st.pred.position.set(p.x, 0.75 + 0.06 * Math.sin(clock * 2), p.z); st.pred.quaternion.copy(camera.quaternion);
+      const p = P(S.main.s + 14, S.main.x); st.pred.position.set(p.x, 0.75 + 0.06 * Math.sin(clock * 2), p.z); st.pred.quaternion.copy(camera.quaternion);
     }
 
     // おわり: しずくがつぼみに吸いこまれて、7段の花が咲く
@@ -453,8 +426,8 @@ export function makeWorld(parent) {
 
     // カメラ: 列のうしろ上から川下を見る。たての画面でも両岸が入るまで引く。速いほど少し引く
     const hf = 2 * Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect);
-    const leadS = Math.min(B[0].s, L - 40), lead = P(leadS, B[0].x * 0.5);
-    const dir = P(leadS + 120, B[0].x * 0.3).sub(lead).setY(0).normalize();
+    const leadS = Math.min(S.main.s + 6, L - 40), lead = P(leadS, S.main.x * 0.5);   // いちばん大きな塊を追う
+    const dir = P(leadS + 120, S.main.x * 0.3).sub(lead).setY(0).normalize();
     const back = Math.max(12.5, 4.75 / Math.tan(hf / 2)) + speedSm * 0.015 - fin * 2;
     const wide = Math.max(0, Math.min(1, (camera.aspect - 0.7) / 0.8)), target = lead.clone().addScaledVector(dir, -4 * (1 - wide) - 1.2 * wide);   // たての画面は列のうしろを見る（列が画面の上〜中ほど。下に置いた指で隠れない）。横の画面は列がまん中に
     const want = target.clone().addScaledVector(dir, -back * Math.cos(PITCH)).setY(back * Math.sin(PITCH));
@@ -483,6 +456,7 @@ export function makeWorld(parent) {
     }
     cell.needsUpdate = true;
   }
+  function wobble(i, k = 1) { if (state.jig && i < state.jig.length) state.jig[i] = Math.max(state.jig[i], k); }
   function finish(grade) { state.finishT = clock; state.grade = grade; state.drawnGrade = false; }
 
   // 画面の点 → 地面の点と、川の道 s・左右 x（near のまわりで、いちばん近い道の点をさがす）
@@ -509,5 +483,5 @@ export function makeWorld(parent) {
     else if (state.river) { state.river.ripple(pt.x, pt.z, clock, 1.6); lastRip = clock; }
   }
   function hover(pt) { hov.on = !!pt; if (pt) { hov.x = pt.x; hov.z = pt.z; } }
-  return { setCourse, update, finish, resize, camera, pick, touch, hover, splash, speed: () => speedSm };
+  return { setCourse, update, finish, resize, camera, pick, touch, hover, splash, wobble, speed: () => speedSm };
 }
