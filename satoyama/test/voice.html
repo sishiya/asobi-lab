@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>里山 声から生まれる子</title>
+<meta name="robots" content="noindex">
+<style>
+  :root { --ink: #2c2a26; --dim: rgba(44,42,38,.62); --panel: rgba(250,247,240,.9); --on: #6b5a3e; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #e9e2d4; color: var(--ink); font: 14px system-ui, sans-serif; touch-action: none; user-select: none; }
+  canvas { display: block; }
+  #hud { position: fixed; left: 16px; top: 14px; background: var(--panel); border-radius: 12px; padding: 8px 12px; line-height: 1.6; font-size: 13px; max-width: calc(100vw - 64px); }
+  #hud small { color: var(--dim); }
+  #bar { position: fixed; left: 16px; right: 16px; bottom: 18px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  #mic { border: 0; background: var(--on); color: #fff; font: inherit; font-size: 17px; padding: 14px 26px; border-radius: 999px; cursor: pointer; }
+  #mic.on { background: #a2553a; }
+  .grp { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+  .grp button { border: 0; background: var(--panel); font: inherit; font-size: 13px; color: var(--ink); padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+  #bar small { color: var(--dim); background: var(--panel); border-radius: 999px; padding: 2px 10px; }
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","@dimforge/rapier3d-compat":"https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"}}</script>
+</head>
+<body>
+<div id="hud">声をふきこむと、その声から子が生まれます</div>
+<div id="bar">
+  <button id="mic">押しながら話す</button>
+  <div class="grp" id="samples"><button data-v="low">ひくい声</button><button data-v="high">たかい声</button><button data-v="child">ちいさい子</button><button data-v="breathy">ささやき</button><button data-v="rough">がらがら声</button><button data-v="quick">はやくち</button></div>
+  <small>声はこの端末の中だけで数にして、送らない・保存しない</small>
+</div>
+<script type="module">
+// 声から生まれる子（GAME.md 段階「声の子」の最初の形）: 声 → 声の数（こえのこ features.js）→ 遺伝子（こえのこ evo/life.js の founder）→ 体（kid.js）→ フェルトの皮
+// 生まれた子は、画面のうしろ（Web Worker、js/practice-worker.js）で歩く練習をして、よくなった歩き方がすぐ体に入る（育つのが見える）
+// 声は数にしたら捨てる（送らない・保存しない）。残すのは遺伝子の数だけ（このページでは、とじたら消える）
+import * as THREE from 'three';
+import R from '@dimforge/rapier3d-compat';
+import { height } from '../js/ground.js';
+import { pose } from '../js/hare.js';
+import { makeField } from '../js/trial.js';
+import { kidBody, kidShapes, KID_SEED, decodeKid } from '../js/kid.js';
+import { makeFeltGround, makeFeltBody, makeDiorama, HARE_FACE } from '../js/felt.js';
+import { analyze } from '../../voice-pet/js/features.js';
+import * as A from '../../voice-pet/js/audio.js';
+import { sampleVoice } from '../../voice-pet/js/synth.js';
+import { founder, rng } from '../../voice-pet/evo/life.js';
+await R.init();
+
+const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xe9e2d4); scene.fog = new THREE.Fog(0xe9e2d4, 3, 10);
+const cam = new THREE.PerspectiveCamera(38, 1, 0.01, 60);
+scene.add(new THREE.HemisphereLight(0xf6efe0, 0x6a6448, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d6, 2.2); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.radius = 4;
+Object.assign(sun.shadow.camera, { left: -2, right: 2, top: 2, bottom: -2, near: 0.5, far: 20 }); scene.add(sun, sun.target);
+makeFeltGround(scene, { size: 10, n: 180, cx: 1, cz: 0 });
+const DIO = makeDiorama(renderer, scene, cam);
+
+// 子: 遺伝子 → 体と皮。練習の結果（歩き方の数）が届くたびに入れかえる
+let world = null, kid = null, worker = null, t = 0, info = { gen: 0, tries: 0, firstWalk: null, dist: 0 };
+const furOf = g => { const l = 0.3 + 0.35 * (g.f0 ?? 0.5), w = 0.2 + 0.1 * (g.fluff ?? 0.5); return (part, p, n) => { const b = [l + 0.08, l, l - w * 0.6], u = [0.84, 0.8, 0.72], k = Math.max(0, -n[1] - 0.2) * 1.4; return b.map((v, i) => v + (u[i] - v) * Math.min(1, k)); }; };
+function born(genes) {
+  if (worker) worker.terminate();
+  if (kid) { kid.FB.setVisible(false); }
+  world = makeField(R); t = 0;
+  const B = kidBody(genes), H = B.build(R, world, [0, 0, 0], height), K = H.plan;
+  const hs = (K.headR + (K.fur ?? 0.006 + 0.008 * K.fluff)) * 0.95;
+  const face = { ...HARE_FACE, eye: [hs * 0.47, hs * 0.3, hs * 0.83], eyeR: K.headR * 0.17, iris: 0x3a2412, ring: null, ear: { ...HARE_FACE.ear, at: [-hs * 0.2, hs * 0.8, hs * 0.5], size: [0.016 + 0.01 * (genes.neck ?? 0.5), 0.016 + 0.03 * (genes.neck ?? 0.5), 0.005], out: 0.4, back: 0.3, tipAt: 1.5, outer: [0.4, 0.33, 0.25] } };
+  const FB = makeFeltBody(scene, H, kidShapes(H), { furColor: furOf(genes), face });
+  kid = { H, B, q: B.decode(KID_SEED), FB, x0: pose(H).x };
+  info = { gen: 0, tries: 0, firstWalk: null, dist: 0 };
+  // 練習（遺伝子の数だけを渡す）
+  worker = new Worker(new URL('../js/practice-worker.js', import.meta.url), { type: 'module' });
+  worker.onmessage = e => { const m = e.data; if (m.done) { info.done = true; return; } info = { ...info, ...m }; kid.q = B.decode(m.v); };
+  worker.postMessage({ genes, gens: 50, seed: (Math.random() * 1e9) | 0 });
+}
+function fromVoice(samples, sr) {
+  const a = analyze(samples, sr); // 声は数にしたら捨てる
+  if (!a.ok) { document.getElementById('hud').innerHTML = 'もう少し長く、声を出して'; return; }
+  const c = founder(a, rng((Math.random() * 1e9) | 0)); born(c.g);
+}
+
+// 声の入口: 押しているあいだ録る（マイクが使えない人は「声のみほん」）
+const mic = document.getElementById('mic'); let rec = false;
+mic.addEventListener('pointerdown', async e => { e.preventDefault(); try { await A.openMic(); } catch (er) { document.getElementById('hud').innerHTML = 'マイクが使えませんでした。下の「声のみほん」でも生まれます'; return; } A.startRec(); rec = true; mic.classList.add('on'); mic.textContent = '話している…'; });
+const end = () => { if (!rec) return; rec = false; mic.classList.remove('on'); mic.textContent = '押しながら話す'; const r = A.stopRec(); fromVoice(r.samples, r.sr); };
+addEventListener('pointerup', end); addEventListener('pointercancel', end);
+document.getElementById('samples').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const sr = 48000; fromVoice(sampleVoice(b.dataset.v, sr), sr); });
+addEventListener('contextmenu', e => e.preventDefault());
+
+// 動かす・描く
+let camPos = new THREE.Vector3(-0.2, 0.55, 1.2);
+function step(dt) { if (!kid) return; const n = Math.round(dt * 240); for (let k = 0; k < n; k++) { kid.B.drive(kid.H, kid.q, t, t < 0.4 ? 0 : 1, 0); world.step(); t += 1 / 240; } const P = pose(kid.H); if (P.up < 0.35 || P.x > 4 || Math.abs(P.z) > 3) restart(); }
+function restart() { // 転んだ・遠くへ行ったら、その場にもどして歩き直す（体は同じ、歩き方はいまの練習のいちばん）
+  const old = kid; for (const p of Object.values(old.H.parts)) world.removeRigidBody(p.body);
+  old.H = old.B.build(R, world, [0, 0, 0], height); old.FB.rebind(old.H); t = 0;
+}
+function render(dt) {
+  if (kid) {
+    kid.FB.pose(dt); kid.FB.breathe(dt, 1);
+    const P = pose(kid.H); camPos.lerp(new THREE.Vector3(P.x - 0.2, 0.5, P.z + 1.15), 0.05); cam.position.copy(camPos); cam.lookAt(P.x, 0.1, P.z);
+    sun.position.set(P.x + 2, 5, P.z + 3); sun.target.position.set(P.x, 0, P.z);
+    const st = info.gen === 0 ? 'うまれたて' : info.firstWalk ? (info.stage === 2 ? 'じょうずに歩けるように練習中' : 'よちよち歩けた') : 'よちよち練習中';
+    document.getElementById('hud').innerHTML = `${st}<br><small>練習 ${info.tries} 回・節${kid.H.plan.seg}・足${kid.H.plan.pairs}対${info.done ? '・おしまい' : ''}</small>`;
+  } else cam.position.set(-0.2, 0.55, 1.2), cam.lookAt(0, 0.1, 0);
+  DIO.render(1.2, 0.5, 0.25);
+}
+function resize() { renderer.setSize(innerWidth, innerHeight); DIO.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+let last = performance.now();
+function loop(now) { const dt = Math.min(1 / 20, (now - last) / 1000); last = now; step(dt); render(dt); requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+window.__voice = { sample: name => fromVoice(sampleVoice(name, 48000), 48000), get info() { return info; }, get kid() { return kid; } };
+</script>
+</body>
+</html>
