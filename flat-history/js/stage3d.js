@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・主人公・置いた形・置き場所のゴースト・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=101';
-import { radialTexture } from './look/util.js?v=101';
-import { S, drawSheet, drawWalker, draftK } from './sheet.js?v=101';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=101';
-import { groundAt } from './hero.js?v=101';
+import { look, kindColor } from './look/index.js?v=102';
+import { radialTexture } from './look/util.js?v=102';
+import { S, drawSheet, drawWalker, draftK, DRAFT } from './sheet.js?v=102';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=102';
+import { groundAt } from './hero.js?v=102';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -478,9 +478,10 @@ export function createStage(canvas, L) {
   // ---- 未確定の住人（v097）: 形にふれた先の住人と石は、ページの絵ではなく 3D の幽霊の板で描く ----
   // ほどけていく光のふち（流れるノイズのしきい値）・陽炎のゆらぎ・金のにじみ・立ちのぼる光のつぶ。ページは alphaTest で半透明を描けないので、別の板にする
   // （ユーザー「3D世界からの見え方になるので、2Dの荒いドット風に消すのではなく、3D世界的なすこしリッチな見せ方に」）
-  const GH = 3, GPX = 120;                       // 幽霊の板は 3×3 マス、絵は 120px 四方
+  // 絵の細かさはページと同じ（1マス S px）。v103 で 2 倍をやめた（ユーザー「薄れ始めると急にキーウィの解像度が上がる。2Dの荒さにあわせる」）
+  const GH = 3, GPX = GH * S;
   const ghostGeo = new THREE.PlaneGeometry(GH, GH);
-  const ghostTime = { value: 0 };
+  const ghostTime = { value: 0 }, ghostStyle = { value: 0 }; // ぼやけ方（DRAFT.style。0 ほどける光・1 かすみ・2 ぶれ・3 インクのにじみ・4 砂）
   const GHOST_VS = `
     uniform float uTime, uK, uSeed;
     varying vec2 vUv; varying float vDepth;
@@ -492,33 +493,88 @@ export function createStage(canvas, L) {
       gl_Position = projectionMatrix * mv;
     }`;
   const GHOST_FS = `
-    uniform sampler2D map; uniform float uTime, uK, uSeed;
+    uniform sampler2D map; uniform float uTime, uK, uSeed, uStyle;
     uniform vec3 fogColor; uniform float fogNear, fogFar;
     varying vec2 vUv; varying float vDepth;
     float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
     float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
       return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
     float fbm(vec2 p) { return 0.55 * vn(p) + 0.3 * vn(p * 2.03 + 7.1) + 0.15 * vn(p * 4.1 + 3.7); }
+    float luma(vec3 c) { return dot(c, vec3(0.3, 0.59, 0.11)); }
+    // 絵のアルファを輪にぼかした量（にじみ）
+    float haloA(vec2 uv, float r) {
+      float s = 0.0;
+      for (int i = 0; i < 12; i++) { float a = float(i) * 0.5236; vec2 d = vec2(cos(a), sin(a)); s += texture2D(map, uv + d * r * 0.45).a * 0.6 + texture2D(map, uv + d * r).a * 0.4; }
+      return s / 12.0;
+    }
     void main() {
       float k = uK;
-      vec2 uv = vUv + vec2(sin(vUv.y * 22.0 + uTime * 2.3 + uSeed), cos(vUv.x * 17.0 - uTime * 1.9)) * 0.005 * k;
-      vec4 c = texture2D(map, uv);
-      float hal = 0.0;
-      for (int i = 0; i < 12; i++) { float a = float(i) * 0.5236; vec2 d = vec2(cos(a), sin(a)); hal += texture2D(map, uv + d * 0.018).a * 0.6 + texture2D(map, uv + d * 0.04).a * 0.4; }
-      hal /= 12.0;
-      float n = fbm(vUv * 6.0 + vec2(uSeed * 3.1, -uTime * 0.18));
-      float thr = k * 1.02;                       // k=1 で、ぜんぶほどけて消えきる（v098）
-      float keep = smoothstep(thr - 0.015, thr + 0.05, n);
-      float edge = k > 0.0 ? (1.0 - smoothstep(thr, thr + 0.09, n)) * keep : 0.0;
-      vec3 gray = vec3(dot(c.rgb, vec3(0.3, 0.59, 0.11)));
-      vec3 col = mix(c.rgb, mix(gray, vec3(0.62, 0.82, 0.78), 0.4), k * 0.85);
+      int st = int(uStyle + 0.5);
       vec3 glow = vec3(1.0, 0.84, 0.5);
-      col = mix(col, glow, edge * 0.85);
-      float a = c.a * keep * (1.0 - 0.5 * k);
-      float ha = hal * (1.0 - c.a) * 0.55 * min(k * 3.0, 1.0) * (1.0 - k) * 1.6 * (0.75 + 0.25 * sin(uTime * 2.0 + uSeed * 5.0));
-      float alpha = clamp(a + ha, 0.0, 1.0);
+      vec3 rgb; float alpha;
+      if (st == 1) {
+        // かすみ: 輪郭がぼけて、霧にとけるようにうすれる
+        float r = 0.07 * k;
+        vec3 acc = vec3(0.0); float aa = 0.0, w = 0.0;
+        for (int i = 0; i < 16; i++) {
+          float a = float(i) * 2.39996, d = sqrt((float(i) + 0.5) / 16.0) * r;
+          vec4 t = texture2D(map, vUv + vec2(cos(a), sin(a)) * d);
+          acc += t.rgb * t.a; aa += t.a; w += 1.0;
+        }
+        vec3 col = acc / max(aa, 0.0001);
+        rgb = mix(col, mix(vec3(luma(col)), pow(fogColor, vec3(1.0 / 2.2)), 0.5), k);
+        alpha = (aa / w) * (1.0 - k);
+      } else if (st == 2) {
+        // ぶれ（重ね合わせ）: 姿が2つ3つに分かれて、ゆっくりずれながらうすれる
+        float o = 0.11 * k;
+        vec2 d1 = vec2(cos(uTime * 0.6 + uSeed), sin(uTime * 0.8 + uSeed) * 0.35) * o;
+        vec2 d2 = vec2(cos(uTime * 0.6 + uSeed + 2.6), sin(uTime * 0.7 + uSeed + 1.3) * 0.35) * o;
+        vec4 c0 = texture2D(map, vUv), c1 = texture2D(map, vUv + d1), c2 = texture2D(map, vUv + d2);
+        float w0 = 1.0 - 0.75 * k, w1 = 0.55 * k;
+        float a0 = c0.a * w0, a1 = c1.a * w1, a2 = c2.a * w1;
+        float s = a0 + a1 + a2;
+        vec3 col = (c0.rgb * a0 + c1.rgb * a1 + c2.rgb * a2) / max(s, 0.0001);
+        rgb = mix(col, mix(vec3(luma(col)), vec3(0.62, 0.82, 0.78), 0.45), k * 0.8);
+        alpha = clamp(s, 0.0, 1.0) * (1.0 - k * k);
+      } else if (st == 3) {
+        // インクのにじみ: 紙にインクがしみるように輪郭が広がり、色が抜けていく
+        vec4 c = texture2D(map, vUv);
+        float hal = haloA(vUv, 0.02 + 0.07 * k);
+        vec3 ink = vec3(0.42, 0.31, 0.2);
+        vec3 col = mix(c.rgb, vec3(luma(c.rgb)) * vec3(1.05, 0.95, 0.8), k);
+        float a = c.a * (1.0 - k);
+        float ha = hal * (1.0 - c.a) * 0.7 * min(k * 2.5, 1.0) * (1.0 - k);
+        alpha = clamp(a + ha, 0.0, 1.0);
+        rgb = mix(ink, col, a / max(a + ha, 0.0001));
+      } else if (st == 4) {
+        // 砂: 上から細かな粒になってこぼれ、光のつぶになって散る
+        float g = h(floor(vUv * 54.0) + uSeed * 13.0);
+        float n = 0.6 * g + 0.4 * (1.0 - vUv.y);
+        float thr = k * 1.02;
+        vec2 uv = vUv + vec2(0.0, -0.06 * smoothstep(thr + 0.12, thr, n) * k);
+        vec4 c = texture2D(map, uv);
+        float keep = step(thr, n);
+        float edge = keep * (1.0 - smoothstep(thr, thr + 0.07, n));
+        vec3 col = mix(c.rgb, vec3(luma(c.rgb)) * vec3(1.08, 1.0, 0.86), k * 0.7);
+        rgb = mix(col, glow, edge * 0.7);
+        alpha = c.a * keep * (1.0 - 0.3 * k);
+      } else {
+        // ほどける光: 流れるノイズのしきい値でほどけ、そのふちが金に光る。まわりに金のにじみ
+        vec2 uv = vUv + vec2(sin(vUv.y * 22.0 + uTime * 2.3 + uSeed), cos(vUv.x * 17.0 - uTime * 1.9)) * 0.005 * k;
+        vec4 c = texture2D(map, uv);
+        float hal = haloA(uv, 0.04);
+        float n = fbm(vUv * 6.0 + vec2(uSeed * 3.1, -uTime * 0.18));
+        float thr = k * 1.02;
+        float keep = smoothstep(thr - 0.015, thr + 0.05, n);
+        float edge = k > 0.0 ? (1.0 - smoothstep(thr, thr + 0.09, n)) * keep : 0.0;
+        vec3 col = mix(c.rgb, mix(vec3(luma(c.rgb)), vec3(0.62, 0.82, 0.78), 0.4), k * 0.85);
+        col = mix(col, glow, edge * 0.85);
+        float a = c.a * keep * (1.0 - 0.5 * k);
+        float ha = hal * (1.0 - c.a) * 0.55 * min(k * 3.0, 1.0) * (1.0 - k) * 1.6 * (0.75 + 0.25 * sin(uTime * 2.0 + uSeed * 5.0));
+        alpha = clamp(a + ha, 0.0, 1.0);
+        rgb = mix(glow, col, a / max(a + ha, 0.0001));
+      }
       if (alpha < 0.01) discard;
-      vec3 rgb = mix(glow, col, a / max(a + ha, 0.0001));
       float fg = smoothstep(fogNear, fogFar, vDepth);
       gl_FragColor = vec4(mix(rgb, pow(fogColor, vec3(1.0 / 2.2)), fg), alpha);
     }`;
@@ -527,8 +583,9 @@ export function createStage(canvas, L) {
     if (ghosts[i]) return ghosts[i];
     const cv = document.createElement('canvas'); cv.width = cv.height = GPX;
     const tex = new THREE.CanvasTexture(cv);
+    tex.anisotropy = renderer.capabilities.getMaxAnisotropy(); // ページと同じ見え方に
     const mat = new THREE.ShaderMaterial({
-      uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), map: { value: tex }, uK: { value: 0 }, uSeed: { value: 0 }, uTime: ghostTime },
+      uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), map: { value: tex }, uK: { value: 0 }, uSeed: { value: 0 }, uTime: ghostTime, uStyle: ghostStyle },
       vertexShader: GHOST_VS, fragmentShader: GHOST_FS, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true,
     });
     const mesh = new THREE.Mesh(ghostGeo, mat);
@@ -562,8 +619,6 @@ export function createStage(canvas, L) {
   // 住人・ほかの住人・石を、幽霊の板の絵に描く（板の中心は足もとの 1 マス上）
   function paintGhost(gh, x, y, draw) {
     const g = gh.g; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, GPX, GPX);
-    const sc = GPX / (GH * S);
-    g.setTransform(sc, 0, 0, sc, 0, 0);
     g.translate(GH * S / 2 - x * S, GH * S / 2 - (L.H - (y + 1)) * S);
     draw(g);
     gh.tex.needsUpdate = true;
@@ -591,7 +646,7 @@ export function createStage(canvas, L) {
           gh.mesh.material.uniforms.uK.value = k;
           gh.mesh.material.uniforms.uSeed.value = (sh.t * 7.31 + x * 1.7) % 10;
           // 光のつぶ（うすれはじめてから。うすれるほど多く）
-          const cnt = k < 0.12 || k > 0.95 ? 0 : 1 + Math.round(k * 3);
+          const cnt = (DRAFT.style !== 0 && DRAFT.style !== 4) || k < 0.12 || k > 0.95 ? 0 : 1 + Math.round(k * 3); // 光のつぶは「ほどける光」と「砂」だけ
           for (let c = 0; c < cnt && m < MOTES; c++, m++) {
             const r = Math.abs(Math.sin(sh.t * 12.9 + c * 78.2 + x) * 43758.5) % 1;
             pos[m * 3] = x + (r - 0.5) * 0.9; pos[m * 3 + 1] = y + 0.2 + r * 0.6; pos[m * 3 + 2] = Z(sh.t) + 0.01;
@@ -797,7 +852,7 @@ export function createStage(canvas, L) {
       if (r.userData.fade <= 0) { scene.remove(r); r.geometry.dispose(); oldRibbons.splice(i, 1); }
     }
     // 未確定の幽霊: 波が通ったページから出す
-    ghostTime.value = now;
+    ghostTime.value = now; ghostStyle.value = DRAFT.style;
     for (let i = 0; i < ghostCount; i++) { const gh = ghosts[i]; gh.mesh.visible = waveT === null || gh.t <= waveT; }
     motes.visible = waveT === null;
     // 世界線は、見に行ったところまで
@@ -1016,5 +1071,5 @@ export function createStage(canvas, L) {
 
   const setInvert = (x, y) => { invX = !!x; invY = !!y; };
   const setShot = (a) => { shot = a; };
-  return { setShot, setInvert, setLevel, setHistory, setDraft, update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, heroPortrait, pickGround, set onTap(f) { onTap = f; }, set onHover(f) { onHover = f; }, set onRight(f) { onRight = f; }, set onShapeGrab(f) { onShapeGrab = f; }, set onShapeMove(f) { onShapeMove = f; }, set onShapeDrop(f) { onShapeDrop = f; }, setCursor: (c) => { if (!drag && canvas.style.cursor !== c) canvas.style.cursor = c; }, closeBook, openBook, waving: () => waveT !== null };
+  return { setShot, setInvert, setLevel, setHistory, setDraft, rebuildGhosts: () => buildGhosts(), update, resize, applyLook, camYaw, resetCamera, skipWave, drawHeroOn, drawTrailOn, heroPortrait, pickGround, set onTap(f) { onTap = f; }, set onHover(f) { onHover = f; }, set onRight(f) { onRight = f; }, set onShapeGrab(f) { onShapeGrab = f; }, set onShapeMove(f) { onShapeMove = f; }, set onShapeDrop(f) { onShapeDrop = f; }, setCursor: (c) => { if (!drag && canvas.style.cursor !== c) canvas.style.cursor = c; }, closeBook, openBook, waving: () => waveT !== null };
 }

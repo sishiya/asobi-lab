@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
-import { LEVELS, REVEALS } from './level.js?v=101';
-import { DT, simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=101';
-import { drawSheet, DRAFT } from './sheet.js?v=101';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=101';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=101';
-import { makeHero, stepHero, groundAt } from './hero.js?v=101';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=101';
+import { LEVELS, REVEALS } from './level.js?v=102';
+import { DT, simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=102';
+import { drawSheet, DRAFT } from './sheet.js?v=102';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=102';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=102';
+import { makeHero, stepHero, groundAt } from './hero.js?v=102';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=102';
 
 const $ = (id) => document.getElementById(id);
 
@@ -439,6 +439,12 @@ if (new URLSearchParams(location.search).has('tune')) {
   row('hold', 'うすれはじめ（秒）', 0, 3, 0.1);
   row('fade', '消えきるまで（秒）', 2, 14, 0.5);
   row('pow', '曲線（1＝一定、2＝あとで一気に）', 0.5, 4, 0.1);
+  const sel = document.createElement('label'); sel.style.display = 'block';
+  sel.innerHTML = 'ぼやけ方 <select style="font:13px system-ui">' + ['ほどける光', 'かすみ', 'ぶれ（重ね合わせ）', 'インクのにじみ', '砂'].map((n, i) => `<option value="${i}"${i === DRAFT.style ? ' selected' : ''}>${n}</option>`).join('') + '</select>';
+  const se2 = sel.querySelector('select');
+  se2.addEventListener('change', () => { DRAFT.style = +se2.value; stage.rebuildGhosts(); se2.blur(); });
+  ['keydown', 'pointerdown'].forEach((ev) => se2.addEventListener(ev, (e) => e.stopPropagation()));
+  box.appendChild(sel);
   document.body.appendChild(box);
 }
 function recompute(fromT) {
