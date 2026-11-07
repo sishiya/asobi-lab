@@ -8,6 +8,7 @@ import { floraMaterial, floraMesh, grassMaterial, grassMesh, gradeBouquet } from
 import { makeRiver } from './water3d.js';
 import { makePost } from './post3d.js';
 import { makeBlob } from './blob3d.js';
+import { makeProps } from './props3d.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 const K = 0.04;                    // sim の長さ 1 → 3D の 0.04
@@ -107,7 +108,9 @@ export function makeWorld(parent) {
   const post = makePost(renderer, scene, camera, coarse);
   // 空の光（Poly Haven の CC0 の HDRI を縮めた assets/sky-env.hdr）: しずくに本物の空を映す。写実の株（ver. 0.7）はユーザーの判断で外した（ver. 0.8）
   let skyTex = null;
-  const ready = new RGBELoader().loadAsync('./assets/sky-env.hdr').then(t => { t.mapping = THREE.EquirectangularReflectionMapping; skyTex = t; }).catch(e => console.warn('空の光を読めなかったので、手作りの空で', e));
+  const props = makeProps();   // 岸の石・アーチの根もと（TripoSG の形。ver. 0.9）
+  let propsOn = true, propMeshes = [];
+  const ready = Promise.all([new RGBELoader().loadAsync('./assets/sky-env.hdr').then(t => { t.mapping = THREE.EquirectangularReflectionMapping; skyTex = t; }).catch(e => console.warn('空の光を読めなかったので、手作りの空で', e)), props.loaded]);
   const raycaster = new THREE.Raycaster(), ground0 = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const touches = [floraMat.uniforms.touch.value, grassMat.uniforms.touch.value], touches2 = [floraMat.uniforms.touch2.value, grassMat.uniforms.touch2.value];
   const tch = { x: 0, z: 0, s: 0, r: 1.2 }, hov = { x: 0, z: 0, s: 0, r: 0.9 };
@@ -180,6 +183,14 @@ export function makeWorld(parent) {
       const m = floraMesh(part, floraMat); m.computeBoundingSphere(); m.boundingSphere.radius += 1; built.add(m); bankMeshes.push(m);
       part.forEach((f, j) => { f.m = m; f.j = j; });
     }
+    // 岸の石: 水ぎわに寄りあった石。乱数は別にして、ほかの置き場所を変えない
+    const RS = rng(course.seed * 53 + 11), stoneList = [];
+    propMeshes = [];
+    for (let s = -200; s < L + 150; s += 22 + RS() * 45) {
+      const side = RS() < 0.5 ? -1 : 1, c = P(s), hw = HALF * 1.12 * widthAt(s), sz = 0.6 + RS() * RS() * 0.8;
+      stoneList.push({ x: c.x + side * (hw * (0.9 + RS() * 0.14)), z: c.z, y: -0.05 * sz, s: sz, ry: RS() * 6.283 });   // 少し水に入る石も
+    }
+    const stoneMesh = props.stones(stoneList); if (stoneMesh) { built.add(stoneMesh); propMeshes.push(stoneMesh); }
     // 遠くの花畑（いつも満開）と草。川の長さ 200 ごとに分け、カメラに映らない分は描かない（スマホの重さ）
     const meadowMeshes = [];
     for (let s0 = -400; s0 < L + 300; s0 += 200) {
@@ -240,6 +251,9 @@ export function makeWorld(parent) {
       // つるに咲く花（頭だけ。茎がぶらさがらないように）: 大小まぜて、つるのまわりに
       const bl = []; for (let i = 0; i < 64; i++) { const u = R(), p = curve.getPoint(u), sz = 0.35 + R() * R() * 0.5, ang = R() * 6.283; bl.push({ x: p.x + Math.cos(ang) * 0.1, y: p.y + Math.sin(ang) * 0.1 - 0.55 * sz, z: p.z + (R() - 0.5) * 0.24, kind: [0, 1, 2, 4, 5][Math.floor(R() * 5)], size: sz, open: 0.8 + R() * 0.2, phase: R() }); }
       grp.add(floraMesh(bl, headMat));
+      // 根もと: つるが地面に入るところに、土をつかむ株（大きさはつるの束が隠れるくらい）
+      const roots = props.roots([-1, 1].map(sd => ({ x: sd * hw, z: 0, y: -0.06, s: 0.6 + RS() * 0.1, ry: RS() * 6.283 })));
+      if (roots) { grp.add(roots); propMeshes.push(roots); }
       // カーテン: 両岸から寄る花の房（立体の花。すぼまりで川のまん中へ寄る）
       const cur = []; for (let i = 0; i < 24; i++) cur.push({ side: i < 12 ? -1 : 1, k: i % 12, x: 0, y: 0, z: 0, kind: i % 3 ? 2 : 1, size: 0.55 + R() * 0.2, open: 1, phase: R() });
       const cm = floraMesh(cur, floraMat); cm.frustumCulled = false; grp.add(cm);
@@ -298,6 +312,7 @@ export function makeWorld(parent) {
     const pred = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.75), new THREE.MeshBasicMaterial({ map: predT, transparent: true, depthWrite: false, opacity: 0.85 }));
     pred.renderOrder = 3; built.add(pred);
 
+    for (const m of propMeshes) m.visible = propsOn;
     Object.assign(state, { water, river, bank, arches, straws, strawMesh, foam, foamMat, bud, bouquet, end, petals, petalMesh, motes, moteMesh, blob, jig, conn, vis, pos: [], pred, predC, predT, predGrade: 0, glints, glintMesh, glintNext: 0, bursts, burstMesh, burstAt: 0, shafts, shaftMat, cardMats: [burstMesh, petalMesh, moteMesh, strawMesh, glintMesh].map(m => m.material) });
     state.R = R;
     camPos.set(0, 0, 0); camLook.set(0, 0, 0);
@@ -544,5 +559,6 @@ export function makeWorld(parent) {
   function setFingerSim(fs, fx) { setFinger(P(fs, fx), true); }
   function holdCam(on) { camHold = !!on; }
   function hover(pt) { hov.on = !!pt; if (pt) { hov.x = pt.x; hov.z = pt.z; } }
-  return { ready, setCourse, update, finish, resize, camera, pick, touch, hover, splash, wobble, setFinger, setFingerSim, holdCam, speed: () => speedSm, _state: state };   // _state はしらべ用
+  const setProps = on => { propsOn = on; for (const m of propMeshes) m.visible = on; };   // 見くらべ用（ひと休みの画面のボタン）
+  return { ready, setCourse, setProps, update, finish, resize, camera, pick, touch, hover, splash, wobble, setFinger, setFingerSim, holdCam, speed: () => speedSm, _state: state };   // _state はしらべ用
 }

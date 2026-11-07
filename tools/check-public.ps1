@@ -97,7 +97,7 @@ foreach ($f in $files) {
     # extras は、ゲームが使う印（slice・noInk・noSlice の true）だけならよい
     $extrasOk = $true
     foreach ($m in [regex]::Matches($json, '"extras":\{([^}]*)\}')) { if ($m.Groups[1].Value -notmatch '^("(slice|noInk|noSlice)":true,?)+$') { $extrasOk = $false } }
-    if (-not $extrasOk -or $json -match '"(copyright|author)"|[A-Za-z]:[\\/]|/Users/|/home/') { [void]$hits.Add("$rel : glb に作者・付加情報・パスがある（書き出しの設定を見直す）") }
+    if (-not $extrasOk -or $json -match '"(copyright|author)"|(?<![A-Za-z])[A-Za-z]:[\\/]|/Users/|/home/') { [void]$hits.Add("$rel : glb に作者・付加情報・パスがある（書き出しの設定を見直す）") }
     continue
   }
   if ($ext -eq '.hdr') {

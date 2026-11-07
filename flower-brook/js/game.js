@@ -8,7 +8,7 @@ import { GRADE_NAME, drawGradeFlower } from './flowers.js';
 import * as A from './audio.js';
 
 const $ = id => document.getElementById(id);
-const VER = 'ver. 0.8';
+const VER = 'ver. 0.9';
 const world = makeWorld($('stage'));
 const q = new URLSearchParams(location.search);
 let seed = +(q.get('seed') || 1 + Math.floor(Math.random() * 9999));
@@ -114,6 +114,7 @@ $('startBtn').onclick = () => { A.startAudio(); start(1 + Math.floor(Math.random
 $('pauseBtn').onclick = togglePause;
 $('resumeBtn').onclick = togglePause;
 $('titleBtn').onclick = toTitle;
+$('propsBtn').onclick = () => { const on = $('propsBtn').textContent.endsWith('なし'); world.setProps(on); $('propsBtn').textContent = `岸の石と根もと: ${on ? 'あり' : 'なし'}`; };   // 見くらべ用（ver. 0.9）
 $('soundBtn').onclick = () => { A.setSound(!A.soundOn()); store.set('sound', A.soundOn()); $('soundBtn').textContent = `音: ${A.soundOn() ? 'あり' : 'なし'}`; };
 $('againBtn').onclick = () => start(1 + Math.floor(Math.random() * 9999));
 $('sameBtn').onclick = () => start(seed);
