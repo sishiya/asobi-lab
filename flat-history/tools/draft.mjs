@@ -1,5 +1,5 @@
 // 未確定（v096）の確かめ（開発用）: node tools/draft.mjs [図版のid…]
-// 答えを でたらめに探し、「未確定の境」（形にふれて、歴史が形なしのときと分かれた秒）と、巣に着く秒を比べる。1 秒おいて 7 秒で消えきる
+// 答えを でたらめに探し、「未確定の境」（形にふれて、歴史が形なしのときと分かれた秒）と、巣に着く秒を比べる。0.5 秒おいて 6 秒で消えきる
 globalThis.TX = (ja) => ja;
 const { LEVELS } = await import('../js/level.js');
 const { simulate, restHeight, canPlaceQuick, pieceDims, DT } = await import('../js/sim.js');
@@ -34,5 +34,5 @@ for (const L of LEVELS) {
     n++; gaps.push(h.end.t - worst); if (h.end.t > worst) hidden++;
   }
   gaps.sort((a, b) => a - b);
-  console.log(`${L.id} ${L.plate} ${L.name}: 答え${n} ／ 巣に着くのが未確定の中 ${n ? Math.round(hidden / n * 100) : '-'}% ／ 消えきった中 ${n ? Math.round(gaps.filter((g) => g >= 8).length / n * 100) : '-'}% ／ 着く秒−境 最小${gaps.length ? gaps[0].toFixed(1) : '-'} 中${gaps.length ? gaps[gaps.length >> 1].toFixed(1) : '-'}`);
+  console.log(`${L.id} ${L.plate} ${L.name}: 答え${n} ／ 巣に着くのが未確定の中 ${n ? Math.round(hidden / n * 100) : '-'}% ／ 消えきった中 ${n ? Math.round(gaps.filter((g) => g >= 6.5).length / n * 100) : '-'}% ／ 着く秒−境 最小${gaps.length ? gaps[0].toFixed(1) : '-'} 中${gaps.length ? gaps[gaps.length >> 1].toFixed(1) : '-'}`);
 }
