@@ -2,13 +2,13 @@
 // 手（段階A3）: さわらなくても流れる（まん中ほど速く、岸ほどおそい）。水面に指を置くと、しずくの先頭が指へ引かれる
 // （左右＝岸へ、前＝速く、うしろ＝とどまる）。はなすと、その場から流れにまかせる。どこにさわっても波紋と花のおじぎ。
 // キー: ←→（A/D）岸、↑（W）前へ、↓（S）うしろへ、Esc 止める。?seed=<番号> で川を選ぶ。
-import { RULE, newState, step, gradeOf, bloomOf } from './sim.js';
+import { RULE, newState, step, gradeOf, bloomOf, currentAt } from './sim.js';
 import { makeWorld } from './world3d.js';
 import { GRADE_NAME, drawGradeFlower } from './flowers.js';
 import * as A from './audio.js';
 
 const $ = id => document.getElementById(id);
-const VER = 'ver. 0.5';
+const VER = 'ver. 0.6';
 const world = makeWorld($('stage'));
 const q = new URLSearchParams(location.search);
 let seed = +(q.get('seed') || 1 + Math.floor(Math.random() * 9999));
@@ -26,7 +26,8 @@ A.setSound(store.get('sound', true));
 
 // ---------- 入力 ----------
 // 指は「せき」（段階A4）: 水面に指を置くと、まわりのしずくが塊ごと指へ寄って、そこにたまる。
-// 指の分だけ流れに足す: 指が塊の上なら流れのまま、先（画面の上）なら急ぎ、うしろ（下）ならとどまる。はなす勢いで放れる。
+// つまむ（ver. 0.6）: 押しているあいだ、つまんだ塊は指の下へついてくる。カメラは押しているあいだ川の流れの速さで進むので、
+// 指を止めれば流れといっしょに下り、指を画面の上へ動かせば急ぎ、下へ動かせば戻る。はなすと勢いが残る。
 // input: { on, fs, fx }（js/sim.js の step）。キーは群れのまわりに「見えない指」を置く
 const input = { on: false, fs: 0, fx: 0 };
 const keys = new Set();
@@ -49,6 +50,7 @@ stage.addEventListener('pointerdown', e => {
   pointerId = e.pointerId; try { stage.setPointerCapture(e.pointerId); } catch {}
   if (e.pointerType === 'touch') touched = true;
   press = { cx: e.clientX, cy: e.clientY, moved: true, trail: [{ t: performance.now(), x: e.clientX, y: e.clientY }] };
+  world.holdCam(mode === 'play');   // 押しているあいだ、カメラは流れの速さで進む（指を止めると、塊は流れといっしょに）
   aimFinger(performance.now() / 1000);
   if (finger) { A.sTouch(finger.x); world.splash(finger.point); }
   buzz(8);
@@ -64,9 +66,9 @@ const up = e => {
     const now = performance.now(), old = press.trail.find(q => now - q.t < 110) || press.trail[press.trail.length - 1];
     const dtS = Math.max(0.03, (now - old.t) / 1000), p0 = world.pick(old.x, old.y, S.main.s), p1 = world.pick(e.clientX, e.clientY, S.main.s);
     const holding = S.held && S.held.some(Boolean);
-    if (p0 && p1 && now - old.t < 160 && holding) { input.kick = { vs: (p1.s - p0.s) / dtS * 0.6, vx: (p1.x - p0.x) / dtS * 0.6 }; if (Math.hypot(input.kick.vs, input.kick.vx * 35) > 40) { A.sFling(); flung = true; } }
+    if (p0 && p1 && now - old.t < 160 && holding && Math.hypot(p1.s - p0.s, (p1.x - p0.x) * 35) / dtS > 60) { A.sFling(); flung = true; }   // 勢いよくはなした: ひゅっ
   }
-  pointerId = null; finger = null; press = null; input.on = false; world.setFinger(null);
+  pointerId = null; finger = null; press = null; input.on = false; world.setFinger(null); world.holdCam(false);
 };
 stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
 stage.addEventListener('pointerleave', () => { world.hover(null); if (pointerId === null) world.setFinger(null); });
@@ -82,10 +84,10 @@ function handInput(dt) {
   const k = a => a.some(x => keys.has(x));
   const any = k(['ArrowLeft', 'a', 'ArrowRight', 'd', 'ArrowUp', 'w', 'ArrowDown', 's']);
   if (!any) { input.on = false; kf.x = S.main.x; world.setFinger(null); return; }
-  // 見えない指: ←→ で左右、↑ で先へ（急ぐ）、↓ で塊の上（とどまる）、どちらも押さなければ流れの速さくらい
+  // 見えない指: いちばん大きな塊をつまむ。←→ で左右、↑ で急ぐ、↓ で戻る、どちらも押さなければ流れの速さ
   if (k(['ArrowLeft', 'a'])) kf.x = Math.max(-1.2, kf.x - 1.4 * dt);
   if (k(['ArrowRight', 'd'])) kf.x = Math.min(1.2, kf.x + 1.4 * dt);
-  const want = k(['ArrowUp', 'w']) ? 25 : k(['ArrowDown', 's']) ? -25 : 0;   // ↑↓ を押さなければ、流れのまま
+  const want = (k(['ArrowUp', 'w']) ? 70 : k(['ArrowDown', 's']) ? -25 : currentAt(kf.x)) / RULE.herd.k;   // 運ぶ速さ → 塊のまん中から指までの長さ
   kf.d += (want - kf.d) * Math.min(1, dt * 4);
   if (mode === 'play') { input.on = true; input.fs = S.main.s + kf.d; input.fx = kf.x; world.setFingerSim(input.fs, input.fx); }
 }
@@ -119,7 +121,7 @@ $('ver').textContent = VER;
 
 // ---------- 教える順（1つずつ。PLAN.md の手ざわり） ----------
 let hintStep = 0, hintT = 0;
-const HINTS = ['', 'しずくのそばにさわると、指に集まってひとつになる', '指を先に置くと急ぎ、うしろに置くととどまる。はなす勢いで、ぽんと放れる', '岸へつれていくと、花が水を飲んで咲く。乾いたしずくは、花のアーチでちぎれる'];
+const HINTS = ['', 'しずくをつまむと、指についてくる。押したまま ほかのしずくに近づけると、まとめて運べる', '指を上へ動かすと急ぎ、下へ動かすと戻る。勢いよくはなすと、ぽんと放れる', '岸へつれていくと、花が水を飲んで咲く。乾いたしずくは、花のアーチでちぎれる'];
 function setHint() { if (toastT > 0) return; $('hint').classList.remove('alert'); $('hint').textContent = HINTS[hintStep] || ''; $('hint').hidden = !hintStep; }
 function hints(dt, bloomedNow) {
   if (!hintStep) return;
@@ -189,10 +191,11 @@ function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   handInput(dt);
   A.setFlow(world.speed());
+  A.setProgress(Math.min(1, S.main.s / RULE.len), mode === 'end' ? 'end' : mode === 'title' ? 'title' : 'play');   // 川を下った道のりが、曲の進み
   if (thumbBot) { Object.assign(input, thumbBot(S)); toastT = 0; $('hint').hidden = true; }
   if (mode === 'play') {
     acc += dt;
-    while (acc >= RULE.dt && !S.done) { step(S, input); input.kick = null; acc -= RULE.dt; }
+    while (acc >= RULE.dt && !S.done) { step(S, input); acc -= RULE.dt; }
     events();
     if (S.done) finish();
   }

@@ -13,7 +13,7 @@ export const RULE = {
   W: 35,                // 左右 1 が、道の長さでいくつか（川はばの半分）
   mass: 12 / 28,        // 1粒の水の量（玉 12 個のころとそろえる。花が飲む量の計算に）
   scatter: { s0: 10, len: 320, x: 0.9 },   // はじめに散らばる範囲
-  herd: { R: 70, k: 1.4, max: 70, ease: 5, kick: 160, flingT: 1.2, flingEase: 0.4 },         // 指（せき）: とどく半径・寄る速さ（距離×k）・上限
+  herd: { R: 55, k: 7, max: 130, back: -50, ease: 12, flingT: 1.4, flingEase: 0.35 },   // 指でつまむ（ver. 0.6）: つまめる半径・塊が指へ向かう速さ（距離×k）・前へ／うしろへの上限・放したあと勢いが残る秒
   crowd: { far: 150, k: 0.5 },
   tension: { s: 0.25, x: 1.4 },   // 表面の張り（1/秒）: 塊の粒が塊のまん中へ寄る速さ。横に強く、流れの向きに弱い＝流れにそって細長い形に              // 群れのまん中から far より離れた粒は、群れへ寄る
   w0: 0.90,             // はじめの水
@@ -121,8 +121,9 @@ export function riverWidth(s) {
 }
 
 // ---------- 1刻み進める ----------
-// input: { on: 指を置いているか, fs: 指の川の道 s, fx: 指の左右 x, kick?: { vs, vx } }。指は「せき」: まわりの粒を寄せて、そこにためる。
-// kick は指をはなした1刻みだけ: 指でつかんでいた塊に、はなした指の勢いを足す（放る）
+// input: { on: 指を置いているか, fs: 指の川の道 s, fx: 指の左右 x }。指は「つまむ」（ver. 0.6）: 指のそばの塊をつまむと、指をはなすまで
+// 塊ごと指の下へついてくる（流れより指が勝つ。うしろへも運べる）。押したまま ほかの塊に近づけると、それもつまむ（集める）。
+// はなすと、運んでいた勢いがしばらく残る（放る）。
 export function step(S, input) {
   if (S.done) return S;
   const dt = RULE.dt, C = S.course, B = S.beads, N = B.length, W = RULE.W, L = RULE.len, pond0 = L - RULE.pond.len;
@@ -144,8 +145,16 @@ export function step(S, input) {
   let sc = 0; for (const b of B) sc += b.s; sc /= N;
   const sp = RULE.speed, hd = RULE.herd, cr = RULE.crowd;
   // 指（せき）がとどく強さは塊ごと: 塊のどれかの粒に指がとどけば、塊ごと寄ってくる
+  // つまむ: 指のそばの粒の塊をつまみ、押しているあいだは はなさない（指が速く動いて離れても）。つまんだ塊にくっついた塊もいっしょに
+  if (!S.cap) S.cap = new Array(N).fill(false);
   const gk = new Array(N).fill(0);
-  if (input.on) for (const b of B) { const d = Math.hypot(input.fs - b.s, (input.fx - b.x) * W); if (d < hd.R) gk[b.g] = Math.max(gk[b.g], 1 - (d / hd.R) ** 2); }
+  if (input.on) {
+    const R = S.wasOn ? hd.R : hd.R * 1.6;   // 押した瞬間は広めに（少しはずれても、いちばん近い塊をつまめる）
+    for (let i = 0; i < N; i++) { const b = B[i]; if (S.cap[i] || Math.hypot(input.fs - b.s, (input.fx - b.x) * W) < R) gk[b.g] = 1; }
+  } else for (let i = 0; i < N; i++) if (S.cap[i]) B[i].fling = hd.flingT;   // はなした: 運んでいた勢いが残る
+  // 塊のまん中（つまんだ塊は、形をくずさず まん中が指へ向かう）
+  const cs = new Array(N).fill(0), cx = new Array(N).fill(0), cn = new Array(N).fill(0);
+  for (const b of B) { cs[b.g] += b.s; cx[b.g] += b.x; cn[b.g]++; }
   for (const b of B) {
     const k = gk[b.g];
     // ほしい速さ: 自分の左右の流れ（アーチがすぼまっていると、そこでおそい）
@@ -158,14 +167,14 @@ export function step(S, input) {
     if (b.s > ms + cr.far) vs -= cr.k * (b.s - ms - cr.far);
     if (b.s >= pond0) { vs = RULE.pond.speed; vx = -b.x * 0.15; }
     // 指（せき）: 近い粒ほど、指のほうへ向かう
-    if (k > 0) { const ds = input.fs - b.s, dx = (input.fx - b.x) * W; vs = Math.max(-6, vs + clamp(ds * hd.k, -hd.max, hd.max) * k); vx += (clamp(dx * hd.k, -hd.max, hd.max) / W - vx) * k; }   // 流れに足す: 指が塊の上なら流れのまま、先なら急ぎ、うしろならとどまる
+    if (k > 0) { const n = cn[b.g], ds = input.fs - cs[b.g] / n, dx = (input.fx - cx[b.g] / n) * W; vs = clamp(ds * hd.k, hd.back, hd.max); vx = clamp(dx * hd.k, -hd.max, hd.max) / W; }   // つまんだ塊: 流れより指が勝つ
     if (b.fling > 0) b.fling -= dt;
     b.vs += (vs - b.vs) * Math.min(1, (k > 0 ? hd.ease : b.fling > 0 ? hd.flingEase : sp.ease) * dt);   // 指がとどいている塊は、すばやくついてくる。放った塊は勢いが長く残る
-    b.vx += (vx - b.vx) * Math.min(1, 3 * dt);
+    b.vx += (vx - b.vx) * Math.min(1, (k > 0 ? hd.ease : 3) * dt);
   }
   // 放る: はなす直前に指がとどいていた塊へ、指の勢いを足す
-  if (input.kick) for (let i = 0; i < N; i++) if (S.held && S.held[i]) { const b = B[i]; b.vs += clamp(input.kick.vs, -hd.kick, hd.kick); b.vx += clamp(input.kick.vx, -2.5, 2.5); b.fling = hd.flingT; }
-  S.held = B.map(b => gk[b.g] > 0.05);   // 粒ごと（塊の番号はこの刻みの終わりで振り直されるので）
+  S.cap = B.map(b => gk[b.g] > 0); S.wasOn = !!input.on;   // 粒ごと（塊の番号はこの刻みの終わりで振り直されるので）
+  S.held = S.cap;
   // つながった粒は、速さをわけあう（ひとつの塊として動く）
   for (const [key] of S.links) { const a = B[key >> 6], c = B[key & 63], m = (a.vs - c.vs) * 0.12, mx = (a.vx - c.vx) * 0.12; a.vs -= m; c.vs += m; a.vx -= mx; c.vx += mx; }
   // 進む。アーチがすぼまると、通れる幅がせまくなって、粒はまん中へ寄せられる

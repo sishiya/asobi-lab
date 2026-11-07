@@ -2,7 +2,7 @@
 // 決まり（js/sim.js）の s・x を、奥行き・左右に置きかえて見せるだけ。決まりは変えない。
 // makeWorld(three の親要素) → { setCourse(S), update(S, dt, view), finish(grade) ... }
 import * as THREE from 'three';
-import { RULE, squeezeAt } from './sim.js';
+import { RULE, squeezeAt, currentAt } from './sim.js';
 import { drawBankFlower, drawGradeFlower } from './flowers.js';
 import { floraMaterial, floraMesh, grassMaterial, grassMesh, gradeBouquet } from './flora3d.js';
 import { makeRiver } from './water3d.js';
@@ -120,7 +120,7 @@ export function makeWorld(parent) {
   const atlas = makeAtlas();
   let course = null, built = null;
   const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
-  let clock = 0, prevLead = 0, speedSm = 0, lastS = null;
+  let clock = 0, prevLead = 0, speedSm = 0, lastS = null, camS = null, camHold = false;   // camS: カメラが見る川の道。指を押しているあいだは流れの速さで進む
 
   function resize() {
     const w = parent.clientWidth || innerWidth, h = parent.clientHeight || innerHeight;
@@ -286,7 +286,7 @@ export function makeWorld(parent) {
     Object.assign(state, { water, river, bank, arches, straws, strawMesh, foam, foamMat, bud, bouquet, end, petals, petalMesh, motes, moteMesh, blob, jig, conn, vis, pos: [], pred, predC, predT, predGrade: 0, glints, glintMesh, glintNext: 0, bursts, burstMesh, burstAt: 0, shafts, shaftMat, cardMats: [burstMesh, petalMesh, moteMesh, strawMesh, glintMesh].map(m => m.material) });
     state.R = R;
     camPos.set(0, 0, 0); camLook.set(0, 0, 0);
-    prevLead = S.main.s; speedSm = 0;
+    prevLead = S.main.s; speedSm = 0; camS = null; camHold = false;
     state.finishT = -1;
   }
   const state = {};
@@ -459,7 +459,11 @@ export function makeWorld(parent) {
     const hf = 2 * Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect);
     let tl = 1e9; for (const b of B) tl = Math.min(tl, b.s);
     const spread = Math.max(0, Math.min(1, (S.front - tl - 60) / 260));   // なかまが散らばっているほど引いて、群れのまん中へ寄せる
-    const leadS = Math.min(S.main.s * (1 - spread * 0.5) + (S.front + tl) / 2 * spread * 0.5 + 6, L - 40), lead = P(leadS, S.main.x * 0.5);   // いちばん大きな塊を追う
+    const followS = Math.min(S.main.s * (1 - spread * 0.5) + (S.front + tl) / 2 * spread * 0.5 + 6, L - 40);   // いちばん大きな塊を追う
+    if (camS === null) camS = followS;
+    if (camHold && fin <= 0) camS = Math.min(camS + currentAt(S.main.x) * dt, L - 40);   // 押しているあいだ: 流れの速さで（指を止めると、つまんだ塊は流れといっしょに下る）
+    else camS += (followS - camS) * Math.min(1, dt * 2.5);
+    const leadS = camS, lead = P(leadS, S.main.x * 0.5);
     const dir = P(leadS + 120, S.main.x * 0.3).sub(lead).setY(0).normalize();
     const back = Math.max(12.5, 4.75 / Math.tan(hf / 2)) + speedSm * 0.015 + spread * 6 - fin * 2;
     const wide = Math.max(0, Math.min(1, (camera.aspect - 0.7) / 0.8)), target = lead.clone().addScaledVector(dir, -4 * (1 - wide) - 1.2 * wide);   // たての画面は列のうしろを見る（列が画面の上〜中ほど。下に置いた指で隠れない）。横の画面は列がまん中に
@@ -525,6 +529,7 @@ export function makeWorld(parent) {
   // 指の輪: 指（せき）がとどく範囲を水面の光の輪で。つかんでいる＝明るい、マウスを乗せただけ＝うすい
   function setFinger(pt, held = false) { fing.on = !!pt; if (pt) { fing.x = pt.x; fing.z = pt.z; fing.held = held; } }
   function setFingerSim(fs, fx) { setFinger(P(fs, fx), true); }
+  function holdCam(on) { camHold = !!on; }
   function hover(pt) { hov.on = !!pt; if (pt) { hov.x = pt.x; hov.z = pt.z; } }
-  return { setCourse, update, finish, resize, camera, pick, touch, hover, splash, wobble, setFinger, setFingerSim, speed: () => speedSm, _state: state };   // _state はしらべ用
+  return { setCourse, update, finish, resize, camera, pick, touch, hover, splash, wobble, setFinger, setFingerSim, holdCam, speed: () => speedSm, _state: state };   // _state はしらべ用
 }
