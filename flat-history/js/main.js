@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
-import { LEVELS, REVEALS } from './level.js?v=94';
-import { DT, simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=94';
-import { drawSheet } from './sheet.js?v=94';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=94';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=94';
-import { makeHero, stepHero, groundAt } from './hero.js?v=94';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=94';
+import { LEVELS, REVEALS } from './level.js?v=95';
+import { DT, simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=95';
+import { drawSheet } from './sheet.js?v=95';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=95';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=95';
+import { makeHero, stepHero, groundAt } from './hero.js?v=95';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=95';
 
 const $ = (id) => document.getElementById(id);
 
@@ -404,9 +404,9 @@ function tapAt(x, t) {
   if (isTouch && !(before && before.x0 === c.x0 && before.t0 === c.t0)) { lockTo(c); se.click(); return; }
   place();
 }
-// 下書き（v095）: 書きかえで歴史が前と分かれた秒から DRAFT_SURE 秒先までは、確かな未来としてはっきり見せる（形の手ごたえ）。
-// その先は下書き（住人がうすい）。巣でよろこぶ姿は、正史にして再生するまで見せない
-const DRAFT_SURE = 4;
+// 未確定（v095・v096）: 形にふれて、歴史が「このままだと」から分かれた秒から先の未来は、まだ決まっていない。
+// 住人は少しずつゆがんで消えていき（sheet.js の unsure）、巣でよろこぶ姿は正史にして再生するまで見せない
+// （ユーザー「3Dオブジェクトの断面に触れた時点から未来が未確定になる。キーウィもすこし歪ませながら消えていく」）
 function divergeT(a, b) {
   const n = Math.min(a.frames.length, b.frames.length);
   const same = (p, q) => !p === !q && (!p || (Math.abs(p.x - q.x) < 0.02 && Math.abs(p.y - q.y) < 0.02 && p.st === q.st));
@@ -427,11 +427,9 @@ function applyDraft(redraw) {
 function recompute(fromT) {
   st.solved = false;
   st.dirty = true;
-  const prev = st.hist;
   st.hist = simulate(L, st.pieces);
-  const d = divergeT(prev, st.hist);
-  if (!st.pieces.length) st.draftFrom = Infinity;
-  else if (d !== null) st.draftFrom = d + DRAFT_SURE;
+  const d = divergeT(st.base, st.hist);
+  st.draftFrom = d === null ? Infinity : d;
   applyDraft(false);
   stage.setHistory(st.hist, st.pieces, fromT, true);
   se.wave();
