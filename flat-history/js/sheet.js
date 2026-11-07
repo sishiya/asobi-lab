@@ -1,11 +1,12 @@
 // 1秒のページ（2D世界）の絵。空は透明にして、ページを重ねると地面が奥行きにのびて見えるようにする。
-import { look, kindColor } from './look/index.js?v=98';
-import { dizzyStars } from './look/ink.js?v=98';
+import { look, kindColor } from './look/index.js?v=99';
+import { dizzyStars } from './look/ink.js?v=99';
 
 export const S = 20; // 1マスのピクセル
-export const DRAFT_FADE = 5; // 未確定になってから、うすれきるまでの秒（v098 で 6→5。ユーザー「1秒くらい短く」）
-// うすれ方の曲線: はじめに早く（ふれてすぐぼやけはじめる）、あとはゆっくり底へ（v098。ユーザー「もうすこし早い段階でぼやけ始め」）
-export const draftEase = (u) => 1 - (1 - u) * (1 - u);
+// 未確定のうすれ方（v100。ユーザー「断面に触れてワンテンポおいてから薄くなりはじめ、ゆるやかに収束」）:
+// ふれてから DRAFT_HOLD 秒はそのまま、そこから DRAFT_FADE 秒かけて、はじめも終わりもなめらかに（smoothstep）消えきる
+export const DRAFT_HOLD = 1, DRAFT_FADE = 7;
+export const draftK = (dt) => { const u = Math.max(0, Math.min(1, (dt - DRAFT_HOLD) / DRAFT_FADE)); return u * u * (3 - 2 * u); };
 
 const cache = new Map();
 
@@ -113,7 +114,7 @@ export function drawSheet(g, L, t, frame, secs, opt = {}) {
   if (L.switches) L.switches.forEach((sw, n) => drawSwitch(g, L, sw, !!(frame && frame.sw && frame.sw[n])));
   for (const s of secs) look().drawSection(g, L, s, S, kindColor(s.p.kind));
   // 未確定（v096・v097）: 形にふれて歴史が分かれた秒から先は、住人と石がうすれていく（DRAFT_FADE 秒で底まで）
-  const draft = opt.draftFrom != null && t > opt.draftFrom ? draftEase(Math.min(1, (t - opt.draftFrom) / DRAFT_FADE)) : 0;
+  const draft = opt.draftFrom != null && t > opt.draftFrom ? draftK(t - opt.draftFrom) : 0;
   // opt.ghost: 3D のページ。未確定の住人と石はページに描かず、3D の幽霊（stage3d.js）にまかせる
   const lg = draft ? (opt.ghost ? null : layer(W, H)) : g;
   if (lg) {
