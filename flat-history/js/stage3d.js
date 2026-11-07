@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・主人公・置いた形・置き場所のゴースト・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=95';
-import { radialTexture } from './look/util.js?v=95';
-import { S, drawSheet } from './sheet.js?v=95';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=95';
-import { groundAt } from './hero.js?v=95';
+import { look, kindColor } from './look/index.js?v=96';
+import { radialTexture } from './look/util.js?v=96';
+import { S, drawSheet, drawWalker, DRAFT_FADE } from './sheet.js?v=96';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=96';
+import { groundAt } from './hero.js?v=96';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -439,6 +439,7 @@ export function createStage(canvas, L) {
     setEndMark(hist);
     if (ribbon) ribbon.material = ribbonMat(hist.end.type === 'goal' && !noJoy ? ((look().ribbon || {}).gold || '#c9942e') : ((look().ribbon || {}).line || '#5a3d22'), 0.95);
     for (const sh of sheets) if (!sh.pending) drawOne(sh);
+    buildGhosts();
   }
 
   // 主人公の軌跡（ページごとの、点線の押し跡）
@@ -451,7 +452,7 @@ export function createStage(canvas, L) {
   function drawOne(sh) {
     if (sh.t > L.T) { sh.pending = false; return; } // この図版にはないページ
     const fr = hist.frames[Math.round(sh.t / DT)];
-    drawSheet(sh.g, L, sh.t, fr, sectionsAt(pieces, sh.t), { goalT: hist.end.type === 'goal' ? hist.end.t : null, misprintAfter: misprintOf(hist), draftFrom: draft.from, noJoy: draft.noJoy });
+    drawSheet(sh.g, L, sh.t, fr, sectionsAt(pieces, sh.t), { goalT: hist.end.type === 'goal' ? hist.end.t : null, misprintAfter: misprintOf(hist), draftFrom: draft.from, noJoy: draft.noJoy, ghost: true });
     if (trails.has(sh.t)) sh.g.drawImage(trails.get(sh.t), 0, 0);
     sh.tex.needsUpdate = true;
     sh.pending = false;
@@ -474,6 +475,136 @@ export function createStage(canvas, L) {
     }
   }
 
+  // ---- 未確定の住人（v097）: 形にふれた先の住人と石は、ページの絵ではなく 3D の幽霊の板で描く ----
+  // ほどけていく光のふち（流れるノイズのしきい値）・陽炎のゆらぎ・金のにじみ・立ちのぼる光のつぶ。ページは alphaTest で半透明を描けないので、別の板にする
+  // （ユーザー「3D世界からの見え方になるので、2Dの荒いドット風に消すのではなく、3D世界的なすこしリッチな見せ方に」）
+  const GH = 3, GPX = 120;                       // 幽霊の板は 3×3 マス、絵は 120px 四方
+  const ghostGeo = new THREE.PlaneGeometry(GH, GH);
+  const ghostTime = { value: 0 };
+  const GHOST_VS = `
+    uniform float uTime, uK, uSeed;
+    varying vec2 vUv; varying float vDepth;
+    void main() {
+      vUv = uv; vec3 p = position;
+      p.x += sin(p.y * 2.6 + uTime * 1.7 + uSeed) * 0.05 * uK;
+      vec4 mv = modelViewMatrix * vec4(p, 1.0);
+      vDepth = -mv.z;
+      gl_Position = projectionMatrix * mv;
+    }`;
+  const GHOST_FS = `
+    uniform sampler2D map; uniform float uTime, uK, uSeed;
+    uniform vec3 fogColor; uniform float fogNear, fogFar;
+    varying vec2 vUv; varying float vDepth;
+    float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
+    float fbm(vec2 p) { return 0.55 * vn(p) + 0.3 * vn(p * 2.03 + 7.1) + 0.15 * vn(p * 4.1 + 3.7); }
+    void main() {
+      float k = uK;
+      vec2 uv = vUv + vec2(sin(vUv.y * 22.0 + uTime * 2.3 + uSeed), cos(vUv.x * 17.0 - uTime * 1.9)) * 0.005 * k;
+      vec4 c = texture2D(map, uv);
+      float hal = 0.0;
+      for (int i = 0; i < 12; i++) { float a = float(i) * 0.5236; vec2 d = vec2(cos(a), sin(a)); hal += texture2D(map, uv + d * 0.018).a * 0.6 + texture2D(map, uv + d * 0.04).a * 0.4; }
+      hal /= 12.0;
+      float n = fbm(vUv * 6.0 + vec2(uSeed * 3.1, -uTime * 0.18));
+      float thr = k * 0.58;
+      float keep = smoothstep(thr - 0.015, thr + 0.05, n);
+      float edge = k > 0.0 ? (1.0 - smoothstep(thr, thr + 0.09, n)) * keep : 0.0;
+      vec3 gray = vec3(dot(c.rgb, vec3(0.3, 0.59, 0.11)));
+      vec3 col = mix(c.rgb, mix(gray, vec3(0.62, 0.82, 0.78), 0.4), k * 0.85);
+      vec3 glow = vec3(1.0, 0.84, 0.5);
+      col = mix(col, glow, edge * 0.85);
+      float a = c.a * keep * (1.0 - 0.3 * k);
+      float ha = hal * (1.0 - c.a) * 0.55 * k * (0.75 + 0.25 * sin(uTime * 2.0 + uSeed * 5.0));
+      float alpha = clamp(a + ha, 0.0, 1.0);
+      if (alpha < 0.01) discard;
+      vec3 rgb = mix(glow, col, a / max(a + ha, 0.0001));
+      float fg = smoothstep(fogNear, fogFar, vDepth);
+      gl_FragColor = vec4(mix(rgb, pow(fogColor, vec3(1.0 / 2.2)), fg), alpha);
+    }`;
+  const ghosts = [];   // 使いまわす: { mesh, cv, g, tex, t }
+  function ghostAt(i) {
+    if (ghosts[i]) return ghosts[i];
+    const cv = document.createElement('canvas'); cv.width = cv.height = GPX;
+    const tex = new THREE.CanvasTexture(cv);
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), map: { value: tex }, uK: { value: 0 }, uSeed: { value: 0 }, uTime: ghostTime },
+      vertexShader: GHOST_VS, fragmentShader: GHOST_FS, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true,
+    });
+    const mesh = new THREE.Mesh(ghostGeo, mat);
+    mesh.renderOrder = 3; scene.add(mesh);
+    return (ghosts[i] = { mesh, cv, g: cv.getContext('2d'), tex, t: 0 });
+  }
+  // 光のつぶ（幽霊ごとに数個。上へ昇って消える）
+  const MOTES = 360;
+  const moteGeo = new THREE.BufferGeometry();
+  moteGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MOTES * 3), 3));
+  moteGeo.setAttribute('aPhase', new THREE.BufferAttribute(new Float32Array(MOTES), 1));
+  moteGeo.setAttribute('aK', new THREE.BufferAttribute(new Float32Array(MOTES), 1));
+  const motes = new THREE.Points(moteGeo, new THREE.ShaderMaterial({
+    uniforms: { uTime: ghostTime, uPx: { value: renderer.getPixelRatio() } },
+    vertexShader: `
+      uniform float uTime, uPx; attribute float aPhase, aK; varying float vA;
+      void main() {
+        float r = fract(uTime * 0.22 + aPhase);
+        vec3 p = position + vec3(sin(aPhase * 40.0 + uTime * 1.3) * 0.22 * r, r * 1.5, 0.0);
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        vA = sin(r * 3.14159) * aK;
+        gl_PointSize = (2.2 + 2.8 * (1.0 - r)) * uPx * 10.0 / -mv.z;
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      varying float vA;
+      void main() { float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d) * vA; if (a < 0.01) discard; gl_FragColor = vec4(1.0, 0.86, 0.55, a); }`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+  motes.frustumCulled = false; motes.renderOrder = 4; scene.add(motes);
+  // 住人・ほかの住人・石を、幽霊の板の絵に描く（板の中心は足もとの 1 マス上）
+  function paintGhost(gh, x, y, draw) {
+    const g = gh.g; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, GPX, GPX);
+    const sc = GPX / (GH * S);
+    g.setTransform(sc, 0, 0, sc, 0, 0);
+    g.translate(GH * S / 2 - x * S, GH * S / 2 - (L.H - (y + 1)) * S);
+    draw(g);
+    gh.tex.needsUpdate = true;
+  }
+  let ghostCount = 0;
+  function buildGhosts() {
+    let n = 0, m = 0;
+    const pos = moteGeo.attributes.position.array, ph = moteGeo.attributes.aPhase.array, ak = moteGeo.attributes.aK.array;
+    if (hist && Number.isFinite(draft.from) && draft.noJoy) {
+      for (const sh of sheets) {
+        if (sh.t <= draft.from || sh.t > L.T) continue;
+        const fr = hist.frames[Math.round(sh.t / DT)];
+        if (!fr) continue;
+        const k = Math.min(1, (sh.t - draft.from) / DRAFT_FADE);
+        const items = [];
+        if (fr.st !== 'dead' || fr.faint != null) items.push([fr.x, fr.y, (g) => drawWalker(g, L, fr, 1, sh.t)]);
+        for (const o of fr.others || []) if (o.st !== 'dead' || o.faint != null) items.push([o.x, o.y, (g) => drawWalker(g, L, o, 1, sh.t)]);
+        for (const st of fr.stones || []) if (st.st !== 'gone') items.push([st.x, st.y, (g) => look().drawStone(g, L, st, S)]);
+        for (const [x, y, draw] of items) {
+          const gh = ghostAt(n++);
+          paintGhost(gh, x, y, draw);
+          gh.t = sh.t;
+          gh.mesh.position.set(x, y + 1, Z(sh.t) + 0.002);
+          gh.mesh.material.uniforms.uK.value = k;
+          gh.mesh.material.uniforms.uSeed.value = (sh.t * 7.31 + x * 1.7) % 10;
+          // 光のつぶ（うすれはじめてから。うすれるほど多く）
+          const cnt = k < 0.12 ? 0 : 1 + Math.round(k * 3);
+          for (let c = 0; c < cnt && m < MOTES; c++, m++) {
+            const r = Math.abs(Math.sin(sh.t * 12.9 + c * 78.2 + x) * 43758.5) % 1;
+            pos[m * 3] = x + (r - 0.5) * 0.9; pos[m * 3 + 1] = y + 0.2 + r * 0.6; pos[m * 3 + 2] = Z(sh.t) + 0.01;
+            ph[m] = (r * 7.3 + c * 0.37) % 1; ak[m] = 0.35 + 0.45 * k;
+          }
+        }
+      }
+    }
+    ghostCount = n;
+    for (let i = n; i < ghosts.length; i++) ghosts[i].mesh.visible = false;
+    moteGeo.attributes.position.needsUpdate = moteGeo.attributes.aPhase.needsUpdate = moteGeo.attributes.aK.needsUpdate = true;
+    moteGeo.setDrawRange(0, m);
+  }
+
   // 歴史を入れかえる。fromT から未来へ波を走らせる（fromT=null なら形の立体だけ合わせる）
   function setHistory(h, ps, fromT, animate) {
     syncPieces(ps, animate);
@@ -482,6 +613,7 @@ export function createStage(canvas, L) {
     if (ribbon) { ribbon.material = ribbonMat((look().ribbon || {}).old || '#a0634f', 0.5); ribbon.userData.fade = 1; oldRibbons.push(ribbon); }
     ribbon = buildRibbon(h); scene.add(ribbon);
     setEndMark(h);
+    buildGhosts();
     if (!animate) {
       for (const sh of sheets) drawOne(sh);
       waveT = null;
@@ -663,6 +795,10 @@ export function createStage(canvas, L) {
       r.material.opacity = Math.max(0, r.userData.fade * 0.5);
       if (r.userData.fade <= 0) { scene.remove(r); r.geometry.dispose(); oldRibbons.splice(i, 1); }
     }
+    // 未確定の幽霊: 波が通ったページから出す
+    ghostTime.value = now;
+    for (let i = 0; i < ghostCount; i++) { const gh = ghosts[i]; gh.mesh.visible = waveT === null || gh.t <= waveT; }
+    motes.visible = waveT === null;
     // 世界線は、見に行ったところまで
     if (ribbon) ribbon.visible = !!v.showRoute;
     if (ribbon) {

@@ -1,7 +1,7 @@
 // 見た目「図鑑の銅版画と標本室」: 線で彫った博物画の大地と、標本室。住人と主人公は residents.js・heroes.js（設定で選ぶ）
 import * as THREE from 'three';
-import { rng, canvasTexture } from './util.js?v=95';
-import { INK, hatch } from './ink.js?v=95';
+import { rng, canvasTexture } from './util.js?v=96';
+import { INK, hatch } from './ink.js?v=96';
 
 function drawTerrain(g, L, S, res) {
   const R = rng(23);
@@ -92,7 +92,7 @@ function drawStone(g, L, s, S) {
   g.save(); g.translate(cx, cy);
   g.fillStyle = '#cbb894'; g.beginPath(); g.arc(0, 0, r, 0, 7); g.fill();
   g.save(); g.clip(); hatch(g, -r, -r * 0.2, r * 2, r * 1.3, 2.2, -0.9, 'rgba(74,51,32,.55)'); g.restore();
-  g.rotate(-s.x * 2);
+  g.rotate(s.x / 0.6); // すべらずに転がる: 進んだ道のり÷半径（v097 で向きを直した。前は -x×2 で、右へ転がると左回りだった）
   g.strokeStyle = 'rgba(74,51,32,.7)'; g.lineWidth = 1;
   g.beginPath(); g.arc(0, 0, r * 0.55, 0.3, 2.2); g.stroke();
   g.beginPath(); g.moveTo(-r * 0.2, -r * 0.6); g.lineTo(r * 0.3, -r * 0.2); g.stroke();
