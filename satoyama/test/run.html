@@ -38,12 +38,18 @@ import { buildHare, drive, pose, decodeParams, PARAMS, setAnatomical } from '../
 import { makeField, contactPoint } from '../js/trial.js';
 import { hareShapes, hareFurColor, hareBends, HEAD_OFF } from '../js/flesh-hare.js';
 import { mud, makeDirt, stepDirt, MUD_WET } from '../js/dirt.js';
-import { feltify, makeFeltGround, makeFeltBody, makeDiorama } from '../js/felt.js';
+import { feltify, makeFeltGround, makeFeltBody, makeDiorama, HARE_FACE } from '../js/felt.js';
+import { kidBody, kidShapes } from '../js/kid.js';
+import { lookFur, lookFace } from '../js/kid-look.js';
 await R.init();
 const qs = new URLSearchParams(location.search);
 let v = PARAMS.map(() => 0.5);
 try { const j = (await (await fetch(`../js/gait-hare-${qs.get('gait') || 'turn2'}.json`, { cache: 'no-store' })).json()); v = j.v; setAnatomical(!!j.anat); } catch (e) { /* まだ学習していない */ } // anat＝関節を本物の向きだけにした体で覚えた跳び方
-const Q = decodeParams(v);
+// ?kid=1: 声から生まれた子に入る（test/voice.html から。遺伝子と歩き方の数だけ、このタブの sessionStorage で受けとる）
+let KID = null; if (qs.get('kid')) try { KID = JSON.parse(sessionStorage.getItem('satoyama.kid')); } catch (e) { /* なければノウサギ */ }
+const KB = KID && kidBody(KID.genes);
+const BODY = KB ? { build: (at, yaw = 0) => KB.build(R, world, at, height, yaw), drive: KB.drive, q: KB.decode(KID.v) } : { build: (at, yaw = 0) => buildHare(R, world, at, height, yaw), drive, q: decodeParams(v) };
+const Q = BODY.q;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, devicePixelRatio));
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -72,12 +78,13 @@ let goal = 0; const setGoal = i => bushes.forEach((b, k) => b.children.forEach(m
 setGoal(goal);
 
 // 体（物理）と皮（フェルト）
-const world = makeField(R); let H = buildHare(R, world, [0, 0, 0], height), D = makeDirt(H);
-const FB = makeFeltBody(scene, H, hareShapes(H), { furColor: (part, p, n) => hareFurColor(part, p, n, H), headOff: HEAD_OFF, bends: hareBends(H) });
+const world = makeField(R); let H = BODY.build([0, 0, 0]), D = makeDirt(H);
+const FB = KB ? makeFeltBody(scene, H, kidShapes(H), { furColor: lookFur(KID.genes.look, H), face: lookFace(KID.genes.look, H.plan, HARE_FACE) })
+  : makeFeltBody(scene, H, hareShapes(H), { furColor: (part, p, n) => hareFurColor(part, p, n, H), headOff: HEAD_OFF, bends: hareBends(H) });
 // 転んだら、少し待ってその場で起き直す（体を作り直す。向きは転ぶ前のまま、場所は地面のはしより内側。泥とぬれは引きつぐ）
 function respawn() {
   const P = pose(H); for (const p of Object.values(H.parts)) if (world.getRigidBody(p.body.handle)) world.removeRigidBody(p.body);
-  const L = SIZE / 2 - 1.5, keep = D; H = buildHare(R, world, [Math.max(-L, Math.min(L, P.x)), 0, Math.max(-L, Math.min(L, P.z))], height, P.yaw); D = makeDirt(H);
+  const L = SIZE / 2 - 1.5, keep = D; H = BODY.build([Math.max(-L, Math.min(L, P.x)), 0, Math.max(-L, Math.min(L, P.z))], P.yaw); D = makeDirt(H);
   for (const k in D) if (keep[k]) Object.assign(D[k], { mud: keep[k].mud, wet: keep[k].wet, dry: keep[k].dry });
   FB.rebind(H, P.yaw); t = 0; gNow = 0;
 }
@@ -168,9 +175,9 @@ function stepFrame(dt) {
       stepDirt(D, H, 4 / 240, rainOn ? 1 : 0);
       // 転んだら、すぐ起き直す（文字や音で失敗を見せない。GAME.md 9.7）
       if (fallT) { if (clock - fallT > 0.8) { respawn(); fallT = 0; } }
-      else if (P.up < 0.35 || P.y - height(P.x, P.z) < 0.05) { falls++; fallT = clock; }
+      else if (P.up < 0.35 || P.y - height(P.x, P.z) < (H.fallH ?? 0.05)) { falls++; fallT = clock; }
     }
-    drive(H, Q, t, fallT ? 0 : gNow, turnNow);
+    BODY.drive(H, Q, t, fallT ? 0 : gNow, turnNow);
     world.step(); t += 1 / 240; clock += 1 / 240;
   }
 }
