@@ -9,7 +9,7 @@
 // userData.sliceHatch: 断面にハッチングの線をのせる（銅版画になじませる）
 // userData.animate(dt, s) で動く。s = { speed(0〜), run, grounded, vy, carry, landT }
 import * as THREE from 'three';
-import { radialTexture } from './util.js?v=102';
+import { radialTexture } from './util.js?v=103';
 
 // 言語（index.html の TX(日本語, 英語)。ノードでの試験のときは日本語）
 const TX = globalThis.TX || ((ja) => ja);
@@ -337,7 +337,7 @@ function loadArmillary() {
   if (!armLoad) {
     armLoad = Promise.all([
       import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'),
-      import('./armillary.js?v=102'),
+      import('./armillary.js?v=103'),
     ]).then(async ([{ GLTFLoader }, mod]) => {
       const gltf = await new GLTFLoader().loadAsync(new URL('../../models/armillary.glb', import.meta.url).href);
       armSrc = { scene: gltf.scene, make: mod.makeTravelerB };

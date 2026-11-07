@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
-import { LEVELS, REVEALS } from './level.js?v=102';
-import { DT, simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=102';
-import { drawSheet, DRAFT } from './sheet.js?v=102';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=102';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=102';
-import { makeHero, stepHero, groundAt } from './hero.js?v=102';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=102';
+import { LEVELS, REVEALS } from './level.js?v=103';
+import { DT, simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=103';
+import { drawSheet, DRAFT } from './sheet.js?v=103';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=103';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=103';
+import { makeHero, stepHero, groundAt } from './hero.js?v=103';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=103';
 
 const $ = (id) => document.getElementById(id);
 
@@ -432,7 +432,7 @@ if (new URLSearchParams(location.search).has('tune')) {
     const r = document.createElement('label'); r.style.display = 'block';
     r.innerHTML = `${label} <input type="range" min="${min}" max="${max}" step="${step}" value="${DRAFT[key]}" style="width:140px;vertical-align:middle"> <b>${DRAFT[key]}</b>`;
     const inp = r.querySelector('input'), out = r.querySelector('b');
-    inp.addEventListener('input', () => { DRAFT[key] = +inp.value; out.textContent = inp.value; if (L) applyDraft(true); });
+    inp.addEventListener('input', () => { DRAFT[key] = +inp.value; out.textContent = inp.value; if (L && !['spread', 'vert', 'speed', 'copies'].includes(key)) applyDraft(true); }); // ぶれのぐあいはシェーダーの値だけ
     ['keydown', 'pointerdown'].forEach((ev) => inp.addEventListener(ev, (e) => e.stopPropagation()));
     box.appendChild(r);
   };
@@ -445,6 +445,11 @@ if (new URLSearchParams(location.search).has('tune')) {
   se2.addEventListener('change', () => { DRAFT.style = +se2.value; stage.rebuildGhosts(); se2.blur(); });
   ['keydown', 'pointerdown'].forEach((ev) => se2.addEventListener(ev, (e) => e.stopPropagation()));
   box.appendChild(sel);
+  const sub = document.createElement('div'); sub.textContent = '― ぶれのぐあい ―'; sub.style.cssText = 'margin-top:6px;color:#e0b14c'; box.appendChild(sub);
+  row('spread', 'ずれる広さ（マス）', 0, 4, 0.05);
+  row('vert', 'たての割合（0＝横だけ）', 0, 1.5, 0.05);
+  row('speed', '速さ', 0, 4, 0.1);
+  row('copies', '分かれる数', 1, 6, 1);
   document.body.appendChild(box);
 }
 function recompute(fromT) {

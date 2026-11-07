@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・主人公・置いた形・置き場所のゴースト・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=102';
-import { radialTexture } from './look/util.js?v=102';
-import { S, drawSheet, drawWalker, draftK, DRAFT } from './sheet.js?v=102';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=102';
-import { groundAt } from './hero.js?v=102';
+import { look, kindColor } from './look/index.js?v=103';
+import { radialTexture } from './look/util.js?v=103';
+import { S, drawSheet, drawWalker, draftK, DRAFT } from './sheet.js?v=103';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=103';
+import { groundAt } from './hero.js?v=103';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -479,9 +479,10 @@ export function createStage(canvas, L) {
   // ほどけていく光のふち（流れるノイズのしきい値）・陽炎のゆらぎ・金のにじみ・立ちのぼる光のつぶ。ページは alphaTest で半透明を描けないので、別の板にする
   // （ユーザー「3D世界からの見え方になるので、2Dの荒いドット風に消すのではなく、3D世界的なすこしリッチな見せ方に」）
   // 絵の細かさはページと同じ（1マス S px）。v103 で 2 倍をやめた（ユーザー「薄れ始めると急にキーウィの解像度が上がる。2Dの荒さにあわせる」）
-  const GH = 3, GPX = GH * S;
+  const GH = 6, GPX = GH * S; // v104: ぶれが広くても切れないよう 6×6 マスに（絵の細かさは 1 マス S px のまま）
   const ghostGeo = new THREE.PlaneGeometry(GH, GH);
-  const ghostTime = { value: 0 }, ghostStyle = { value: 0 }; // ぼやけ方（DRAFT.style。0 ほどける光・1 かすみ・2 ぶれ・3 インクのにじみ・4 砂）
+  const ghostTime = { value: 0 }, ghostStyle = { value: 0 };
+  const ghostBure = { uSpread: { value: 0.35 }, uVert: { value: 0.35 }, uSpeed: { value: 1 }, uCopies: { value: 2 } }; // ぶれのぐあい（DRAFT.spread など） // ぼやけ方（DRAFT.style。0 ほどける光・1 かすみ・2 ぶれ・3 インクのにじみ・4 砂）
   const GHOST_VS = `
     uniform float uTime, uK, uSeed;
     varying vec2 vUv; varying float vDepth;
@@ -493,7 +494,8 @@ export function createStage(canvas, L) {
       gl_Position = projectionMatrix * mv;
     }`;
   const GHOST_FS = `
-    uniform sampler2D map; uniform float uTime, uK, uSeed, uStyle;
+    uniform sampler2D map; uniform float uTime, uK, uSeed, uStyle, uSpread, uVert, uSpeed, uCopies;
+    const float UVS = 3.0 / ${GH.toFixed(1)}; // 前の 3×3 マスの板で決めた uv の大きさを、いまの板に合わせる
     uniform vec3 fogColor; uniform float fogNear, fogFar;
     varying vec2 vUv; varying float vDepth;
     float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -514,7 +516,7 @@ export function createStage(canvas, L) {
       vec3 rgb; float alpha;
       if (st == 1) {
         // かすみ: 輪郭がぼけて、霧にとけるようにうすれる
-        float r = 0.07 * k;
+        float r = 0.07 * k * UVS;
         vec3 acc = vec3(0.0); float aa = 0.0, w = 0.0;
         for (int i = 0; i < 16; i++) {
           float a = float(i) * 2.39996, d = sqrt((float(i) + 0.5) / 16.0) * r;
@@ -525,21 +527,25 @@ export function createStage(canvas, L) {
         rgb = mix(col, mix(vec3(luma(col)), pow(fogColor, vec3(1.0 / 2.2)), 0.5), k);
         alpha = (aa / w) * (1.0 - k);
       } else if (st == 2) {
-        // ぶれ（重ね合わせ）: 姿が2つ3つに分かれて、ゆっくりずれながらうすれる
-        float o = 0.11 * k;
-        vec2 d1 = vec2(cos(uTime * 0.6 + uSeed), sin(uTime * 0.8 + uSeed) * 0.35) * o;
-        vec2 d2 = vec2(cos(uTime * 0.6 + uSeed + 2.6), sin(uTime * 0.7 + uSeed + 1.3) * 0.35) * o;
-        vec4 c0 = texture2D(map, vUv), c1 = texture2D(map, vUv + d1), c2 = texture2D(map, vUv + d2);
-        float w0 = 1.0 - 0.75 * k, w1 = 0.55 * k;
-        float a0 = c0.a * w0, a1 = c1.a * w1, a2 = c2.a * w1;
-        float s = a0 + a1 + a2;
-        vec3 col = (c0.rgb * a0 + c1.rgb * a1 + c2.rgb * a2) / max(s, 0.0001);
+        // ぶれ（重ね合わせ）: 姿がいくつかに分かれて、ゆっくりずれながらうすれる。uSpread＝ずれる広さ（マス）・uVert＝たての割合・uSpeed＝速さ・uCopies＝分かれる数
+        vec4 c0 = texture2D(map, vUv);
+        float a0 = c0.a * (1.0 - 0.75 * k);
+        vec3 acc = c0.rgb * a0; float s = a0;
+        float wc = 0.55 * k * 2.0 / max(uCopies, 1.0);
+        for (int i = 0; i < 6; i++) {
+          if (float(i) >= uCopies) break;
+          float ph = uSeed + float(i) * 2.399;
+          vec2 d = vec2(cos(uTime * uSpeed * 0.6 + ph), sin(uTime * uSpeed * 0.75 + ph * 1.3) * uVert) * uSpread * k / ${GH.toFixed(1)};
+          vec4 c = texture2D(map, vUv + d);
+          float a = c.a * wc; acc += c.rgb * a; s += a;
+        }
+        vec3 col = acc / max(s, 0.0001);
         rgb = mix(col, mix(vec3(luma(col)), vec3(0.62, 0.82, 0.78), 0.45), k * 0.8);
         alpha = clamp(s, 0.0, 1.0) * (1.0 - k * k);
       } else if (st == 3) {
         // インクのにじみ: 紙にインクがしみるように輪郭が広がり、色が抜けていく
         vec4 c = texture2D(map, vUv);
-        float hal = haloA(vUv, 0.02 + 0.07 * k);
+        float hal = haloA(vUv, (0.02 + 0.07 * k) * UVS);
         vec3 ink = vec3(0.42, 0.31, 0.2);
         vec3 col = mix(c.rgb, vec3(luma(c.rgb)) * vec3(1.05, 0.95, 0.8), k);
         float a = c.a * (1.0 - k);
@@ -548,10 +554,10 @@ export function createStage(canvas, L) {
         rgb = mix(ink, col, a / max(a + ha, 0.0001));
       } else if (st == 4) {
         // 砂: 上から細かな粒になってこぼれ、光のつぶになって散る
-        float g = h(floor(vUv * 54.0) + uSeed * 13.0);
-        float n = 0.6 * g + 0.4 * (1.0 - vUv.y);
+        float g = h(floor(vUv * 54.0 / UVS) + uSeed * 13.0);
+        float n = 0.6 * g + 0.4 * clamp(1.0 - ((vUv.y - 0.5) / UVS + 0.5), 0.0, 1.0);
         float thr = k * 1.02;
-        vec2 uv = vUv + vec2(0.0, -0.06 * smoothstep(thr + 0.12, thr, n) * k);
+        vec2 uv = vUv + vec2(0.0, -0.06 * UVS * smoothstep(thr + 0.12, thr, n) * k);
         vec4 c = texture2D(map, uv);
         float keep = step(thr, n);
         float edge = keep * (1.0 - smoothstep(thr, thr + 0.07, n));
@@ -560,10 +566,10 @@ export function createStage(canvas, L) {
         alpha = c.a * keep * (1.0 - 0.3 * k);
       } else {
         // ほどける光: 流れるノイズのしきい値でほどけ、そのふちが金に光る。まわりに金のにじみ
-        vec2 uv = vUv + vec2(sin(vUv.y * 22.0 + uTime * 2.3 + uSeed), cos(vUv.x * 17.0 - uTime * 1.9)) * 0.005 * k;
+        vec2 uv = vUv + vec2(sin(vUv.y * 22.0 + uTime * 2.3 + uSeed), cos(vUv.x * 17.0 - uTime * 1.9)) * 0.005 * UVS * k;
         vec4 c = texture2D(map, uv);
-        float hal = haloA(uv, 0.04);
-        float n = fbm(vUv * 6.0 + vec2(uSeed * 3.1, -uTime * 0.18));
+        float hal = haloA(uv, 0.04 * UVS);
+        float n = fbm(vUv * 6.0 / UVS + vec2(uSeed * 3.1, -uTime * 0.18));
         float thr = k * 1.02;
         float keep = smoothstep(thr - 0.015, thr + 0.05, n);
         float edge = k > 0.0 ? (1.0 - smoothstep(thr, thr + 0.09, n)) * keep : 0.0;
@@ -585,7 +591,7 @@ export function createStage(canvas, L) {
     const tex = new THREE.CanvasTexture(cv);
     tex.anisotropy = renderer.capabilities.getMaxAnisotropy(); // ページと同じ見え方に
     const mat = new THREE.ShaderMaterial({
-      uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), map: { value: tex }, uK: { value: 0 }, uSeed: { value: 0 }, uTime: ghostTime, uStyle: ghostStyle },
+      uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), map: { value: tex }, uK: { value: 0 }, uSeed: { value: 0 }, uTime: ghostTime, uStyle: ghostStyle, ...ghostBure },
       vertexShader: GHOST_VS, fragmentShader: GHOST_FS, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true,
     });
     const mesh = new THREE.Mesh(ghostGeo, mat);
@@ -853,6 +859,7 @@ export function createStage(canvas, L) {
     }
     // 未確定の幽霊: 波が通ったページから出す
     ghostTime.value = now; ghostStyle.value = DRAFT.style;
+    ghostBure.uSpread.value = DRAFT.spread; ghostBure.uVert.value = DRAFT.vert; ghostBure.uSpeed.value = DRAFT.speed; ghostBure.uCopies.value = DRAFT.copies;
     for (let i = 0; i < ghostCount; i++) { const gh = ghosts[i]; gh.mesh.visible = waveT === null || gh.t <= waveT; }
     motes.visible = waveT === null;
     // 世界線は、見に行ったところまで

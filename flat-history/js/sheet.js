@@ -1,13 +1,14 @@
 // 1秒のページ（2D世界）の絵。空は透明にして、ページを重ねると地面が奥行きにのびて見えるようにする。
-import { look, kindColor } from './look/index.js?v=102';
-import { dizzyStars } from './look/ink.js?v=102';
+import { look, kindColor } from './look/index.js?v=103';
+import { dizzyStars } from './look/ink.js?v=103';
 
 export const S = 20; // 1マスのピクセル
 // 未確定のうすれ方（v101。ユーザー「薄れはじめは v099 と v100 の中間くらい。さいしょゆるやか、ある程度いったら急速に消える」）:
 // ふれてから DRAFT_HOLD 秒はそのまま、そこから DRAFT_FADE 秒で消えきる。曲線は u²（はじめはゆっくり、あとで一気に）
 // v102: ふれたときから、8 秒かけて（ユーザー「もっと手前から、うすくなるまでもう少し長く」）。?tune で画面のつまみから変えられる（main.js）
 // v103: ユーザーがつまみで選んだ 0・12・1.2 をはじめに。style はぼやけ方（stage3d.js の GHOST_FS）
-export const DRAFT = { hold: 0, fade: 12, pow: 1.2, style: 0 };
+// v104: ぼやけ方は「ぶれ」に（ユーザー「ブレがいいかんじ」）。spread＝ずれる広さ（マス）・vert＝たての割合・speed＝速さ・copies＝分かれる数
+export const DRAFT = { hold: 0, fade: 12, pow: 1.2, style: 2, spread: 0.35, vert: 0.35, speed: 1, copies: 2 };
 export const draftK = (dt) => { const u = Math.max(0, Math.min(1, (dt - DRAFT.hold) / DRAFT.fade)); return Math.pow(u, DRAFT.pow); };
 
 const cache = new Map();
