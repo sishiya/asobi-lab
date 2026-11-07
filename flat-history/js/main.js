@@ -420,9 +420,10 @@ function divergeT(a, b) {
   }
   return null;
 }
+// 正史になっても、3D の束と小窓はそのまま（未確定のぶれも残す）。正史の画面とは別の時の流れで、束のほうは止まっている
+// （v106。前は判が出たとたんにぶれが消えて巣の喜びが出ていた。ユーザー「急にぼやけがなくなるのはいらない。バグにみえる」）
 function applyDraft(redraw) {
-  if (st.solved) stage.setDraft(Infinity, false, redraw);
-  else stage.setDraft(st.hist === st.base ? Infinity : st.draftFrom, true, redraw);
+  stage.setDraft(st.hist === st.base ? Infinity : st.draftFrom, true, redraw);
 }
 // ?tune: 未確定のうすれ方を、画面の右下のつまみで試す（開発用。v102）
 if (new URLSearchParams(location.search).has('tune')) {
@@ -638,7 +639,7 @@ function drawInset(focus, cand, ok) {
   if (k === insetKey) return;
   insetKey = k;
   const fr = st.hist.frames[Math.round(focus / 0.1)];
-  drawSheet(insetG, L, focus, fr, sectionsAt(blockPieces(), focus), { paper: true, label: focus + TX('秒', 's'), goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null, misprintAfter: misprintOf(st.hist), draftFrom: st.solved || st.hist === st.base ? null : st.draftFrom, noJoy: !st.solved });
+  drawSheet(insetG, L, focus, fr, sectionsAt(blockPieces(), focus), { paper: true, label: focus + TX('秒', 's'), goalT: st.hist.end.type === 'goal' ? st.hist.end.t : null, misprintAfter: misprintOf(st.hist), draftFrom: st.hist === st.base ? null : st.draftFrom, noJoy: true });
   // 持っている形を置いたら、このページに出る断面（点線）
   if (cand && Number.isFinite(cand.y0) && cand.x0 + pieceDims(cand).wx > 0) {
     const S = insetG.canvas.width / L.W;
@@ -820,7 +821,6 @@ function judge() {
   el.className = 'rp-result ' + (ok ? 'ok' : 'ng');
   if (ok) {
     st.solved = true;
-    applyDraft(true); // 正史になったので、3D の未来にも巣の喜びを描く
     const n = blockPieces().length;
     const prev = progress[L.id];
     progress[L.id] = { best: prev ? Math.min(prev.best, n) : n };
