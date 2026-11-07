@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import R from '@dimforge/rapier3d-compat';
 import { trial, score } from '../js/trial.js';
-import { KID_SEED, kidPlan, kidGenes as genesOf, kidBody } from '../js/kid.js';
+import { KID_SEED, kidPlan, kidGenes as genesOf, kidBody, decodeKid } from '../js/kid.js';
 import { TANUKI } from '../js/tanuki.js';
 await R.init();
 const id = process.argv[2] === 'tanuki' ? 'tanuki' : +(process.argv[2] || 3), gens = +(process.argv[3] || 20), POP = +(process.argv[4] || 12), EL = Math.max(2, POP >> 2);
@@ -14,9 +14,11 @@ let seed = 999 + (tan ? 77 : id) + stage * 31; const rnd = () => (seed = (seed *
 const outURL = () => new URL(`../js/gait-${tan ? 'tanuki' : 'kid-' + id}.json`, import.meta.url);
 let mean = resume && fs.existsSync(outURL()) ? JSON.parse(fs.readFileSync(outURL())).v : KID_SEED.slice(), sd = mean.map(() => (resume ? 0.08 : 0.15)), best = null, tries = 0;
 // 点: のっそり歩く型＝前へ（秒速 0.3m で頭打ち）− すべり − 転ぶ − 宙に浮く時間（いつも足が2本以上ついている歩き方へ）
-const scoreWalk = stage === 1 ? r => Math.min(r.dist, 0.3 * 6) - 0.5 * r.slip - (r.fell ? 0.3 : 0) : r => Math.min(r.dist, 0.3 * 6) - 3 * r.slip - (r.fell ? 1 : 0) - 1.5 * r.flight;
+// 段3＝のっそり: 段2に、1秒に 1.6 回より速い足どりを減点（タヌキのような重い四つ足の歩き方へ）
+const slowPen = v => stage === 3 ? Math.max(0, decodeKid(v).freq - 1.6) * 0.8 : 0;
+const scoreWalk = stage === 1 ? r => Math.min(r.dist, 0.3 * 6) - 0.5 * r.slip - (r.fell ? 0.3 : 0) : r => Math.min(r.dist, (stage === 3 ? 0.2 : 0.3) * 6) - 3 * r.slip - (r.fell ? 1 : 0) - 1.5 * r.flight; // のっそりは秒速 0.2m で頭打ち
 let firstWalk = null; // 「転ばず1m」に届いた試しの回数（ゲームの中の育ちの目安）
-const evalV = (v, at) => { const r = trial(R, v, { dur: 6, turn: () => 0, at, body: B }); r.world.free(); tries++; if (!firstWalk && !r.fell && r.dist > 1) firstWalk = tries; return { v, r, s: scoreWalk(r) }; };
+const evalV = (v, at) => { const r = trial(R, v, { dur: 6, turn: () => 0, at, body: B }); r.world.free(); tries++; if (!firstWalk && !r.fell && r.dist > 1) firstWalk = tries; return { v, r, s: scoreWalk(r) - slowPen(v) }; };
 console.log(`子 #${id}: 節${K.seg} 足${K.pairs}対`);
 for (let it = 0; it < gens; it++) {
   const at = [(rnd() - 0.5) * 14, 0, (rnd() - 0.5) * 14];
