@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>里山 3D物理の試し</title>
+<meta name="robots" content="noindex">
+<style>
+  :root { --ink: #2c2a26; --dim: rgba(44,42,38,.62); --panel: rgba(250,248,242,.86); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #dfe6dc; color: var(--ink); font: 14px system-ui, sans-serif; }
+  canvas { display: block; }
+  #hud { position: fixed; left: 16px; top: 14px; background: var(--panel); border-radius: 12px; padding: 10px 14px; line-height: 1.7; }
+  #hud b { font-weight: 600; }
+  #hud small { color: var(--dim); }
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","@dimforge/rapier3d-compat":"https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"}}</script>
+</head>
+<body>
+<div id="hud">読みこみ中…</div>
+<script type="module">
+// 3D物理の試し: 学習したリズムで、ノウサギの体（剛体と関節のモーター）が起伏のある地面を8の字に跳ぶ。足あと（後ろ足は細長く、前足は丸く）を残す
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import R from '@dimforge/rapier3d-compat';
+import { height, SIZE } from '../js/ground.js';
+import { buildHare, drive, pose, decodeParams, PARAMS, setHeadFused } from '../js/hare.js';
+import { makeField, contactPoint } from '../js/trial.js';
+await R.init();
+const q = new URLSearchParams(location.search);
+let v = PARAMS.map(() => 0.5);
+if (q.get('head') === 'sep') setHeadFused(false); // 頭が別の骨の体（前のくらべ用: ?head=sep&gait=turn）
+try { v = (await (await fetch(`../js/gait-hare${q.has('gait') ? '-' + q.get('gait') : ''}.json`, { cache: 'no-store' })).json()).v; } catch (e) { /* まだ学習していない */ }
+const Q = decodeParams(v);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, devicePixelRatio)); renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xdfe6dc); scene.fog = new THREE.Fog(0xdfe6dc, 3, 14);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.01, 60); cam.position.set(0.9, 0.6, 1.2);
+const ctl = new OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+scene.add(new THREE.HemisphereLight(0xf4f1e6, 0x6b7a5a, 1.1));
+const sun = new THREE.DirectionalLight(0xfff3dc, 1.6); sun.position.set(3, 6, 2); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -2, right: 2, top: 2, bottom: -2, near: 0.5, far: 20 }); scene.add(sun, sun.target);
+// 地面
+const N = 240, geo = new THREE.PlaneGeometry(SIZE, SIZE, N, N); geo.rotateX(-Math.PI / 2);
+const pos = geo.attributes.position; for (let i = 0; i < pos.count; i++) pos.setY(i, height(pos.getX(i), pos.getZ(i))); geo.computeVertexNormals();
+const ground = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x9aa77e, roughness: 1 })); ground.receiveShadow = true; scene.add(ground);
+const grid = new THREE.GridHelper(SIZE, SIZE * 2, 0x7b8763, 0x8b9873); grid.position.y = 0.001; grid.material.opacity = 0.25; grid.material.transparent = true; scene.add(grid);
+
+// 物理
+const world = makeField(R), H = buildHare(R, world, [0, 0, 0], height);
+// 体の部位を、当たりの形（カプセルと玉）のまま描く。重いほど濃く
+const meshes = [];
+for (const [name, p] of Object.entries(H.parts)) {
+  const g = p.len ? new THREE.CapsuleGeometry(p.r, Math.max(0.001, p.len - p.r * 0.4), 6, 12) : new THREE.SphereGeometry(p.r, 16, 12);
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(0.08, 0.25, 0.62 - Math.min(0.3, p.mass * 0.3)), roughness: 0.9 }));
+  m.castShadow = true; scene.add(m);
+  // 当たりの向き（カプセルは骨の向き）を覚えておく
+  const col = p.body.collider(p.col || 0), rq = col.rotationWrtParent ? col.rotationWrtParent() : null;
+  meshes.push({ m, body: p.body, off: p.off ? new THREE.Vector3(...p.off) : null, rq: rq ? new THREE.Quaternion(rq.x, rq.y, rq.z, rq.w) : new THREE.Quaternion() });
+}
+// 足あと
+const prints = [], hindGeo = new THREE.CircleGeometry(1, 16), foreGeo = new THREE.CircleGeometry(1, 12), printMat = new THREE.MeshBasicMaterial({ color: 0x4c4434, transparent: true, opacity: 0.55, depthWrite: false });
+function addPrint(f, P) {
+  const t = f.body.translation(), m = new THREE.Mesh(f.hind ? hindGeo : foreGeo, printMat);
+  m.rotation.x = -Math.PI / 2; m.rotation.z = -P.yaw; m.scale.set(f.hind ? 0.035 : 0.014, f.hind ? 0.012 : 0.012, 1);
+  m.position.set(t.x + (f.hind ? -0.04 * P.fx : 0), height(t.x, t.z) + 0.002, t.z + (f.hind ? -0.04 * P.fz : 0)); scene.add(m); prints.push(m);
+  if (prints.length > 300) scene.remove(prints.shift());
+}
+// 8の字: 4秒ずつ左回り・右回り
+let t = 0, slipSum = 0, contactT = 0, hindTD = 0, yTD = 0, ms = 0, steps = 0, lastFore = {}, falls = 0;
+function stepFrame(dt) {
+  const n = Math.round(dt * 240);
+  for (let k = 0; k < n; k++) {
+    const g = t < 0.4 ? 0 : Math.min(1, (t - 0.4) * 3), turn = Math.floor(t / 4) % 2 ? -1 : 1;
+    drive(H, Q, t, g, turn);
+    const t0 = performance.now(); world.step(); ms += performance.now() - t0; steps++;
+    t += 1 / 240;
+    if (k % 4 === 0) {
+      const P = pose(H);
+      for (const f of H.feet) {
+        const c = contactPoint(f), d = !!c, p = c || f.body.translation();
+        if (d && f.down && f.at && f.at.k === c.k) { slipSum += Math.hypot(p.x - f.at.x, p.z - f.at.z); contactT += 4 / 240; }
+        if (d && !f.down) { addPrint(f, P); const along = p.x * P.fx + p.z * P.fz; if (!f.hind) lastFore[f.side] = along; else if (lastFore[1] != null && lastFore[-1] != null) { hindTD++; if (along > Math.max(lastFore[1], lastFore[-1])) yTD++; } }
+        f.down = d; f.at = c ? { x: c.x, z: c.z, k: c.k } : null;
+      }
+      if (P.up < 0.35) falls++;
+    }
+  }
+}
+function render() {
+  for (const o of meshes) { const p = o.body.translation(), r = o.body.rotation(); o.m.quaternion.set(r.x, r.y, r.z, r.w); o.m.position.set(p.x, p.y, p.z); if (o.off) o.m.position.add(o.off.clone().applyQuaternion(o.m.quaternion)); o.m.quaternion.multiply(o.rq); } // 頭を胸とまとめた体は、胸からずらして描く
+  const P = pose(H), tg = new THREE.Vector3(P.x, P.y, P.z), mv = tg.sub(ctl.target).multiplyScalar(0.1); ctl.target.add(mv); cam.position.add(mv); // カメラごとついていく sun.position.set(P.x + 3, 6, P.z + 2); sun.target.position.set(P.x, 0, P.z);
+  ctl.update(); renderer.render(scene, cam);
+  document.getElementById('hud').innerHTML = `<b>3D物理の試し</b> <small>ノウサギ ${H.mass.toFixed(2)} kg・学習したリズム</small><br>
+    足のすべり ${(slipSum / Math.max(contactT, 1e-3) * 100).toFixed(1)} cm/秒（地面についている足）<br>
+    Y字の足あと ${hindTD ? Math.round(yTD / hindTD * 100) : 0}%（後ろ足が前足より前 ${yTD}/${hindTD}）<br>
+    計算 ${(ms / Math.max(1, steps)).toFixed(3)} ms/きざみ（1こま ${(ms / Math.max(1, steps) * 4).toFixed(2)} ms）・転んだ ${falls ? 'あり' : 'なし'}<br>
+    <small>${Math.floor(t / 4) % 2 ? '右回り' : '左回り'}・${t.toFixed(1)} 秒</small>`;
+}
+function resize() { renderer.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+let last = performance.now();
+function loop(now) { const dt = Math.min(1 / 20, (now - last) / 1000); last = now; stepFrame(dt); render(); requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+window.__hop = { advance(sec) { for (let i = 0; i < sec * 60; i++) stepFrame(1 / 60); render(); }, get stats() { return { slip: slipSum / Math.max(contactT, 1e-3), y: hindTD ? yTD / hindTD : 0, hindTD, ms: ms / Math.max(1, steps), falls, p: pose(H) }; } };
+</script>
+</body>
+</html>
