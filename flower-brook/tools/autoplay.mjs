@@ -17,7 +17,7 @@ function run(seed, policy) {
 }
 
 const policies = [];
-for (const d of [0, 10, 20, 30]) for (const x of [0, 0.4, 0.6, 0.8, 1]) policies.push({ name: `d${d} x${x}`, fn: constant(d, x) });
+for (const d of [-20, -8, 0, 15]) for (const x of [0, 0.4, 0.6, 0.8, 1]) policies.push({ name: `d${d} x${x}`, fn: constant(d, x) });
 policies.push({ name: 'さわらない', fn: none });
 policies.push({ name: 'smart', fn: smart });
 

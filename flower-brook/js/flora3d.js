@@ -65,15 +65,16 @@ const COMMON = `
   }`;
 
 // 花の材質。kinds の形・色はユニフォームの表から
-export function floraMaterial(sunDir) {
+// stems: false で茎と葉を描かない（おわりの花束。花の頭だけを形に並べる）
+export function floraMaterial(sunDir, stems = true) {
   const K = FLORA_KINDS;
   const vec4s = K.map(k => new THREE.Vector4(k.n, k.len, k.wid, k.cup));
   const eyes = K.map(k => new THREE.Color(k.eye));
   return new THREE.ShaderMaterial({
     side: THREE.DoubleSide, fog: true,
-    uniforms: { t: { value: 0 }, wind: { value: 1 }, touch: { value: new THREE.Vector4(0, 0, 0, 1) }, touch2: { value: new THREE.Vector4(0, 0, 0, 1) }, sun: { value: sunDir }, shape: { value: vec4s }, eye: { value: eyes }, ...THREE.UniformsLib.fog },
+    uniforms: { t: { value: 0 }, wind: { value: 1 }, touch: { value: new THREE.Vector4(0, 0, 0, 1) }, touch2: { value: new THREE.Vector4(0, 0, 0, 1) }, sun: { value: sunDir }, shape: { value: vec4s }, eye: { value: eyes }, stems: { value: stems ? 1 : 0 }, ...THREE.UniformsLib.fog },
     vertexShader: inc(`attribute float aPart; attribute float aKind; attribute float aOpen; attribute float aPhase; attribute vec3 aCol;
-      uniform vec4 shape[${K.length}]; uniform vec3 eye[${K.length}];
+      uniform vec4 shape[${K.length}]; uniform vec3 eye[${K.length}]; uniform float stems;
       varying vec3 vCol; varying vec3 vN; varying vec3 vW; varying float vU; varying float vPart; varying float vGlow;
       ${COMMON}
       #include <fog_pars_vertex>
@@ -108,6 +109,7 @@ export function floraMaterial(sunDir) {
           n = normalize(vec3(-s * .3, 1., 0.));
           col = mix(vec3(.30, .55, .28), vec3(.55, .76, .38), u);
         }
+        if (aPart > 1.5 && stems < .5) p = head;   // 茎と葉をつぶす
         // 頭をカメラ（＋z）へ少し向ける
         if (aPart < 1.5) { vec3 q = p - head; float c = cos(.45), s2 = sin(.45); q = vec3(q.x, q.y * c - q.z * s2, q.y * s2 + q.z * c); p = head + q;
           n = vec3(n.x, n.y * c - n.z * s2, n.y * s2 + n.z * c); }
@@ -152,6 +154,30 @@ export function floraMesh(list, mat) {
   list.forEach((f, i) => { M.makeScale(f.size, f.size, f.size).setPosition(f.x, f.y || 0, f.z); m.setMatrixAt(i, M); });
   m.instanceMatrix.needsUpdate = true;
   return m;
+}
+
+// おわりに池の奥で咲く花束（段の番号 → 立体の花の並び）。名前は flowers.js の GRADE_NAME と同じ花
+// 返すのは floraMesh に渡す並び（池の葉の上が原点）
+export function gradeBouquet(grade) {
+  const L = [], R = (() => { let a = grade * 977 + 13; return () => ((a = (a * 16807) % 2147483647) / 2147483647); })();
+  const add = (x, y, z, kind, size, color, open = 1) => L.push({ x, y: y - size * HEAD * (0.8 + 0.2 * open), z, kind, size, open, phase: R(), color });   // y は花の頭の高さ
+  if (grade === 1) {        // スズランの小さな鈴: 白い小さな花が弓なりに
+    for (let i = 0; i < 11; i++) { const a = -1 + i / 5; add(a * 0.75, 0.5 - a * a * 0.3, Math.sin(i) * 0.1, 2, 0.65, '#fffdf2', 0.55); }
+  } else if (grade === 2) { // アジサイの房: 小花の丸い房
+    for (let i = 0; i < 46; i++) { const u = R() * 6.283, v = Math.acos(R()), r = 0.75; add(Math.cos(u) * Math.sin(v) * r, 0.25 + Math.cos(v) * r * 0.8, Math.sin(u) * Math.sin(v) * r, 2, 0.55, R() < 0.5 ? '#8fb2ff' : '#b79cff'); }
+  } else if (grade === 3) { // 枝咲きのフジ: たれ下がる房が4本
+    for (let c = 0; c < 4; c++) for (let j = 0; j < 8; j++) add((c - 1.5) * 0.45, 1.5 - j * 0.17, (c % 2) * 0.15, 2, 0.6 - j * 0.04, j < 4 ? '#a68bf0' : '#cbb8ff');
+  } else if (grade === 4) { // 大輪のシャクヤク: 花びらを重ねた大きな1輪
+    [['#f59bbf', 3.2, 0.5], ['#ffb3cf', 2.6, 0.58], ['#ffd0e0', 2.0, 0.66], ['#ffe6ee', 1.4, 0.74]].forEach(([c, s, y]) => add(0, y, 0, 1, s, c));
+  } else if (grade === 5) { // 八重の花びら
+    [['#fff0f5', 2.6, 0.5], ['#ffd9e6', 2.1, 0.58], ['#ffe7a8', 1.5, 0.66]].forEach(([c, s, y]) => add(0, y, 0, 0, s, c));
+    for (let i = 0; i < 5; i++) { const a = i * 1.257; add(Math.cos(a) * 0.9, 0.3, Math.sin(a) * 0.6, 0, 1.0, '#ffe3ee'); }
+  } else if (grade === 6) { // タンポポの綿毛: 白い小花の玉
+    for (let i = 0; i < 40; i++) { const u = R() * 6.283, v = Math.acos(2 * R() - 1), r = 0.55; add(Math.cos(u) * Math.sin(v) * r, 0.9 + Math.cos(v) * r, Math.sin(u) * Math.sin(v) * r, 5, 0.32, '#ffffff'); }
+  } else {                  // 霧の虹: 虹の色の花が弓なりに
+    ['#ff8a8a', '#ffb36b', '#ffe27a', '#9ee39a', '#8fd0ff', '#a8a0ff', '#e0a0ff'].forEach((c, i) => { const a = -1 + i / 3; add(a * 1.1, 0.6 - a * a * 0.4, 0, 0, 1.0, c); });
+  }
+  return L;
 }
 
 export function grassMaterial(sunDir) {

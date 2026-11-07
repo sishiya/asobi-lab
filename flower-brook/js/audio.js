@@ -59,8 +59,10 @@ export function sTouch(x = 0) {
 }
 // しずくどうしがくっついた「むにゅ」: 低めにふくらむ音（続けて鳴りすぎないように）
 let lastJoin = 0;
-export function sJoin() { if (!ac) return; const t = ac.currentTime; if (t - lastJoin < 0.1) return; lastJoin = t; tone(300 + Math.random() * 80, t, 0.16, 'sine', 0.05, 1.35); }
+export function sJoin(size = 0) { if (!ac) return; const t = ac.currentTime; if (t - lastJoin < 0.1) return; lastJoin = t; const f = 260 * Math.pow(2, Math.round(size * 12) * 2 / 12); tone(f, t, 0.16, 'sine', 0.05, 1.35); }   // size: 塊の大きさ 0〜1（大きいほど高い音）
 let lastBreak = 0;
+// 放った「ひゅっ」
+export function sFling() { if (!ac) return; const t = ac.currentTime; const f = noise(t, 0.25, 900, 2, 0.08); f.frequency.exponentialRampToValueAtTime(2600, t + 0.2); }
 export function sBreak() { if (ac) { const t = ac.currentTime; if (t - lastBreak < 0.08) return; lastBreak = t; tone(880, t, 0.09, 'sine', 0.06, 0.55); } }   // ちぎれる「ぷちっ」
 export function sClump() { if (ac) { const t = ac.currentTime; tone(330, t, 0.07, 'triangle', 0.05, 0.8); } }
 export function sFiber() { if (ac) { const t = ac.currentTime; noise(t, 0.12, 2400, 2, 0.05); } }

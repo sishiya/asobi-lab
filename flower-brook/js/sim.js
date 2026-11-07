@@ -13,7 +13,7 @@ export const RULE = {
   W: 35,                // 左右 1 が、道の長さでいくつか（川はばの半分）
   mass: 12 / 28,        // 1粒の水の量（玉 12 個のころとそろえる。花が飲む量の計算に）
   scatter: { s0: 10, len: 320, x: 0.9 },   // はじめに散らばる範囲
-  herd: { R: 70, k: 1.4, max: 70 },         // 指（せき）: とどく半径・寄る速さ（距離×k）・上限
+  herd: { R: 70, k: 1.4, max: 70, ease: 5, kick: 160, flingT: 1.2, flingEase: 0.4 },         // 指（せき）: とどく半径・寄る速さ（距離×k）・上限
   crowd: { far: 150, k: 0.5 },
   tension: { s: 0.25, x: 1.4 },   // 表面の張り（1/秒）: 塊の粒が塊のまん中へ寄る速さ。横に強く、流れの向きに弱い＝流れにそって細長い形に              // 群れのまん中から far より離れた粒は、群れへ寄る
   w0: 0.90,             // はじめの水
@@ -88,7 +88,7 @@ export function newState(seed) {
   const course = makeCourse(seed), R = rng(seed * 7 + 1), sc = RULE.scatter;
   const beads = [];
   for (let i = 0; i < RULE.n; i++) {
-    beads.push({ s: sc.s0 + R() * sc.len, x: (R() * 2 - 1) * sc.x, vs: RULE.speed.mid * 0.5, vx: 0, w: RULE.w0 + (R() - 0.5) * 0.02, f: 0, pellet: false, out: false, g: i, ride: 0 });
+    beads.push({ s: sc.s0 + R() * sc.len, x: (R() * 2 - 1) * sc.x, vs: RULE.speed.mid * 0.5, vx: 0, w: RULE.w0 + (R() - 0.5) * 0.02, f: 0, pellet: false, out: false, g: i, ride: 0, fling: 0 });
   }
   return {
     t: 0, course, beads,
@@ -121,7 +121,8 @@ export function riverWidth(s) {
 }
 
 // ---------- 1刻み進める ----------
-// input: { on: 指を置いているか, fs: 指の川の道 s, fx: 指の左右 x }。指は「せき」: まわりの粒を寄せて、そこにためる
+// input: { on: 指を置いているか, fs: 指の川の道 s, fx: 指の左右 x, kick?: { vs, vx } }。指は「せき」: まわりの粒を寄せて、そこにためる。
+// kick は指をはなした1刻みだけ: 指でつかんでいた塊に、はなした指の勢いを足す（放る）
 export function step(S, input) {
   if (S.done) return S;
   const dt = RULE.dt, C = S.course, B = S.beads, N = B.length, W = RULE.W, L = RULE.len, pond0 = L - RULE.pond.len;
@@ -146,20 +147,25 @@ export function step(S, input) {
   const gk = new Array(N).fill(0);
   if (input.on) for (const b of B) { const d = Math.hypot(input.fs - b.s, (input.fx - b.x) * W); if (d < hd.R) gk[b.g] = Math.max(gk[b.g], 1 - (d / hd.R) ** 2); }
   for (const b of B) {
+    const k = gk[b.g];
     // ほしい速さ: 自分の左右の流れ（アーチがすぼまっていると、そこでおそい）
     let vs = currentAt(b.x) * (1 + RULE.fiber.speed * Math.min(b.f, 2)), vx = 0;
     if (S.thunder?.kind === 'rush') vs = Math.max(vs, RULE.thunder.rush);
     if (b.ride > 0) { b.ride -= dt; vs = RULE.wave.rideSpeed; }
     for (const a of C.arches) if (Math.abs(b.s - a.s) < RULE.arch.half) vs *= 1 - RULE.arch.slow * squeezeAt(a, S.t);
-    if (b.s < sc - cr.far) vs += cr.k * (sc - cr.far - b.s);
-    if (b.s > sc + cr.far) vs -= cr.k * (b.s - sc - cr.far);
+    const ms = S.main.n > 1 ? S.main.s : sc;   // なかま: いちばん大きな塊から離れた粒は、そちらへ寄る（左右にも）
+    if (b.s < ms - cr.far) { vs += cr.k * (ms - cr.far - b.s); vx += (S.main.x - b.x) * 0.3; }
+    if (b.s > ms + cr.far) vs -= cr.k * (b.s - ms - cr.far);
     if (b.s >= pond0) { vs = RULE.pond.speed; vx = -b.x * 0.15; }
     // 指（せき）: 近い粒ほど、指のほうへ向かう
-    const k = gk[b.g];
-    if (k > 0) { const ds = input.fs - b.s, dx = (input.fx - b.x) * W; vs += (clamp(ds * hd.k, -hd.max, hd.max) - vs) * k; vx += (clamp(dx * hd.k, -hd.max, hd.max) / W - vx) * k; }
-    b.vs += (vs - b.vs) * Math.min(1, sp.ease * dt);
+    if (k > 0) { const ds = input.fs - b.s, dx = (input.fx - b.x) * W; vs = Math.max(-6, vs + clamp(ds * hd.k, -hd.max, hd.max) * k); vx += (clamp(dx * hd.k, -hd.max, hd.max) / W - vx) * k; }   // 流れに足す: 指が塊の上なら流れのまま、先なら急ぎ、うしろならとどまる
+    if (b.fling > 0) b.fling -= dt;
+    b.vs += (vs - b.vs) * Math.min(1, (k > 0 ? hd.ease : b.fling > 0 ? hd.flingEase : sp.ease) * dt);   // 指がとどいている塊は、すばやくついてくる。放った塊は勢いが長く残る
     b.vx += (vx - b.vx) * Math.min(1, 3 * dt);
   }
+  // 放る: はなす直前に指がとどいていた塊へ、指の勢いを足す
+  if (input.kick) for (let i = 0; i < N; i++) if (S.held && S.held[i]) { const b = B[i]; b.vs += clamp(input.kick.vs, -hd.kick, hd.kick); b.vx += clamp(input.kick.vx, -2.5, 2.5); b.fling = hd.flingT; }
+  S.held = B.map(b => gk[b.g] > 0.05);   // 粒ごと（塊の番号はこの刻みの終わりで振り直されるので）
   // つながった粒は、速さをわけあう（ひとつの塊として動く）
   for (const [key] of S.links) { const a = B[key >> 6], c = B[key & 63], m = (a.vs - c.vs) * 0.12, mx = (a.vx - c.vx) * 0.12; a.vs -= m; c.vs += m; a.vx -= mx; c.vx += mx; }
   // 進む。アーチがすぼまると、通れる幅がせまくなって、粒はまん中へ寄せられる
