@@ -1,7 +1,7 @@
 // 棚にならぶカートリッジ（あそびラボのオリジナルだけ）。frames = 棚の小さな画面に出すまで進めるフレーム
 // color = カセットのはじめの色（shelf.js の CART_COLORS から。本体の色とかぶらないもの）。keys = [コントローラーのボタン（PAD・A・B・START・SELECT）, そのソフトで何をするか]。押せるキーは main.js の BUTTON_KEYS
 // 名前・説明・キーの案内は TX(日本語, 英語)。ソフトの中の字も、ページのことばで かな／英語 になる（i18n.js の setRomLang）
-// ならびは カエル・ダンゴムシ・ミツバチ（2026-10-25 ユーザー。ミツバチは 2026-11-07 に足した）。恐竜かけっこ牧場 8bit は 2026-11-07 に棚から外した（ユーザー。ROM と src/dino-ranch/ は残す）
+// ならびは カエル・ダンゴムシ・トビウオ（2026-10-25 ユーザー。2026-11-07 にミツバチを足し、同じ日に「おもしろくない・ルールが簡単にわかるものを」でトビウオに入れかえた。ミツバチの ROM と src/bee-dance/ は残す）。恐竜かけっこ牧場 8bit は 2026-11-07 に棚から外した（ユーザー。ROM と src/dino-ranch/ は残す）
 import { TX } from './i18n.js';
 
 export const LIBRARY = [
@@ -19,10 +19,10 @@ export const LIBRARY = [
     frames: 70,
   },
   {
-    id: 'bee-dance', file: 'roms/bee-dance.nes', title: TX('ミツバチの おどり', 'Bee Dance'), color: '#d4a03a',
-    desc: TX('仲間のおしりふりダンスを読んで、花へ飛ぶ。まっすぐ進む向きが太陽から見た花の向き、ふる回数が遠さ。太陽は少しずつ動く。',
-      "Read your sister's waggle dance and fly to the flowers. Her straight run's angle from straight up is the flowers' angle from the sun; the waggles tell how far. The sun keeps moving."),
-    keys: [['PAD', TX('←→ むき・↑↓ とおさ', '←→ aim / ↑↓ distance')], ['A', TX('そとへ・とぶ', 'go out / fly')], ['START', TX('はじめる', 'start')]],
-    frames: 120,
+    id: 'flying-fish', file: 'roms/flying-fish.nes', title: TX('とべ! トビウオ', 'Flying Fish'), color: '#3f8a8c',
+    desc: TX('A をおすと上へ泳いで海から飛び出し、胸びれを広げて飛ぶ。はなすと しずむ。海の中はマグロ、空はグンカンドリ。どこまで にげられる?',
+      'Hold A to swim up, leap out and glide on your fins. Let go to dive. Tuna hunt below, frigatebirds above. How far can you get?'),
+    keys: [['A', TX('おす: のぼる・飛ぶ ／ はなす: しずむ', 'hold: rise / glide · let go: dive')], ['START', TX('はじめる・止める', 'start / pause')]],
+    frames: 150,
   },
 ];
