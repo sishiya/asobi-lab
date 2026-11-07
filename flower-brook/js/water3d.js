@@ -6,11 +6,12 @@ const inc = src => src.replace(/#include <(\w+)>/g, '\n#include <$1>\n');
 export const NR = 12, NBEAD = 32;   // 波紋の数・しずくの数（シェーダーの配列の長さ）
 
 // P(s, x) → 川の中の位置、widthAt(s) → 川はばの倍率、HALF → 川はばの半分
+const EXT = 1.22;   // 川の板は 水のはばの EXT 倍（外側は岸のしめった土。草とのあいだに明るい地面が見えないように）
 export function makeRiver({ P, HALF, widthAt, L, sun }) {
   const pos = [], uv = [], idx = []; let n = 0;
   for (let s = -400; s <= L + 60; s += 10) {
     const c = P(s), d = P(s + 1).sub(c).normalize(), nx = -d.z, nz = d.x, hw = HALF * 1.12 * widthAt(s);
-    for (const side of [-1, 1]) { pos.push(c.x + nx * side * hw, 0, c.z + nz * side * hw); uv.push(side < 0 ? 0 : 1, s / 100); }
+    for (const side of [-1, 1]) { pos.push(c.x + nx * side * hw * EXT, 0.004, c.z + nz * side * hw * EXT); uv.push(side < 0 ? 0 : 1, s / 100); }   // 岸の土の分だけ外へ広げる（ver. 0.8）
     if (n) idx.push(2 * n - 2, 2 * n - 1, 2 * n, 2 * n - 1, 2 * n + 1, 2 * n);
     n++;
   }
@@ -34,8 +35,8 @@ export function makeRiver({ P, HALF, widthAt, L, sun }) {
         for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) { vec2 g = vec2(x, y), o = h2(i + g); o = .5 + .45 * sin(tm + 6.2831 * o); float d = length(g + o - f); if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d; }
         return vec2(d1, d2 - d1); }
       void main(){
-        float e = abs(vUv.x - .5) * 2.;                 // 0＝まん中、1＝岸
-        float depth = 1. - e * e;
+        float e = abs(vUv.x - .5) * 2. * ${EXT};          // 0＝まん中、1＝岸（1 より外は岸の土）
+        float depth = max(0., 1. - e * e);
         vec2 q = vW.xz;
         // 水面のゆらぎ（流れの向き＝−z へ動く）
         vec2 fq = q + vec2(0., flow);
@@ -60,6 +61,7 @@ export function makeRiver({ P, HALF, widthAt, L, sun }) {
         vec2 ca = vor(q * 1.7 + wob * 4. + vec2(0., flow * .35), t * .8);
         float caus = pow(smoothstep(.09, 0., ca.y), 2.) * (.35 + .4 * depth) * (1. - cloud * .7);   // 光の網
         vec3 shallow = vec3(.50, .80, .82), deep = vec3(.14, .40, .60);
+        bed *= mix(1., .72, smoothstep(.55, .95, e));   // 岸に近い砂は しめって暗い（明るい帯がプラスチックの溝に見えたので）
         vec3 col = mix(bed, mix(shallow, deep, depth), .35 + .55 * depth);
         col += vec3(1., .98, .86) * caus * .1;
         col *= 1. - .38 * min(shade, 1.);   // しずくの影
@@ -70,10 +72,17 @@ export function makeRiver({ P, HALF, widthAt, L, sun }) {
         col = mix(col, vec3(.90, .93, .96), fr * .4);
         vec3 Hh = normalize(sun + V); float sp = pow(max(dot(N, Hh), 0.), 300.) * step(.72, n(q * 34. + vec2(t * 2., flow * 3.))) * (1. - cloud);   // まぶしい点は、こまかくまたたく粒に
         col += sp * 2. + rip * .12 + ring * .25;
-        // 岸の白いふち（波打ちぎわ）
-        float foam = smoothstep(.80, .9, e + (w1 - .5) * .12) * (1. - smoothstep(.95, 1., e));
-        col = mix(col, vec3(.97, .97, .93), foam * .55);
-        gl_FragColor = vec4(pow(max(col, 0.), vec3(2.2)), 1. - smoothstep(.93, 1., e));
+        // 岸（ver. 0.8）: 一様な白い帯はプラスチックの溝に見えたので、ぬれた砂の暗い帯と、とぎれとぎれの細い泡に
+        float eg = e + (w1 - .5) * .1 + (n(q * vec2(3., .8) + vec2(0., flow * .2)) - .5) * .06;
+        float wet = smoothstep(.74, .96, eg);
+        col = mix(col, vec3(.30, .36, .27) * (.85 + .3 * n(q * 7.)), wet * .6);
+        float foam = exp(-pow((eg - .85) * 38., 2.)) * smoothstep(.45, .7, n(q * vec2(5., 1.6) + vec2(0., flow * .9)));
+        col = mix(col, vec3(.95, .97, .95), foam * .6);
+        // 岸の土: 水ぎわは暗くしめって、草のほうへ苔の緑にうすれて消える
+        float soil = smoothstep(.96, 1.02, eg);
+        vec3 earth = mix(vec3(.26, .30, .20), vec3(.36, .46, .26), smoothstep(1., 1.2, e)) * (.8 + .4 * n(q * 9.)) * (.9 + .2 * max(sun.y, 0.));
+        col = mix(col, earth, soil);
+        gl_FragColor = vec4(pow(max(col, 0.), vec3(2.2)), 1. - smoothstep(1.08, 1.22, e + (n(q * 4.) - .5) * .1));
         #include <fog_fragment>
       }`),
   });

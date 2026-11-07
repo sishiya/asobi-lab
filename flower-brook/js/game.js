@@ -8,12 +8,12 @@ import { GRADE_NAME, drawGradeFlower } from './flowers.js';
 import * as A from './audio.js';
 
 const $ = id => document.getElementById(id);
-const VER = 'ver. 0.7';
+const VER = 'ver. 0.8';
 const world = makeWorld($('stage'));
 const q = new URLSearchParams(location.search);
 let seed = +(q.get('seed') || 1 + Math.floor(Math.random() * 9999));
 let S = newState(seed), mode = 'title', acc = 0, last = performance.now(), logAt = 0, endAt = 0;
-await world.ready;   // 写実の花・草を読み終えてから（js/real3d.js）
+await world.ready;   // 空の光（しずくに映す）を読み終えてから
 world.setCourse(S);
 
 // ---------- 保存（端末の中だけ） ----------
@@ -107,15 +107,13 @@ function start(sd) {
   toastT = 0; hintStep = tut < 3 ? Math.max(1, tut + 1) : 0; hintT = 0; setHint();
 }
 function togglePause() {
-  if (mode === 'play') { mode = 'pause'; show('menu', true); $('soundBtn').textContent = `音: ${A.soundOn() ? 'あり' : 'なし'}`; $('lookBtn').textContent = `見た目: ${lookName()}（押すと切りかえ）`; }
+  if (mode === 'play') { mode = 'pause'; show('menu', true); $('soundBtn').textContent = `音: ${A.soundOn() ? 'あり' : 'なし'}`; }
   else if (mode === 'pause') { mode = 'play'; show('menu', false); }
 }
 $('startBtn').onclick = () => { A.startAudio(); start(1 + Math.floor(Math.random() * 9999)); };
 $('pauseBtn').onclick = togglePause;
 $('resumeBtn').onclick = togglePause;
 $('titleBtn').onclick = toTitle;
-const lookName = () => world.look() === 'real' ? '写実' : '絵';
-$('lookBtn').onclick = () => { world.setLook(world.look() === 'real' ? 'classic' : 'real'); location.reload(); };   // 見くらべ（ver. 0.7）
 $('soundBtn').onclick = () => { A.setSound(!A.soundOn()); store.set('sound', A.soundOn()); $('soundBtn').textContent = `音: ${A.soundOn() ? 'あり' : 'なし'}`; };
 $('againBtn').onclick = () => start(1 + Math.floor(Math.random() * 9999));
 $('sameBtn').onclick = () => start(seed);

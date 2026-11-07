@@ -75,14 +75,14 @@ export function floraMaterial(sunDir, stems = true) {
     uniforms: { t: { value: 0 }, wind: { value: 1 }, touch: { value: new THREE.Vector4(0, 0, 0, 1) }, touch2: { value: new THREE.Vector4(0, 0, 0, 1) }, sun: { value: sunDir }, shape: { value: vec4s }, eye: { value: eyes }, stems: { value: stems ? 1 : 0 }, ...THREE.UniformsLib.fog },
     vertexShader: inc(`attribute float aPart; attribute float aKind; attribute float aOpen; attribute float aPhase; attribute vec3 aCol;
       uniform vec4 shape[${K.length}]; uniform vec3 eye[${K.length}]; uniform float stems;
-      varying vec3 vCol; varying vec3 vN; varying vec3 vW; varying float vU; varying float vPart; varying float vGlow;
+      varying vec3 vCol; varying vec3 vN; varying vec3 vW; varying float vU; varying float vPart; varying float vGlow; varying float vV;
       ${COMMON}
       #include <fog_pars_vertex>
       void main(){
         int ki = int(aKind + .5); vec4 sh = shape[ki];
         float open = aOpen, H = ${HEAD} * mix(.8, 1., open);
         vec3 head = vec3(0., H, 0.), up = vec3(0., 1., 0.);
-        vec3 p; vec3 n = up; vec3 col = aCol; vU = position.x; vPart = aPart; vGlow = 0.;
+        vec3 p; vec3 n = up; vec3 col = aCol; vU = position.x; vV = 0.; vPart = aPart; vGlow = 0.;
         float pale = 1. - smoothstep(0., .6, open);   // つぼみは色がうすい
         if (aPart < .5) {           // 花びら
           float i = position.z, u = position.x, v = position.y;
@@ -94,7 +94,8 @@ export function floraMaterial(sunDir, stems = true) {
           p = head + d * (r * cos(th)) + up * (r * sin(th)) + tg * (v * w) - up * abs(v) * w * .3 * open;
           n = normalize(-d * sin(th) + up * cos(th));
           if (i >= sh.x) p = head;    // この種類にない花びらはつぶす
-          col = mix(col * mix(.82, 1.06, u), vec3(.94, .95, .9), pale * .3);
+          col = mix(col * mix(.62, 1.1, smoothstep(0., .8, u)), vec3(.94, .95, .9), pale * .3);   // 根もとは濃く、先は明るく
+          vV = v;
           vGlow = ki == 3 ? open : 0.;
         } else if (aPart < 1.5) {   // しべ
           float a = position.z * 6.2832, rc = .045 + sh.y * .18 * open;
@@ -120,14 +121,16 @@ export function floraMaterial(sunDir, stems = true) {
         vec4 mvPosition = viewMatrix * wp; gl_Position = projectionMatrix * mvPosition;
         #include <fog_vertex>
       }`),
-    fragmentShader: inc(`uniform vec3 sun; varying vec3 vCol; varying vec3 vN; varying vec3 vW; varying float vU; varying float vPart; varying float vGlow;
+    fragmentShader: inc(`uniform vec3 sun; varying vec3 vCol; varying vec3 vN; varying vec3 vW; varying float vU; varying float vPart; varying float vGlow; varying float vV;
       #include <fog_pars_fragment>
       void main(){
         vec3 N = normalize(vN); if (!gl_FrontFacing) N = -N;
         vec3 V = normalize(cameraPosition - vW);
         float dif = max(dot(N, sun), 0.), back = max(dot(-N, sun), 0.);
-        vec3 c = vCol * (.62 + .5 * dif);
-        if (vPart < .5) c += vCol * back * .35 + vec3(1., .96, .88) * pow(1. - abs(dot(N, V)), 3.) * .18;   // 花びらは光が透ける・ふちが明るい
+        vec3 col0 = vCol;
+        if (vPart < .5) col0 *= 1. - .07 * pow(abs(sin(vV * 26.)), 6.) * smoothstep(.1, .5, vU);   // 花びらのうすい筋
+        vec3 c = col0 * (.62 + .5 * dif);
+        if (vPart < .5) c += col0 * col0 * back * .55 * (.4 + .6 * vU) + vec3(1., .96, .88) * pow(1. - abs(dot(N, V)), 3.) * .14;   // 花びらは光が透ける（先ほど うすいので明るく、色は濃く）・ふちが明るい   // 花びらは光が透ける・ふちが明るい
         c += vCol * vGlow * (.55 + .25 * vU);       // めずらしい花は内から光る（光のにじみが拾う）
         gl_FragColor = vec4(pow(c, vec3(2.2)), 1.);   // 色は画面の色で考え、ここで直線の色へ（OutputPass が画面の色にもどす）
         #include <fog_fragment>

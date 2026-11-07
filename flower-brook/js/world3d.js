@@ -8,7 +8,7 @@ import { floraMaterial, floraMesh, grassMaterial, grassMesh, gradeBouquet } from
 import { makeRiver } from './water3d.js';
 import { makePost } from './post3d.js';
 import { makeBlob } from './blob3d.js';
-import { loadReal, realMesh } from './real3d.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 const K = 0.04;                    // sim の長さ 1 → 3D の 0.04
 const HALF = 1.7;                  // 川はばの半分
@@ -105,11 +105,9 @@ export function makeWorld(parent) {
   const floraMat = floraMaterial(SUN), grassMat = grassMaterial(SUN), headMat = floraMaterial(SUN, false);
   for (const m of [floraMat, grassMat, headMat]) m.userData.keep = true;
   const post = makePost(renderer, scene, camera, coarse);
-  // 見た目（ver. 0.7）: 'real'＝写実の花・草（Poly Haven の実物、assets/flora-real.glb）／'classic'＝いままでの絵の花。一時停止メニューで切りかえ
-  let look = 'real'; try { look = localStorage.getItem('fb-look') || 'real'; } catch {}
-  let real = null, skyTex = null;   // skyTex: しずくに映す空の写真（写実のとき）
-  const ready = look === 'real' ? loadReal('./', renderer, coarse).then(r => { real = r; scene.environment = r.env; skyTex = r.sky; }).catch(e => { console.warn('写実の素材を読めなかったので、絵の花で', e); look = 'classic'; }) : Promise.resolve();
-  const REAL_K = 5.4;   // 実物（メートル）→ この世界の大きさ（花の株。花が小さく見えすぎないよう、実物より少し大きく）
+  // 空の光（Poly Haven の CC0 の HDRI を縮めた assets/sky-env.hdr）: しずくに本物の空を映す。写実の株（ver. 0.7）はユーザーの判断で外した（ver. 0.8）
+  let skyTex = null;
+  const ready = new RGBELoader().loadAsync('./assets/sky-env.hdr').then(t => { t.mapping = THREE.EquirectangularReflectionMapping; skyTex = t; }).catch(e => console.warn('空の光を読めなかったので、手作りの空で', e));
   const raycaster = new THREE.Raycaster(), ground0 = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const touches = [floraMat.uniforms.touch.value, grassMat.uniforms.touch.value], touches2 = [floraMat.uniforms.touch2.value, grassMat.uniforms.touch2.value];
   const tch = { x: 0, z: 0, s: 0, r: 1.2 }, hov = { x: 0, z: 0, s: 0, r: 0.9 };
@@ -179,11 +177,6 @@ export function makeWorld(parent) {
     const bankMeshes = [];
     for (let s0 = -400; s0 < L + 300; s0 += 200) {
       const part = bank.filter(f => -f.z / K >= s0 && -f.z / K < s0 + 200); if (!part.length) continue;
-      if (real) {   // 写実: 株ごとの InstancedMesh。f.m・f.j は その株の入った mesh と番号、f.rq・f.ks は向きと大きさ
-        const { group, place } = realMesh(real, part, REAL_K, floraMat.uniforms, R); built.add(group); bankMeshes.push(group);
-        part.forEach((f, j) => { const q = place[j]; f.m = q.m; f.j = q.j; f.rq = q.rot; f.ks = q.k / f.size; f.sy = q.sy; });
-        continue;
-      }
       const m = floraMesh(part, floraMat); m.computeBoundingSphere(); m.boundingSphere.radius += 1; built.add(m); bankMeshes.push(m);
       part.forEach((f, j) => { f.m = m; f.j = j; });
     }
@@ -191,20 +184,13 @@ export function makeWorld(parent) {
     const meadowMeshes = [];
     for (let s0 = -400; s0 < L + 300; s0 += 200) {
       const meadow = [], grass = [];
-      for (let i = 0, nM = real && coarse ? 100 : 170; i < nM; i++) {   // 写実のスマホは少なめ（重さ）
+      for (let i = 0; i < 170; i++) {
         const s = s0 + R() * 200, side = R() < 0.5 ? -1 : 1, off = 4.4 + R() * 8.5, c = P(s);
         meadow.push({ x: c.x + side * (HALF * 1.12 * widthAt(s) + off), z: c.z, kind: KINDS[Math.floor(R() * KINDS.length)], size: 1.0 + R() * 0.6, open: 1, phase: R() });
       }
-      for (let i = 0, nG = (coarse ? 650 : 1300) * (real ? 0.6 : 1); i < nG; i++) {
+      for (let i = 0, nG = coarse ? 650 : 1300; i < nG; i++) {
         const s = s0 + R() * 200, side = R() < 0.5 ? -1 : 1, off = 0.05 + R() * R() * 13, c = P(s);
         grass.push({ x: c.x + side * (HALF * 1.12 * widthAt(s) + off), z: c.z, size: 0.9 + R() * 0.8 - (off < 0.4 ? 0.4 : 0), phase: R() });
-      }
-      if (real) {   // 写実: 花畑は実物の株、草は実物の株（岸の近く）＋細い草の葉（遠く・すき間）
-        const tufts = []; for (let i = 0, nT = coarse ? 130 : 320; i < nT; i++) { const s = s0 + R() * 200, side = R() < 0.5 ? -1 : 1, off = 0.1 + R() * 11, c = P(s); tufts.push({ x: c.x + side * (HALF * 1.12 * widthAt(s) + off), z: c.z, size: 0.9 + R() * 0.7, grass: true, phase: R() }); }
-        for (const g of [realMesh(real, meadow, REAL_K, floraMat.uniforms, R).group, realMesh(real, tufts, 4.8, floraMat.uniforms, R).group]) { built.add(g); meadowMeshes.push(g); }
-        const gm = grassMesh(grass, grassMat); gm.computeBoundingSphere();   // 細い草の葉も残す（遠くだけにすると、地面がはげて見えた）
-        gm.boundingSphere.radius += 1; built.add(gm); meadowMeshes.push(gm);
-        continue;
       }
       for (const mm of [floraMesh(meadow, floraMat), grassMesh(grass, grassMat)]) { mm.frustumCulled = true; mm.computeBoundingSphere(); mm.boundingSphere.radius += 1; built.add(mm); meadowMeshes.push(mm); }
     }
@@ -241,9 +227,19 @@ export function makeWorld(parent) {
       const d = P(a.s + 1).sub(c); grp.rotation.y = Math.atan2(-d.x, -d.z);
       const hw = HALF * 1.2;
       const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(-hw, 0, 0), new THREE.Vector3(-hw * 0.95, 1.8, 0), new THREE.Vector3(0, 2.7, 0), new THREE.Vector3(hw * 0.95, 1.8, 0), new THREE.Vector3(hw, 0, 0)]);
-      grp.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.085, 8), new THREE.MeshLambertMaterial({ color: '#6f8f55' })));
-      const bl = []; for (let i = 0; i < 34; i++) { const p = curve.getPoint(i / 33); bl.push({ x: p.x + (R() - 0.5) * 0.12, y: p.y - 0.32, z: p.z + (R() - 0.5) * 0.2, kind: R() < 0.6 ? 2 : 1, size: 0.6 + R() * 0.3, open: 1, phase: R() }); }
-      grp.add(floraMesh(bl, floraMat));
+      // つる（ver. 0.8）: 1本の管は安っぽかったので、3本のつるがねじれて巻きあう形に。根もとほど太い
+      for (let k = 0; k < 3; k++) {
+        const pts = []; for (let i = 0; i <= 60; i++) { const u = i / 60, p = curve.getPoint(u), tg = curve.getTangent(u), nrm = new THREE.Vector3(-tg.y, tg.x, 0), ph = u * 9 + k * 2.094, rr = 0.07 + 0.03 * Math.sin(u * 23 + k);
+          pts.push(p.clone().addScaledVector(nrm, Math.cos(ph) * rr).add(new THREE.Vector3(0, 0, Math.sin(ph) * rr))); }
+        const vine = new THREE.CatmullRomCurve3(pts), tube = new THREE.TubeGeometry(vine, 120, 1, 6);
+        const pos = tube.attributes.position, cen = new THREE.Vector3();   // 太さ: 根もと 0.05 → 上 0.028（管は半径 1 で作り、中心からの向きを縮める）
+        for (let i = 0; i < pos.count; i++) { const seg = Math.floor(i / 7) / 120; vine.getPointAt(seg, cen); const v = new THREE.Vector3().fromBufferAttribute(pos, i).sub(cen); const r = 0.05 - 0.022 * Math.sin(seg * Math.PI); pos.setXYZ(i, cen.x + v.x * r, cen.y + v.y * r, cen.z + v.z * r); }
+        tube.computeVertexNormals();
+        grp.add(new THREE.Mesh(tube, new THREE.MeshStandardMaterial({ color: k ? '#5f7f45' : '#6d6a3f', roughness: 0.85 })));
+      }
+      // つるに咲く花（頭だけ。茎がぶらさがらないように）: 大小まぜて、つるのまわりに
+      const bl = []; for (let i = 0; i < 64; i++) { const u = R(), p = curve.getPoint(u), sz = 0.35 + R() * R() * 0.5, ang = R() * 6.283; bl.push({ x: p.x + Math.cos(ang) * 0.1, y: p.y + Math.sin(ang) * 0.1 - 0.55 * sz, z: p.z + (R() - 0.5) * 0.24, kind: [0, 1, 2, 4, 5][Math.floor(R() * 5)], size: sz, open: 0.8 + R() * 0.2, phase: R() }); }
+      grp.add(floraMesh(bl, headMat));
       // カーテン: 両岸から寄る花の房（立体の花。すぼまりで川のまん中へ寄る）
       const cur = []; for (let i = 0; i < 24; i++) cur.push({ side: i < 12 ? -1 : 1, k: i % 12, x: 0, y: 0, z: 0, kind: i % 3 ? 2 : 1, size: 0.55 + R() * 0.2, open: 1, phase: R() });
       const cm = floraMesh(cur, floraMat); cm.frustumCulled = false; grp.add(cm);
@@ -393,13 +389,10 @@ export function makeWorld(parent) {
         f.row = row;
       }
       const to = row === 2 ? 1 : row === 1 ? 0.45 : 0.06;   // つぼみ → 半分 → 満開。開きはなめらかに
-      if (Math.abs(f.o - to) > 0.002) { f.o += (to - f.o) * Math.min(1, dt * 2.2); const oa = f.m.geometry.attributes.aOpen; oa.array[f.j] = f.o; oa.needsUpdate = true; }
-      if (f.pop >= 0) {
-        const age = clock - f.pop, k = age < 0.7 ? 1 + 0.3 * Math.sin(age / 0.7 * Math.PI) : 1;
-        if (f.rq) { const ks = f.size * f.ks * k; _m.compose(_v.set(f.x, 0, f.z), f.rq, _s.set(ks, ks * f.sy, ks)); } else _m.makeScale(f.size * k, f.size * k, f.size * k).setPosition(f.x, 0, f.z);
-        f.m.setMatrixAt(f.j, _m); f.m.instanceMatrix.needsUpdate = true;
-        if (age >= 0.7) f.pop = -1;
-      }
+      // 開きは ばね（ω≈5.5、ζ≈0.45）: 花びらがひらいて少し行きすぎ、そっと戻る。大きさは変えない（ユーザー「たんなる拡縮もうそっぽい」）
+      f.ov = f.ov || 0;
+      if (Math.abs(f.o - to) > 0.002 || Math.abs(f.ov) > 0.002) { const h = Math.min(dt, 0.05); f.ov += ((to - f.o) * 30 - f.ov * 5) * h; f.o += f.ov * h; const oa = f.m.geometry.attributes.aOpen; oa.array[f.j] = f.o; oa.needsUpdate = true; }
+      if (f.pop >= 0 && clock - f.pop > 2) f.pop = -1;   // 遠くても ばねが落ちつくまでは動かす
     }
 
     // アーチ: すぼまりは決まりと同じ squeezeAt。雷で強く締まるときは色を赤むらさきに
@@ -551,6 +544,5 @@ export function makeWorld(parent) {
   function setFingerSim(fs, fx) { setFinger(P(fs, fx), true); }
   function holdCam(on) { camHold = !!on; }
   function hover(pt) { hov.on = !!pt; if (pt) { hov.x = pt.x; hov.z = pt.z; } }
-  function setLook(v) { try { localStorage.setItem('fb-look', v); } catch {} }
-  return { ready, look: () => look, setLook, setCourse, update, finish, resize, camera, pick, touch, hover, splash, wobble, setFinger, setFingerSim, holdCam, speed: () => speedSm, _state: state };   // _state はしらべ用
+  return { ready, setCourse, update, finish, resize, camera, pick, touch, hover, splash, wobble, setFinger, setFingerSim, holdCam, speed: () => speedSm, _state: state };   // _state はしらべ用
 }
