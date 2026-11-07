@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>8ビット互換機 物置</title>
+<script>/* 言語 ja／en（index.html と同じ決め方: ?lang= → 前に選んだもの（manabi-lang）→ ブラウザの言語） */(function(){var q=new URLSearchParams(location.search).get('lang'),s=null;try{s=localStorage.getItem('manabi-lang');}catch(e){}var l=q==='en'||q==='ja'?q:s==='en'||s==='ja'?s:/^ja/i.test(navigator.language||'ja')?'ja':'en';document.documentElement.lang=l;if(l==='en')document.title='8-bit Console: Storeroom';})();</script>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23141b2e'/><rect x='12' y='16' width='40' height='30' rx='4' fill='%230b0f1c' stroke='%237d8bb3' stroke-width='3'/><path d='M24 34h4v4h-4zM28 30h4v4h-4zM32 34h4v4h-4zM36 30h4v4h-4z' fill='%2388d800'/></svg>">
+<style>
+/* 物置: 棚から外したカセット。1段組みのカード（名前・ひとこと・外した日・ダウンロード）。見た目は launcher.html と同じ */
+:root{--bg:#0b0f1a;--ink:#e3e8f8;--muted:#8d97b8;--line:#27304d;--panel:#151c30;--acc:#c9b48a;color-scheme:dark}
+:root[lang=en] [lang=ja],:root:not([lang=en]) [lang=en]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif}
+main{max-width:680px;margin:0 auto;padding:48px 16px 64px;display:flex;flex-direction:column;gap:24px}
+.eyebrow{font-size:11px;letter-spacing:.2em;color:var(--muted)}
+h1{font-weight:800;font-size:28px;margin:6px 0 0;color:var(--acc)}
+.lead{margin:0;font-size:13px;line-height:1.8;color:var(--muted)}
+.list{display:flex;flex-direction:column;gap:12px;margin:0;padding:0;list-style:none}
+.card{display:grid;grid-template-columns:1fr auto;gap:4px 18px;align-items:center;padding:16px 18px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.card b{font-size:17px}
+.card p{margin:2px 0 0;font-size:13px;line-height:1.75;color:var(--muted)}
+.card .date{font-size:11px;color:var(--muted)}
+.dl{grid-row:1 / span 3;grid-column:2;grid-row-start:1;display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border:1px solid var(--acc);border-radius:999px;color:var(--acc);text-decoration:none;font-size:13px;font-weight:700;white-space:nowrap}
+.dl:hover{background:var(--acc);color:var(--bg)}
+.foot{font-size:13px;display:flex;gap:16px;flex-wrap:wrap}
+.foot a{color:var(--ink)}
+@media (max-width:520px){.card{grid-template-columns:1fr}.dl{grid-row:auto;grid-column:1;justify-self:start;margin-top:8px}}
+</style>
+</head>
+<body>
+<main>
+  <header><div class="eyebrow">RETRO-8BIT · STOREROOM</div><h1><span lang="ja">物置</span><span lang="en">Storeroom</span></h1></header>
+  <p class="lead"><span lang="ja">棚から外したカセットをしまってあります。ダウンロードしたファイルは、棚の「じぶんのカセット」から開くと遊べます。</span><span lang="en">Cassettes taken off the shelf are kept here. Open a downloaded file as "your own cassette" on the shelf to play it.</span></p>
+  <ul class="list" id="list"></ul>
+  <p class="foot"><a href="index.html"><span lang="ja">棚へもどる</span><span lang="en">Back to the shelf</span></a><a href="launcher.html"><span lang="ja">過去の版</span><span lang="en">Past versions</span></a></p>
+</main>
+<script>
+// しまったカセット（新しく外したものを上に足す）。file は roms/ の中。ROM を作りなおしたら ?v= の数を上げる
+var STORED = [
+  { file: 'bee-dance.nes', ja: 'ミツバチの おどり', en: 'Bee Dance', date: '2026-11-07',
+    dja: '仲間のおしりふりダンスを読んで、花へ飛ぶ。まっすぐ進む向きが太陽から見た花の向き、ふる回数が遠さ。',
+    den: "Read your sister's waggle dance and fly to the flowers: the straight run's angle is the flowers' angle from the sun, the waggles tell how far." },
+  { file: 'dino-ranch.nes', ja: '恐竜かけっこ牧場 8bit', en: 'Dino Ranch Race 8bit', date: '2026-11-07',
+    dja: '恐竜をかけ合わせて育て、100m のかけっこへ。3つの杯をめざす。牧場は電池に残る。',
+    den: 'Breed dinosaurs and race them over 100 m for three cups. The ranch is kept on the battery.' },
+];
+var en = document.documentElement.lang === 'en';
+document.getElementById('list').innerHTML = STORED.map(function (c) {
+  return '<li class="card"><b>' + (en ? c.en : c.ja) + '</b><p>' + (en ? c.den : c.dja) + '</p><span class="date">' + (en ? 'Taken off the shelf ' : '棚から外した日 ') + c.date + '</span>' +
+    '<a class="dl" href="roms/' + c.file + '?v=1" download="' + c.file + '">' + (en ? 'Download .nes' : '.nes をダウンロード') + '</a></li>';
+}).join('');
+</script>
+</body>
+</html>
