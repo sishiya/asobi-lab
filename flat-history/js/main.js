@@ -1,12 +1,12 @@
 // 操作・画面（タイトル・図版えらび・面・Esc メニュー）・ひとことの導き・くらべて再生
 // v009: 主人公が時空の大地を歩く（REDESIGN.md 段階1〜2）。v031: 形は標本台からではなく、パレットから直接置く
-import { LEVELS, REVEALS } from './level.js?v=100';
-import { DT, simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=100';
-import { drawSheet } from './sheet.js?v=100';
-import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=100';
-import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=100';
-import { makeHero, stepHero, groundAt } from './hero.js?v=100';
-import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=100';
+import { LEVELS, REVEALS } from './level.js?v=101';
+import { DT, simulate, sectionsAt, frameAt, restHeight, canPlace, canPlaceQuick, overlapsWalker, pieceDims, sectionRects } from './sim.js?v=101';
+import { drawSheet, DRAFT } from './sheet.js?v=101';
+import { createStage, misprintOf, drawPieceIcon } from './stage3d.js?v=101';
+import { kindName, look, HERO_LIST, RES_LIST, setHero, setRes } from './look/index.js?v=101';
+import { makeHero, stepHero, groundAt } from './hero.js?v=101';
+import { initAudio, startBgm, se, setVolumes, BGM_LIST, bgmId, setBgm, duckBgm } from './audio.js?v=101';
 
 const $ = (id) => document.getElementById(id);
 
@@ -423,6 +423,23 @@ function divergeT(a, b) {
 function applyDraft(redraw) {
   if (st.solved) stage.setDraft(Infinity, false, redraw);
   else stage.setDraft(st.hist === st.base ? Infinity : st.draftFrom, true, redraw);
+}
+// ?tune: 未確定のうすれ方を、画面の右下のつまみで試す（開発用。v102）
+if (new URLSearchParams(location.search).has('tune')) {
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;right:12px;bottom:84px;z-index:50;background:rgba(10,30,26,.92);color:#f3e6c4;padding:10px 14px;border:1px solid #c9952e;font:13px system-ui;line-height:1.9';
+  const row = (key, label, min, max, step) => {
+    const r = document.createElement('label'); r.style.display = 'block';
+    r.innerHTML = `${label} <input type="range" min="${min}" max="${max}" step="${step}" value="${DRAFT[key]}" style="width:140px;vertical-align:middle"> <b>${DRAFT[key]}</b>`;
+    const inp = r.querySelector('input'), out = r.querySelector('b');
+    inp.addEventListener('input', () => { DRAFT[key] = +inp.value; out.textContent = inp.value; if (L) applyDraft(true); });
+    ['keydown', 'pointerdown'].forEach((ev) => inp.addEventListener(ev, (e) => e.stopPropagation()));
+    box.appendChild(r);
+  };
+  row('hold', 'うすれはじめ（秒）', 0, 3, 0.1);
+  row('fade', '消えきるまで（秒）', 2, 14, 0.5);
+  row('pow', '曲線（1＝一定、2＝あとで一気に）', 0.5, 4, 0.1);
+  document.body.appendChild(box);
 }
 function recompute(fromT) {
   st.solved = false;
