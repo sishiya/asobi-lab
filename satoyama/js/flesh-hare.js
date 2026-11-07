@@ -37,11 +37,14 @@ export function hareFurColor(part, p, n, H) {
   const s = Math.sin(p[0] * 431 + p[1] * 277) * Math.sin(p[2] * 389 + p[0] * 151);
   return c.map(v => v * (0.88 + 0.18 * s)); // 差し毛（毛先の黒と黄土のまだら）
 }
-// 見た目の関節の範囲（rad、生まれたときの角度から。＋で先の骨が前・上へ。向きは tools/jointsign.mjs で測った）
+// 見た目の関節の範囲（rad、生まれたときの角度から。＋で先の骨が前・上へ。向きは tools/jointsign.mjs で測った）。axis 'x' は横へ開く向き
 // ひざ −0.3 曲げ〜＋1.8 のばす、かかと −2.2 のばす〜＋0.3 曲げ、ひじ −0.1 のばす〜＋1.8 曲げ（前足を前へたたむ）、手首 −1.4 曲げ（足先をうしろへたたむ）〜＋0.15 そらす
 export function hareBends(H) {
   const P = H.parts, out = [];
   for (const L of ['L', 'R']) out.push(
+    // 横へ開くのは少しだけ（物理の横の反射は足を大きく開くことがあり、前足が横へ張り出して見えた）
+    { parent: 'pelvis', child: 'thigh' + L, pivot: P['thigh' + L].a, axis: 'x', min: -0.12, max: 0.12, chain: ['shank' + L, 'hfoot' + L] },
+    { parent: 'chest', child: 'uarm' + L, pivot: P['uarm' + L].a, axis: 'x', min: -0.12, max: 0.12, chain: ['farm' + L, 'ffoot' + L] },
     { parent: 'thigh' + L, child: 'shank' + L, pivot: P['shank' + L].a, min: -0.3, max: 1.8, chain: ['hfoot' + L] },
     { parent: 'shank' + L, child: 'hfoot' + L, pivot: P['hfoot' + L].a, min: -2.2, max: 0.3 },
     { parent: 'uarm' + L, child: 'farm' + L, pivot: P['farm' + L].a, min: -0.1, max: 1.8, chain: ['ffoot' + L] },

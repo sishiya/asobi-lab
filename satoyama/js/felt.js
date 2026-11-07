@@ -22,14 +22,16 @@ const mat3 RA = mat3(0.36, 0.48, -0.8, -0.8, 0.6, 0.0, 0.48, 0.64, 0.6), RB = ma
 float fiber(vec3 p){ vec3 q = RA * p, r = RB * p; float a = 1.0 - abs(n3(q * vec3(1.0, 1.0, 3.0)) * 2.0 - 1.0), b = 1.0 - abs(n3(r * vec3(1.0, 3.0, 1.0) + 7.1) * 2.0 - 1.0), c = 1.0 - abs(n3((RA * r) * vec3(3.0, 1.0, 1.0) + 3.7) * 2.0 - 1.0);
   return max(max(pow(a, 6.0), pow(b, 6.0)), pow(c, 6.0)); }`;
 // 網には fluff（毛羽の高さ 0..1）と wet（ぬれ 0..1）の点ごとの数がいる。rest＝生まれたときの位置（骨に貼った皮で模様が動かないように）
-export function feltify(mat, { shell = 0, len = 0.006, freq = 260, rest = true } = {}) {
-  mat.userData.u = { uShell: { value: shell }, uLen: { value: len }, uFreq: { value: freq }, uWetAll: { value: 0 } };
+// breath＝呼吸のふくらみ（m、体ごとに1つの数をすべての殻で分ける）。網の点ごとの重み breathW をかける
+const NO_BREATH = { value: 0 };
+export function feltify(mat, { shell = 0, len = 0.006, freq = 260, rest = true, breath = NO_BREATH } = {}) {
+  mat.userData.u = { uShell: { value: shell }, uLen: { value: len }, uFreq: { value: freq }, uWetAll: { value: 0 }, uBreath: breath };
   mat.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, mat.userData.u);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
-      uniform float uShell, uLen; attribute float fluff, wet; ${rest ? 'attribute vec3 rest;' : ''} varying vec3 vRest; varying float vFluff, vWet;`)
+      uniform float uShell, uLen, uBreath; attribute float fluff, wet, breathW; ${rest ? 'attribute vec3 rest;' : ''} varying vec3 vRest; varying float vFluff, vWet;`)
       .replace('#include <skinning_vertex>', `#include <skinning_vertex>
-      vFluff = fluff; vWet = wet; vRest = ${rest ? 'rest' : 'position'}; transformed += normalize(objectNormal) * uShell * uLen * fluff;`);
+      vFluff = fluff; vWet = wet; vRest = ${rest ? 'rest' : 'position'}; transformed += normalize(objectNormal) * (uShell * uLen * fluff + breathW * uBreath);`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
       uniform float uShell, uFreq, uWetAll; varying vec3 vRest; varying float vFluff, vWet; ${NOISE}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
@@ -96,11 +98,17 @@ export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], 
     speck[q] = 0.5 + 0.5 * Math.sin(p[0] * 517 + p[2] * 263) * Math.sin(p[1] * 331 - p[0] * 197); // 泥のはねのまだら
   } }
   const baseF = flf.slice(); // 毛羽のもとの高さ（目のまわりは短い）
+  // 呼吸の重み: 胸がいちばん、腰は前ほど。背より脇腹と腹がふくらむ
+  const bw = new Float32Array(nv), pa = H.parts.pelvis;
+  { const n = geo.attributes.normal; for (let q = 0; q < nv; q++) { const part = SK.part[q], x = SK.position[q * 3];
+    const w = part === 'chest' ? 1 : part === 'pelvis' ? Math.max(0, Math.min(1, (x - pa.a[0]) / (pa.b[0] - pa.a[0]))) * 0.7 : 0;
+    bw[q] = w * (0.35 + 0.65 * Math.max(0, Math.min(1, 0.5 - 0.6 * n.getY(q)))); } }
+  geo.setAttribute('breathW', new THREE.BufferAttribute(bw, 1));
   geo.setAttribute('wet', new THREE.BufferAttribute(wetA, 1)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('fluff', new THREE.BufferAttribute(flf, 1));
   const bones = SK.bodies.map(b => { const bn = new THREE.Bone(), t = b.translation(); bn.position.set(t.x, t.y, t.z); return bn; });
   const rig = new THREE.Group(); bones.forEach(b => rig.add(b)); scene.add(rig); rig.updateMatrixWorld(true);
   const skeleton = new THREE.Skeleton(bones), meshes = [];
-  const furMat = shell => feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.7, sheenRoughness: 0.8, sheenColor }), { shell, len: 0.007, freq: 330 });
+  const breathU = { value: 0 }, furMat = shell => feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.7, sheenRoughness: 0.8, sheenColor }), { shell, len: 0.007, freq: 330, breath: breathU });
   for (let s = 0; s <= shellsN; s++) {
     const m = new THREE.SkinnedMesh(geo, furMat(s / shellsN)); m.bind(skeleton, new THREE.Matrix4()); m.frustumCulled = false;
     m.castShadow = s === 0; m.receiveShadow = true; scene.add(m); meshes.push(m);
@@ -123,18 +131,21 @@ export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], 
   // 見た目だけの関節の範囲（opt.bends）: 物理の骨がまれに本物では曲がらない向きへ折れても、皮は本物の範囲で描く（GAME.md 9.7。物理と学習はそのまま）
   const bi = part => SK.bodies.indexOf(H.parts[part].body);
   const bendList = bends.map(b => ({ ...b, pi: bi(b.parent), ci: bi(b.child), chain: (b.chain || []).map(bi), piv: new THREE.Vector3(...b.pivot).sub(bones[bi(b.child)].position) }));
-  const _q = new THREE.Quaternion(), _r = new THREE.Quaternion(), _rz = new THREE.Quaternion(), _pw = new THREE.Vector3(), _v = new THREE.Vector3(), Z = new THREE.Vector3(0, 0, 1);
+  const _q = new THREE.Quaternion(), _r = new THREE.Quaternion(), _rz = new THREE.Quaternion(), _pw = new THREE.Vector3(), _v = new THREE.Vector3(), Z = new THREE.Vector3(0, 0, 1), XA = new THREE.Vector3(1, 0, 0);
   function clampBends() {
     for (const b of bendList) {
       const P = bones[b.pi], C = bones[b.ci], rel = _q.copy(P.quaternion).invert().multiply(C.quaternion);
-      const th = 2 * Math.atan2(rel.z, rel.w), a = Math.atan2(Math.sin(th), Math.cos(th)), c = Math.max(b.min, Math.min(b.max, a));
+      const X = b.axis === 'x', th = 2 * Math.atan2(X ? rel.x : rel.z, rel.w), a = Math.atan2(Math.sin(th), Math.cos(th)), c = Math.max(b.min, Math.min(b.max, a));
       if (c === a) continue;
       _pw.copy(b.piv).applyQuaternion(C.quaternion).add(C.position); // 関節の点（世界）
-      const qc2 = C.quaternion.clone().multiply(_rz.setFromAxisAngle(Z, c - a)), R = _r.copy(qc2).multiply(_q.copy(C.quaternion).invert());
+      // z＝前後の曲げ（先の骨のまわり）、x＝横へ開く（親の骨のまわり。股と肩は 横へ開く→前後に振る の順につながっている）
+      const qc2 = X ? _rz.setFromAxisAngle(XA, c - a).premultiply(P.quaternion).multiply(_q.copy(P.quaternion).invert()).multiply(C.quaternion) : C.quaternion.clone().multiply(_rz.setFromAxisAngle(Z, c - a));
+      const R = _r.copy(qc2).multiply(_q.copy(C.quaternion).invert());
       for (const k of [b.ci, ...b.chain]) { const B = bones[k]; B.position.copy(_v.copy(B.position).sub(_pw).applyQuaternion(R).add(_pw)); if (k !== b.ci) B.quaternion.premultiply(R); }
       C.quaternion.copy(qc2);
     }
   }
+  const bst = { ph: 0, tired: 0, flick: 2 }; // 呼吸の位相・息の上がり・次に耳を動かすまでの秒
   const yawQ = new THREE.Quaternion(); // 起き直した体は、向き yaw で作られている（剛体は回っていないが、骨の並びが回っている）
   const lastV = new THREE.Vector3(), lastP = new THREE.Vector3(), wp = new THREE.Vector3(), iq = new THREE.Quaternion(); let first = true;
   return {
@@ -166,6 +177,13 @@ export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], 
     },
     // 起き直した体（同じ作りの新しい剛体）に付けかえる
     rebind(H2, yaw = 0) { SK.bodies.forEach((_, i) => (SK.bodies[i] = H2.parts[bodyKey[i]].body)); yawQ.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -yaw); first = true; }, // yaw＝buildHare に渡した向き
+    // 待機のしぐさ: 呼吸（休むと1秒に1回ほど、走ったあとは速く深く、だんだん落ち着く）と、止まっているときの耳のぴくつき（音を聞く）
+    // effort＝いまの走る強さ 0..1（g）。数は見立て（ノウサギの安静時の呼吸の数は見つかっていない。飼いウサギは1分に30〜60回）
+    breathe(dt, effort = 0) {
+      bst.tired = Math.min(1, Math.max(0, bst.tired + (effort > 0.3 ? effort * 0.25 : 0) * dt)) * Math.exp(-(effort > 0.3 ? 0 : dt / 8));
+      bst.ph += dt * Math.PI * 2 * (0.9 + 1.8 * bst.tired); breathU.value = (0.003 + 0.003 * bst.tired) * (0.5 - 0.5 * Math.cos(bst.ph));
+      if (effort < 0.1 && earList.length && (bst.flick -= dt) < 0) { const e = earList[Math.random() < 0.5 ? 0 : 1]; e.vb += (Math.random() < 0.5 ? -1 : 1) * 9; e.va += (Math.random() - 0.3) * 6; bst.flick = 1.5 + Math.random() * 5; }
+    },
     setVisible(b) { meshes.forEach(m => (m.visible = b)); headBone.children.forEach(c => (c.visible = b)); },
   };
 }

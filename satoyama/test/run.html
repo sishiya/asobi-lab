@@ -207,7 +207,7 @@ invBtn.addEventListener('pointerdown', e => { e.stopPropagation(); invY = !invY;
 const stBtn = document.getElementById('steady'), showSt = () => { stBtn.textContent = steady ? '揺れ おさえる' : '揺れ そのまま'; stBtn.classList.toggle('on', steady); };
 stBtn.addEventListener('pointerdown', e => { e.stopPropagation(); steady = !steady; showSt(); save('satoyama.steady', steady ? '1' : '0'); }); showSt();
 function render(dt) {
-  FB.pose(dt); if (frame++ % 3 === 0) FB.paint(D);
+  FB.pose(dt); FB.breathe(dt, fallT ? 0 : gNow); if (frame++ % 3 === 0) FB.paint(D);
   const P = pose(H); stepRain(dt, P);
   // カメラが見る点: おさえるときは、高さは地面からの平らな高さに、前後左右もゆっくり追う
   const gy = height(P.x, P.z), k = Math.min(1, dt * 60);
