@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・主人公・置いた形・置き場所のゴースト・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=96';
-import { radialTexture } from './look/util.js?v=96';
-import { S, drawSheet, drawWalker, DRAFT_FADE } from './sheet.js?v=96';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=96';
-import { groundAt } from './hero.js?v=96';
+import { look, kindColor } from './look/index.js?v=97';
+import { radialTexture } from './look/util.js?v=97';
+import { S, drawSheet, drawWalker, DRAFT_FADE, draftEase } from './sheet.js?v=97';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=97';
+import { groundAt } from './hero.js?v=97';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -577,7 +577,7 @@ export function createStage(canvas, L) {
         if (sh.t <= draft.from || sh.t > L.T) continue;
         const fr = hist.frames[Math.round(sh.t / DT)];
         if (!fr) continue;
-        const k = Math.min(1, (sh.t - draft.from) / DRAFT_FADE);
+        const k = draftEase(Math.min(1, (sh.t - draft.from) / DRAFT_FADE));
         const items = [];
         if (fr.st !== 'dead' || fr.faint != null) items.push([fr.x, fr.y, (g) => drawWalker(g, L, fr, 1, sh.t)]);
         for (const o of fr.others || []) if (o.st !== 'dead' || o.faint != null) items.push([o.x, o.y, (g) => drawWalker(g, L, o, 1, sh.t)]);
