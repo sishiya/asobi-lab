@@ -1,11 +1,11 @@
 // 3Dの舞台: ページの束（時空の大地）・主人公・置いた形・置き場所のゴースト・世界線・描きかえの波・追いかけるカメラ
 // 3Dの向き: X＝2D世界の横、Y＝高さ、Z＝ -時間（前＝奥＝未来。カメラは主人公のうしろ＝昔の側から見る。ページは表から見える）
 import * as THREE from 'three';
-import { look, kindColor } from './look/index.js?v=97';
-import { radialTexture } from './look/util.js?v=97';
-import { S, drawSheet, drawWalker, DRAFT_FADE, draftEase } from './sheet.js?v=97';
-import { sectionsAt, DT, pieceDims } from './sim.js?v=97';
-import { groundAt } from './hero.js?v=97';
+import { look, kindColor } from './look/index.js?v=98';
+import { radialTexture } from './look/util.js?v=98';
+import { S, drawSheet, drawWalker, DRAFT_FADE, draftEase } from './sheet.js?v=98';
+import { sectionsAt, DT, pieceDims } from './sim.js?v=98';
+import { groundAt } from './hero.js?v=98';
 
 export const GAP = 1.0;
 // だめな歴史なら、つまずいた秒（そこから先は刷りそこない）
@@ -507,15 +507,15 @@ export function createStage(canvas, L) {
       for (int i = 0; i < 12; i++) { float a = float(i) * 0.5236; vec2 d = vec2(cos(a), sin(a)); hal += texture2D(map, uv + d * 0.018).a * 0.6 + texture2D(map, uv + d * 0.04).a * 0.4; }
       hal /= 12.0;
       float n = fbm(vUv * 6.0 + vec2(uSeed * 3.1, -uTime * 0.18));
-      float thr = k * 0.58;
+      float thr = k * 1.02;                       // k=1 で、ぜんぶほどけて消えきる（v098）
       float keep = smoothstep(thr - 0.015, thr + 0.05, n);
       float edge = k > 0.0 ? (1.0 - smoothstep(thr, thr + 0.09, n)) * keep : 0.0;
       vec3 gray = vec3(dot(c.rgb, vec3(0.3, 0.59, 0.11)));
       vec3 col = mix(c.rgb, mix(gray, vec3(0.62, 0.82, 0.78), 0.4), k * 0.85);
       vec3 glow = vec3(1.0, 0.84, 0.5);
       col = mix(col, glow, edge * 0.85);
-      float a = c.a * keep * (1.0 - 0.3 * k);
-      float ha = hal * (1.0 - c.a) * 0.55 * k * (0.75 + 0.25 * sin(uTime * 2.0 + uSeed * 5.0));
+      float a = c.a * keep * (1.0 - 0.5 * k);
+      float ha = hal * (1.0 - c.a) * 0.55 * min(k * 3.0, 1.0) * (1.0 - k) * 1.6 * (0.75 + 0.25 * sin(uTime * 2.0 + uSeed * 5.0));
       float alpha = clamp(a + ha, 0.0, 1.0);
       if (alpha < 0.01) discard;
       vec3 rgb = mix(glow, col, a / max(a + ha, 0.0001));
@@ -578,6 +578,7 @@ export function createStage(canvas, L) {
         const fr = hist.frames[Math.round(sh.t / DT)];
         if (!fr) continue;
         const k = draftEase(Math.min(1, (sh.t - draft.from) / DRAFT_FADE));
+        if (k >= 1) continue; // 消えきったページには、もう出さない
         const items = [];
         if (fr.st !== 'dead' || fr.faint != null) items.push([fr.x, fr.y, (g) => drawWalker(g, L, fr, 1, sh.t)]);
         for (const o of fr.others || []) if (o.st !== 'dead' || o.faint != null) items.push([o.x, o.y, (g) => drawWalker(g, L, o, 1, sh.t)]);
@@ -590,11 +591,11 @@ export function createStage(canvas, L) {
           gh.mesh.material.uniforms.uK.value = k;
           gh.mesh.material.uniforms.uSeed.value = (sh.t * 7.31 + x * 1.7) % 10;
           // 光のつぶ（うすれはじめてから。うすれるほど多く）
-          const cnt = k < 0.12 ? 0 : 1 + Math.round(k * 3);
+          const cnt = k < 0.12 || k > 0.95 ? 0 : 1 + Math.round(k * 3);
           for (let c = 0; c < cnt && m < MOTES; c++, m++) {
             const r = Math.abs(Math.sin(sh.t * 12.9 + c * 78.2 + x) * 43758.5) % 1;
             pos[m * 3] = x + (r - 0.5) * 0.9; pos[m * 3 + 1] = y + 0.2 + r * 0.6; pos[m * 3 + 2] = Z(sh.t) + 0.01;
-            ph[m] = (r * 7.3 + c * 0.37) % 1; ak[m] = 0.35 + 0.45 * k;
+            ph[m] = (r * 7.3 + c * 0.37) % 1; ak[m] = 0.9 * Math.sin(Math.PI * k);
           }
         }
       }

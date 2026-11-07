@@ -1,6 +1,6 @@
 // 1秒のページ（2D世界）の絵。空は透明にして、ページを重ねると地面が奥行きにのびて見えるようにする。
-import { look, kindColor } from './look/index.js?v=97';
-import { dizzyStars } from './look/ink.js?v=97';
+import { look, kindColor } from './look/index.js?v=98';
+import { dizzyStars } from './look/ink.js?v=98';
 
 export const S = 20; // 1マスのピクセル
 export const DRAFT_FADE = 5; // 未確定になってから、うすれきるまでの秒（v098 で 6→5。ユーザー「1秒くらい短く」）
@@ -83,9 +83,9 @@ function layer(W, H) {
 // 小窓など 2D の絵の中の未確定: ぼかし、色を抜き、金の光のにじみをまとわせて、うすれる（3D のページでは stage3d.js のシェーダーで描く）
 function unsure(g, src, W, H, t, k) {
   g.save();
-  g.globalAlpha = 1 - 0.5 * k;
+  g.globalAlpha = 1 - k; // 底で消えきる（v098）
   g.filter = `blur(${(0.9 * k).toFixed(2)}px) grayscale(${(0.85 * k).toFixed(2)}) sepia(${(0.3 * k).toFixed(2)})`;
-  g.shadowColor = `rgba(255,214,140,${(0.85 * k).toFixed(2)})`; g.shadowBlur = 9 * k;
+  g.shadowColor = `rgba(255,214,140,${(0.85 * Math.sin(Math.PI * k)).toFixed(2)})`; g.shadowBlur = 9 * k;
   g.drawImage(src, 0, 0);
   g.restore();
 }
