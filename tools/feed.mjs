@@ -1,8 +1,9 @@
-// feed.xml・feed-en.xml（RSS／Atom）を、入口の GAMES から作りなおす（まなびラボの _dev/tools/seo.mjs のフィードと同じ形）。
+// feed.xml・feed-en.xml（RSS／Atom）と sitemap.xml を、入口の GAMES から作りなおす（まなびラボの _dev/tools/seo.mjs のフィードと同じ形）。
 // 使い方: node tools/feed.mjs          … 書きかえる
 //         node tools/feed.mjs --check  … 書きかえずに、古いところがあれば知らせる（終了コード 1）
 // 入口のゲームの公開と更新を RSS リーダーへ知らせる。1本＝1件、更新日は GAMES の updated。保管庫のゲームは入れない。
 // 入口の head の <!-- feed -->〜<!-- /feed --> にフィードの場所も置く（RSS リーダーが入口の URL から見つけられるように）。
+// sitemap.xml は検索エンジン向け（入口と入口のゲーム、lastmod は updated）。Search Console には asobi-lab/sitemap.xml で送る。
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -65,9 +66,16 @@ function feed(lang) {
 write(join(root, 'feed.xml'), feed('ja'));
 write(join(root, 'feed-en.xml'), feed('en'));
 
+// sitemap.xml（入口と入口のゲーム。保管庫は noindex なので入れない）
+const urls = [{ loc: BASE, lastmod: latest }, ...GAMES.map(g => ({ loc: BASE + g.id + '/', lastmod: g.updated }))];
+write(join(root, 'sitemap.xml'), '<?xml version="1.0" encoding="UTF-8"?>\n'
+  + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+  + urls.map(u => `  <url>\n    <loc>${u.loc}</loc>\n    <lastmod>${u.lastmod}</lastmod>\n  </url>`).join('\n')
+  + '\n</urlset>\n');
+
 if (check) {
   if (stale.length) { console.log('古い（node tools/feed.mjs を走らせる）: ' + stale.map(rel).join(', ')); process.exit(1); }
-  console.log('feed: OK');
+  console.log('feed・sitemap: OK');
 } else {
   console.log(stale.length ? '書きかえた: ' + stale.map(rel).join(', ') : '変更なし');
 }
