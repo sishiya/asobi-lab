@@ -24,16 +24,17 @@ function tryGetup(v, at, d) {
   for (let k = 0; k < 288; k++) { B.drive(H, stand, t, 0, 0); world.step(); t += 1 / 240; }
   const P0 = pose(H); if (P0.up > 0.5) { world.free(); return null; } // 倒れなかった
   const dd = Math.sign(P0.roll) || d;
-  let up = 0, n = 0, tUp = null, spin = 0, s = 0, upMax = -1;
+  let up = 0, n = 0, tUp = null, spin = 0, s = 0, upMax = -1, stopAt = null, upSum = 0, upN = 0;
   for (let k = 0; k < 240 * 5.5; k++, s += 1 / 240) {
-    const done = driveGetup(H, q, s, dd); if (done) B.drive(H, stand, s, 0, 0); world.step();
-    if (k % 8 === 0) { const P = pose(H), w = H.parts.pelvis.body.angvel(); spin += Math.hypot(w.x, w.y, w.z); upMax = Math.max(upMax, P.up); if (tUp == null && P.up > 0.8) tUp = s; if (s > 5) { up += P.up; n++; } }
+    if (stopAt == null && s > 0.2 && k % 8 === 0 && pose(H).up > 0.85) stopAt = s; // 起きたら型をやめる
+    const done = driveGetup(H, q, s, dd, stopAt); if (done) B.drive(H, stand, s, 0, 0); world.step();
+    if (k % 8 === 0) { const P = pose(H), w = H.parts.pelvis.body.angvel(); spin += Math.hypot(w.x, w.y, w.z); upMax = Math.max(upMax, P.up); upSum += Math.max(0, P.up); upN++; if (tUp == null && P.up > 0.8) tUp = s; if (s > 5) { up += P.up; n++; } }
   }
   const P = pose(H), ok = up / n > 0.85 && P.y - height(P.x, P.z) > H.fallH;
   world.free();
-  return { ok, up: up / n, upMax, tUp, spin: spin / 660 };
+  return { ok, up: up / n, upMax, upAvg: upSum / upN, tUp, spin: spin / 660 };
 }
-const score = r => (r ? r.upMax + r.up + (r.ok ? 2 - 0.3 * (r.tUp ?? 4) : 0) - 0.03 * r.spin : 0); // とちゅうでいちばん起きた量にも点（最後に起きたかだけでは、少し起きた動きに点が入らず学べない）
+const score = r => (r ? 0.3 * r.upMax + 2 * r.upAvg + r.up + (r.ok ? 2 : 0) - 0.03 * r.spin : 0); // 起きていた時間の長さに点（いちばん起きた量だけだと、勢いよく転がり抜ける動きが得になった）。少し起きた動きにも点が入るよう upMax も少し
 
 let s0 = 7; const rnd = () => (s0 = (s0 * 16807) % 2147483647) / 2147483647, gauss = () => Math.sqrt(-2 * Math.log(rnd() + 1e-12)) * Math.cos(2 * Math.PI * rnd());
 let mean = GETUP_SEED.slice(), sd = mean.map(() => 0.2), best = null;

@@ -162,10 +162,19 @@ function wrap(v) {
   egg.poke = 1.4; // 巻いたら、刺して固める（とんとん）
 }
 const fade = (o, a) => o.traverse(x => { if (x.material) { x.material.opacity = a; const tr = a < 0.999; if (x.material.transparent !== tr) { x.material.transparent = tr; x.material.needsUpdate = true; } x.material.depthWrite = a > 0.5; } }); // 毛羽の層ごと。透けるのはうすれるときだけ（ふだん透けるとガラスのように見える。透けるかを変えたら絵の準備をしなおす）
+// 羊毛の束（原毛のひとつまみ）: 先が細くなる、少しうねった帯に、長い毛羽。楕円の玉だと毛に見えない（ユーザー）
+function makeWisp(col, L = 0.1, W = 0.022) { // 細長くうねった、ふっくらした束（薄い帯だと裏から見て毛羽が片側だけになり、毛虫のように黒く見えた）
+  const g = new THREE.SphereGeometry(1, 18, 10), p = g.attributes.position, ph = Math.random() * 6;
+  for (let i = 0; i < p.count; i++) { const x = p.getX(i) * L / 2, u = x / L + 0.5, taper = 0.35 + 0.65 * Math.sin(Math.PI * u); p.setXYZ(i, x, p.getY(i) * W * 0.32 * taper + Math.sin(u * 5 + ph) * 0.006, p.getZ(i) * W * 0.5 * taper + Math.sin(u * 3.1 + ph * 2) * 0.008); }
+  g.computeVertexNormals();
+  const m = feltMesh(g, col);
+  for (let k = 1; k <= 5; k++) m.add(new THREE.Mesh(g, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.9, sheenRoughness: 0.8, sheenColor: 0xf2e6d4 }), { shell: k / 5, len: 0.009, freq: 330, rest: false })));
+  m.castShadow = false; return m;
+}
 // ふさ: 細長い毛のかたまり。まわりの遠くから、うずを巻いて近づき、たまごの表に巻きつく
 function sendTufts(v) {
   for (let i = 0; i < 16; i++) {
-    const m = makeFeltBall(i % 4 ? v.col : v.pale, { r: 0.012 + 0.006 * Math.random(), sx: 3.2, sy: 0.6, sz: 0.8, seg: 12, fuzz: 3, len: 0.004 }), a0 = Math.random() * Math.PI * 2, r0 = 0.7 + Math.random() * 0.6;
+    const m = makeWisp(i % 4 ? v.col : v.pale, 0.07 + Math.random() * 0.06), a0 = Math.random() * Math.PI * 2, r0 = 0.7 + Math.random() * 0.6;
     fade(m, 0); scene.add(m);
     egg.tufts.push({ m, a0, r0, h0: 0.08 + Math.random() * 0.35, t: -i * 0.07, dur: 1.8 + Math.random() * 0.6, v });
   }
@@ -176,7 +185,7 @@ function stepEgg(dt) {
   for (const f of e.tufts) {
     f.t += dt; if (f.t < 0) continue; const k = Math.min(1, f.t / f.dur), s = k * k * (3 - 2 * k), r = f.r0 * (1 - s) + EGG_R * e.m.scale.x * 1.05 * s, a = f.a0 + s * 4.2;
     f.m.position.set(c.x + Math.cos(a) * r, c.y + f.h0 * (1 - s) + Math.sin(f.t * 3 + f.a0) * 0.02 * (1 - s), c.z + Math.sin(a) * r);
-    f.m.rotation.set(0, -a, 0.4 * Math.sin(f.t * 5)); fade(f.m, Math.min(1, f.t * 3) * (k > 0.9 ? (1 - k) * 10 : 1));
+    f.m.rotation.set(0.6 * Math.sin(f.t * 2 + f.a0), -a + Math.PI / 2, 0.3 * Math.sin(f.t * 4)); fade(f.m, Math.min(1, f.t * 3) * (k > 0.9 ? (1 - k) * 10 : 1)); // 進む向きにのびて、ひらひら
     if (k >= 1) { scene.remove(f.m); f.done = true; if (!f.v.arrived) { f.v.arrived = true; paintEgg(); wrap(f.v); } }
   }
   e.tufts = e.tufts.filter(f => !f.done);
@@ -214,7 +223,7 @@ function startHatch() {
   $('mode').textContent = 'もうすぐ…';
 }
 function stepHatch(dt) {
-  const e = egg; e.ht += dt; const t = e.ht;
+  const e = egg; e.ht += dt; const t = e.ht, c = eggAt();
   if (!e.petals.length) {
     // 拍: どくん・どくん（1秒に1回ほど、だんだん強く）。光は内からにじむ
     const beat = t < 4.2 ? Math.max(0, Math.sin(t * Math.PI * 2 * 0.9)) ** 8 + 0.6 * Math.max(0, Math.sin(t * Math.PI * 2 * 0.9 - 0.9)) ** 8 : 0, grow = Math.min(1, t / 3);
@@ -227,20 +236,29 @@ function stepHatch(dt) {
     // 花びらが開いて、巣に横たわる。子はひと息して耳を立てる
     const k = Math.min(1, (t - 4.2) / 2.4), s = 1 - (1 - k) ** 3; // ゆっくり、ほどけるように開く
     for (const p of e.petals) p.g.setRotationFromAxisAngle(p.axis, s * 1.05); // 開ききらず、花のおわんの形で止まる（寝かせると草の毛羽にうもれる）
-    e.light.intensity = Math.max(0, 0.8 * (1 - k) + 0.15);
-    for (const d of e.seeds) { d.m.position.addScaledVector(d.v, dt); d.v.y -= dt * 0.05; d.v.multiplyScalar(Math.exp(-dt * 0.8)); fade(d.m, Math.max(0, 1 - (t - 4.2) / 2.5)); }
+    const fl = Math.max(0, 1 - (t - 4.2) / 0.6); e.light.intensity = Math.max(0, 0.8 * (1 - k) + 0.15) + 1.6 * fl * fl; e.light.distance = 0.9 + 0.8 * fl; // 開く瞬間、光が一度ふわっと広がる
+    for (const d of e.seeds) { const u = t - 4.2; d.a += d.w * dt * Math.exp(-u * 0.7); d.r += d.sp * dt * Math.exp(-u * 1.2); d.m.position.set(c.x + Math.cos(d.a) * d.r, c.y + d.up * (1 - Math.exp(-u * 1.5)) - 0.03 * u * u * 0.3, c.z + Math.sin(d.a) * d.r); d.m.rotation.y += d.spin * dt; d.m.rotation.x += d.spin * 0.5 * dt; fade(d.m, Math.max(0, Math.min(1, 1 - (u - 1.6) / 1.8))); } // うずを巻いて舞い上がり、ゆっくり消える
     if (t > 4.6 && !cand.born) { cand.born = true; cand.firstBreath = 0; }
     if (t > 6.2 && $('adopt').hidden) { $('adopt').hidden = false; $('adoptNote').textContent = kid ? 'いまの子は野にかえります' : ''; $('candName').value = kidName(e.genes.look); $('mode').textContent = '声でたまごをつくる'; }
-    if (t > 8 && e.light) { scene.remove(e.light); e.light = null; e.seeds.forEach(d => scene.remove(d.m)); e.seeds = []; e.phase = 'born'; }
+    if (t > 8.5 && e.light) { scene.remove(e.light); e.light = null; e.seeds.forEach(d => scene.remove(d.m)); e.seeds = []; e.phase = 'born'; }
   }
 }
 // 花びらの形: たまごの表の一部を、先が丸い葉の形に切りとる（球をたてに割った形だと先がとがって、かけらに見える）
 function petalGeo(mid, half) {
-  const U = 10, Vn = 18, pos = [], idx = [];
-  for (let j = 0; j <= Vn; j++) { const v = j / Vn, th = Math.PI * (1 - 0.88 * v), w = Math.sin(Math.PI * Math.min(1, 0.08 + v * 0.95)) ** 0.55; // v＝下から先へ。幅は下と先で細く、先は丸く
-    for (let i = 0; i <= U; i++) { const ph = mid + (i / U * 2 - 1) * half * w; const R1 = EGG_R * 1.12; pos.push(-Math.cos(ph) * Math.sin(th) * R1 * EGG[0], Math.cos(th) * R1 * EGG[1], Math.sin(ph) * Math.sin(th) * R1 * EGG[2]); } } // 花びらはたまごより少し大きく開く
+  const U = 12, Vn = 26, pos = [], idx = [], fl = [], jag = Array.from({ length: Vn + 1 }, () => [0.8 + 0.35 * Math.random(), 0.8 + 0.35 * Math.random()]); // 左右のふちを別々にちぎる（はさみで切ったまっすぐな線にしない）
+  for (let j = 0; j <= Vn; j++) { const v = j / Vn, th = Math.PI * (1 - 0.88 * v * (0.94 + 0.08 * Math.random())), w = Math.sin(Math.PI * Math.min(1, 0.08 + v * 0.95)) ** 0.55; // v＝下から先へ。幅は下と先で細く、先は丸く
+    for (let i = 0; i <= U; i++) { const e = i / U * 2 - 1, ph = mid + e * half * w * (e < 0 ? jag[j][0] : jag[j][1]); fl.push(Math.abs(e) > 0.8 || j === Vn ? 2.2 : 1); const R1 = EGG_R * 1.12; pos.push(-Math.cos(ph) * Math.sin(th) * R1 * EGG[0], Math.cos(th) * R1 * EGG[1], Math.sin(ph) * Math.sin(th) * R1 * EGG[2]); } } // 花びらはたまごより少し大きく開く // ちぎれたふちは繊維がほつれて長い
   for (let j = 0; j < Vn; j++) for (let i = 0; i < U; i++) { const a = j * (U + 1) + i, b = a + U + 1; idx.push(a, b, a + 1, a + 1, b, b + 1); }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); g.userData.fluff = fl; return g;
+}
+// 生まれたての子は、足をたたんで背を丸め、頭を下げて伏せて丸まっている（ユーザー「生まれたときにすでに立っているのが違和感。横になってまるまっているといい」）
+// k＝丸まり 0..1。関節の向き: 背・首・頭は＋で前が上がる → 丸まりは −。股は＋で足先が前 → 後ろ足は前へ・前足は後ろへ。ひざは後ろ足 −・前足 ＋ でたたむ
+function driveCurl(H, k) {
+  const set = (j, v) => { if (j && Math.abs(v - j.target) > 1e-4) { j.target = v; j.jt.configureMotorPosition(v, j.k, j.d); } };
+  for (let i = 1; i < H.plan.seg; i++) { set(H.joints['sp' + i], -0.35 * k); set(H.joints['tw' + i], 0); }
+  for (let i = 0; i < H.plan.neck; i++) set(H.joints['nk' + i], -0.45 * k); set(H.joints['hd'], -0.4 * k);
+  for (let i = 0; i < H.plan.tail; i++) set(H.joints['tl' + i], -0.5 * k);
+  for (const pn of H.pairNames) for (const L of ['L', 'R']) { const h = pn === 'h'; set(H.joints['hip' + pn + L], (h ? 0.9 : -0.9) * k); set(H.joints['knee' + pn + L], (h ? -1.5 : 1.5) * k); set(H.joints['ank' + pn + L], (h ? 1.0 : -1.0) * k); set(H.joints['ab' + pn + L], 0); }
 }
 // 見せない子: 見えない層に移す（visible を消すと絵の準備がされない）
 function hideKid(FB, h) { const set = o => o.traverse(x => x.layers.set(h ? 1 : 0)); FB.meshes.forEach(set); set(FB.headBone); }
@@ -250,7 +268,7 @@ function openPetals() {
   const e = egg, c = eggAt(), base = new THREE.Vector3(c.x, ny + 0.03, c.z), N = 6, V = e.voices, h = c.y - base.y;
   for (let i = 0; i < N; i++) {
     const a0 = i / N * Math.PI * 2, g = petalGeo(a0 + Math.PI / N, Math.PI / N * 1.08); g.translate(0, h, 0);
-    const m = feltMesh(g, [1, 1, 1], { side: THREE.DoubleSide }), col = g.attributes.color, pos = g.attributes.position;
+    const m = feltMesh(g, [1, 1, 1], { side: THREE.DoubleSide }), col = g.attributes.color, pos = g.attributes.position; g.setAttribute('fluff', new THREE.Float32BufferAttribute(g.userData.fluff, 1));
     for (let k = 0; k < pos.count; k++) col.setXYZ(k, ...marble(V, pos.getX(k), (pos.getY(k) - h) / (EGG_R * EGG[1]), pos.getZ(k))); // 花びらにも声の色の帯（たまごと同じ）
     const grp = new THREE.Group(); grp.position.copy(base); grp.add(m); scene.add(grp);
     for (let k = 1; k <= 6; k++) { const sh = new THREE.Mesh(g, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.9, sheenRoughness: 0.8, sheenColor: 0xf2e6d4, side: THREE.DoubleSide }), { shell: k / 6, len: 0.014, freq: 330, rest: false })); grp.add(sh); } // 長い毛羽の層: 硬い殻でなく、ワタの実がはじけるような、ふかふかの羊毛
@@ -259,7 +277,12 @@ function openPetals() {
   }
   scene.remove(e.m);
   // ほどけた毛が、たんぽぽの綿毛のようにふわりと上がる
-  for (let i = 0; i < 16; i++) { const v = e.voices[i % e.voices.length], d = makeFeltBall(i % 3 ? [0.98, 0.96, 0.92] : v.pale, { r: 0.005 + 0.004 * Math.random(), seg: 10, fuzz: 3, len: 0.004 }); d.position.copy(c).add(new THREE.Vector3(0, 0.05, 0)); d.material.depthWrite = false; scene.add(d); const a = Math.random() * Math.PI * 2; e.seeds.push({ m: d, v: new THREE.Vector3(Math.cos(a) * 0.18, 0.1 + Math.random() * 0.15, Math.sin(a) * 0.18) }); } // 綿毛は低く、ふわりと広がって消える
+  for (let i = 0; i < 40; i++) { // 弾ける: 声の色の羊毛の束と白い綿毛が、うずを巻いて舞い上がり、ゆっくり降りながら消える（きらきらの粒は使わない）
+    const v = e.voices[i % e.voices.length], wisp = i % 2 === 0, d = wisp ? makeWisp(i % 4 ? v.col : v.pale, 0.05 + Math.random() * 0.05, 0.016) : makeFeltBall(i % 3 ? [0.98, 0.96, 0.92] : v.pale, { r: 0.006 + 0.006 * Math.random(), seg: 10, fuzz: 3, len: 0.005 });
+    const a = Math.random() * Math.PI * 2, sp = 0.15 + Math.random() * 0.35; d.position.copy(c).add(new THREE.Vector3(Math.cos(a) * 0.05, 0.03 + Math.random() * 0.08, Math.sin(a) * 0.05)); scene.add(d);
+    e.seeds.push({ m: d, a, r: 0.05, w: (Math.random() < 0.5 ? 1 : -1) * (1.2 + Math.random()), up: 0.25 + Math.random() * 0.45, sp, spin: Math.random() * 4 - 2 });
+  }
+  e.flash = 0; // 光は一度ふわっと強く
 }
 // かけた声を混ぜる: 声の数は声の長さで重みをつけた平均（声そのものは残さない）
 function mixGenes(V) {
@@ -285,7 +308,7 @@ function dropCand() {
 function stepNest(dt) {
   if (egg) stepEgg(dt);
   if (cand) {
-    const n = Math.round(dt * 240); for (let i = 0; i < n; i++) { if (i % 4 === 0) for (const f of cand.H.feet) f.down = !!contactPoint(f); cand.B.drive(cand.H, cand.q, nt, 0, 0); nestWorld.step(); nt += 1 / 240; }
+    const n = Math.round(dt * 240); for (let i = 0; i < n; i++) { if (i % 4 === 0) for (const f of cand.H.feet) f.down = !!contactPoint(f); if (cand.adopted) cand.B.drive(cand.H, cand.q, nt, 0, 0); else driveCurl(cand.H, 1); nestWorld.step(); nt += 1 / 240; }
     cand.FB.pose(dt);
     if (cand.firstBreath != null) { cand.firstBreath += dt; cand.FB.breathe(dt, cand.firstBreath < 2.5 ? 1 : 0); } // 最初のひと息は深く、だんだん落ち着く
   }

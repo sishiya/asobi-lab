@@ -24,7 +24,7 @@ export function kidPlan(g) {
   const legL = 0.075 * s * lerp(0.8, 1.25, G('legLen')) * lerp(1, 0.85, juv) * (pairs === 3 ? 0.85 : 1); // 足の1節（もも・すね）の長さ。太さとつり合う範囲
   const legR = Math.max(0.011, r * 0.32);
   const headR = 0.045 * s * lerp(1, 1.3, juv);
-  return { s, juv, seg, pairs, neck, tail, girth, r, segL, legL, legR, headR, fluff: G('fluff') };
+  return { s, juv, seg, pairs, neck, tail, girth, r, segL, legL, legR, headR, fluff: G('fluff'), twist: true, twistK: 3, twistM: 0.3 }; // ねじりのつなぎは胴の重さの3割を持たせる（20g のつなぎだと物理がぐらつき、歩けなくなった＝tools/twist-check.mjs） // twist＝背骨のねじりの関節（起き上がりに要る。関節をそろえてから歩き方を学ぶ＝2026-11-08 ユーザー）
 }
 
 // 体を作る。o＝足もとの地面の点、groundH＝地面の高さ、g＝遺伝子、yaw＝向き
@@ -48,7 +48,7 @@ export function buildKid(R, world, o, groundH, g, yaw = 0, over = null) { // ove
     return parts[name];
   };
   const ball = (name, p, r) => { const c = P(p), mass = 4 / 3 * Math.PI * r ** 3 * dens, body = world.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(...c).setAngularDamping(0.3)); world.createCollider(R.ColliderDesc.ball(r).setMass(mass).setFriction(0.5).setCollisionGroups(SELF), body); parts[name] = { body, c, r, mass }; return parts[name]; };
-  const node = (name, p, mass) => { const c = P(p), body = world.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(...c).setAngularDamping(0.3)); world.createCollider(R.ColliderDesc.ball(0.005).setMassProperties(mass, { x: 0, y: 0, z: 0 }, { x: NODE_I, y: NODE_I, z: NODE_I }, { x: 0, y: 0, z: 0, w: 1 }).setCollisionGroups(0), body); parts[name] = { body, c, r: 0.005, mass }; return parts[name]; };
+  const node = (name, p, mass, I = NODE_I) => { const c = P(p), body = world.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(...c).setAngularDamping(0.3)); world.createCollider(R.ColliderDesc.ball(0.005).setMassProperties(mass, { x: 0, y: 0, z: 0 }, { x: I, y: I, z: I }, { x: 0, y: 0, z: 0, w: 1 }).setCollisionGroups(0), body); parts[name] = { body, c, r: 0.005, mass }; return parts[name]; };
   const hinge = (name, pa, pb, j, k, d, lim, ax = [0, 0, 1]) => {
     const Jp = P(j), la = sub(Jp, pa.c), lb = sub(Jp, pb.c), A = rot(ax);
     const jt = world.createImpulseJoint(R.JointData.revolute({ x: la[0], y: la[1], z: la[2] }, { x: lb[0], y: lb[1], z: lb[2] }, { x: A[0], y: A[1], z: A[2] }), pa.body, pb.body, true);
@@ -66,7 +66,7 @@ export function buildKid(R, world, o, groundH, g, yaw = 0, over = null) { // ove
   // 背骨: 上下に曲げる（sp）。twist のときは、その前に体の軸まわりのねじり（tw）をはさむ（起き上がりのため。ロボットの研究で、背のねじりが起き上がりに要る力を大きく減らす。歩くときは 0 に保つ）
   for (let i = 1; i < K.seg; i++) {
     const jp = [x0 + i * K.segL, hipY, 0];
-    if (K.twist) { const tn = node('tw' + i, jp, 0.02); J['tw' + i] = hinge('tw' + i, torso[i - 1], tn, jp, kS, kS * 0.03, [-0.8, 0.8], [1, 0, 0]); J['sp' + i] = hinge('sp' + i, tn, torso[i], jp, kS, kS * 0.03, [-0.6, 0.6]); }
+    if (K.twist) { const tk = K.twistK ?? 1, nm = (K.twistM ?? 0) * M0 / K.seg, tn = node('tw' + i, jp, Math.max(0.02, nm), Math.max(NODE_I, 0.4 * nm * K.r * K.r)); J['tw' + i] = hinge('tw' + i, torso[i - 1], tn, jp, kS * tk, kS * tk * 0.03, [-0.8, 0.8], [1, 0, 0]); J['sp' + i] = hinge('sp' + i, tn, torso[i], jp, kS, kS * 0.03, [-0.6, 0.6]); }
     else J['sp' + i] = hinge('sp' + i, torso[i - 1], torso[i], jp, kS, kS * 0.03, [-0.6, 0.6]);
   }
   // 首と頭（首の節は角度を保つだけ）
@@ -106,6 +106,7 @@ export const KID_PARAMS = [
   ['hipA', 0, 0.9], ['hipO', -0.5, 0.5], ['kneeA', 0, 1], ['kneeO', -0.6, 0.6], ['kneeP', 0, 1], ['ankA', 0, 0.8], ['ankP', 0, 1],
   ['pairP', 0, 1], ['side', 0, 1], // pairP＝前の対の位相（後ろの対から）、side＝0.5 より上なら左右交互、下ならそろえる
   ['turn', -1, 1], ['pK', -2, 2], ['pD', -0.05, 0.05], ['rK', -2, 2], ['aK', -2, 2], ['aD', -0.03, 0.03],
+  ['abA', -0.3, 0.3], ['abP', 0, 1], ['abT', -0.3, 0.3], // 足の横の振り（ユーザー「左右に遊びができると動きの幅が広がりそう」）: abA＝外へ振る大きさ（左右は鏡）、abP＝前後の振りとのずれ、abT＝曲がるときに両足をそろって曲がる側へ振る。まんなか（0.5）で 0＝前からの歩き方はそのまま
 ];
 export const decodeKid = v => Object.fromEntries(KID_PARAMS.map(([k, a, b], i) => [k, a + (b - a) * cl(v[i] ?? 0.5)]));
 export const encodeKid = o => KID_PARAMS.map(([k, a, b]) => cl(((o[k] ?? (a + b) / 2) - a) / (b - a)));
@@ -121,7 +122,7 @@ export function driveKid(H, q, t, g = 1, turn = 0, pose) {
   const P = pose(H), dp = H.lastPitch == null ? 0 : (P.pitch - H.lastPitch) * 240, dr = H.lastRoll == null ? 0 : (P.roll - H.lastRoll) * 240; H.lastPitch = P.pitch; H.lastRoll = P.roll;
   const ab = Math.max(-0.45, Math.min(0.45, q.aK * P.roll + q.aD * dr)), fb = q.pK * P.pitch + q.pD * dp, alt = q.side > 0.5 ? 0.5 : 0;
   const set = (j, v) => { if (j && Math.abs(v - j.target) > 1e-4) { j.target = v; j.jt.configureMotorPosition(v, j.k, j.d); } };
-  for (let i = 1; i < H.plan.seg; i++) set(H.joints['sp' + i], g * q.spA * S(ph + q.spP));
+  for (let i = 1; i < H.plan.seg; i++) { set(H.joints['sp' + i], g * q.spA * S(ph + q.spP)); const tw = H.joints['tw' + i]; if (tw && !tw.walk) { tw.walk = true; tw.target = 0; tw.jt.configureMotorPosition(0, tw.k * 8, tw.d * 8); } } // 背骨のねじりは、歩くときは固く（起き上がるときだけゆるめる＝getup.js）。ゆるいままだと歩くのを覚えにくかった
   const n = H.pairNames.length;
   H.pairNames.forEach((pn, pi) => {
     const pp = n === 1 ? 0 : q.pairP * pi / (n - 1);
@@ -131,7 +132,8 @@ export function driveKid(H, q, t, g = 1, turn = 0, pose) {
       const ks = pn === 'h' ? 1 : -1; // 前の対はひざ（ひじ）の向きが逆なので、曲げる・のばすをそろえるため符号を変える
       set(H.joints['knee' + pn + L], ks * (q.kneeO + a * q.kneeA * S(p + q.kneeP)) + rl);
       set(H.joints['ank' + pn + L], a * q.ankA * S(p + q.ankP));
-      set(H.joints['ab' + pn + L], ab);
+      const sw = a * q.abA * S(p + q.abP) * -s + turn * q.abT * S(p + q.abP); // 横の振り: 外へ（左は +z＝ab の −、右は −z＝ab の ＋）と、曲がる側へ
+      set(H.joints['ab' + pn + L], Math.max(-0.6, Math.min(0.6, ab + sw)));
     }
   });
 }

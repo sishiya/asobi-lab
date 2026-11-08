@@ -11,12 +11,13 @@ export const decodeGetup = v => Object.fromEntries(GETUP_PARAMS.map(([k, a, b], 
 export const GETUP_SEED = GETUP_PARAMS.map(() => 0.5); // まんなか＝すべて 0（立つ姿勢）・各 0.7 秒ほど
 
 // 型で関節を動かす。t＝起き始めてからの秒、d＝倒れた向き（+1＝左が下、-1＝右が下。pose().roll の符号）
-export function driveGetup(H, q, t, d) {
+// stopAt＝体が起きた秒（そこで型をやめ、0.3 秒で立つ姿勢へなめらかにもどす。型を最後まで続けると、起きたあとまた倒れた＝tools/getup-diag.mjs）
+export function driveGetup(H, q, t, d, stopAt = null) {
   const ss = x => x * x * (3 - 2 * x), T1 = q.T1, T2 = q.T2, T3 = q.T3, T4 = q.T4;
   // 0→姿勢1（T1）→姿勢2（T2）→姿勢3（T3）→立つ（T4）。間はなめらかに
   const w = t < T1 ? [ss(t / T1), 0, 0] : t < T1 + T2 ? [1 - ss((t - T1) / T2), ss((t - T1) / T2), 0] : t < T1 + T2 + T3 ? [0, 1 - ss((t - T1 - T2) / T3), ss((t - T1 - T2) / T3)] : [0, 0, 1 - ss(Math.min(1, (t - T1 - T2 - T3) / T4))];
-  const v = name => w[0] * q[name + '1'] + w[1] * q[name + '2'] + w[2] * q[name + '3'];
-  const set = (j, val) => { if (j && Math.abs(val - j.target) > 1e-4) { j.target = val; j.jt.configureMotorPosition(val, j.k, j.d); } };
+  const st = stopAt == null ? 1 : 1 - ss(Math.min(1, (t - stopAt) / 0.3)), v = name => st * (w[0] * q[name + '1'] + w[1] * q[name + '2'] + w[2] * q[name + '3']);
+  const set = (j, val) => { if (j && (j.walk || Math.abs(val - j.target) > 1e-4)) { j.walk = false; j.target = val; j.jt.configureMotorPosition(val, j.k, j.d); } }; // walk＝歩くときの固さのまま → ゆるめる
   for (let i = 1; i < H.plan.seg; i++) { set(H.joints['sp' + i], v('sp')); set(H.joints['tw' + i], d * v('tw')); } // ねじり（背にねじりの関節がある体だけ）。＋で上になった側へ胸を起こす向き
   const n = H.pairNames.length;
   H.pairNames.forEach((pn, pi) => {
@@ -31,5 +32,5 @@ export function driveGetup(H, q, t, d) {
       set(H.joints['ab' + pn + L], -d * pick('ab', side));
     }
   });
-  return t > T1 + T2 + T3 + T4; // 型が終わった
+  return stopAt != null ? t > stopAt + 0.3 : t > T1 + T2 + T3 + T4; // 型が終わった
 }
