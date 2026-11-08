@@ -979,7 +979,7 @@ function loop(now) { const dt = Math.min(1 / 20, (now - last) / 1000); last = no
 requestAnimationFrame(loop);
 // ?prof で、こまごとの内訳を左下に出す（スマホの実機で、どこが重いか見るため。2 秒ごとに入れかえ）
 if (new URLSearchParams(location.search).has('prof')) { $('profBox').hidden = false; const tick = () => window.__voice.prof(2).then(o => { $('profBox').textContent = Object.entries(o).map(([k, v]) => `${k}  ${v}`).join(String.fromCharCode(10)); tick(); }); setTimeout(tick, 0); } // __voice ができてから
-window.__voice = { profSync(n = 300, gpu = true) { // 画面が裏にあってこまが進まないとき: こまを手で n 回まわして測る。gpu＝描いたあと GPU が終わるまで待つ（GPU の分も入る）
+window.__voice = { out: OUT, profSync(n = 300, gpu = true) { // 画面が裏にあってこまが進まないとき: こまを手で n 回まわして測る。gpu＝描いたあと GPU が終わるまで待つ（GPU の分も入る）
     PF.t = {}; PF.f = 0; PF.on = true; const gl = renderer.getContext(), px = new Uint8Array(4);
     for (let i = 0; i < n; i++) { const a = pfT(); step(1 / 60); render(1 / 60); if (gpu) { const b = pfT(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); pfA('GPU を待つ（描く分）', b); } pfA('こま全体', a); PF.f++; }
     PF.on = false; const o = { こま数: PF.f }; for (const k in PF.t) o[k] = +(PF.t[k] / PF.f).toFixed(2); return o; },

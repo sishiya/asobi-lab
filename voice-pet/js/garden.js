@@ -11,7 +11,7 @@ export const SEED_KINDS = [ // 藪ごとに1種
   { name: 'ヌスビトハギ', burr: [0.52, 0.42, 0.24], petal: [0.88, 0.6, 0.74], heart: [0.96, 0.86, 0.5] },
   { name: 'ミズヒキ', burr: [0.42, 0.34, 0.22], petal: [0.76, 0.22, 0.24], heart: [0.95, 0.85, 0.8] },
   { name: 'イノコヅチ', burr: [0.5, 0.56, 0.3], petal: [0.7, 0.8, 0.46], heart: [0.9, 0.9, 0.6] },
-  { name: 'チヂミザサ', burr: [0.56, 0.5, 0.3], petal: [0.97, 0.94, 0.88], heart: [0.72, 0.6, 0.8] },
+  { name: 'オニルリソウ', burr: [0.5, 0.48, 0.3], petal: [0.34, 0.56, 0.92], heart: [0.97, 0.93, 0.68] }, // 水色の花（白いチヂミザサは、草原と札の地になじんで見えなかった）
 ];
 const LEAF = [0.46, 0.6, 0.3], STEM = [0.42, 0.54, 0.28];
 function read() { try { const j = JSON.parse(localStorage.getItem(KEY)); if (j && Array.isArray(j.plants)) return j; } catch (e) { /* なし */ } return { plants: [] }; }

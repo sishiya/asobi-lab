@@ -1,16 +1,14 @@
-// 保管庫のサムネイル（thumbs/voice-pet.jpg、640×360）: 声のみほんで羊毛のたまごを育てて、ほどけて開く瞬間を撮る
+// 保管庫のサムネイル（thumbs/voice-pet.jpg、640×360）: タイトル画面（ロゴと羊毛のたまご）を撮る。押せない絵なので、ボタンは消す
 // node voice-pet/tools/thumb.mjs（ゲームのフォルダから）。撮影は tools/playwright の決まり（まっさらなブラウザ・音なし・手元のサーバーだけ）
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, serve, launch, safeContext } from '../../tools/playwright/lib.mjs';
 const server = await serve(), browser = await launch(), ctx = await safeContext(browser, server.origin, { width: 960, height: 540 });
 const page = await ctx.newPage();
-await page.goto(`${server.origin}/voice-pet/test/voice.html?notitle#birth`);
-await page.waitForFunction(() => window.__voice, null, { timeout: 60000 });
-await page.evaluate(() => { document.querySelectorAll('#bar, .tabs, #hud, #msg').forEach(e => (e.style.display = 'none')); });
-for (const v of ['high', 'rough', 'low', 'child', 'breathy', 'quick', 'high']) await page.evaluate(v => { __voice.sample(v); __voice.advance(2.6, false); }, v);
-await page.evaluate(() => { while (__voice.egg?.phase === 'gather') __voice.advance(0.2, false); while ((__voice.egg?.ht ?? 9) < 5.0) __voice.advance(0.05, false); __voice.advance(0.02); });
-await page.waitForTimeout(300);
+await page.goto(`${server.origin}/voice-pet/test/voice.html`);
+await page.waitForFunction(() => window.__voice && document.body.classList.contains('title'), null, { timeout: 60000 });
+await page.evaluate(() => { document.querySelectorAll('#menu, #startBtn').forEach(e => (e.style.display = 'none')); });
+await page.waitForTimeout(2500);
 const out = path.join(ROOT, 'thumbs', 'voice-pet.jpg');
 await page.screenshot({ path: out, type: 'jpeg', quality: 85, clip: { x: 0, y: 0, width: 960, height: 540 } });
 // 640×360 にちぢめる（ブラウザで読み直して canvas で）

@@ -8,7 +8,7 @@ import { makePractice } from '../js/practice.js';
 await R.init();
 const MAX = +(process.env.MAX || 250);
 for (const id of process.argv.slice(2).map(Number)) {
-  const g = kidGenes(id * 7919), B0 = kidBody(g, process.env.NOTWIST ? { twist: false } : null), B = process.env.NOLAT ? { ...B0, drive: (H, q, t, gg, tc) => driveKid(H, { ...q, abA: 0, abT: 0 }, t, gg, tc, pose) } : B0, P = makePractice(R, B, { seed: 5 }), t0 = Date.now();
+  const g = kidGenes(id * 7919), B0 = kidBody(g, process.env.NOTWIST ? { twist: false } : null), B = process.env.NOLAT ? { ...B0, drive: (H, q, t, gg, tc) => driveKid(H, { ...q, abA: 0, abT: 0 }, t, gg, tc, pose) } : B0, P = makePractice(R, B, { seed: +(process.env.SEED || 5) }), t0 = Date.now();
   let last = null, steadyGen = null; // 段が変わった直後は P.best が空なので、最後に返った歩きで
   while (!P.done && P.gen < MAX) { last = P.step(); if (P.steady && steadyGen == null) steadyGen = P.gen; }
   let ok = 0;

@@ -56,7 +56,7 @@ export function makeOuting(R, renderer, { onHome }) {
   const G = makeFeltGround(scene, { size: 16, n: 240, cx: 1.5, cz: 2.5 });
   const DIO = makeDiorama(renderer, scene, cam);
 
-  // 藪（目当て）: 光っている藪へ。着いたら次の藪が光る
+  // 藪（目当て）: どの藪でも、ふれるとひっつき虫がつく（でかけるごとに1か所1度）。まだふれていない藪は明るく、ふれると暗くなる（「光る藪だけ」はわかりづらかった）
   const BUSHES = [[3, 0.6], [4.5, 3.4], [1.5, 5.5], [-1.5, 3.5], [-0.5, 0.5]];
   const ball = new THREE.SphereGeometry(1, 20, 14); ball.setAttribute('wet', new THREE.BufferAttribute(new Float32Array(ball.attributes.position.count), 1)); ball.setAttribute('fluff', new THREE.BufferAttribute(new Float32Array(ball.attributes.position.count).fill(1), 1));
   const bushMat = (c, e = 0, shell = 0) => feltify(new THREE.MeshPhysicalMaterial({ color: c, roughness: 1, sheen: 0.8, sheenRoughness: 0.8, sheenColor: 0xdfe8b8, emissive: e ? 0x3a4a14 : 0, emissiveIntensity: e, alphaHash: true }), { shell, len: 0.012, freq: 120, rest: false });
@@ -70,8 +70,8 @@ export function makeOuting(R, renderer, { onHome }) {
     for (let k = 0; k < 9; k++) { const a = k * 2.4 + i, u = 0.25 + (k % 4) * 0.2, f = makeFeltBall(SEED_KINDS[i].petal, { r: 0.022, sy: 0.7, seg: 12, fuzz: 2, len: 0.005 }); f.position.set(Math.cos(a) * 0.3 * (1 - u * 0.4), 0.14 + u * 0.28, Math.sin(a) * 0.3 * (1 - u * 0.4)); f.userData.s = 0; f.userData.flower = true; g.add(f); } // 藪にその花が咲いている（どの花の藪かわかる）
     scene.add(g); return g;
   });
-  let goal = 0; const setGoal = i => bushes.forEach((b, k) => b.children.forEach(m => { if (!m.userData.flower) m.material = b.userData.mats[k === i ? 'on' : 'off'][m.userData.s]; }));
-  setGoal(goal);
+  const BUSH_TOUCH = 0.55, touched = BUSHES.map(() => false), lit = () => bushes.forEach((b, k) => b.children.forEach(m => { if (!m.userData.flower) m.material = b.userData.mats[touched[k] ? 'off' : 'on'][m.userData.s]; })); // BUSH_TOUCH＝藪の見た目のふち＋体の半分
+  lit();
 
   const world = makeField(R);
   let K = null, H = null, D = null, FB = null, Q = null; // いまでかけている子
@@ -157,7 +157,7 @@ export function makeOuting(R, renderer, { onHome }) {
         const P = pose(H), w = wish(P);
         gNow += Math.max(-3 / 60, Math.min(3 / 60, (w.go ? 1 : 0) - gNow));
         turnNow = w.go ? Math.max(-1, Math.min(1, wrap(w.yaw - P.yaw) * 1.5)) : 0;
-        const b = BUSHES[goal]; if (Math.hypot(P.x - b[0], P.z - b[1]) < 0.4) { reached++; stick(goal, 5); show(`${SEED_KINDS[goal].name} の ひっつき虫がついた`); goal = (goal + 1) % BUSHES.length; setGoal(goal); }
+        BUSHES.forEach((b, i) => { if (!touched[i] && Math.hypot(P.x - b[0], P.z - b[1]) < BUSH_TOUCH) { touched[i] = true; reached++; stick(i, 5); show(`${SEED_KINDS[i].name} の ひっつき虫がついた`); lit(); } });
         for (const f of H.feet) { const d = !!contactPoint(f), air = f.air || 0; f.air = d ? 0 : air + 1; if (d && !f.down) { addPrint(f, P); if (air >= 6) opts.onStep?.(f); } f.down = d; } // 足音は 0.1 秒より長く浮いたあとの1歩だけ
         if (clock - walkedT > 1.5) { walkedT = clock; walked.push([+P.x.toFixed(2), +P.z.toFixed(2)]); if (walked.length > 24) walked.shift(); } // 走った地面（帰ると、その子の練習の場所に入る）
         FB.mud.hit(stepDirt(D, H, 4 / 240, rainOn ? 1 : 0));
@@ -177,7 +177,7 @@ export function makeOuting(R, renderer, { onHome }) {
   let burrs = [], walked = [], walkedT = 0;
   function stick(kind, n) {
     const parts = Object.entries(H.parts).filter(([, p]) => p.r > 0.012 && p.a);
-    for (let i = 0; i < n && burrs.length < 24; i++) {
+    for (let i = 0; i < n && burrs.length < 25; i++) {
       const [name, p] = parts[(Math.random() * parts.length) | 0], a = Math.random() * 6.283, u = Math.random() - 0.5, ax = [p.b[0] - p.a[0], p.b[1] - p.a[1], p.b[2] - p.a[2]];
       const s = new THREE.Vector3(...ax).normalize(), v = new THREE.Vector3(...(Math.abs(s.y) > 0.7 ? [1, 0, 0] : [0, 1, 0])).cross(s).normalize(), w = s.clone().cross(v), o = v.multiplyScalar(Math.cos(a)).addScaledVector(w, Math.sin(a)).multiplyScalar(p.r * 1.25);
       const local = [ax[0] * u + o.x, ax[1] * u + o.y, ax[2] * u + o.z], m = makeBurr(kind);
@@ -244,7 +244,7 @@ export function makeOuting(R, renderer, { onHome }) {
     for (const b of bushes) { const c = _c.copy(b.position).add(_a.set(0, 0.15, 0)), u = Math.max(0, Math.min(1, c.clone().sub(a).dot(ab) / L2)), d = c.distanceTo(a.clone().addScaledVector(ab, u)); const want = (camMode === 'fps' ? c.distanceTo(a) < 0.45 : d < 0.4 && u > 0.05) ? 0.2 : 1; b.userData.fade += (want - b.userData.fade) * 0.15; for (const k2 of ['off', 'on']) for (const m of b.userData.mats[k2]) m.opacity = b.userData.fade; for (const m of b.children) m.visible = !m.userData.flower ? m.userData.s === 0 || b.userData.fade > 0.9 : b.userData.fade > 0.5; }
     sun.position.set(P.x + 3, 6, P.z + 2); sun.target.position.set(P.x, 0, P.z);
     DIO.render(blur, focus, camMode === 'fps' ? 0.2 : 0.3);
-    $('outHud').innerHTML = `<b>${K.name.replace(/[<>&]/g, '')}</b><br>${reached ? `藪 ${reached}` : '<small>光る藪へ</small>'}`;
+    $('outHud').innerHTML = `<b>${K.name.replace(/[<>&]/g, '')}</b><br>${reached ? `藪 ${reached}/${BUSHES.length}` : '<small>藪にふれよう</small>'}`;
   }
   const opts = {};
   return {
@@ -257,7 +257,7 @@ export function makeOuting(R, renderer, { onHome }) {
       FB = makeFeltBody(scene, H, kidShapes(H), { furColor: lookFur(saved.genes.look, H), face: lookFace(saved.genes.look, H.plan, HARE_FACE) });
       FB.mud.blobs = (mudBlobs || []).map(b => ({ ...b })); burrs = []; walked = []; walkedT = clock;
       $('outNeed').textContent = `${K.name} と、もうすこし練習してからにしよう`;
-      t = 0; gNow = 0; gu = null; fallT = 0; fallAt = []; needT = 0; reached = 0; target = null; aimInit = false; camPos.set(-1.2, 0.7, 0); camYaw = 0;
+      t = 0; gNow = 0; gu = null; fallT = 0; fallAt = []; needT = 0; reached = 0; touched.fill(false); lit(); target = null; aimInit = false; camPos.set(-1.2, 0.7, 0); camYaw = 0;
       root.hidden = false; active = true; setCam(MODES.includes(load('satoyama.cam', 'follow')) ? load('satoyama.cam', 'follow') : 'follow');
     },
     // 帰る: 体と皮を消して、泥の点を返す
@@ -270,6 +270,6 @@ export function makeOuting(R, renderer, { onHome }) {
     step, render,
     resize() { DIO.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); },
     // 確かめ用
-    aim() { const b = BUSHES[goal]; target = new THREE.Vector3(b[0], 0, b[1]); }, get pose() { return H && pose(H); }, get reached() { return reached; }, get burrs() { return burrs; }, rain: setRain, cam: setCam,
+    aim(i = Math.max(0, touched.indexOf(false))) { const b = BUSHES[i]; target = new THREE.Vector3(b[0], 0, b[1]); }, get pose() { return H && pose(H); }, get reached() { return reached; }, get burrs() { return burrs; }, rain: setRain, cam: setCam,
   };
 }
