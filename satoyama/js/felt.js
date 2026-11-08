@@ -64,11 +64,19 @@ export function shells(n, mk, matFn) { const out = []; for (let s = 1; s <= n; s
 
 // ---- 台: フェルトの草地。ぬかるみは草がなく、こげ茶でぬれて光る ----
 // フェルトの玉（たまご・巣のわら・ぽふっと出る毛玉）: 色1つ、毛羽はうすく
-export function makeFeltBall(color, { r = 0.05, sx = 1, sy = 1, sz = 1, seg = 24 } = {}) {
-  const g = new THREE.SphereGeometry(r, seg, Math.round(seg * 0.7)), n = g.attributes.position.count, c = new Float32Array(n * 3);
+// fuzz＝毛羽の層の数（つるっと見せたくない小物に。たまご・ふさ・綿毛）
+export function makeFeltBall(color, { r = 0.05, sx = 1, sy = 1, sz = 1, seg = 24, fuzz = 0, len = 0.005 } = {}) {
+  const g = new THREE.SphereGeometry(r, seg, Math.round(seg * 0.7)); g.scale(sx, sy, sz);
+  const m = feltMesh(g, color);
+  for (let k = 1; k <= fuzz; k++) { const sh = new THREE.Mesh(g, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.9, sheenRoughness: 0.8, sheenColor: 0xf2e6d4 }), { shell: k / fuzz, len, freq: 330, rest: false })); sh.castShadow = false; m.add(sh); }
+  return m;
+}
+// 形を1色のフェルトに（たまごの花びらなど）。色は geometry の color を後から変えてよい
+export function feltMesh(g, color = [1, 1, 1], { side = THREE.FrontSide } = {}) {
+  const n = g.attributes.position.count, c = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) c.set(color, i * 3);
-  g.setAttribute('color', new THREE.BufferAttribute(c, 3)); g.setAttribute('wet', attr1(n)); g.setAttribute('fluff', attr1(n, 1)); g.scale(sx, sy, sz);
-  const m = new THREE.Mesh(g, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.8, sheenRoughness: 0.8, sheenColor: 0xf2e6d4, transparent: true }), { freq: 330, rest: false }));
+  g.setAttribute('color', new THREE.BufferAttribute(c, 3)); g.setAttribute('wet', attr1(n)); g.setAttribute('fluff', attr1(n, 1));
+  const m = new THREE.Mesh(g, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.8, sheenRoughness: 0.8, sheenColor: 0xf2e6d4, side }), { freq: 330, rest: false }));
   m.castShadow = true; m.receiveShadow = true; return m;
 }
 export function makeFeltGround(scene, { size = 12, n = 200, cx = 0, cz = 0, shellsN = 5 } = {}) {

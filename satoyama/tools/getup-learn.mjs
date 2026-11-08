@@ -25,13 +25,13 @@ function tryGetup(v, at, d) {
   const P0 = pose(H); if (P0.up > 0.5) { world.free(); return null; } // 倒れなかった
   const dd = Math.sign(P0.roll) || d;
   let up = 0, n = 0, tUp = null, spin = 0, s = 0, upMax = -1;
-  for (let k = 0; k < 240 * 4.5; k++, s += 1 / 240) {
+  for (let k = 0; k < 240 * 5.5; k++, s += 1 / 240) {
     const done = driveGetup(H, q, s, dd); if (done) B.drive(H, stand, s, 0, 0); world.step();
-    if (k % 8 === 0) { const P = pose(H), w = H.parts.pelvis.body.angvel(); spin += Math.hypot(w.x, w.y, w.z); upMax = Math.max(upMax, P.up); if (tUp == null && P.up > 0.8) tUp = s; if (s > 4) { up += P.up; n++; } }
+    if (k % 8 === 0) { const P = pose(H), w = H.parts.pelvis.body.angvel(); spin += Math.hypot(w.x, w.y, w.z); upMax = Math.max(upMax, P.up); if (tUp == null && P.up > 0.8) tUp = s; if (s > 5) { up += P.up; n++; } }
   }
   const P = pose(H), ok = up / n > 0.85 && P.y - height(P.x, P.z) > H.fallH;
   world.free();
-  return { ok, up: up / n, upMax, tUp, spin: spin / 540 };
+  return { ok, up: up / n, upMax, tUp, spin: spin / 660 };
 }
 const score = r => (r ? r.upMax + r.up + (r.ok ? 2 - 0.3 * (r.tUp ?? 4) : 0) - 0.03 * r.spin : 0); // とちゅうでいちばん起きた量にも点（最後に起きたかだけでは、少し起きた動きに点が入らず学べない）
 
