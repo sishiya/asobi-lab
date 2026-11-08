@@ -9,7 +9,7 @@ const SFX = (() => {
   function unlock() {
     if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
-    ctx = new AC();
+    ctx = Power.audio(new AC());
     master = ctx.createGain(); master.gain.value = 0.3; master.connect(ctx.destination);
   }
   addEventListener('pointerdown', unlock, {passive: true});

@@ -31,7 +31,7 @@ const chordTone = (n, t) => { const c = chordNow(t), k = ((n % c.length) + c.len
 
 export function startAudio() {
   if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
-  ac = new (window.AudioContext || window.webkitAudioContext)();
+  ac = Power.audio(new (window.AudioContext || window.webkitAudioContext)());
   master = ac.createGain(); master.gain.value = on ? 0.8 : 0; master.connect(ac.destination);
   // 残響: 減っていくノイズで作った部屋（左右で少しちがう）
   const n = Math.floor(ac.sampleRate * 2.4), ir = ac.createBuffer(2, n, ac.sampleRate);
@@ -49,7 +49,9 @@ export function startAudio() {
   const bus = (v, cut) => { const g = ac.createGain(); g.gain.value = v; const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cut; g.connect(f); f.connect(master); const w = ac.createGain(); w.gain.value = 0.5; f.connect(w); w.connect(verb); return g; };
   lay = { pad: bus(0.022, 1100), bass: bus(0, 600), arp: bus(0, 3000), mel: bus(0, 4000), shk: bus(0, 9000), fx: bus(1, 8000) };
   t0 = ac.currentTime + 0.05; nextStep = t0; stepN = 0;
-  setInterval(schedule, 25);
+  let timer = setInterval(schedule, 25);
+  // 画面を離れたら音の予約も止める（もどったら続きから。RULES 12章）
+  Power.on({ pause() { clearInterval(timer); }, resume() { timer = setInterval(schedule, 25); } });
 }
 // 曲の進み（川を下った道のり 0〜1）と、いまの場面（'title' | 'play' | 'end'）
 export function setProgress(p, m = 'play') {

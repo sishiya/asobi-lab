@@ -5,10 +5,12 @@ import R from 'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rap
 import { kidBody } from './kid.js';
 import { makePractice } from './practice.js';
 import { makeGetupPractice } from './getup-practice.js';
-let stop = false, P = null;
+let stop = false, P = null, paused = false, wake = null;
 const wait = (t0, pace) => new Promise(r => setTimeout(r, Math.max(0, pace * 1000 - (performance.now() - t0))));
+const hold = () => paused && new Promise(r => (wake = r)); // 画面を離れているあいだは練習しない（電池と発熱）
 onmessage = async e => {
   if (e.data.stop) { stop = true; return; }
+  if ('pause' in e.data) { paused = e.data.pause; if (!paused) wake?.(); return; }
   if (e.data.places && !e.data.genes) { P?.setPlaces(e.data.places); return; } // 走った地面が帰ってきた
   if (e.data.answer) { if (P?.asking) e.data.answer === 'restart' ? P.restart() : P.keep(); return; } // 歩き方を始め直すか、遊ぶ人の答え
   const { genes, over, maxGens = 400, seed = 1, pace = 0, resume = null, getupResume = null, places = [] } = e.data;
@@ -17,6 +19,7 @@ onmessage = async e => {
   const msg = b => ({ gen: P.gen, tries: P.tries, firstWalk: P.firstWalk, v: b?.v, stage: P.stage, steady: P.steady, restarts: P.restarts, trying: P.trying, done: P.done, asking: P.asking, state: P.state() });
   postMessage(msg(P.best));
   while (!P.done && P.gen < maxGens && !stop) {
+    await hold();
     const t0 = performance.now(), b = P.step();
     postMessage(msg(b));
     await wait(t0, pace);
@@ -26,6 +29,7 @@ onmessage = async e => {
   const gmsg = () => ({ getup: { gen: G.gen, tries: G.tries, learned: G.learned, v: G.best?.ok ? G.best.v : null, state: G.state() } });
   postMessage(gmsg());
   while (!G.learned && G.gen < 100 && !stop) {
+    await hold();
     const t0 = performance.now(); G.step();
     postMessage(gmsg());
     await wait(t0, pace);

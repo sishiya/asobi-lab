@@ -1,0 +1,1 @@
+{"id":12,"seg":4,"pairs":2,"firstWalk":403,"steadyGen":null,"restarts":3,"gens":250,"done":false,"ok8":0,"turn":[0.31,0.1,-0.23],"lat":[0,0],"min":13.1}

@@ -17,7 +17,7 @@ let ctx = null, master = null, started = false;
 const buffers = new Map(), live = {};
 function ensureCtx() {
   if (ctx) return ctx;
-  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  ctx = Power.audio(new (window.AudioContext || window.webkitAudioContext)());
   master = ctx.createGain(); master.connect(ctx.destination);
   for (const r of ROWS) { const g = ctx.createGain(); g.gain.value = 0; g.connect(master); live[r.id] = { bus: g, src: null, srcGain: null, pick: null }; }
   return ctx;

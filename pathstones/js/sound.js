@@ -10,7 +10,7 @@ export const Sound = {
   set(v) { this.on = v; try { store?.setItem('pathstones.sound', v ? 'on' : 'off'); } catch {} if (master) master.gain.value = v ? 0.3 : 0; },
   unlock() {
     if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
-    try { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = this.on ? 0.3 : 0; master.connect(ctx.destination); } catch { ctx = null; }
+    try { ctx = Power.audio(new (window.AudioContext || window.webkitAudioContext)()); master = ctx.createGain(); master.gain.value = this.on ? 0.3 : 0; master.connect(ctx.destination); } catch { ctx = null; }
   },
   // 木を打つ短い音
   _knock(freq, dur = 0.12, vol = 0.5, type = 'triangle', at = 0) {

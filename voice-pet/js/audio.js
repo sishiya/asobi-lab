@@ -1,6 +1,6 @@
 // マイクと音。声は押しているあいだだけメモリにためて、数にしたら捨てる（送らない・保存しない）
 let ac = null, stream = null, srcNode = null, proc = null, analyser = null;
-let chunks = null, level = 0;
+let chunks = null, level = 0, idleT = 0;
 export let muted = false;
 export function setMuted(m) { muted = m; }
 
@@ -12,9 +12,11 @@ export function ctx() {
 
 // マイクを開く（はじめて押したとき。許可のたずねはブラウザが出す）
 export async function openMic() {
-  ctx();
+  ctx(); clearTimeout(idleT);
   if (stream) return true;
-  stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  if (document.hidden) { s.getTracks().forEach(t => t.stop()); throw new Error('hidden'); } // 許可の画面のあいだに離れた
+  stream = s;
   srcNode = ac.createMediaStreamSource(stream);
   analyser = ac.createAnalyser(); analyser.fftSize = 1024;
   proc = ac.createScriptProcessor(2048, 1, 1);
@@ -39,10 +41,15 @@ export function stopRec() {
 }
 // マイクを閉じる（タブを離れたときなど）
 export function closeMic() {
+  clearTimeout(idleT);
   if (stream) stream.getTracks().forEach(t => t.stop());
   stream = null; if (proc) proc.disconnect(); if (srcNode) srcNode.disconnect();
   proc = srcNode = analyser = null; level = 0;
 }
+// 話し終わって少したったら閉じる（つづけて話すあいだは開いたまま。開くたびの待ちで声の頭が切れないように）
+export function closeMicSoon(ms = 10000) { clearTimeout(idleT); idleT = setTimeout(closeMic, ms); }
+// 画面を離れたらマイクを閉じて音の処理も止める（電池と発熱）
+export function sleep(on) { if (on) closeMic(); if (ac) on ? ac.suspend() : ac.resume(); }
 
 // 鳴き声を鳴らす（作った Float32Array を流す）
 export function play(samples, sr, vol = 0.8) {

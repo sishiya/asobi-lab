@@ -23,7 +23,9 @@ export function initAudio() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return;
-  ctx = new AC();
+  ctx = Power.audio(new AC());
+  // 画面を離れたら BGM の予約も止める。もどったら鳴っていたときだけ続きから（RULES 12章）
+  Power.on({ pause() { clearInterval(timer); }, resume() { if (bgmOn) { clearInterval(timer); timer = setInterval(scheduler, 120); } } });
   master = ctx.createGain(); master.gain.value = 1;
   master.connect(ctx.destination);
   verb = ctx.createConvolver(); verb.buffer = impulse(2.2, 2.6);
@@ -310,7 +312,7 @@ export function startBgm() {
   playing = TRACKS.find((tr) => tr.id === trackId);
   bar = 0;
   nextT = ctx.currentTime + 0.15;
-  timer = setInterval(scheduler, 120);
+  if (!Power.away) timer = setInterval(scheduler, 120);
 }
 export function stopBgm() { bgmOn = false; clearInterval(timer); }
 // 判定のあいだは BGM を小さく（duck=true）。結果のあとにもどす

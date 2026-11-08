@@ -14,7 +14,7 @@ const Sound = (() => {
     if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
-    ac = new AC();
+    ac = Power.audio(new AC());
     master = ac.createGain(); master.gain.value = on ? 0.55 : 0; master.connect(ac.destination);
     noiseBuf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
     const d = noiseBuf.getChannelData(0);

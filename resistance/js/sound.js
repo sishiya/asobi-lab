@@ -30,7 +30,10 @@ const Sound = (() => {
     if (master) master.gain.setTargetAtTime(on ? 0.5 : 0, ac.currentTime, 0.05);
   }
   // 一時停止のあいだは全部の音を止める
-  function suspend(v) { if (ac) { if (v) ac.suspend(); else ac.resume(); } }
+  let held = false;
+  function suspend(v) { held = v; if (ac) { if (v) ac.suspend(); else if (!Power.away) ac.resume(); } }
+  // 画面を離れても止める。もどっても一時停止のあいだは止めたまま（離れると夜はメニューが開く。RULES 12章）
+  Power.on({ pause() { if (ac) ac.suspend(); }, resume() { if (ac && !held) ac.resume(); } });
 
   // 音ひとつ: 波の形・高さ（はじめ→おわり）・長さ・大きさ・遅れ
   function tone(type, f1, f2, dur, vol = 0.2, delay = 0) {

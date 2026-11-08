@@ -1,7 +1,7 @@
 // 画面のつなぎ: 場面（したく→分かれ道→道中→戦い→答え合わせ→野営）を回す
 import * as M from './model.js?v=1';
 import * as Art from './art.js?v=1';
-import { sfx, setSound, soundOn, fireLoop } from './sound.js?v=1';
+import { sfx, setSound, soundOn, fireLoop } from './sound.js?v=2';
 
 const VER = 'ver. 0.1（試作 v001）';
 const $ = s => document.querySelector(s);

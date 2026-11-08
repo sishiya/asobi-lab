@@ -247,6 +247,7 @@ function raise(saved, FB0 = null, at = [0, 0, 0], yaw = 0) {
   worker = new Worker(new URL('../js/practice-worker.js', import.meta.url), { type: 'module' });
   worker.onmessage = e => { const m = e.data; if (m.end) return; if (m.getup) { kid.getup = m.getup; keep(); return; } info = { ...info, ...m }; askShown(); kid.q = B.decode(m.trying); kid.trying = m.trying; if (m.v) kid.best = m.v; kid.state = m.state; keep(); };
   worker.postMessage({ genes, pace: 2.5, seed: (Math.random() * 1e9) | 0, resume: kid.state, getupResume: kid.getup?.state, places: kid.places }); // 練習に渡すのは遺伝子の数だけ
+  if (document.hidden) worker.postMessage({ pause: true });
 }
 // いっしょにいる子（ユーザー「何匹か同時に育てたい」「練習できるのは同時に1匹でもいい。他の子は小屋で休んでいるとか、練習無しでただあるくだけとか」）:
 //   練習するのは、いま見ている子だけ（Worker は1つ）。ほかの子は、歩けるようになっていれば いま覚えている歩き方で草原を歩き、
@@ -772,9 +773,9 @@ $('tOut').addEventListener('click', e => { e.preventDefault(); go('out'); });
 // 声の入口: 押しているあいだ録る（マイクが使えない人は「声のみほん」）
 const mic = $('mic'); let rec = false, held = false;
 mic.addEventListener('pointerdown', async e => { e.preventDefault(); held = true; try { await A.openMic(); } catch (er) { show('マイクが使えませんでした。下の「声のみほん」でも'); return; }
-  if (!held) { show('もう一度、押しながら話して'); return; } // はじめては許可の画面のあいだに指がはなれている（録りっぱなしにしない）
+  if (!held) { A.closeMicSoon(); show('もう一度、押しながら話して'); return; } // はじめては許可の画面のあいだに指がはなれている（録りっぱなしにしない）
   A.startRec(); rec = true; mic.classList.add('on'); mic.textContent = '話している…'; if (mode === 'grow' && kid) { kid.FB.perk(); show(`${kid.name} が 聞いている`, 0); } }); // 聞いているのは話しているあいだ（話し終わってから出ると順番がおかしかった）
-const end = () => { held = false; if (!rec) return; rec = false; mic.classList.remove('on'); mic.textContent = '押しながら話す'; $('msg').style.opacity = 0; const r = A.stopRec(); hear(r.samples, r.sr); };
+const end = () => { held = false; if (!rec) return; rec = false; mic.classList.remove('on'); mic.textContent = '押しながら話す'; $('msg').style.opacity = 0; const r = A.stopRec(); A.closeMicSoon(); hear(r.samples, r.sr); };
 addEventListener('pointerup', end); addEventListener('pointercancel', end);
 $('samples').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const sr = 48000; hear(sampleVoice(b.dataset.v, sr), sr); });
 addEventListener('contextmenu', e => e.preventDefault());
@@ -853,7 +854,10 @@ async function ambience() {
   catch (e) { /* 読めなければ環境音なし */ }
 }
 addEventListener('pointerup', () => ambience());
-document.addEventListener('visibilitychange', () => amb && (document.hidden ? amb.ac.suspend() : amb.ac.resume()));
+// 画面を離れたら（別のアプリ・タブ・閉じる）マイクを閉じ、音と歩く練習を止める（ユーザー「閉じてもマイク有効化がずっと続いている」「発熱もすごい」）
+const away = hidden => { if (hidden) end(); A.sleep(hidden); worker?.postMessage({ pause: hidden }); };
+document.addEventListener('visibilitychange', () => away(document.hidden));
+addEventListener('pagehide', () => away(true)); addEventListener('pageshow', () => away(document.hidden)); // iPhone は閉じるときに visibilitychange が来ないことがある
 function cry(g, FB, dur = 0.5) {
   FB?.perk(); if (!vol.cry || !touched || document.hidden) return;
   const ac = A.ctx(), vtl = 9 + 10 * g.vtl, f0 = 80 * Math.pow(450 / 80, g.f0) * (1.2 + 0.25 * Math.random()), text = ['ui', 'ai', 'oi', 'ue'][Math.floor(g.vtl * 37 + g.f0 * 53) % 4]; // 子なので、もとの声より少し高く

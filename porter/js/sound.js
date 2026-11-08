@@ -1,15 +1,15 @@
 // 音（Web Audio で作る。音のファイルは使わない）。?mute で開くと鳴らさない（テストプレイ用）
 const MUTE_Q = new URLSearchParams(location.search).has('mute');
 let ac = null, master = null, on = !MUTE_Q && localStorage.getItem('porter.sound') !== 'off';
-let fireNode = null;
+let fireNode = null, fireWant = false;
 
 function ctx() {
   if (!on) return null;
   if (!ac) {
-    try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; }
+    try { ac = Power.audio(new (window.AudioContext || window.webkitAudioContext)()); } catch { return null; }
     master = ac.createGain(); master.gain.value = 0.5; master.connect(ac.destination);
   }
-  if (ac.state === 'suspended') ac.resume();
+  if (ac.state === 'suspended' && !Power.away) ac.resume();
   return ac;
 }
 export const soundOn = () => on;
@@ -63,7 +63,10 @@ export const sfx = {
 
 // 野営のたき火の音（小さなぱちぱち）
 export function fireLoop(start) {
+  fireWant = !!start;
   if (!start) { if (fireNode) { clearInterval(fireNode); fireNode = null; } return; }
-  if (fireNode || !on) return;
+  if (fireNode || !on || Power.away) return;
   fireNode = setInterval(() => { if (Math.random() < 0.6) noise(0.03 + Math.random() * 0.05, 0.05 + Math.random() * 0.08, 2000 + Math.random() * 3000, 2); }, 140);
 }
+// 画面を離れたら止める。もどったら野営中なら再開（RULES 12章）
+Power.on({ pause() { if (fireNode) { clearInterval(fireNode); fireNode = null; } }, resume() { fireLoop(fireWant); } });

@@ -55,7 +55,7 @@ let ac = null;
 function beep(freq, len, vol = 0.12, type = 'sine') {
   if (!cfg.sound) return;
   try {
-    ac = ac || new AudioContext();
+    ac = ac || Power.audio(new AudioContext());
     const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
     o.type = type; o.frequency.value = freq; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
     o.connect(g).connect(ac.destination); o.start(t); o.stop(t + len);
@@ -64,7 +64,7 @@ function beep(freq, len, vol = 0.12, type = 'sine') {
 function shutterSound() {
   if (!cfg.sound) return;
   try {
-    ac = ac || new AudioContext();
+    ac = ac || Power.audio(new AudioContext());
     const t = ac.currentTime, n = ac.sampleRate * 0.12, buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0);
     for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3) * (i < n * 0.4 || i > n * 0.55 ? 1 : 0.2);
     const s = ac.createBufferSource(), g = ac.createGain(), f = ac.createBiquadFilter();
@@ -157,12 +157,17 @@ async function testStream() {
   draw(); setInterval(draw, 33);
   return c.captureStream(30);
 }
+let camGen = 0;   // 開くたび・閉じるたびに増やす。開いている途中で離れたら、開けたカメラをすぐ閉じる
 async function startCamera() {
-  if (TEST) stream = await testStream();
+  const gen = ++camGen;
+  let s;
+  if (TEST) s = await testStream();
   else {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('nocam');
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+    s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
   }
+  if (gen !== camGen) { for (const t of s.getTracks()) t.stop(); return false; }
+  stream = s;
   if (!video) { // iPhone の Safari はページに置いていない video のコマを出さないことがあるので、見えない形で置く
     video = Object.assign(document.createElement('video'), { muted: true, playsInline: true });
     video.setAttribute('playsinline', '');
@@ -170,9 +175,11 @@ async function startCamera() {
     document.body.append(video);
   }
   video.srcObject = stream;
-  await video.play();
+  try { await video.play(); } catch (e) { if (gen === camGen) throw e; } // 途中で閉じたときの中断はエラーにしない
+  return gen === camGen;
 }
 function stopCamera() {
+  camGen++;
   if (stream) for (const t of stream.getTracks()) t.stop();
   stream = null;
   if (video) video.srcObject = null;
@@ -182,6 +189,22 @@ function stopCamera() {
 const stage = $('#stage'), ctx = stage.getContext('2d');
 let run = null;   // { list, i, phase, t0, cur, shots: [] }
 let face = null, smooth = null, recent = [], srcStats = null, lastStat = 0, lastVT = -1;
+
+// 画面を離れたらカメラを閉じる。もどったら撮影の途中のときだけ開き、いまの絵をやり直す（時間は run.t0 からなので、そのままだと戻った瞬間にシャッターが切れる。RULES 12章）
+const posing = () => run && (run.phase === 'intro' || run.phase === 'pose');
+Power.on({
+  pause: stopCamera,
+  resume() {
+    if (!run) return;
+    const r = run;
+    if (posing()) { $('#num').classList.remove('on'); $('#wait').textContent = TX('カメラを準備しています…', 'Getting the camera ready…'); $('#wait').hidden = false; }
+    startCamera().then(ok => {
+      if (!ok || run !== r || !posing()) return; // はじめの準備中と撮った直後は、もとの流れにまかせる
+      $('#wait').hidden = true;
+      begin(run.i);
+    }, () => { if (run === r) { run = null; stopCamera(); message(TX('カメラが使えませんでした。ブラウザの設定でカメラを許可すると遊べます。', 'The camera could not be used. Allow the camera in your browser settings to play.')); } });
+  },
+});
 
 function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
 

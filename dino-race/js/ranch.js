@@ -1,7 +1,7 @@
 // 牧場: 裏の計算（Worker）、走る練習、カードの絵、牧場のカードと選択、生まれた子、かけ合わせ。
 
 // ---------- 裏の計算（Worker） ----------
-const worker = new Worker('js/worker.js?v=16');
+const worker = new Worker('js/worker.js?v=17');
 const waiting = new Map();
 let reqId = 1;
 worker.onmessage = e => {
@@ -19,7 +19,10 @@ function measure(list, done) { // 記録としっかり度をはかる（sim.js 
 // 走る練習: 体はそのままで、走り方だけを小さな群れで PRACTICE.gens 世代育て、よくなったら入れかえる。
 // おまかせの進化とぶつからないように別の Worker で、1匹ずつ順番に
 const PRACTICE = {gens: 6, size: 10};
-const practiceWorker = new Worker('js/worker.js?v=16');
+const practiceWorker = new Worker('js/worker.js?v=17');
+// 画面を離れたら2つの Worker の世代を止める（もどったら続きから。RULES 12章）
+const pauseWorkers = pause => { for (const w of [worker, practiceWorker]) w.postMessage({pause}); };
+Power.on({pause: () => pauseWorkers(true), resume: () => pauseWorkers(false)});
 const practiceQueue = [];
 let practicing = null;
 function practice(x) {
