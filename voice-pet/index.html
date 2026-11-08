@@ -2,48 +2,15 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cellipse cx='16' cy='18' rx='11' ry='10' fill='%23e8936e'/%3E%3Ccircle cx='12' cy='16' r='2.2' fill='%23140d18'/%3E%3Ccircle cx='20' cy='16' r='2.2' fill='%23140d18'/%3E%3Cpath d='M7 10 L10 3 L13 9 M19 9 L22 3 L25 10' fill='%23e8936e'/%3E%3C/svg%3E">
-<title>こえのこ</title>
-<meta name="description" content="声をふきこむと、たまごがかえる。声の高さや響きが遺伝子になって、その子の形と鳴き声が決まる。声は端末の中だけで読み、送らない・保存しない。試作。">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>こえのこ（試作）</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%23e9e2d4'/><ellipse cx='32' cy='40' rx='20' ry='9' fill='%23d4c39c'/><ellipse cx='32' cy='30' rx='13' ry='15' fill='%23c9a9c4'/><path d='M22 26 C30 20 38 34 44 28' stroke='%23f2e6d4' stroke-width='3' fill='none'/></svg>">
+<script>/* アクセス解析 Google Analytics 4（まなびラボと同じ ID。GitHub Pages で開いたときだけ。content_group でまなびラボと見分ける） */(function(){if(location.hostname!=='sishiya.github.io')return;var id='G-E2VPYKV2Y9',s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{allow_google_signals:false,allow_ad_personalization_signals:false,content_group:'asobi-lab'});})();</script>
 <meta name="robots" content="noindex">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/no-quirks.css"><script src="../assets/no-quirks.js" defer></script>
-<link rel="stylesheet" href="css/style.css?v=2">
+<meta http-equiv="refresh" content="0; url=test/voice.html#birth">
 </head>
-<body>
-<canvas id="stage" aria-label="巣の上のたまごと生き物"></canvas>
-
-<header class="top">
-  <h1>こえのこ <small>試作</small></h1>
-  <div class="tools">
-    <button type="button" id="genesToggle" class="chip only-narrow">遺伝子</button>
-    <button type="button" id="again" class="chip only-hatched">新しいたまご</button>
-    <button type="button" id="sound" class="chip icon" aria-pressed="true" aria-label="音">♪</button>
-  </div>
-</header>
-
-<aside id="genes" hidden>
-  <h2>この子の遺伝子</h2>
-  <ol id="geneList"></ol>
-  <p class="note"><i class="real">●</i> は本物のしくみが手本。ほかは見立て。棒の上の2本の線は、2本ある遺伝子のそれぞれ。</p>
-</aside>
-
-<div class="dock">
-  <p id="hint" role="status"></p>
-  <button type="button" id="mic" aria-label="押しているあいだ声を入れる">
-    <span id="ring"></span>
-    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6" fill="none" stroke-width="1.8" stroke-linecap="round"/></svg>
-  </button>
-  <p class="privacy">声はこの端末の中だけで読み、送りも保存もしません</p>
-</div>
-
-<dialog id="bye">
-  <p>この子とお別れして、<br>新しいたまごにしますか？</p>
-  <div class="row"><button type="button" id="byeNo" class="chip">やめる</button><button type="button" id="byeYes" class="chip strong">新しいたまご</button></div>
-</dialog>
-
-<script type="module" src="js/main.js?v=2"></script>
+<body style="background:#e9e2d4;font:15px system-ui,sans-serif;color:#2c2a26;padding:24px">
+<!-- 入口: いまは声の子のページ（生む・育てる・走る）へそのまま進む。ページの置き場所（test/）はあとで整える -->
+<p><a href="test/voice.html#birth">こえのこへ</a></p>
 </body>
 </html>

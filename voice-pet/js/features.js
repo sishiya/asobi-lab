@@ -155,7 +155,8 @@ export function analyze(input, sr) {
   const thr = Math.max(top * 0.1, floor * 2.5);
 
   const d = new Float64Array(tMax + 2);
-  const f0 = [], aper = [], df = [], f1 = [], f2 = [], cent = [], hfr = [], vRms = [];
+  const f0 = [], aper = [], df = [], f1 = [], f2 = [], f3 = [], f4 = [], fmt = [], cent = [], hfr = [], vRms = [];
+  const ltas = new Float64Array(24); // 声の平均のスペクトル（100〜5000Hz を対数で 24 に）
   const voiced = new Uint8Array(nF), track = new Float64Array(nF);
   let active = 0;
   for (let f = 0; f < nF; f++) {
@@ -169,6 +170,7 @@ export function analyze(input, sr) {
     if (den > 0) { cent.push(num / den); hfr.push(hi / den); }
     if (ap < 0.6) {
       voiced[f] = 1;
+      for (let b = 2; b < 256; b++) { const k = Math.floor(Math.log(b * FS / 512 / 100) / Math.log(50) * 24); if (k >= 0 && k < 24) ltas[k] += sp[b]; }
       const hz = FS / tau;
       track[f] = hz; f0.push(hz); aper.push(ap); vRms.push(rms[f]);
       const pk = lpcPeaks(x, o, W, FS / tau > 250 ? 10 : 14); // 高い声は次数を下げて倍音を拾わない
@@ -177,7 +179,8 @@ export function analyze(input, sr) {
         let sn = 0, sd = 0;
         pk.forEach((F, i) => { const k = i + 0.5; sn += F * k; sd += k * k; });
         df.push(sn / sd);
-        f1.push(pk[0]); f2.push(pk[1]);
+        f1.push(pk[0]); f2.push(pk[1]); f3.push(pk[2]); if (pk[3]) f4.push(pk[3]);
+        fmt.push([f, pk[0], pk[1]]);
       }
     }
   }
@@ -236,7 +239,15 @@ export function analyze(input, sr) {
   const onsetRate = onsets / Math.max(0.3, active * H / FS);
 
   const centroid = median(cent), hf = median(hfr);
-  const F1 = median(f1), F2 = median(f2);
+  const F1 = median(f1), F2 = median(f2), F3 = median(f3), F4 = f4.length ? median(f4) : F3 * 1.35;
+  // 母音の道すじ（F1・F2 を時間で 12 に分けた中央値）。何をどう言ったかで、その人だけの形になる
+  const vpath = [];
+  for (let i = 0; i < 12 && fmt.length; i++) {
+    const seg = fmt.slice(Math.floor(i * fmt.length / 12), Math.max(Math.floor(i * fmt.length / 12) + 1, Math.floor((i + 1) * fmt.length / 12)));
+    vpath.push([Math.round(median(seg.map(q => q[1]))), Math.round(median(seg.map(q => q[2])))]);
+  }
+  // 平均のスペクトルを dB で 0..1 に（いちばん強い帯を 1、40dB 下を 0）
+  const lmax = Math.max(...ltas) || 1, spec = [...ltas].map(v => Math.round(clamp01(1 + 10 * Math.log10((v || 1e-12) / lmax) / 40) * 100) / 100);
   // 高さの節まわし（16 点。まねっこの鳴き声に使う）
   const idx = []; for (let f = 0; f < nF; f++) if (voiced[f]) idx.push(f);
   const contour = [];
@@ -248,8 +259,8 @@ export function analyze(input, sr) {
 
   return {
     ok: true,
-    raw: { f0: fMed, vtl, breath, shimmer, jitter, melody, rate, onsetRate, centroid, hf, F1, F2, vDur },
-    contour,
+    raw: { f0: fMed, vtl, breath, shimmer, jitter, melody, rate, onsetRate, centroid, hf, F1, F2, F3, F4, vDur, syl },
+    contour, vpath, spec,
     // 0..1 にそろえた値（遺伝子の材料）
     n: {
       size: norm(vtl, 10, 19),
