@@ -131,17 +131,20 @@
   #startBtn { pointer-events: auto; position: absolute; bottom: 9vh; border: 0; background: var(--on); color: #fff; font: inherit; font-size: 20px; font-weight: 600; padding: 18px 40px; min-width: 260px; border-radius: 999px; cursor: pointer; box-shadow: 0 3px 12px rgba(44,42,38,.25); }
   #startBtn:active { transform: scale(.97); }
   body.title #hud, body.title #bar, body.title #wash, body.title .tabs, body.fw #menu, body.fw #menuPanel { display: none !important; }
+  body.boot #hud, body.boot #bar, body.boot #wash, body.boot .tabs, body.boot #menu { display: none !important; } /* ライブラリを読むあいだはロゴだけ（素の HTML のタブやカードが見えていた） */
+  body.boot #startBtn { visibility: hidden; } /* 読み終わるまで押しても動かないので。ロゴがずれないよう場所は残す */
   /* 知らせは、目と指のある 下のまとまりのすぐ上に（UX 案4。画面の上のほうだと見落とした） */
   #msg { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 12px; font-size: 16px; font-weight: 600; background: var(--panel); border-radius: 999px; padding: 6px 14px; box-shadow: 0 2px 8px rgba(44,42,38,.15); opacity: 0; transition: opacity .4s; pointer-events: none; white-space: nowrap; }
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","@dimforge/rapier3d-compat":"https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"}}</script>
 </head>
-<body>
+<body class="boot">
 <nav class="tabs" id="tabs"><a id="tGrow" href="#grow">育てる</a><a id="tOut" href="#out">でかける</a></nav>
 <div id="hud"><input id="name" maxlength="10" aria-label="この子の名前" title="押すと名前を変えられる"><div id="hudBody"></div><div id="gardenRow"></div><div id="herdRow"></div></div>
 <pre id="profBox" hidden style="position:fixed;left:8px;bottom:8px;margin:0;background:rgba(250,247,240,.92);border-radius:8px;padding:6px 8px;font:11px/1.4 ui-monospace,monospace;color:#2c2a26;z-index:9;pointer-events:none"></pre>
 <div id="fwMsg"></div>
-<div id="title" hidden><h1><img src="../img/logo.png" alt="こえのこ" width="1320" height="360"></h1><p>声から生まれる、羊毛の子</p><button id="startBtn">はじめる</button></div>
+<div id="title"><h1><img src="../img/logo.png" alt="こえのこ" width="1320" height="360"></h1><p>声から生まれる、羊毛の子</p><button id="startBtn">はじめる</button></div>
+<script>document.getElementById('title').hidden = new URLSearchParams(location.search).has('notitle');</script>
 <button id="menu" aria-label="メニュー" aria-expanded="false" aria-controls="menuPanel"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M4.4 6.8C9 6.1 14.6 7.1 19.7 6.3M4.2 12.2C9.4 11.6 14.4 12.6 19.9 11.9M4.5 17.6C9.2 17 14.8 18 19.6 17.3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg></button>
 <div id="confirm" hidden><div class="box"><h3>最初からはじめますか？</h3><p id="cText"></p><div class="row"><button id="cNo">やめる</button><button id="cYes">消して最初から</button></div></div></div>
 <button id="wash" class="soft" hidden aria-label="水浴びさせる"><svg viewBox="0 0 24 24"><path d="M12 3c-3 4.2-6 7.6-6 11a6 6 0 0 0 12 0c0-3.4-3-6.8-6-11z" fill="#7fb4c4"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>水浴び</button>
@@ -968,7 +971,7 @@ function render(dt) {
 const GT = { gl: renderer.getContext() }; GT.ext = GT.gl.getExtension('EXT_disjoint_timer_query_webgl2'); // GPU の時間（使えるブラウザだけ）
 function resize() { renderer.setSize(innerWidth, innerHeight); DIO.setSize(innerWidth, innerHeight); OUT?.resize(); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
-{ if (herd.kids.length) rebuildHerd(); go(new URLSearchParams(location.search).has('notitle') ? (!herd.kids.length || location.hash === '#birth' ? 'birth' : location.hash === '#out' ? 'out' : 'grow') : 'title'); camSnap = true; } // はじめはタイトル（?notitle で飛ばす＝確かめ・撮影用） // 前にいた子たちがいれば、そのつづきから
+{ if (herd.kids.length) rebuildHerd(); go(new URLSearchParams(location.search).has('notitle') ? (!herd.kids.length || location.hash === '#birth' ? 'birth' : location.hash === '#out' ? 'out' : 'grow') : 'title'); camSnap = true; document.body.classList.remove('boot'); } // はじめはタイトル（?notitle で飛ばす＝確かめ・撮影用） // 前にいた子たちがいれば、そのつづきから
 { const P = kid && mode === 'grow' ? pose(kid.H) : { x: NEST[0], z: NEST[1] }; camPos.set(P.x - 0.2, height(P.x, P.z) + 0.5, P.z + 1.1); aim.set(P.x, height(P.x, P.z) + 0.08, P.z); } // はじめはその場から
 addEventListener('pagehide', keep);
 let last = performance.now();
