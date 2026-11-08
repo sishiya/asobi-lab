@@ -24,27 +24,38 @@ float fiber(vec3 p){ vec3 q = RA * p, r = RB * p; float a = 1.0 - abs(n3(q * vec
 // 網には fluff（毛羽の高さ 0..1）と wet（ぬれ 0..1）の点ごとの数がいる。rest＝生まれたときの位置（骨に貼った皮で模様が動かないように）
 // breath＝呼吸のふくらみ（m、体ごとに1つの数をすべての殻で分ける）。網の点ごとの重み breathW をかける
 const NO_BREATH = { value: 0 };
-export function feltify(mat, { shell = 0, len = 0.006, freq = 260, rest = true, breath = NO_BREATH } = {}) {
-  mat.userData.u = { uShell: { value: shell }, uLen: { value: len }, uFreq: { value: freq }, uWetAll: { value: 0 }, uBreath: breath };
+// coat＝生き物の毛（泥と年の数を持つ）。泥 mud は点ごと（0..1）、泥の色 uMudCol・年 uAge（0..1）は体ごと
+// 泥は毛にしみこませず、毛先の表面にかたまりでつく（ユーザー「表面の起毛部分に付着するように」）: 外の殻ほど濃く、まだらのかたまり
+// 年をとると、フェルトが黄ばんでくすみ、ところどころ毛羽がはげる（ユーザーの案）
+export function feltify(mat, { shell = 0, len = 0.006, freq = 260, rest = true, breath = NO_BREATH, coat = null } = {}) {
+  mat.userData.u = { uShell: { value: shell }, uLen: { value: len }, uFreq: { value: freq }, uWetAll: { value: 0 }, uBreath: breath, ...(coat ? { uMudCol: coat.mudCol, uAge: coat.age } : {}) };
   mat.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, mat.userData.u);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
-      uniform float uShell, uLen, uBreath; attribute float fluff, wet, breathW; ${rest ? 'attribute vec3 rest;' : ''} varying vec3 vRest; varying float vFluff, vWet;`)
+      uniform float uShell, uLen, uBreath; attribute float fluff, wet, breathW; ${rest ? 'attribute vec3 rest;' : ''} varying vec3 vRest; varying float vFluff, vWet; ${coat ? 'attribute float mud; varying float vMud;' : ''}`)
       .replace('#include <skinning_vertex>', `#include <skinning_vertex>
-      vFluff = fluff; vWet = wet; vRest = ${rest ? 'rest' : 'position'}; transformed += normalize(objectNormal) * (uShell * uLen * fluff + breathW * uBreath);`);
+      ${coat ? 'vMud = mud;' : ''} vFluff = fluff; vWet = wet; vRest = ${rest ? 'rest' : 'position'}; transformed += normalize(objectNormal) * (uShell * uLen * fluff + breathW * uBreath);`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-      uniform float uShell, uFreq, uWetAll; varying vec3 vRest; varying float vFluff, vWet; ${NOISE}`)
+      uniform float uShell, uFreq, uWetAll; varying vec3 vRest; varying float vFluff, vWet; ${coat ? 'uniform vec3 uMudCol; uniform float uAge; varying float vMud;' : ''} ${NOISE}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
       float fb = fiber(vRest * uFreq), fb2 = n3(vRest * uFreq * 0.25);
-      if (uShell > 0.0) { if (fb * (0.55 + 0.6 * fb2) < uShell * 0.55 + 0.12 || vFluff < 0.05) discard; diffuseColor.rgb *= mix(0.78, 1.08, uShell); }
-      else diffuseColor.rgb *= 0.86 + 0.22 * fb + 0.08 * fb2;`)
+      ${coat ? `float bald = smoothstep(1.0 - uAge * 0.55, 1.04 - uAge * 0.55, n3(vRest * 34.0 + 5.3) * 0.7 + n3(vRest * 90.0) * 0.3); // はげる所: 年とともに広がるまだら` : 'float bald = 0.0;'}
+      if (uShell > 0.0) { if (fb * (0.55 + 0.6 * fb2) < uShell * 0.55 + 0.12 || vFluff < 0.05 || bald > 0.5) discard; diffuseColor.rgb *= mix(0.78, 1.08, uShell); }
+      else diffuseColor.rgb *= (0.86 + 0.22 * fb + 0.08 * fb2) * (1.0 - 0.1 * bald);
+      ${coat ? `
+      vec3 yel = diffuseColor.rgb * vec3(1.0, 0.92, 0.7) + vec3(0.05, 0.035, 0.0); float lum = dot(yel, vec3(0.3, 0.59, 0.11));
+      diffuseColor.rgb = mix(diffuseColor.rgb, mix(yel, vec3(lum), 0.25), uAge * 0.8); // 黄ばんで、少しくすむ
+      float lump = n3(vRest * uFreq * 0.1 + 11.0) * 0.65 + n3(vRest * uFreq * 0.35 + 3.0) * 0.35, dots = step(0.82, n3(vRest * uFreq * 1.1 + 7.0)); // 泥のかたまりと、はねた小さな粒
+      float clump = max(smoothstep(0.6 - 0.14 * vMud, 0.66 - 0.14 * vMud, lump), dots * step(0.25, vMud)); // 泥が多いほど、かたまりが広がってつながる
+      float m = vMud * clump * (uShell > 0.0 ? mix(0.7, 1.0, uShell) : 0.85); // 毛の表面（毛先）に。かたまりの外は毛の色のまま
+      diffuseColor.rgb = mix(diffuseColor.rgb, uMudCol * (0.85 + 0.3 * fb2), clamp(m, 0.0, 1.0));` : ''}`)
       // ぬれた所（ぬれた毛・ぬれた泥）は毛羽が寝て、てかる
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
       float wv = max(vWet, uWetAll); roughnessFactor = mix(roughnessFactor, 0.32, wv);`)
       .replace('#include <lights_physical_fragment>', `#include <lights_physical_fragment>
       material.sheenColor *= 1.0 - 0.8 * max(vWet, uWetAll);`);
   };
-  mat.customProgramCacheKey = () => 'felt' + (shell > 0 ? 's' : 'b') + (rest ? 'r' : '');
+  mat.customProgramCacheKey = () => 'felt' + (shell > 0 ? 's' : 'b') + (rest ? 'r' : '') + (coat ? 'c' : '');
   return mat;
 }
 const attr1 = (n, v = 0) => new THREE.BufferAttribute(new Float32Array(n).fill(v), 1);
@@ -52,6 +63,14 @@ const attr1 = (n, v = 0) => new THREE.BufferAttribute(new Float32Array(n).fill(v
 export function shells(n, mk, matFn) { const out = []; for (let s = 1; s <= n; s++) out.push(mk(matFn(s / n))); return out; }
 
 // ---- 台: フェルトの草地。ぬかるみは草がなく、こげ茶でぬれて光る ----
+// フェルトの玉（たまご・巣のわら・ぽふっと出る毛玉）: 色1つ、毛羽はうすく
+export function makeFeltBall(color, { r = 0.05, sx = 1, sy = 1, sz = 1, seg = 24 } = {}) {
+  const g = new THREE.SphereGeometry(r, seg, Math.round(seg * 0.7)), n = g.attributes.position.count, c = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) c.set(color, i * 3);
+  g.setAttribute('color', new THREE.BufferAttribute(c, 3)); g.setAttribute('wet', attr1(n)); g.setAttribute('fluff', attr1(n, 1)); g.scale(sx, sy, sz);
+  const m = new THREE.Mesh(g, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.8, sheenRoughness: 0.8, sheenColor: 0xf2e6d4, transparent: true }), { freq: 330, rest: false }));
+  m.castShadow = true; m.receiveShadow = true; return m;
+}
 export function makeFeltGround(scene, { size = 12, n = 200, cx = 0, cz = 0, shellsN = 5 } = {}) {
   const geo = new THREE.PlaneGeometry(size, size, n, n); geo.rotateX(-Math.PI / 2); geo.translate(cx, 0, cz);
   const gp = geo.attributes.position, gcol = new Float32Array(gp.count * 3), gfl = new Float32Array(gp.count).fill(1);
@@ -107,12 +126,12 @@ export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], 
   { const n = geo.attributes.normal; for (let q = 0; q < nv; q++) { const part = SK.part[q], x = SK.position[q * 3];
     const w = part === 'chest' ? 1 : part === 'pelvis' ? Math.max(0, Math.min(1, (x - pa.a[0]) / (pa.b[0] - pa.a[0]))) * 0.7 : 0;
     bw[q] = w * (0.35 + 0.65 * Math.max(0, Math.min(1, 0.5 - 0.6 * n.getY(q)))); } }
-  geo.setAttribute('breathW', new THREE.BufferAttribute(bw, 1));
+  geo.setAttribute('breathW', new THREE.BufferAttribute(bw, 1)); const mudA = new Float32Array(nv); geo.setAttribute('mud', new THREE.BufferAttribute(mudA, 1));
   geo.setAttribute('wet', new THREE.BufferAttribute(wetA, 1)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('fluff', new THREE.BufferAttribute(flf, 1));
   const bones = SK.bodies.map(b => { const bn = new THREE.Bone(), t = b.translation(); bn.position.set(t.x, t.y, t.z); return bn; });
   const rig = new THREE.Group(); bones.forEach(b => rig.add(b)); scene.add(rig); rig.updateMatrixWorld(true);
   const skeleton = new THREE.Skeleton(bones), meshes = [];
-  const breathU = { value: 0 }, furMat = shell => feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.7, sheenRoughness: 0.8, sheenColor }), { shell, len: 0.007, freq: 330, breath: breathU });
+  const breathU = { value: 0 }, coat = { mudCol: { value: new THREE.Color(...MUD_WET) }, age: { value: 0 } }, furMat = shell => feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.7, sheenRoughness: 0.8, sheenColor }), { shell, len: 0.007, freq: 330, breath: breathU, coat });
   for (let s = 0; s <= shellsN; s++) {
     const m = new THREE.SkinnedMesh(geo, furMat(s / shellsN)); m.bind(skeleton, new THREE.Matrix4()); m.frustumCulled = false;
     m.castShadow = s === 0; m.receiveShadow = true; scene.add(m); meshes.push(m);
@@ -126,7 +145,7 @@ export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], 
     const ear = new THREE.Mesh(eg, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 1, sheenRoughness: 0.7, sheenColor: 0xf0dcc8 }), { freq: 330, rest: false }));
     ear.position.set(hc[0] - hbp.x + F.ear.at[0], hc[1] - hbp.y + F.ear.at[1], hc[2] - hbp.z + F.ear.at[2] * s);
     ear.scale.set(...F.ear.size); ear.rotation.set(F.ear.out * s, 0, F.ear.back); ear.castShadow = true; headBone.add(ear);
-    earList.push({ ear, s, a: 0, va: 0, b: 0, vb: 0 });
+    earList.push({ ear, s, a: 0, va: 0, b: 0, vb: 0, eg });
     // 目: 頭の横の高い所に、まぶたのふちから少しだけ出る（飛び出して見えないよう、平たくして皮にうめる。まわりの毛は短く白っぽい＝下の eyeAt）
     const eye = new THREE.Mesh(new THREE.SphereGeometry(F.eyeR, 16, 12), new THREE.MeshPhysicalMaterial({ color: F.iris, roughness: 0.35, clearcoat: 0.35 }) /* てかりが強いと白目に見えて飛び出して見える */);
     const ea = eyeAt(s); eye.position.set(ea[0] - hbp.x, ea[1] - hbp.y, ea[2] - hbp.z); eye.scale.set(1, 1, 0.5); headBone.add(eye);
@@ -166,28 +185,47 @@ export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], 
       for (const e of earList) {
         e.va += (-60 * e.a - 5 * e.va + 0.4 * acc.y) * h; e.a = Math.max(-0.25, Math.min(0.4, e.a + e.va * h)); // 上へ加速すると耳は後ろへ倒れる
         e.vb += (-80 * e.b - 6 * e.vb + 0.3 * acc.z * e.s) * h; e.b = Math.max(-0.3, Math.min(0.3, e.b + e.vb * h));
-        e.ear.rotation.set(F.ear.out * e.s + e.b, 0, F.ear.back + e.a);
+        e.ear.rotation.set(F.ear.out * e.s + e.b, 0, (e.back ?? F.ear.back) + e.a);
       }
     },
     // 泥とぬれ（dirt.js の部位ごとの数）を、毛の色・毛羽の高さ・てかりに。泥は低い所から上がり、ふちはまだらのはね
     paint(D) {
+      let dry = 0, dn = 0; for (const k in D) { if (D[k].mud > 0.01) { dry += D[k].dry; dn++; } }
+      dry = dn ? dry / dn : 0; coat.mudCol.value.setRGB(...MUD_WET.map((w, c) => w + (MUD_DRY[c] - w) * dry)); // 泥の色: ぬれた泥 → 乾いた泥
       for (let q = 0; q < nv; q++) {
         const s = D[SK.part[q]]; if (!s) continue;
         const line = 0.03 + 0.2 * s.mud, mk = s.mud > 0.01 ? Math.max(0, Math.min(1, (line - low[q]) / 0.03 + (speck[q] - 0.5) * 1.2)) : 0, wd = 1 - 0.3 * s.wet;
-        for (let c = 0; c < 3; c++) { const mc = MUD_WET[c] + (MUD_DRY[c] - MUD_WET[c]) * s.dry; col[q * 3 + c] = (fur[q * 3 + c] + (mc - fur[q * 3 + c]) * mk) * wd; }
-        flf[q] = baseF[q] * Math.max(0.12, 1 - 0.55 * s.wet - 0.75 * mk * (1 - 0.4 * s.dry)); wetA[q] = Math.min(1, Math.max(s.wet * 0.7, mk * (1 - s.dry)));
+        for (let c = 0; c < 3; c++) col[q * 3 + c] = fur[q * 3 + c] * wd; mudA[q] = mk; // 泥は毛先の表面に（色は shader で）
+        flf[q] = baseF[q] * Math.max(0.12, 1 - 0.55 * s.wet - 0.2 * mk * (1 - s.dry)); // ぬれた泥だけ少し毛を寝かせる wetA[q] = Math.min(1, Math.max(s.wet * 0.7, mk * (1 - s.dry)));
       }
-      geo.attributes.color.needsUpdate = geo.attributes.fluff.needsUpdate = geo.attributes.wet.needsUpdate = true;
+      geo.attributes.color.needsUpdate = geo.attributes.fluff.needsUpdate = geo.attributes.wet.needsUpdate = geo.attributes.mud.needsUpdate = true;
     },
     // 起き直した体（同じ作りの新しい剛体）に付けかえる
     rebind(H2, yaw = 0) { SK.bodies.forEach((_, i) => (SK.bodies[i] = H2.parts[bodyKey[i]].body)); yawQ.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -yaw); first = true; }, // yaw＝buildHare に渡した向き
     // 待機のしぐさ: 呼吸（休むと1秒に1回ほど、走ったあとは速く深く、だんだん落ち着く）と、止まっているときの耳のぴくつき（音を聞く）
-    // effort＝いまの走る強さ 0..1（g）。数は見立て（ノウサギの安静時の呼吸の数は見つかっていない。飼いウサギは1分に30〜60回）
+    // effort＝いまの走る強さ 0..1（g）。速さは 2026-11-08 にユーザー「8割に」。数は見立て（ノウサギの安静時の呼吸の数は見つかっていない。飼いウサギは1分に30〜60回）
     breathe(dt, effort = 0) {
       bst.tired = Math.min(1, Math.max(0, bst.tired + (effort > 0.3 ? effort * 0.25 : 0) * dt)) * Math.exp(-(effort > 0.3 ? 0 : dt / 8));
-      bst.ph += dt * Math.PI * 2 * (0.9 + 1.8 * bst.tired); breathU.value = (0.003 + 0.003 * bst.tired) * (0.5 - 0.5 * Math.cos(bst.ph));
+      bst.ph += dt * Math.PI * 2 * 0.8 * (0.9 + 1.8 * bst.tired); breathU.value = (0.003 + 0.003 * bst.tired) * (0.5 - 0.5 * Math.cos(bst.ph));
       if (effort < 0.1 && earList.length && (bst.flick -= dt) < 0) { const e = earList[Math.random() < 0.5 ? 0 : 1]; e.vb += (Math.random() < 0.5 ? -1 : 1) * 9; e.va += (Math.random() - 0.3) * 6; bst.flick = 1.5 + Math.random() * 5; }
     },
+    // 見た目を変える（声で育つ）: 新しい毛の色と耳へ、k＝0..1 でなめらかに移る（ぱっと入れかえない）。begin で行き先を決め、blend(k) を毎こま
+    look: {
+      begin(furColor2, face2) {
+        const n = geo.attributes.normal, to = new Float32Array(nv * 3);
+        for (let q = 0; q < nv; q++) to.set(furColor2(SK.part[q], [SK.position[q * 3], SK.position[q * 3 + 1], SK.position[q * 3 + 2]], [n.getX(q), n.getY(q), n.getZ(q)]), q * 3);
+        this.A = { fur: fur.slice(), ears: earList.map(e => ({ size: e.ear.scale.toArray(), back: e.back ?? F.ear.back, col: e.eg.attributes.color.array.slice() })) };
+        this.B = { fur: to, ears: earList.map(e => { const ep = e.eg.attributes.position, c = new Float32Array(ep.count * 3); for (let i = 0; i < ep.count; i++) { const y = ep.getY(i) - 1, z = ep.getZ(i); c.set(y > face2.ear.tipAt ? face2.ear.tip : z * e.s > 0.3 ? face2.ear.inner : face2.ear.outer, i * 3); } return { size: face2.ear.size, back: face2.ear.back, col: c }; }) };
+      },
+      blend(k) {
+        const { A, B } = this; if (!A) return; const m = (a, b) => a + (b - a) * k;
+        for (let i = 0; i < fur.length; i++) col[i] = fur[i] = m(A.fur[i], B.fur[i]);
+        earList.forEach((e, j) => { const a = A.ears[j], b = B.ears[j]; e.ear.scale.set(m(a.size[0], b.size[0]), m(a.size[1], b.size[1]), m(a.size[2], b.size[2])); e.back = m(a.back, b.back); const c = e.eg.attributes.color.array; for (let i = 0; i < c.length; i++) c[i] = m(a.col[i], b.col[i]); e.eg.attributes.color.needsUpdate = true; });
+        geo.attributes.color.needsUpdate = true;
+      },
+    },
+    dispose() { meshes.forEach(m => { scene.remove(m); m.material.dispose(); }); scene.remove(rig); geo.dispose(); },
+    setAge(a) { coat.age.value = a; }, // 年 0..1（黄ばみ・くすみ・毛羽のはげ）
     setVisible(b) { meshes.forEach(m => (m.visible = b)); headBone.children.forEach(c => (c.visible = b)); },
   };
 }

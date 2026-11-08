@@ -27,7 +27,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import R from '@dimforge/rapier3d-compat';
 import { height } from '../js/ground.js';
 import { pose } from '../js/hare.js';
-import { makeField } from '../js/trial.js';
+import { makeField, contactPoint } from '../js/trial.js';
 import { kidGenes, kidBody, kidPlan, kidShapes, KID_SEED, decodeKid } from '../js/kid.js';
 import { makeFeltGround, makeFeltBody, makeDiorama } from '../js/felt.js';
 import { TANUKI, tanukiFur, TANUKI_FACE } from '../js/tanuki.js';
@@ -59,7 +59,7 @@ for (const [i, id] of ids.entries()) {
 let t = 0, walk = 1, skin = 'felt';
 function step(dt) {
   const n = Math.round(dt * 240);
-  for (let k = 0; k < n; k++) { for (const c of kids) c.B.drive(c.H, c.q, t, t < 0.4 ? 0 : walk, 0); world.step(); t += 1 / 240; }
+  for (let k = 0; k < n; k++) { for (const c of kids) { if (k % 4 === 0) for (const f of c.H.feet) f.down = !!contactPoint(f); c.B.drive(c.H, c.q, t, t < 0.4 ? 0 : walk, 0); } world.step(); t += 1 / 240; }
 }
 const DIO = makeDiorama(renderer, scene, cam);
 function render(dt) {

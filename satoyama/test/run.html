@@ -18,12 +18,23 @@
   .grp button.on, .tg.on { background: var(--on); color: #fff; }
   .tg { background: var(--panel); }
   .tg[hidden] { display: none; }
+  .tabs { position: fixed; left: 50%; top: 12px; transform: translateX(-50%); display: flex; background: var(--panel); border-radius: 999px; padding: 3px; }
+  .tabs a { font-size: 14px; color: var(--ink); text-decoration: none; padding: 12px 15px; line-height: 1; border-radius: 999px; white-space: nowrap; } /* 親指で押す所: 高さ 44px ほど・字は1行 */
+  .tabs a.on { background: var(--on); color: #fff; }
+  .tabs[hidden] { display: none; }
+  body.kid #hud { top: 72px; }
+  @media (max-width: 720px) { body.kid #tools { top: 62px; } } /* せまい画面では、育てる／走る の切りかえとカメラのボタンが重ならないよう、カメラを下へ */
+  #need { position: fixed; left: 50%; bottom: 70px; transform: translateX(-50%); background: var(--panel); border-radius: 14px; padding: 10px 16px; text-align: center; line-height: 1.6; }
+  #need a { display: inline-block; margin-top: 4px; background: var(--on); color: #fff; text-decoration: none; padding: 6px 16px; border-radius: 999px; }
+  #need[hidden] { display: none; }
   #msg { white-space: nowrap; position: fixed; left: 50%; top: 38%; transform: translate(-50%, -50%); font-size: 22px; font-weight: 600; text-shadow: 0 1px 0 #fff8; opacity: 0; transition: opacity .4s; pointer-events: none; }
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","@dimforge/rapier3d-compat":"https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"}}</script>
 </head>
 <body>
+<nav class="tabs" id="tabs" hidden><a href="voice.html#birth">生む</a><a href="voice.html#grow">育てる</a><a class="on">走る</a></nav>
 <div id="hud">読みこみ中…</div>
+<div id="need" hidden><span id="needT">もうすこし練習してからにしよう</span><br><a href="voice.html#grow">育てるにもどる</a></div>
 <div id="tools"><div class="grp" id="cams"><button data-v="follow" class="on">追う</button><button data-v="tps">肩ごし</button><button data-v="fps">目線</button><button data-v="top">見下ろし</button></div><button class="tg" id="steady">揺れ おさえる</button><button class="tg" id="inv" hidden>上下 逆</button><button class="tg" id="rain">雨</button></div>
 <div id="msg"></div>
 <div id="hint">行きたい所をさわる（矢印キー・WASD でも）</div>
@@ -41,12 +52,14 @@ import { mud, makeDirt, stepDirt, MUD_WET } from '../js/dirt.js';
 import { feltify, makeFeltGround, makeFeltBody, makeDiorama, HARE_FACE } from '../js/felt.js';
 import { kidBody, kidShapes } from '../js/kid.js';
 import { lookFur, lookFace } from '../js/kid-look.js';
+import { loadKid } from '../js/kid-store.js';
 await R.init();
 const qs = new URLSearchParams(location.search);
 let v = PARAMS.map(() => 0.5);
 try { const j = (await (await fetch(`../js/gait-hare-${qs.get('gait') || 'turn2'}.json`, { cache: 'no-store' })).json()); v = j.v; setAnatomical(!!j.anat); } catch (e) { /* まだ学習していない */ } // anat＝関節を本物の向きだけにした体で覚えた跳び方
-// ?kid=1: 声から生まれた子に入る（test/voice.html から。遺伝子と歩き方の数だけ、このタブの sessionStorage で受けとる）
-let KID = null; if (qs.get('kid')) try { KID = JSON.parse(sessionStorage.getItem('satoyama.kid')); } catch (e) { /* なければノウサギ */ }
+// ?kid=1: 声から生まれた子に入る（test/voice.html で育てている子。遺伝子と歩き方の数だけ、js/kid-store.js から）。練習の途中でも入れる（いちばんよい歩き、なければいま試している歩き）
+let KID = null; if (qs.get('kid')) { const k = loadKid(); if (k) KID = { name: k.name, genes: k.genes, v: k.v || k.trying, done: k.state?.done }; }
+if (KID) { document.body.classList.add('kid'); document.getElementById('tabs').hidden = false; if (KID.name) document.getElementById('needT').textContent = `${KID.name} と、もうすこし練習してからにしよう`; }
 const KB = KID && kidBody(KID.genes);
 const BODY = KB ? { build: (at, yaw = 0) => KB.build(R, world, at, height, yaw), drive: KB.drive, q: KB.decode(KID.v) } : { build: (at, yaw = 0) => buildHare(R, world, at, height, yaw), drive, q: decodeParams(v) };
 const Q = BODY.q;
@@ -158,7 +171,7 @@ function wish(P) {
   return { go: 0 };
 }
 
-let t = 0, clock = 0, gNow = 0, turnNow = 0, falls = 0, fallT = 0, legT = 0, legs = [];
+let t = 0, clock = 0, gNow = 0, turnNow = 0, falls = 0, fallT = 0, legT = 0, legs = [], fallAt = [], needT = 0;
 function stepFrame(dt) {
   const n = Math.round(dt * 240);
   for (let k = 0; k < n; k++) {
@@ -175,7 +188,9 @@ function stepFrame(dt) {
       stepDirt(D, H, 4 / 240, rainOn ? 1 : 0);
       // 転んだら、すぐ起き直す（文字や音で失敗を見せない。GAME.md 9.7）
       if (fallT) { if (clock - fallT > 0.8) { respawn(); fallT = 0; } }
-      else if (P.up < 0.35 || P.y - height(P.x, P.z) < (H.fallH ?? 0.05)) { falls++; fallT = clock; }
+      else if (P.up < 0.35 || P.y - height(P.x, P.z) < (H.fallH ?? 0.05) || (H.maxPitch && Math.abs(P.pitch) > H.maxPitch)) { falls++; fallT = clock; fallAt.push(clock); }
+      // 声の子が 20 秒に 3 回より多く転ぶなら「もうすこし練習してから」と伝えて、育てるへもどる道を出す（責める文にしない）
+      if (KID) { while (fallAt.length && clock - fallAt[0] > 20) fallAt.shift(); if (fallAt.length >= 3) needT = clock; document.getElementById('need').hidden = !(needT && clock - needT < 12); }
     }
     BODY.drive(H, Q, t, fallT ? 0 : gNow, turnNow);
     world.step(); t += 1 / 240; clock += 1 / 240;
@@ -242,7 +257,7 @@ function render(dt) {
   for (const b of bushes) { const c = _c.copy(b.position).add(_a.set(0, 0.15, 0)), u = Math.max(0, Math.min(1, c.clone().sub(a).dot(ab) / L2)), d = c.distanceTo(a.clone().addScaledVector(ab, u)); const want = (camMode === 'fps' ? c.distanceTo(a) < 0.45 : d < 0.4 && u > 0.05) ? 0.2 : 1; b.userData.fade += (want - b.userData.fade) * 0.15; for (const k2 of ["off", "on"]) for (const m of b.userData.mats[k2]) m.opacity = b.userData.fade; for (const m of b.children) m.visible = m.userData.s === 0 || b.userData.fade > 0.9; }
   sun.position.set(P.x + 3, 6, P.z + 2); sun.target.position.set(P.x, 0, P.z);
   DIO.render(blur, focus, camMode === 'fps' ? 0.2 : 0.3);
-  document.getElementById('hud').innerHTML = `藪 ${legs.length}<br><small>${legs.length ? '着くまで ' + legs.slice(-4).join(' / ') + ' 秒' : '光る藪へ'}</small>`;
+  document.getElementById('hud').innerHTML = `${KID?.name ? `<b>${KID.name.replace(/[<>&]/g, '')}</b><br>` : ''}藪 ${legs.length}<br><small>${legs.length ? '着くまで ' + legs.slice(-4).join(' / ') + ' 秒' : '光る藪へ'}</small>`;
 }
 { const m = load('satoyama.cam', 'follow'); if (MODES.includes(m) && m !== 'follow') setCam(m); }
 function resize() { renderer.setSize(innerWidth, innerHeight); DIO.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); }

@@ -35,3 +35,10 @@ export function lookFace(L, K, base) {
   return { ...base, eye: [hs * 0.47, hs * 0.3, hs * 0.83], eyeR: K.headR * 0.17, iris: 0x2a1a10, ring: null,
     ear: { at: [-hs * 0.2, hs * 0.8, hs * 0.5], size: [wid, len, 0.005], out: 0.35, back: lerp(0.15, 0.45, L.ear), tipAt: L.sharp > 0.5 ? 0.55 : 9, tip: C.dark, inner: C.pale, outer: C.base } };
 }
+// 仮の名前（生まれたときに自動で。遊ぶ人が書きかえられる）: やわらかい音の2音（＋ん）。声の明るさで前の音、もようの置き方で後ろの音
+// 音は選んだ字だけからつくる（よくない言葉にならないよう、字の組み合わせをしぼる）
+const SY = ['モ', 'ポ', 'ム', 'ノ', 'コ', 'ピ', 'ル', 'フ', 'ミ', 'ヌ', 'ペ', 'ト', 'ク', 'ナ'];
+export function kidName(L) {
+  const a = SY[Math.floor(cl(L.hue) * 0.999 * SY.length)], s = L.seed >>> 0, b = SY[s % SY.length], k = (s >> 4) % 3;
+  return k === 0 ? a + a : k === 1 ? a + b : a + b + 'ン';
+}

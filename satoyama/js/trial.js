@@ -52,6 +52,7 @@ export function trial(R, v, { dur = 8, at = [0, 0, 0], turn = t => (t < dur / 2 
       if (t > stand + 0.5) { samples++; if (!H.feet.some(f => f.down)) flight++; }
       last = P;
       if (P.up < 0.35 || P.y - height(P.x, P.z) < (H.fallH ?? 0.05)) { fell = true; break; }
+      if (H.maxPitch && Math.abs(P.pitch) > H.maxPitch) { fell = true; break; } // 後ろ足で立ち上がる（四つ足の子が前を上げたまま跳ねる）のも転んだ
       if (H.noTouch && H.noTouch.some(p => { const c = p.body.translation(); return c.y - p.r - height(c.x, c.z) < 0.004; })) { fell = true; break; } // 頭や胴が地面につく（鼻先で体を支えて這う）のも転んだ // fallH＝これより胴が低いと転んだ（足の短い体は胴の太さで決める）
       if (onFrame) onFrame(t, H, P);
     }

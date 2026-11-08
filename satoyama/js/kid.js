@@ -63,7 +63,12 @@ export function buildKid(R, world, o, groundH, g, yaw = 0, over = null) { // ove
   }
   const M0 = torso.reduce((t, p) => t + p.mass, 0);
   const kS = 40 * M0 / 1.4; // 背骨の強さ（ノウサギの胴 1.4kg で 40）
-  for (let i = 1; i < K.seg; i++) J['sp' + i] = hinge('sp' + i, torso[i - 1], torso[i], [x0 + i * K.segL, hipY, 0], kS, kS * 0.03, [-0.6, 0.6]);
+  // 背骨: 上下に曲げる（sp）。twist のときは、その前に体の軸まわりのねじり（tw）をはさむ（起き上がりのため。ロボットの研究で、背のねじりが起き上がりに要る力を大きく減らす。歩くときは 0 に保つ）
+  for (let i = 1; i < K.seg; i++) {
+    const jp = [x0 + i * K.segL, hipY, 0];
+    if (K.twist) { const tn = node('tw' + i, jp, 0.02); J['tw' + i] = hinge('tw' + i, torso[i - 1], tn, jp, kS, kS * 0.03, [-0.8, 0.8], [1, 0, 0]); J['sp' + i] = hinge('sp' + i, tn, torso[i], jp, kS, kS * 0.03, [-0.6, 0.6]); }
+    else J['sp' + i] = hinge('sp' + i, torso[i - 1], torso[i], jp, kS, kS * 0.03, [-0.6, 0.6]);
+  }
   // 首と頭（首の節は角度を保つだけ）
   let prev = torso[K.seg - 1], hx = x0 + len, hy = hipY;
   for (let i = 0; i < K.neck; i++) { const n = seg('neck' + i, [hx, hy, 0], [hx + K.segL * 0.5, hy + K.segL * 0.35, 0], K.r * 0.7); hinge('nk' + i, prev, n, [hx, hy, 0], kS * 0.3, kS * 0.01, [-0.5, 0.5]); prev = n; hx += K.segL * 0.5; hy += K.segL * 0.35; }
@@ -82,7 +87,7 @@ export function buildKid(R, world, o, groundH, g, yaw = 0, over = null) { // ove
       // 後ろの対はひざが前（＜の逆）、前の対は柱のようにまっすぐ下りてひじが後ろ（本物のよつあしの前足と後ろ足）
       const fr = pn !== 'h', knee = fr ? [x - K.legL * 0.12, hipY - K.legL * 0.97, z] : [x + K.legL * 0.25, hipY - K.legL * 0.95, z], ankle = fr ? [x + K.legL * 0.02, hipY - K.legL * 1.92 + K.legR, z] : [x - K.legL * 0.05, hipY - K.legL * 1.9 + K.legR, z], toe = [x + K.legL * (fr ? 0.3 : 0.35), K.legR, z];
       const nd = node(pn + 'N' + L, [x, hipY, z], 0.02);
-      J['ab' + pn + L] = hinge('ab' + pn + L, host, nd, [x, hipY, z], kL * 0.75, kL * 0.004, [-0.5, 0.5], [1, 0, 0]);
+      J['ab' + pn + L] = hinge('ab' + pn + L, host, nd, [x, hipY, z], kL * 0.75, kL * 0.004, [-0.9, 0.9], [1, 0, 0]); // 横へ開く範囲は起き上がりのために広め（歩くときの目標は ±0.45 まで）
       const th = seg(pn + 'up' + L, [x, hipY, z], knee, K.legR * 1.4);
       const sh = seg(pn + 'lo' + L, knee, ankle, K.legR);
       const ft = seg(pn + 'ft' + L, ankle, toe, K.legR * 0.9, { foot: true, hind: pn === 'h', side: s, fr: 1.6 });
@@ -92,7 +97,7 @@ export function buildKid(R, world, o, groundH, g, yaw = 0, over = null) { // ove
     }
   });
   for (const j of list) j.jt.configureMotorPosition(0, j.k, j.d);
-  return { kind: 'kid', plan: K, pairNames: PN, parts, joints: J, list, feet, fallH: K.r * 0.8, noTouch: [parts.head, ...torso], mass: Object.values(parts).reduce((t, p) => t + p.mass, 0) }; // fallH＝胴がおなかを地面につけるほど低くなったら転んだ
+  return { kind: 'kid', plan: K, pairNames: PN, parts, joints: J, list, feet, fallH: K.r * 0.8, maxPitch: 0.6, noTouch: [parts.head, ...torso], mass: Object.values(parts).reduce((t, p) => t + p.mass, 0) }; // fallH＝胴がおなかを地面につけるほど低くなったら転んだ
 }
 
 // リズムの数（0..1）→ 値。左右のずれは「そろえる（0）」か「交互（0.5）」のどちらかの対称な歩き方だけ（GAME.md 9.7）
@@ -108,6 +113,7 @@ export const encodeKid = o => KID_PARAMS.map(([k, a, b]) => cl(((o[k] ?? (a + b)
 // のっそり歩く（横の順: 左後ろ→左前→右後ろ→右前、1.6回/秒）。ひざは前へ振るときに曲げて足を上げる（tools/kid-probe.mjs でタヌキが転ばず 1m）
 export const KID_SEED = encodeKid({ freq: 1.6, spA: 0.05, spP: 0.5, hipA: 0.3, hipO: 0, kneeA: 0.3, kneeO: 0, kneeP: 0.75, ankA: 0.25, ankP: 0.25, pairP: 0.25, side: 0.8, turn: 0.5, pK: 0, pD: 0, rK: 0, aK: -0.7, aD: 0 });
 export const KID_TROT = encodeKid({ ...decodeKid(KID_SEED), freq: 1.6, pairP: 0.5 });
+export const KID_SLOW = encodeKid({ ...decodeKid(KID_SEED), freq: 1.1, hipA: 0.22, kneeA: 0.22, ankA: 0.18 }); // ゆっくり小またの歩き（行きづまったときの出発点）
 
 // 筋のリズム。g＝歩く強さ、turn＝曲がる（＋で左）
 export function driveKid(H, q, t, g = 1, turn = 0, pose) {

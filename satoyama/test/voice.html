@@ -6,43 +6,70 @@
 <title>里山 声から生まれる子</title>
 <meta name="robots" content="noindex">
 <style>
-  :root { --ink: #2c2a26; --dim: rgba(44,42,38,.62); --panel: rgba(250,247,240,.9); --on: #6b5a3e; }
+  :root { --ink: #2c2a26; --dim: rgba(44,42,38,.62); --panel: rgba(250,247,240,.9); --on: #6b5a3e; --egg: #b5683f; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #e9e2d4; color: var(--ink); font: 14px system-ui, sans-serif; touch-action: none; user-select: none; }
   canvas { display: block; }
-  #hud { position: fixed; left: 16px; top: 14px; background: var(--panel); border-radius: 12px; padding: 8px 12px; line-height: 1.6; font-size: 13px; max-width: calc(100vw - 64px); }
+  /* 上: 左に子のようす、まんなかに 育てる／走る の切りかえ（2つの画面を行き来する） */
+  #hud { position: fixed; left: 16px; top: 72px; background: var(--panel); border-radius: 12px; padding: 8px 12px; line-height: 1.6; font-size: 13px; max-width: calc(100vw - 64px); }
   #hud small { color: var(--dim); }
+  #hud[hidden] { display: none; }
+  #name { border: 0; background: none; font: inherit; font-size: 16px; font-weight: 600; color: var(--ink); padding: 0; width: 9em; outline: none; border-bottom: 1px dashed transparent; }
+  #name:hover, #name:focus { border-bottom-color: var(--dim); }
+  #adopt input { border: 0; background: var(--panel); font: inherit; font-size: 15px; text-align: center; width: 8em; padding: 6px 10px; border-radius: 999px; outline: none; }
+  #hud .meter { height: 4px; background: rgba(44,42,38,.12); border-radius: 2px; margin-top: 4px; width: 150px; }
+  #hud .meter i { display: block; height: 100%; background: var(--on); border-radius: 2px; transition: width .6s; }
+  .tabs { position: fixed; left: 50%; top: 12px; transform: translateX(-50%); display: flex; background: var(--panel); border-radius: 999px; padding: 3px; }
+  .tabs a { font-size: 14px; color: var(--ink); text-decoration: none; padding: 12px 15px; line-height: 1; border-radius: 999px; white-space: nowrap; } /* 親指で押す所: 高さ 44px ほど・字は1行 */
+  .tabs a.on { background: var(--on); color: #fff; }
+  .tabs a.off { color: var(--dim); pointer-events: none; }
+  /* 下: いまできること1つを大きく。生む と 声をかけて育てる は色と見出しで分ける */
   #bar { position: fixed; left: 16px; right: 16px; bottom: 18px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-  #mic { border: 0; background: var(--on); color: #fff; font: inherit; font-size: 17px; padding: 14px 26px; border-radius: 999px; cursor: pointer; }
-  #mic.on { background: #a2553a; }
-  #enter { border: 0; background: var(--panel); font: inherit; font-size: 14px; padding: 8px 18px; border-radius: 999px; cursor: pointer; }
-  #enter[hidden] { display: none; }
-  .grp { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
-  .grp button { border: 0; background: var(--panel); font: inherit; font-size: 13px; color: var(--ink); padding: 6px 12px; border-radius: 999px; cursor: pointer; }
-  #bar small { color: var(--dim); background: var(--panel); border-radius: 999px; padding: 2px 10px; }
+  #bar h2 { margin: 0; font-size: 13px; font-weight: 600; background: var(--panel); border-radius: 999px; padding: 3px 12px; }
+  #mic { border: 0; background: var(--on); color: #fff; font: inherit; font-size: 17px; padding: 14px 26px; border-radius: 999px; cursor: pointer; min-width: 220px; }
+  #mic.on { filter: brightness(1.2); }
+  #bar [hidden] { display: none; }
+  .grp { display: grid; grid-template-columns: repeat(3, auto); justify-content: center; gap: 6px; }
+  #bar small.lab { background: none; padding: 0; margin-bottom: -4px; }
+  .grp button { border: 0; background: var(--panel); font: inherit; font-size: 13px; color: var(--ink); min-height: 36px; padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+  #bar small { color: var(--dim); background: var(--panel); border-radius: 999px; padding: 2px 10px; text-align: center; }
+  /* 生む: かえった子を育てるへつなぐカード（下のメニューの上に1つだけ） */
+  #adopt { margin-bottom: 14px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  #adopt[hidden] { display: none; }
+  #adoptBtn { border: 0; background: var(--on); color: #fff; font: inherit; font-size: 15px; padding: 10px 22px; border-radius: 999px; cursor: pointer; box-shadow: 0 2px 10px rgba(44,42,38,.18); }
+  #adopt small { color: var(--dim); background: var(--panel); border-radius: 999px; padding: 2px 10px; }
+  #adopt small:empty { display: none; }
+  #msg { position: fixed; left: 50%; top: 34%; transform: translate(-50%, -50%); font-size: 18px; font-weight: 600; text-shadow: 0 1px 0 #fff8; opacity: 0; transition: opacity .5s; pointer-events: none; white-space: nowrap; }
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","@dimforge/rapier3d-compat":"https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"}}</script>
 </head>
 <body>
-<div id="hud">声をふきこむと、その声から子が生まれます</div>
+<nav class="tabs"><a id="tBirth" href="#birth">生む</a><a id="tGrow" href="#grow">育てる</a><a id="toRun" class="off" href="run.html?kid=1">走る</a></nav>
+<div id="hud"><input id="name" maxlength="10" aria-label="この子の名前" title="押すと名前を変えられる"><div id="hudBody"></div></div>
+<div id="msg"></div>
 <div id="bar">
+  <div id="adopt" hidden><input id="candName" maxlength="10" aria-label="なまえ"><button id="adoptBtn">この子を育てる</button><small id="adoptNote"></small></div>
+  <h2 id="mode">あたらしい子を生む</h2>
   <button id="mic">押しながら話す</button>
+  <small class="lab">声のみほん（マイクのかわりに）</small>
   <div class="grp" id="samples"><button data-v="low">ひくい声</button><button data-v="high">たかい声</button><button data-v="child">ちいさい子</button><button data-v="breathy">ささやき</button><button data-v="rough">がらがら声</button><button data-v="quick">はやくち</button></div>
-  <button id="enter" hidden>この子に入って走る</button>
-  <small>声はこの端末の中だけで数にして、送らない・保存しない</small>
+  <small id="note">声はこの端末の中だけで数にして、送らない・保存しない</small>
 </div>
 <script type="module">
-// 声から生まれる子（GAME.md 段階「声の子」の最初の形）: 声 → 声の数（こえのこ features.js）→ 遺伝子（こえのこ evo/life.js の founder）→ 体（kid.js）→ フェルトの皮
-// 生まれた子は、画面のうしろ（Web Worker、js/practice-worker.js）で歩く練習をして、よくなった歩き方がすぐ体に入る（育つのが見える）
-// 声は数にしたら捨てる（送らない・保存しない）。残すのは遺伝子の数だけ（このページでは、とじたら消える）
+// 声の子の 生む・育てる（GAME.md 段階「声の子」）。上のタブ 生む／育てる／走る で場面を分け、下のメニュー（押しながら話す・声のみほん）は共通。声の意味だけがタブで変わる
+// 生む: 草原のすみの巣。声 → 声の数（こえのこ features.js）→ 遺伝子（こえのこ evo/life.js の founder）→ たまご → かえる。かえった子は巣のそばで息をして待つ（練習はまだ）。もう一度話すと別のたまご
+//   「この子を育てる」で、その子が育てる子になる（同じフェルトの体のまま、カメラが巣から草原へ移る。いまの子は野にかえる）
+// 育てる: 声をかけると、いまの子の見た目が声に寄って少しずつ変わる（ぱっと入れかえず、毛の色と耳がなめらかに移る）。歩く練習は画面のうしろ（Web Worker、js/practice-worker.js）
+// 練習の続きと歩き方は端末に残し（js/kid-store.js）、走るへ行ってもどれば続きから。声は数にしたら捨てる（送らない・保存しない）。残すのは遺伝子の数だけ
 import * as THREE from 'three';
 import R from '@dimforge/rapier3d-compat';
 import { height } from '../js/ground.js';
 import { pose } from '../js/hare.js';
-import { makeField } from '../js/trial.js';
-import { kidBody, kidShapes, KID_SEED, decodeKid } from '../js/kid.js';
-import { makeFeltGround, makeFeltBody, makeDiorama, HARE_FACE } from '../js/felt.js';
-import { lookGenes, lookFur, lookFace } from '../js/kid-look.js';
+import { makeField, contactPoint } from '../js/trial.js';
+import { kidBody, kidShapes, KID_SEED } from '../js/kid.js';
+import { makeFeltGround, makeFeltBody, makeFeltBall, makeDiorama, HARE_FACE } from '../js/felt.js';
+import { lookGenes, lookFur, lookFace, lookColor, kidName } from '../js/kid-look.js';
 import { analyze, A, sampleVoice, founder, rng } from '../js/voice-in.js';
+import { loadKid, saveKid } from '../js/kid-store.js';
 await R.init();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, devicePixelRatio));
@@ -55,48 +82,123 @@ const sun = new THREE.DirectionalLight(0xfff0d6, 2.2); sun.castShadow = true; su
 Object.assign(sun.shadow.camera, { left: -2, right: 2, top: 2, bottom: -2, near: 0.5, far: 20 }); scene.add(sun, sun.target);
 makeFeltGround(scene, { size: 10, n: 180, cx: 1, cz: 0 });
 const DIO = makeDiorama(renderer, scene, cam);
+const $ = id => document.getElementById(id);
+let msgT = 0; function show(s) { $('msg').textContent = s; $('msg').style.opacity = 1; clearTimeout(msgT); msgT = setTimeout(() => ($('msg').style.opacity = 0), 2200); }
+
+// 巣（草原のすみ、育てる子が歩く所から 4m ほど）: わら色のフェルトの玉を輪に、そばに石
+const NEST = [2.5, -3.2], ny = height(...NEST);
+{ for (let i = 0; i < 26; i++) { const a = i / 26 * Math.PI * 2, r = 0.2 + 0.02 * Math.sin(i * 2.3), b = makeFeltBall([0.74 - 0.05 * (i % 3), 0.64 - 0.04 * (i % 2), 0.42], { r: 0.04, sx: 1.8, sy: 0.7 });
+    b.position.set(NEST[0] + Math.cos(a) * r, height(NEST[0] + Math.cos(a) * r, NEST[1] + Math.sin(a) * r) + 0.02, NEST[1] + Math.sin(a) * r); b.rotation.y = -a + Math.PI / 2; scene.add(b); }
+  const bed = makeFeltBall([0.66, 0.56, 0.36], { r: 0.2, sy: 0.12 }); bed.position.set(NEST[0], ny + 0.004, NEST[1]); scene.add(bed);
+  for (const [dx, dz, r] of [[-0.45, 0.2, 0.07], [-0.36, 0.36, 0.045], [0.42, -0.3, 0.06]]) { const st = makeFeltBall([0.6, 0.6, 0.57], { r, sy: 0.6 }); st.position.set(NEST[0] + dx, height(NEST[0] + dx, NEST[1] + dz) + r * 0.3, NEST[1] + dz); scene.add(st); } }
 
 // 子: 遺伝子 → 体と皮。練習の結果（歩き方の数）が届くたびに入れかえる
 // 育つ様子を早送りしないで見せる: 練習の1世代に最短 2.5 秒かけ、画面の子は「いま試している歩き方」で歩く（はじめはばたついて、だんだんそろう）
-let world = null, kid = null, worker = null, t = 0, info = { gen: 0, tries: 0, firstWalk: null, dist: 0 }, fallT = 0, clock = 0;
-function born(genes) {
+let world = makeField(R), kid = null, worker = null, t = 0, info = {}, fallT = 0, clock = 0, morph = null;
+// saved＝残してある子（遺伝子・歩き方・練習の続き）。FB を渡すと、その皮を新しい体に付けかえる（生むから連れてきた子）
+function raise(saved, FB0 = null) {
   if (worker) worker.terminate();
-  if (kid) { kid.FB.setVisible(false); }
-  world = makeField(R); t = 0; fallT = 0;
-  const B = kidBody(genes), H = B.build(R, world, [0, 0, 0], height), K = H.plan;
-  const FB = makeFeltBody(scene, H, kidShapes(H), { furColor: lookFur(genes.look, H), face: lookFace(genes.look, K, HARE_FACE) });
-  kid = { H, B, q: B.decode(KID_SEED), FB, genes, best: null };
-  info = { gen: 0, tries: 0, firstWalk: null, dist: 0 }; document.getElementById('enter').hidden = true;
-  // 練習（遺伝子の数だけを渡す）
+  if (kid) kid.FB.dispose();
+  const genes = saved.genes;
+  if (kid) { for (const p of Object.values(kid.H.parts)) world.removeRigidBody(p.body); }
+  t = 0; fallT = 0; morph = null;
+  const B = kidBody(genes), H = B.build(R, world, [0, 0, 0], height);
+  let FB = FB0; if (FB) FB.rebind(H, 0); else FB = makeFeltBody(scene, H, kidShapes(H), { furColor: lookFur(genes.look, H), face: lookFace(genes.look, H.plan, HARE_FACE) });
+  kid = { name: saved.name || kidName(genes.look), H, B, q: B.decode(saved.trying || KID_SEED), FB, genes, best: saved.v || null, trying: saved.trying || KID_SEED, state: saved.state || null };
+  const s = saved.state; info = { gen: s?.gen ?? 0, tries: s?.tries ?? 0, firstWalk: s?.firstWalk ?? null, stage: s?.st ?? 1, steady: s?.steady, done: s?.done, restarts: s?.restarts };
+  $('name').value = kid.name; tabs();
+  if (info.done) return; // 練習が終わっていれば回さない
   worker = new Worker(new URL('../js/practice-worker.js', import.meta.url), { type: 'module' });
-  worker.onmessage = e => { const m = e.data; if (m.done) { info.done = true; return; } info = { ...info, ...m }; kid.q = B.decode(m.trying); if (m.v) kid.best = m.v; if (m.stage === 3) document.getElementById('enter').hidden = false; };
-  worker.postMessage({ genes, gens: 90, pace: 2.5, seed: (Math.random() * 1e9) | 0 });
+  worker.onmessage = e => { const m = e.data; if (m.end) return; info = { ...info, ...m }; kid.q = B.decode(m.trying); kid.trying = m.trying; if (m.v) kid.best = m.v; kid.state = m.state; keep(); };
+  worker.postMessage({ genes, pace: 2.5, seed: (Math.random() * 1e9) | 0, resume: kid.state }); // 練習に渡すのは遺伝子の数だけ
 }
-function fromVoice(samples, sr) {
-  const a = analyze(samples, sr); // 声は数にしたら捨てる
-  if (!a.ok) { document.getElementById('hud').innerHTML = 'もう少し長く、声を出して'; return; }
-  const R2 = rng((Math.random() * 1e9) | 0), c = founder(a, R2); c.g.look = lookGenes(a.n, R2); born(c.g); // 見た目の遺伝子（毛の色・もよう・耳）も声から
+const keep = () => kid && saveKid({ name: kid.name, genes: kid.genes, v: kid.best, trying: kid.trying, state: kid.state }); // 名前も端末の中だけ
+// 名前: 左上の名前を押すと書きかえられる（Enter か、ほかを押すと決まる。からっぽなら元の名前）
+$('name').addEventListener('change', () => { if (!kid) return; kid.name = $('name').value.trim() || kid.name; $('name').value = kid.name; keep(); });
+$('name').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); e.stopPropagation(); });
+$('candName').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); e.stopPropagation(); });
+
+// 生む: たまご（その子の毛の色）→ ゆれて → ぽふっとかえる。かえった子（cand）は別の物理の世界で、巣の上に立って息をする
+let cand = null, egg = null, nestWorld = null, nt = 0;
+function lay(genes) {
+  dropCand();
+  const c = lookColor(genes.look); egg = { m: makeFeltBall(c.base, { r: 0.045, sy: 1.25 }), t: 0, genes, puff: [] };
+  egg.m.position.set(NEST[0], ny + 0.05, NEST[1]); egg.m.scale.setScalar(0.01); scene.add(egg.m);
+  $('adopt').hidden = true;
 }
-// この子に入って走る（入って走るのページへ。渡すのは遺伝子と、いまいちばんの歩き方の数だけ。この端末のこのタブの中だけ）
-document.getElementById('enter').addEventListener('click', () => {
-  if (!kid || !kid.best) return;
-  try { sessionStorage.setItem('satoyama.kid', JSON.stringify({ genes: kid.genes, v: kid.best })); } catch (e) { /* 保存できない */ }
-  location.href = 'run.html?kid=1';
+function hatch() {
+  const genes = egg.genes; nestWorld = makeField(R); nt = 0;
+  const B = kidBody(genes), H0 = B.build(R, nestWorld, [NEST[0], 0, NEST[1]], height);
+  const FB = makeFeltBody(scene, H0, kidShapes(H0), { furColor: lookFur(genes.look, H0), face: lookFace(genes.look, H0.plan, HARE_FACE) });
+  for (const p of Object.values(H0.parts)) nestWorld.removeRigidBody(p.body);
+  const H = B.build(R, nestWorld, [NEST[0], 0, NEST[1]], height, -2.4); FB.rebind(H, -2.4); // 巣から草原（育てる所）のほうを向く
+  cand = { H, B, FB, genes, q: B.decode(KID_SEED) };
+  const c = lookColor(genes.look); // ぽふっと: 毛の色の小さな玉が広がって消える（たまごの殻のかわり）
+  for (let i = 0; i < 9; i++) { const b = makeFeltBall(i % 3 ? c.pale : c.base, { r: 0.012 + 0.008 * Math.random() }), a = i / 9 * Math.PI * 2; b.position.copy(egg.m.position); b.userData.v = new THREE.Vector3(Math.cos(a) * 0.35, 0.25 + 0.2 * Math.random(), Math.sin(a) * 0.35); scene.add(b); egg.puff.push(b); }
+  scene.remove(egg.m);
+  $('adopt').hidden = false; $('adoptNote').textContent = kid ? 'いまの子は野にかえります' : ''; $('candName').value = kidName(genes.look);
+}
+function dropCand() {
+  if (cand) { cand.FB.dispose(); nestWorld.free(); cand = null; nestWorld = null; }
+  if (egg) { scene.remove(egg.m); egg.puff.forEach(b => scene.remove(b)); egg = null; }
+}
+function stepNest(dt) {
+  if (egg) {
+    egg.t += dt; const k = egg.t;
+    if (egg.m.parent) { egg.m.scale.setScalar(Math.min(1, k / 0.5)); egg.m.rotation.z = k > 0.8 ? Math.sin(k * 16) * 0.18 * Math.min(1, (k - 0.8) * 2) : 0; if (k > 2.4) hatch(); } // 生まれる → ゆれる → かえる
+    for (const b of egg.puff) { b.position.addScaledVector(b.userData.v, dt); b.userData.v.multiplyScalar(Math.exp(-dt * 4)); b.material.opacity = Math.max(0, 1 - (k - 2.4) / 0.9); }
+    if (k > 3.4 && egg.puff.length) { egg.puff.forEach(b => scene.remove(b)); egg.puff = []; }
+  }
+  if (cand) { const n = Math.round(dt * 240); for (let i = 0; i < n; i++) { if (i % 4 === 0) for (const f of cand.H.feet) f.down = !!contactPoint(f); cand.B.drive(cand.H, cand.q, nt, 0, 0); nestWorld.step(); nt += 1 / 240; } cand.FB.pose(dt); cand.FB.breathe(dt, 0); }
+}
+// この子を育てる: 同じ皮を育てる所の体に付けかえる（巣の子がそのまま草原へ）。練習はここから
+$('adoptBtn').addEventListener('click', () => {
+  if (!cand) return; const had = !!kid, FB = cand.FB, genes = cand.genes;
+  nestWorld.free(); nestWorld = null; cand = null; egg = null; $('adopt').hidden = true;
+  raise({ genes, name: $('candName').value.trim() || kidName(genes.look) }, FB); keep(); go('grow'); show(had ? `${kid.name} が来た。前の子は野にかえった` : `${kid.name} を育てよう`);
 });
 
+function hear(samples, sr) {
+  const a = analyze(samples, sr); // 声は数にしたら捨てる
+  if (!a.ok) { show('もう少し長く、声を出して'); return; }
+  const R2 = rng((Math.random() * 1e9) | 0);
+  if (mode === 'birth') { const c = founder(a, R2); c.g.look = lookGenes(a.n, R2); lay(c.g); return; }
+  if (!kid) return;
+  // 育てる: 見た目の遺伝子を、その声の向きへ 35% 寄せる（声をかけるほど、その声らしくなる）。もようの置き方（seed）はその子のまま
+  const L0 = kid.genes.look, L1 = lookGenes(a.n, R2), L = { ...L0 };
+  for (const k of ['hue', 'light', 'spots', 'ear', 'sharp']) L[k] = L0[k] + (L1[k] - L0[k]) * 0.35;
+  kid.genes = { ...kid.genes, look: L }; keep();
+  kid.FB.look.begin(lookFur(L, kid.H), lookFace(L, kid.H.plan, HARE_FACE)); morph = { t: 0, dur: 4 };
+  show('声に耳をすませている…');
+}
+
+// 上のタブ: 生む（巣）・育てる（草原）は同じページで場面を移す。走るは別のページ。子がいないうちは 育てる・走る は押せない
+let mode = 'birth';
+function tabs() {
+  $('tBirth').classList.toggle('on', mode === 'birth'); $('tGrow').classList.toggle('on', mode === 'grow');
+  $('tGrow').classList.toggle('off', !kid); $('toRun').classList.toggle('off', !kid);
+  $('mode').textContent = mode === 'birth' ? '声でたまごをつくる' : '声をかけて育てる';
+  $('adopt').hidden = !(mode === 'birth' && cand);
+}
+function go(m) { if (m === 'grow' && !kid) m = 'birth'; mode = m; history.replaceState(null, '', '#' + m); tabs(); }
+$('tBirth').addEventListener('click', e => { e.preventDefault(); go('birth'); });
+$('tGrow').addEventListener('click', e => { e.preventDefault(); go('grow'); });
+
 // 声の入口: 押しているあいだ録る（マイクが使えない人は「声のみほん」）
-const mic = document.getElementById('mic'); let rec = false;
-mic.addEventListener('pointerdown', async e => { e.preventDefault(); try { await A.openMic(); } catch (er) { document.getElementById('hud').innerHTML = 'マイクが使えませんでした。下の「声のみほん」でも生まれます'; return; } A.startRec(); rec = true; mic.classList.add('on'); mic.textContent = '話している…'; });
-const end = () => { if (!rec) return; rec = false; mic.classList.remove('on'); mic.textContent = '押しながら話す'; const r = A.stopRec(); fromVoice(r.samples, r.sr); };
+const mic = $('mic'); let rec = false, held = false;
+mic.addEventListener('pointerdown', async e => { e.preventDefault(); held = true; try { await A.openMic(); } catch (er) { show('マイクが使えませんでした。下の「声のみほん」でも'); return; }
+  if (!held) { show('もう一度、押しながら話して'); return; } // はじめては許可の画面のあいだに指がはなれている（録りっぱなしにしない）
+  A.startRec(); rec = true; mic.classList.add('on'); mic.textContent = '話している…'; });
+const end = () => { held = false; if (!rec) return; rec = false; mic.classList.remove('on'); mic.textContent = '押しながら話す'; const r = A.stopRec(); hear(r.samples, r.sr); };
 addEventListener('pointerup', end); addEventListener('pointercancel', end);
-document.getElementById('samples').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const sr = 48000; fromVoice(sampleVoice(b.dataset.v, sr), sr); });
+$('samples').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const sr = 48000; hear(sampleVoice(b.dataset.v, sr), sr); });
 addEventListener('contextmenu', e => e.preventDefault());
 
 // 動かす・描く
-let camPos = new THREE.Vector3(-0.2, 0.55, 1.2);
 function step(dt) {
+  stepNest(dt);
   if (!kid) return; const n = Math.round(dt * 240);
-  for (let k = 0; k < n; k++) { kid.B.drive(kid.H, kid.q, t, fallT || t < 0.4 ? 0 : 1, 0); world.step(); t += 1 / 240; clock += 1 / 240; }
+  for (let k = 0; k < n; k++) { if (k % 4 === 0) for (const f of kid.H.feet) f.down = !!contactPoint(f); kid.B.drive(kid.H, kid.q, t, fallT || t < 0.4 ? 0 : 1, 0); world.step(); t += 1 / 240; clock += 1 / 240; }
   const P = pose(kid.H);
   // 転んだら、少し待ってその場で起き直す（失敗の文字は出さない。GAME.md 9.7）。遠くへ行ったら真ん中へもどす
   if (!fallT && (P.up < 0.35 || P.y - height(P.x, P.z) < kid.H.fallH)) fallT = clock;
@@ -107,22 +209,34 @@ function restart(P, home) {
   const at = home ? [0, 0, 0] : [P.x, 0, P.z], yaw = home ? 0 : P.yaw;
   old.H = old.B.build(R, world, at, height, yaw); old.FB.rebind(old.H, yaw); t = 0; fallT = 0;
 }
+// 練習の進み: 段ごとのことばと、めもり（段1 25世代、段2 は4か所で転ばずに歩けるまで、段3 45世代）
+const stageText = () => !info.gen ? 'うまれたて' : info.done ? 'のびのび歩ける' : !info.firstWalk ? 'よちよち練習中' : info.stage === 1 ? 'よちよち歩けた' : info.stage === 2 ? 'ころばないように練習中' : 'まがる練習中';
+const meter = () => { const s = kid.state; if (info.done) return 1; if (!s) return 0; return s.st === 1 ? s.inSt / 25 * 0.33 : s.st === 2 ? 0.33 + Math.min(1, s.inSt / 40) * 0.33 : 0.66 + Math.min(1, s.inSt / 45) * 0.34; };
+// カメラ: 場面を移すときは、見る点と位置をゆっくり動かす（ぱっと切りかえない）
+const camPos = new THREE.Vector3(NEST[0] - 0.25, ny + 0.42, NEST[1] + 0.95), aim = new THREE.Vector3(NEST[0], ny + 0.06, NEST[1]), _w = new THREE.Vector3(), _l = new THREE.Vector3();
 function render(dt) {
   if (kid) {
+    if (morph) { morph.t += dt; const k = Math.min(1, morph.t / morph.dur), e = k * k * (3 - 2 * k); kid.FB.look.blend(e); if (k >= 1) { morph = null; show('すこし、その声らしくなった'); } }
     kid.FB.pose(dt); kid.FB.breathe(dt, 1);
-    const P = pose(kid.H); camPos.lerp(new THREE.Vector3(P.x - 0.2, 0.5, P.z + 1.15), 0.05); cam.position.copy(camPos); cam.lookAt(P.x, 0.1, P.z);
-    sun.position.set(P.x + 2, 5, P.z + 3); sun.target.position.set(P.x, 0, P.z);
-    const st = info.gen === 0 ? 'うまれたて' : !info.firstWalk ? 'よちよち練習中' : info.stage === 1 ? 'よちよち歩けた' : info.stage === 2 ? 'ころばないように練習中' : 'まがる練習中';
-    document.getElementById('hud').innerHTML = `${st}<br><small>練習 ${info.tries} 回・節${kid.H.plan.seg}・足${kid.H.plan.pairs}対${info.done ? '・おしまい' : ''}</small>`;
-  } else cam.position.set(-0.2, 0.55, 1.2), cam.lookAt(0, 0.1, 0);
+  }
+  const k = 1 - Math.exp(-dt * 2.2);
+  if (mode === 'grow' && kid) { const P = pose(kid.H); _w.set(P.x - 0.2, height(P.x, P.z) + 0.5, P.z + 1.15); _l.set(P.x, 0.1 + height(P.x, P.z) * 0.5, P.z); }
+  else { _w.set(NEST[0] - 0.35, ny + 0.62, NEST[1] + 1.35); _l.set(NEST[0], ny + 0.08, NEST[1]); }
+  camPos.lerp(_w, k); aim.lerp(_l, k); cam.position.copy(camPos); cam.lookAt(aim);
+  sun.position.set(aim.x + 2, 5, aim.z + 3); sun.target.position.copy(aim);
+  $('hud').hidden = mode !== 'grow' || !kid;
+  if (kid && mode === 'grow') $('hudBody').innerHTML = `${stageText()}<div class="meter"><i style="width:${(meter() * 100).toFixed(0)}%"></i></div><small>練習 ${info.tries || 0} 回${info.restarts ? `・歩き方を変えて ${info.restarts + 1} 回目` : ''}</small>`;
   DIO.render(1.2, 0.5, 0.25);
 }
 function resize() { renderer.setSize(innerWidth, innerHeight); DIO.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
+{ const saved = loadKid(); if (saved) raise(saved); go(saved && location.hash !== '#birth' ? 'grow' : 'birth'); } // 前にいた子がいれば、その子のつづきから
+{ const P = kid && mode === 'grow' ? pose(kid.H) : { x: NEST[0], z: NEST[1] }; camPos.set(P.x - 0.2, height(P.x, P.z) + 0.5, P.z + 1.1); aim.set(P.x, height(P.x, P.z) + 0.08, P.z); } // はじめはその場から
+addEventListener('pagehide', keep);
 let last = performance.now();
 function loop(now) { const dt = Math.min(1 / 20, (now - last) / 1000); last = now; step(dt); render(dt); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
-window.__voice = { sample: name => fromVoice(sampleVoice(name, 48000), 48000), get info() { return info; }, get kid() { return kid; }, advance(sec) { for (let i = 0; i < sec * 60; i++) { step(1 / 60); render(1 / 60); } } };
+window.__voice = { sample: name => hear(sampleVoice(name, 48000), 48000), go, adopt: () => $('adoptBtn').click(), get mode() { return mode; }, get info() { return info; }, get kid() { return kid; }, get cand() { return cand; }, get morph() { return morph; }, advance(sec) { for (let i = 0; i < sec * 60; i++) { step(1 / 60); render(1 / 60); } } };
 </script>
 </body>
 </html>

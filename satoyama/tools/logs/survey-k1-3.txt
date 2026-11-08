@@ -1,0 +1,2 @@
+{"id":4,"seg":4,"pairs":3,"firstWalk":null,"ok4":0,"dist":0.33,"sec":138}
+{"id":10,"seg":4,"pairs":2,"firstWalk":null,"ok4":0,"dist":0.06,"sec":64}
