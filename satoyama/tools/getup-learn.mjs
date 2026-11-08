@@ -2,38 +2,18 @@
 // [TWIST=1] node tools/getup-learn.mjs 番号 [世代=40]（番号は kidGenes(番号×7919)、tanuki でタヌキ）。結果は js/getup-kid-<番号>.json、記録は logs/getup-<番号>.txt
 import fs from 'node:fs';
 import R from '@dimforge/rapier3d-compat';
-import { makeField } from '../js/trial.js';
-import { height } from '../js/ground.js';
-import { pose } from '../js/hare.js';
 import { kidGenes, kidBody, KID_SEED } from '../js/kid.js';
 import { TANUKI } from '../js/tanuki.js';
-import { GETUP_SEED, decodeGetup, driveGetup } from '../js/getup.js';
+import { GETUP_SEED } from '../js/getup.js';
+import { tryGetup as tryGetupIn } from '../js/getup-practice.js';
 await R.init();
 const id = process.argv[2] || '8', GENS = +(process.argv[3] || 40), tan = id === 'tanuki', genes = tan ? {} : kidGenes(+id * 7919);
-const TW = !!process.env.TWIST, tag = id + (TW ? '-tw' : ''); // TWIST=1 で背にねじりの関節を足した体
+const TW = !!process.env.TWIST, tag = id + (TW ? '-tw' : '') + (process.env.TAG || ''); // TWIST=1 で背にねじりの関節を足した体
 const B = kidBody(genes, { ...(tan ? TANUKI : {}), ...(TW ? { twist: true } : {}) }), stand = B.decode(KID_SEED);
 const LOG = new URL(`./logs/getup-${tag}.txt`, import.meta.url); fs.writeFileSync(LOG, "");
 const say = s => { console.log(s); fs.appendFileSync(LOG, s + '\n'); }; // 1世代ごとに書く（流す書き方だと、練習が止まらずに回るあいだ出ない）
 
-// 1回の試し: at に立たせ、d の向きへ倒して 1.2 秒おちつかせてから、型で起きる。4 秒のうちに起きて 0.5 秒立っていられたか
-function tryGetup(v, at, d) {
-  const world = makeField(R), H = B.build(R, world, at, height, 0), q = decodeGetup(v);
-  let t = 0;
-  for (; t < 0.3; t += 1 / 240) { B.drive(H, stand, t, 0, 0); world.step(); }
-  for (const p of Object.values(H.parts)) { const l = p.body.linvel(); p.body.setLinvel({ x: l.x, y: l.y + 0.18, z: l.z + d * 0.6 }, true); } // 横から押して倒す（回すだけでは倒れない。tools/getup-topple.mjs）。どちらから押しても、背中を下に少し傾いた形（腰の上向き −0.4）で止まる
-  for (let k = 0; k < 288; k++) { B.drive(H, stand, t, 0, 0); world.step(); t += 1 / 240; }
-  const P0 = pose(H); if (P0.up > 0.5) { world.free(); return null; } // 倒れなかった
-  const dd = Math.sign(P0.roll) || d;
-  let up = 0, n = 0, tUp = null, spin = 0, s = 0, upMax = -1, stopAt = null, upSum = 0, upN = 0;
-  for (let k = 0; k < 240 * 5.5; k++, s += 1 / 240) {
-    if (stopAt == null && s > 0.2 && k % 8 === 0 && pose(H).up > 0.85) stopAt = s; // 起きたら型をやめる
-    const done = driveGetup(H, q, s, dd, stopAt); if (done) B.drive(H, stand, s, 0, 0); world.step();
-    if (k % 8 === 0) { const P = pose(H), w = H.parts.pelvis.body.angvel(); spin += Math.hypot(w.x, w.y, w.z); upMax = Math.max(upMax, P.up); upSum += Math.max(0, P.up); upN++; if (tUp == null && P.up > 0.8) tUp = s; if (s > 5) { up += P.up; n++; } }
-  }
-  const P = pose(H), ok = up / n > 0.85 && P.y - height(P.x, P.z) > H.fallH;
-  world.free();
-  return { ok, up: up / n, upMax, upAvg: upSum / upN, tUp, spin: spin / 660 };
-}
+const tryGetup = (v, at, d) => tryGetupIn(R, B, v, at, d); // 試しはページと同じ（js/getup-practice.js）
 const score = r => (r ? 0.3 * r.upMax + 2 * r.upAvg + r.up + (r.ok ? 2 : 0) - 0.03 * r.spin : 0); // 起きていた時間の長さに点（いちばん起きた量だけだと、勢いよく転がり抜ける動きが得になった）。少し起きた動きにも点が入るよう upMax も少し
 
 let s0 = 7; const rnd = () => (s0 = (s0 * 16807) % 2147483647) / 2147483647, gauss = () => Math.sqrt(-2 * Math.log(rnd() + 1e-12)) * Math.cos(2 * Math.PI * rnd());

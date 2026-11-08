@@ -52,13 +52,14 @@ import { mud, makeDirt, stepDirt, MUD_WET } from '../js/dirt.js';
 import { feltify, makeFeltGround, makeFeltBody, makeDiorama, HARE_FACE } from '../js/felt.js';
 import { kidBody, kidShapes } from '../js/kid.js';
 import { lookFur, lookFace } from '../js/kid-look.js';
-import { loadKid } from '../js/kid-store.js';
+import { loadKid, saveKid } from '../js/kid-store.js';
+import { driveGetup, decodeGetup, GETUP_UP } from '../js/getup.js';
 await R.init();
 const qs = new URLSearchParams(location.search);
 let v = PARAMS.map(() => 0.5);
 try { const j = (await (await fetch(`../js/gait-hare-${qs.get('gait') || 'turn2'}.json`, { cache: 'no-store' })).json()); v = j.v; setAnatomical(!!j.anat); } catch (e) { /* まだ学習していない */ } // anat＝関節を本物の向きだけにした体で覚えた跳び方
 // ?kid=1: 声から生まれた子に入る（test/voice.html で育てている子。遺伝子と歩き方の数だけ、js/kid-store.js から）。練習の途中でも入れる（いちばんよい歩き、なければいま試している歩き）
-let KID = null; if (qs.get('kid')) { const k = loadKid(); if (k) KID = { name: k.name, genes: k.genes, v: k.v || k.trying, done: k.state?.done }; }
+let KID = null; if (qs.get('kid')) { const k = loadKid(); if (k) KID = { name: k.name, genes: k.genes, v: k.v || k.trying, done: k.state?.done, getup: k.getup?.v ? decodeGetup(k.getup.v) : null }; }
 if (KID) { document.body.classList.add('kid'); document.getElementById('tabs').hidden = false; if (KID.name) document.getElementById('needT').textContent = `${KID.name} と、もうすこし練習してからにしよう`; }
 const KB = KID && kidBody(KID.genes);
 const BODY = KB ? { build: (at, yaw = 0) => KB.build(R, world, at, height, yaw), drive: KB.drive, q: KB.decode(KID.v) } : { build: (at, yaw = 0) => buildHare(R, world, at, height, yaw), drive, q: decodeParams(v) };
@@ -94,12 +95,14 @@ setGoal(goal);
 const world = makeField(R); let H = BODY.build([0, 0, 0]), D = makeDirt(H);
 const FB = KB ? makeFeltBody(scene, H, kidShapes(H), { furColor: lookFur(KID.genes.look, H), face: lookFace(KID.genes.look, H.plan, HARE_FACE) })
   : makeFeltBody(scene, H, hareShapes(H), { furColor: (part, p, n) => hareFurColor(part, p, n, H), headOff: HEAD_OFF, bends: hareBends(H) });
+// 声の子の泥は、育てるへ持って帰る（泥の点だけ。乾いて落ちる・水浴びは育てるで）
+if (KID) { FB.mud.blobs = loadKid()?.mud || []; const keepMud = () => { const k = loadKid(); if (k) { k.mud = FB.mud.blobs; saveKid(k); } }; setInterval(keepMud, 5000); addEventListener('pagehide', keepMud); }
 // 転んだら、少し待ってその場で起き直す（体を作り直す。向きは転ぶ前のまま、場所は地面のはしより内側。泥とぬれは引きつぐ）
 function respawn() {
   const P = pose(H); for (const p of Object.values(H.parts)) if (world.getRigidBody(p.body.handle)) world.removeRigidBody(p.body);
   const L = SIZE / 2 - 1.5, keep = D; H = BODY.build([Math.max(-L, Math.min(L, P.x)), 0, Math.max(-L, Math.min(L, P.z))], P.yaw); D = makeDirt(H);
   for (const k in D) if (keep[k]) Object.assign(D[k], { mud: keep[k].mud, wet: keep[k].wet, dry: keep[k].dry });
-  FB.rebind(H, P.yaw); t = 0; gNow = 0;
+  FB.rebind(H, P.yaw); t = 0; gNow = 0; gu = null;
 }
 
 // 足あと: ぬかるみでは深く濃く、泥のついた足は草の上にも泥の跡を残す
@@ -171,7 +174,7 @@ function wish(P) {
   return { go: 0 };
 }
 
-let t = 0, clock = 0, gNow = 0, turnNow = 0, falls = 0, fallT = 0, legT = 0, legs = [], fallAt = [], needT = 0;
+let gu = null, t = 0, clock = 0, gNow = 0, turnNow = 0, falls = 0, fallT = 0, legT = 0, legs = [], fallAt = [], needT = 0;
 function stepFrame(dt) {
   const n = Math.round(dt * 240);
   for (let k = 0; k < n; k++) {
@@ -185,14 +188,16 @@ function stepFrame(dt) {
       // 藪に着いたか
       const b = BUSHES[goal]; if (Math.hypot(P.x - b[0], P.z - b[1]) < 0.4) { legs.push(+(clock - legT).toFixed(1)); show(`藪に着いた（${(clock - legT).toFixed(1)} 秒）`); goal = (goal + 1) % BUSHES.length; setGoal(goal); legT = clock; }
       for (const f of H.feet) { const c = contactPoint(f), d = !!c; if (d && !f.down) addPrint(f, P); f.down = d; }
-      stepDirt(D, H, 4 / 240, rainOn ? 1 : 0);
-      // 転んだら、すぐ起き直す（文字や音で失敗を見せない。GAME.md 9.7）
-      if (fallT) { if (clock - fallT > 0.8) { respawn(); fallT = 0; } }
+      FB.mud.hit(stepDirt(D, H, 4 / 240, rainOn ? 1 : 0)); // ふれた所を中心に泥の点
+      // 転んだら: 起き上がりを覚えた子は、少し待って自分で起きる（4 秒で起きられなければ起き直す）。覚えていない子は、すぐ起き直す（文字や音で失敗を見せない。GAME.md 9.7）
+      if (gu) { if (gu.stopAt == null && gu.t > 0.2 && P.up > GETUP_UP) gu.stopAt = gu.t; if (gu.t > 4) { gu = null; respawn(); fallT = 0; } }
+      else if (fallT) { if (KID?.getup && clock - fallT > 0.6) gu = { t: 0, d: Math.sign(P.roll) || 1, stopAt: null }; else if (!KID?.getup && clock - fallT > 0.8) { respawn(); fallT = 0; } }
       else if (P.up < 0.35 || P.y - height(P.x, P.z) < (H.fallH ?? 0.05) || (H.maxPitch && Math.abs(P.pitch) > H.maxPitch)) { falls++; fallT = clock; fallAt.push(clock); }
       // 声の子が 20 秒に 3 回より多く転ぶなら「もうすこし練習してから」と伝えて、育てるへもどる道を出す（責める文にしない）
       if (KID) { while (fallAt.length && clock - fallAt[0] > 20) fallAt.shift(); if (fallAt.length >= 3) needT = clock; document.getElementById('need').hidden = !(needT && clock - needT < 12); }
     }
-    BODY.drive(H, Q, t, fallT ? 0 : gNow, turnNow);
+    if (gu) { gu.t += 1 / 240; if (driveGetup(H, KID.getup, gu.t, gu.d, gu.stopAt)) { gu = null; fallT = 0; t = 0; } } // 起き上がる
+    else BODY.drive(H, Q, t, fallT ? 0 : gNow, turnNow);
     world.step(); t += 1 / 240; clock += 1 / 240;
   }
 }
@@ -213,7 +218,8 @@ invY = load('satoyama.invY', '1') !== '0'; steady = load('satoyama.steady', '1')
 const camPos = new THREE.Vector3(-1.2, 0.7, 0), eyeP = new THREE.Vector3(), aimP = new THREE.Vector3(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _h = new THREE.Vector3();
 let aimInit = false;
 const TOUCH = matchMedia('(pointer: coarse)').matches;
-const HINT = { follow: '行きたい所をさわる（矢印キー・WASD でも）', top: '行きたい所をさわる（矢印キー・WASD でも）', tps: 'クリックでマウスを使う・WASD で走る・Esc でもどす', fps: 'クリックでマウスを使う・WASD で走る・Esc でもどす' };
+const HINT = { follow: TOUCH ? '行きたい所をさわる' : '行きたい所をさわる（矢印キー・WASD でも）', top: TOUCH ? '行きたい所をさわる' : '行きたい所をさわる（矢印キー・WASD でも）', tps: 'クリックでマウスを使う・WASD で走る・Esc でもどす', fps: 'クリックでマウスを使う・WASD で走る・Esc でもどす' };
+document.getElementById('hint').textContent = HINT.follow; // スマホではキーの案内を出さない
 const headAt = () => FB.headBone.getWorldPosition(_h);
 function setCam(m) {
   camMode = m; document.querySelectorAll('#cams button').forEach(b => b.classList.toggle('on', b.dataset.v === m));
@@ -229,7 +235,7 @@ invBtn.addEventListener('pointerdown', e => { e.stopPropagation(); invY = !invY;
 const stBtn = document.getElementById('steady'), showSt = () => { stBtn.textContent = steady ? '揺れ おさえる' : '揺れ そのまま'; stBtn.classList.toggle('on', steady); };
 stBtn.addEventListener('pointerdown', e => { e.stopPropagation(); steady = !steady; showSt(); save('satoyama.steady', steady ? '1' : '0'); }); showSt();
 function render(dt) {
-  FB.pose(dt); FB.breathe(dt, fallT ? 0 : gNow); if (frame++ % 3 === 0) FB.paint(D);
+  FB.pose(dt); FB.breathe(dt, fallT ? 0 : gNow); FB.mud.step(dt, rainOn ? 1 : 0); if (frame++ % 3 === 0) FB.paint(D);
   const P = pose(H); stepRain(dt, P);
   // カメラが見る点: おさえるときは、高さは地面からの平らな高さに、前後左右もゆっくり追う
   const gy = height(P.x, P.z), k = Math.min(1, dt * 60);
@@ -269,6 +275,7 @@ requestAnimationFrame(loop);
 window.__run = {
   advance(sec) { for (let i = 0; i < sec * 60; i++) { stepFrame(1 / 60); if (i % 10 === 0) render(1 / 6); } render(1 / 60); },
   aim() { const b = BUSHES[goal]; target = new THREE.Vector3(b[0], 0, b[1]); markInput(); },
+  push(d = 1) { for (const p of Object.values(H.parts)) { const l = p.body.linvel(); p.body.setLinvel({ x: l.x, y: l.y + 0.18, z: l.z + d * 0.6 }, true); } }, get getup() { return gu; }, // 確かめ用: 横から押して倒す
   rain: setRain, cam: setCam, look: turnView, get dirt() { return D; }, get camMode() { return camMode; }, get steady() { return steady; },
   get stats() { return { legs, falls, lag: lags.length ? lags.reduce((a, b) => a + b, 0) / lags.length : null, goal, p: pose(H) }; },
 };

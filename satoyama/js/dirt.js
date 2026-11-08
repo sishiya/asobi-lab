@@ -19,20 +19,21 @@ export function makeDirt(H) {
   for (const [name, p] of Object.entries(H.parts)) {
     if (!p.a && !p.off && p.r <= 0.005) continue; // 節（見えない小さな体）は外す
     const ends = p.off ? [p.off] : p.a ? [sub(p.a, p.c), sub(p.b, p.c)] : [[0, 0, 0]];
-    S[name] = { body: p.body, r: p.r, ends, mud: 0, wet: 0, dry: 0 };
+    S[name] = { name, body: p.body, r: p.r, ends, mud: 0, wet: 0, dry: 0 };
   }
   return S;
 }
 // 部位の点（世界の位置）
 function points(s) { const t = s.body.translation(), q = s.body.rotation(); return s.ends.map(e => { const d = rotv(q, e); return [t.x + d[0], t.y + d[1], t.z + d[2]]; }); }
 
-// 1こま（dt 秒）。rain＝雨の強さ 0..1。返すのは、このこまで泥がはねた所（絵の粒を出すため）
+// 1こま（dt 秒）。rain＝雨の強さ 0..1。返すのは、このこまで泥がついた点（[{part, p:世界の点, amt, r}]。皮の泥の点＝felt.js の mud.hit へ）
 export function stepDirt(S, H, dt, rain = 0, onSplash = null) {
+  const hits = [];
   // 1) ふれた所: 部位のいちばん低い点が地面に近く、そこがぬかるみなら泥がつく（足はこする分さらに）
   for (const s of Object.values(S)) {
     for (const [x, y, z] of points(s)) {
       const g = y - s.r - height(x, z), m = mud(x, z, rain);
-      if (g < 0.006 && m > 0.05) { s.mud = Math.min(1, s.mud + m * 2.2 * dt); s.wet = Math.min(1, s.wet + m * 3 * dt); }
+      if (g < 0.006 && m > 0.05) { s.mud = Math.min(1, s.mud + m * 2.2 * dt); s.wet = Math.min(1, s.wet + m * 3 * dt); const foot = /ft[LR]$/.test(s.name); hits.push({ part: s.name, p: [x, y - s.r * (foot ? 0.2 : 1), z], amt: m * 2.2 * dt, r: Math.max(0.012, s.r * (foot ? 2.6 : 1.6)) }); } // ふれた所を中心に（足はぬかるみに沈むので、足先から少し上まで）
     }
   }
   // 2) 跳ね: 足がぬかるみに着いた瞬間、落ちる速さに比べて、近い部位ほど・低い部位ほど泥がかかる
@@ -44,6 +45,7 @@ export function stepDirt(S, H, dt, rain = 0, onSplash = null) {
         const [x, y, z] = points(s)[0], d = Math.hypot(x - t.x, z - t.z), up = y - height(x, z);
         const w = hit * Math.exp(-d / 0.12) * Math.exp(-up / 0.08);
         s.mud = Math.min(1, s.mud + w * 0.35); s.wet = Math.min(1, s.wet + w * 0.5);
+        if (w > 0.02) for (let k = 0; k < 3; k++) { const a = Math.random() * 6.28, rr = s.r * (0.5 + Math.random()); hits.push({ part: s.name, p: [x + Math.cos(a) * rr, y - s.r * Math.random(), z + Math.sin(a) * rr], amt: w * 0.25 * Math.random(), r: 0.008 + 0.006 * Math.random() }); } // しぶき: 小さな点がまわりに
       }
       if (onSplash && hit > 0.05) onSplash(t.x, t.z, hit, f);
     }
@@ -55,9 +57,12 @@ export function stepDirt(S, H, dt, rain = 0, onSplash = null) {
     if (rain > 0) s.mud = Math.max(0, s.mud - rain * 0.06 * (0.5 + s.wet) * dt);
     s.dry = s.mud > 0.01 ? Math.max(0, Math.min(1, s.dry + (s.wet < 0.3 ? 0.08 : -0.3) * dt)) : 0;
   }
+  return hits;
 }
 // 部位の色: 毛の色に、ぬれた泥（こい）・乾いた泥（白っぽい）・ぬれ（こい）を重ねる。[r,g,b] 0..1
-export const FUR = [0.62, 0.52, 0.40], MUD_WET = [0.17, 0.13, 0.10], MUD_DRY = [0.66, 0.60, 0.52];
+export const FUR = [0.62, 0.52, 0.40], MUD_WET = [0.17, 0.13, 0.10], MUD_DRY = [0.47, 0.41, 0.33];
+// 皮の泥の色（three の色の値＝明るさに対して線形。上の値のままだと、乾いた泥がうすい毛と同じくらい明るく見えなかった）
+export const COAT_MUD_WET = [0.045, 0.03, 0.02], COAT_MUD_DRY = [0.2, 0.16, 0.115];
 export function dirtColor(s, base = FUR) {
   const mc = MUD_WET.map((c, i) => c + (MUD_DRY[i] - c) * s.dry), k = Math.min(1, s.mud * 1.3), wd = 1 - 0.28 * s.wet;
   return base.map((c, i) => (c + (mc[i] - c) * k) * wd);

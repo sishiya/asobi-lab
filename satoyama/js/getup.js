@@ -8,6 +8,8 @@ for (const k of ['1', '2', '3']) for (const [n, a, b] of [['hipDh', -1.2, 1.2], 
   ['hipDf', -1.2, 1.2], ['hipUf', -1.2, 1.2], ['kneeDf', -1.4, 1.4], ['kneeUf', -1.4, 1.4], ['abDf', -0.9, 0.9], ['abUf', -0.9, 0.9], ['sp', -0.5, 0.5], ['tw', -0.8, 0.8]]) GETUP_PARAMS.push([n + k, a, b]);
 GETUP_PARAMS.push(['T1', 0.25, 1.2], ['T2', 0.25, 1.2], ['T3', 0.3, 1.2], ['T4', 0.3, 1.5]);
 export const decodeGetup = v => Object.fromEntries(GETUP_PARAMS.map(([k, a, b], i) => [k, a + (b - a) * cl(v[i] ?? 0.5)]));
+// 型をやめて立つ姿勢へ移る、腰の上向き（腹ばいになれたら。0.85 まで待つと、足を横に投げ出した腹ばいで長く止まり、ぐったりして見えた＝9.7）
+export const GETUP_UP = 0.7;
 export const GETUP_SEED = GETUP_PARAMS.map(() => 0.5); // まんなか＝すべて 0（立つ姿勢）・各 0.7 秒ほど
 
 // 型で関節を動かす。t＝起き始めてからの秒、d＝倒れた向き（+1＝左が下、-1＝右が下。pose().roll の符号）

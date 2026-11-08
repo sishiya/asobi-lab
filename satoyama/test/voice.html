@@ -28,6 +28,7 @@
   #mic { border: 0; background: var(--on); color: #fff; font: inherit; font-size: 17px; padding: 14px 26px; border-radius: 999px; cursor: pointer; min-width: 220px; }
   #mic.on { filter: brightness(1.2); }
   #bar [hidden] { display: none; }
+  .soft { border: 0; background: var(--panel); font: inherit; font-size: 14px; color: var(--ink); padding: 8px 18px; border-radius: 999px; cursor: pointer; min-height: 40px; }
   .grp { display: grid; grid-template-columns: repeat(3, auto); justify-content: center; gap: 6px; }
   #bar small.lab { background: none; padding: 0; margin-bottom: -4px; }
   .grp button { border: 0; background: var(--panel); font: inherit; font-size: 13px; color: var(--ink); min-height: 36px; padding: 6px 12px; border-radius: 999px; cursor: pointer; }
@@ -38,6 +39,13 @@
   #adoptBtn { border: 0; background: var(--on); color: #fff; font: inherit; font-size: 15px; padding: 10px 22px; border-radius: 999px; cursor: pointer; box-shadow: 0 2px 10px rgba(44,42,38,.18); }
   #adopt small { color: var(--dim); background: var(--panel); border-radius: 999px; padding: 2px 10px; }
   #adopt small:empty { display: none; }
+  /* 横向きのスマホ（低い画面）: 下のまとまりを右の列へ（巣や子をかくさない） */
+  @media (max-height: 500px) and (orientation: landscape) {
+    #bar { left: auto; right: 12px; bottom: 10px; width: 290px; gap: 6px; }
+    #mic { min-width: 0; width: 100%; padding: 10px 16px; font-size: 15px; }
+    .grp button { min-height: 32px; padding: 4px 10px; }
+    #hud { top: 62px; }
+  }
   #msg { position: fixed; left: 50%; top: 34%; transform: translate(-50%, -50%); font-size: 18px; font-weight: 600; text-shadow: 0 1px 0 #fff8; opacity: 0; transition: opacity .5s; pointer-events: none; white-space: nowrap; }
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","@dimforge/rapier3d-compat":"https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"}}</script>
@@ -49,6 +57,7 @@
 <div id="bar">
   <div id="adopt" hidden><input id="candName" maxlength="10" aria-label="なまえ"><button id="adoptBtn">この子を育てる</button><small id="adoptNote"></small></div>
   <h2 id="mode">あたらしい子を生む</h2>
+  <button id="wash" class="soft" hidden>水浴びさせる</button>
   <button id="mic">押しながら話す</button>
   <small class="lab">声のみほん（マイクのかわりに）</small>
   <div class="grp" id="samples"><button data-v="low">ひくい声</button><button data-v="high">たかい声</button><button data-v="child">ちいさい子</button><button data-v="breathy">ささやき</button><button data-v="rough">がらがら声</button><button data-v="quick">はやくち</button></div>
@@ -66,6 +75,7 @@ import { height } from '../js/ground.js';
 import { pose } from '../js/hare.js';
 import { makeField, contactPoint } from '../js/trial.js';
 import { kidBody, kidShapes, KID_SEED } from '../js/kid.js';
+import { decodeGetup, driveGetup, GETUP_UP } from '../js/getup.js';
 import { makeFeltGround, makeFeltBody, makeFeltBall, feltMesh, feltify, makeDiorama, HARE_FACE } from '../js/felt.js';
 import { lookGenes, lookFur, lookFace, lookColor, kidName } from '../js/kid-look.js';
 import { analyze, A, sampleVoice, founder, rng } from '../js/voice-in.js';
@@ -104,15 +114,16 @@ function raise(saved, FB0 = null) {
   t = 0; fallT = 0; morph = null;
   const B = kidBody(genes), H = B.build(R, world, [0, 0, 0], height);
   let FB = FB0; if (FB) FB.rebind(H, 0); else FB = makeFeltBody(scene, H, kidShapes(H), { furColor: lookFur(genes.look, H), face: lookFace(genes.look, H.plan, HARE_FACE) });
-  kid = { name: saved.name || kidName(genes.look), H, B, q: B.decode(saved.trying || KID_SEED), FB, genes, best: saved.v || null, trying: saved.trying || KID_SEED, state: saved.state || null };
+  FB.mud.blobs = saved.mud || []; // 走るでついた泥（乾いて落ちる・少し残るしみは水浴びで）
+  kid = { name: saved.name || kidName(genes.look), H, B, q: B.decode(saved.trying || KID_SEED), FB, genes, best: saved.v || null, trying: saved.trying || KID_SEED, state: saved.state || null, getup: saved.getup || null };
   const s = saved.state; info = { gen: s?.gen ?? 0, tries: s?.tries ?? 0, firstWalk: s?.firstWalk ?? null, stage: s?.st ?? 1, steady: s?.steady, done: s?.done, restarts: s?.restarts };
   $('name').value = kid.name; tabs();
-  if (info.done) return; // 練習が終わっていれば回さない
+  if (info.done && kid.getup?.learned) return; // 歩く・起き上がるの練習が終わっていれば回さない
   worker = new Worker(new URL('../js/practice-worker.js', import.meta.url), { type: 'module' });
-  worker.onmessage = e => { const m = e.data; if (m.end) return; info = { ...info, ...m }; kid.q = B.decode(m.trying); kid.trying = m.trying; if (m.v) kid.best = m.v; kid.state = m.state; keep(); };
-  worker.postMessage({ genes, pace: 2.5, seed: (Math.random() * 1e9) | 0, resume: kid.state }); // 練習に渡すのは遺伝子の数だけ
+  worker.onmessage = e => { const m = e.data; if (m.end) return; if (m.getup) { kid.getup = m.getup; keep(); return; } info = { ...info, ...m }; kid.q = B.decode(m.trying); kid.trying = m.trying; if (m.v) kid.best = m.v; kid.state = m.state; keep(); };
+  worker.postMessage({ genes, pace: 2.5, seed: (Math.random() * 1e9) | 0, resume: kid.state, getupResume: kid.getup?.state }); // 練習に渡すのは遺伝子の数だけ
 }
-const keep = () => kid && saveKid({ name: kid.name, genes: kid.genes, v: kid.best, trying: kid.trying, state: kid.state }); // 名前も端末の中だけ
+const keep = () => kid && saveKid({ name: kid.name, genes: kid.genes, v: kid.best, trying: kid.trying, state: kid.state, getup: kid.getup, mud: kid.FB.mud.blobs }); // 名前も端末の中だけ
 // 名前: 左上の名前を押すと書きかえられる（Enter か、ほかを押すと決まる。からっぽなら元の名前）
 $('name').addEventListener('change', () => { if (!kid) return; kid.name = $('name').value.trim() || kid.name; $('name').value = kid.name; keep(); });
 $('name').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); e.stopPropagation(); });
@@ -360,31 +371,45 @@ addEventListener('contextmenu', e => e.preventDefault());
 function step(dt) {
   stepNest(dt);
   if (!kid) return; const n = Math.round(dt * 240);
-  for (let k = 0; k < n; k++) { if (k % 4 === 0) for (const f of kid.H.feet) f.down = !!contactPoint(f); kid.B.drive(kid.H, kid.q, t, fallT || t < 0.4 ? 0 : 1, 0); world.step(); t += 1 / 240; clock += 1 / 240; }
+  for (let k = 0; k < n; k++) {
+    if (k % 4 === 0) for (const f of kid.H.feet) f.down = !!contactPoint(f);
+    if (gu) { gu.t += 1 / 240; if (gu.stopAt == null && gu.t > 0.2 && k % 8 === 0 && pose(kid.H).up > GETUP_UP) gu.stopAt = gu.t; if (driveGetup(kid.H, gu.q, gu.t, gu.d, gu.stopAt)) { gu = null; fallT = 0; t = 0; } }
+    else kid.B.drive(kid.H, kid.q, t, fallT || t < 0.4 ? 0 : 1, 0);
+    world.step(); t += 1 / 240; clock += 1 / 240;
+  }
   const P = pose(kid.H);
-  // 転んだら、少し待ってその場で起き直す（失敗の文字は出さない。GAME.md 9.7）。遠くへ行ったら真ん中へもどす
-  if (!fallT && (P.up < 0.35 || P.y - height(P.x, P.z) < kid.H.fallH)) fallT = clock;
-  if (fallT && clock - fallT > 0.8) restart(P, false); else if (Math.hypot(P.x, P.z) > 3) restart(P, true);
+  // 転んだら: 起き上がりを覚えた子は、少し待って自分で起きる。覚えていない子と、4 秒で起きられなかったときは、その場で起き直す（失敗の文字は出さない。GAME.md 9.7）。遠くへ行ったら真ん中へもどす
+  if (!fallT && !gu && (P.up < 0.35 || P.y - height(P.x, P.z) < kid.H.fallH)) fallT = clock;
+  if (fallT && !gu && clock - fallT > 0.6 && kid.getup?.v) gu = { t: 0, q: decodeGetup(kid.getup.v), d: Math.sign(P.roll) || 1, stopAt: null };
+  if (gu && gu.t > 4) { gu = null; restart(P, false); }
+  else if (fallT && !gu && !kid.getup?.v && clock - fallT > 0.8) restart(P, false); else if (Math.hypot(P.x, P.z) > 3) restart(P, true);
 }
+let gu = null; // 起き上がっている最中（型・倒れた向き・起きた秒）
 function restart(P, home) {
   const old = kid; for (const p of Object.values(old.H.parts)) world.removeRigidBody(p.body);
   const at = home ? [0, 0, 0] : [P.x, 0, P.z], yaw = home ? 0 : P.yaw;
-  old.H = old.B.build(R, world, at, height, yaw); old.FB.rebind(old.H, yaw); t = 0; fallT = 0;
+  old.H = old.B.build(R, world, at, height, yaw); old.FB.rebind(old.H, yaw); t = 0; fallT = 0; gu = null;
 }
 // 練習の進み: 段ごとのことばと、めもり（段1 25世代、段2 は4か所で転ばずに歩けるまで、段3 45世代）
-const stageText = () => !info.gen ? 'うまれたて' : info.done ? 'のびのび歩ける' : !info.firstWalk ? 'よちよち練習中' : info.stage === 1 ? 'よちよち歩けた' : info.stage === 2 ? 'ころばないように練習中' : 'まがる練習中';
-const meter = () => { const s = kid.state; if (info.done) return 1; if (!s) return 0; return s.st === 1 ? s.inSt / 25 * 0.33 : s.st === 2 ? 0.33 + Math.min(1, s.inSt / 40) * 0.33 : 0.66 + Math.min(1, s.inSt / 45) * 0.34; };
+const stageText = () => !info.gen ? 'うまれたて' : info.done ? (kid.getup?.learned ? 'のびのび歩ける' : 'おきあがる練習中') : !info.firstWalk ? 'よちよち練習中' : info.stage === 1 ? 'よちよち歩けた' : info.stage === 2 ? 'ころばないように練習中' : 'まがる練習中';
+const meter = () => { const s = kid.state; if (info.done) return kid.getup?.learned ? 1 : 0.8 + 0.2 * Math.min(1, (kid.getup?.gen ?? 0) / 40); if (!s) return 0; return s.st === 1 ? s.inSt / 25 * 0.27 : s.st === 2 ? 0.27 + Math.min(1, s.inSt / 40) * 0.27 : 0.54 + Math.min(1, s.inSt / 45) * 0.26; }; // 歩く 8 割・起き上がる 2 割
 // カメラ: 場面を移すときは、見る点と位置をゆっくり動かす（ぱっと切りかえない）
 const camPos = new THREE.Vector3(NEST[0] - 0.25, ny + 0.42, NEST[1] + 0.95), aim = new THREE.Vector3(NEST[0], ny + 0.06, NEST[1]), _w = new THREE.Vector3(), _l = new THREE.Vector3();
+// 水浴び（ユーザー「小屋で水浴びさせたりして綺麗にしてあげられるように」）: 泥もしみも落ちて、しばらくぬれる。小屋の場面はまだ（いまはその場で）
+let frameN = 0, washW = 0; const WET = w => new Proxy({}, { get: () => ({ wet: w }) });
+$('wash').addEventListener('click', () => { if (!kid) return; kid.FB.mud.wash(); washW = 1; keep(); show(`${kid.name} はさっぱりした`); });
 function render(dt) {
   if (kid) {
     if (morph) { morph.t += dt; const k = Math.min(1, morph.t / morph.dur), e = k * k * (3 - 2 * k); kid.FB.look.blend(e); if (k >= 1) { morph = null; show('すこし、その声らしくなった'); } }
-    kid.FB.pose(dt); kid.FB.breathe(dt, 1);
+    kid.FB.pose(dt); kid.FB.breathe(dt, 1); kid.FB.mud.step(dt); if ((frameN = (frameN + 1) % 3) === 0) kid.FB.paint(washW > 0 ? WET(washW) : null);
+    if (washW > 0) washW = Math.max(0, washW - dt / 25); // 水浴びのぬれは 25 秒ほどで乾く
+    $('wash').hidden = mode !== 'grow' || washW > 0.5 || kid.FB.mud.dirty < 0.05;
   }
   const k = 1 - Math.exp(-dt * 2.2);
-  if (mode === 'grow' && kid) { const P = pose(kid.H); _w.set(P.x - 0.2, height(P.x, P.z) + 0.5, P.z + 1.15); _l.set(P.x, 0.1 + height(P.x, P.z) * 0.5, P.z); }
-  else if (egg && egg.phase !== 'gather') { _w.set(NEST[0] - 0.3, ny + 0.42, NEST[1] + 0.95); _l.set(NEST[0], ny + 0.1, NEST[1]); } // かえるときは、そっと寄る
-  else { _w.set(NEST[0] - 0.35, ny + 0.62, NEST[1] + 1.35); _l.set(NEST[0], ny + 0.08, NEST[1]); }
+  const far = cam.aspect < 1 ? 1.55 : 1; // 縦長の画面（スマホのたて）は、子が切れないよう引く
+  if (mode === 'grow' && kid) { const P = pose(kid.H); _w.set(P.x - 0.2 * far, height(P.x, P.z) + 0.5 * far, P.z + 1.15 * far); _l.set(P.x, 0.1 + height(P.x, P.z) * 0.5, P.z); }
+  else if (egg && egg.phase !== 'gather') { _w.set(NEST[0] - 0.3 * far, ny + 0.42 * far, NEST[1] + 0.95 * far); _l.set(NEST[0], ny + 0.1, NEST[1]); } // かえるときは、そっと寄る
+  else { _w.set(NEST[0] - 0.35 * far, ny + 0.62 * far, NEST[1] + 1.35 * far); _l.set(NEST[0], ny + 0.08, NEST[1]); }
   camPos.lerp(_w, k); aim.lerp(_l, k); cam.position.copy(camPos); cam.lookAt(aim);
   sun.position.set(aim.x + 2, 5, aim.z + 3); sun.target.position.copy(aim);
   $('hud').hidden = mode !== 'grow' || !kid;
@@ -399,7 +424,7 @@ addEventListener('pagehide', keep);
 let last = performance.now();
 function loop(now) { const dt = Math.min(1 / 20, (now - last) / 1000); last = now; step(dt); render(dt); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
-window.__voice = { get egg() { return egg; }, sample: name => hear(sampleVoice(name, 48000), 48000), go, adopt: () => $('adoptBtn').click(), get mode() { return mode; }, get info() { return info; }, get kid() { return kid; }, get cand() { return cand; }, get morph() { return morph; }, advance(sec) { for (let i = 0; i < sec * 60; i++) { step(1 / 60); render(1 / 60); } } };
+window.__voice = { get egg() { return egg; }, sample: name => hear(sampleVoice(name, 48000), 48000), go, adopt: () => $('adoptBtn').click(), get mode() { return mode; }, get info() { return info; }, get kid() { return kid; }, get cand() { return cand; }, get morph() { return morph; }, advance(sec, draw = true) { for (let i = 0; i < sec * 60; i++) { step(1 / 60); if (draw || i === Math.floor(sec * 60) - 1) render(1 / 60); } } }; // draw=false＝描くのは最後の1こまだけ（撮影用）
 </script>
 </body>
 </html>

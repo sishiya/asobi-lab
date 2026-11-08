@@ -3,4 +3,4 @@
 export { analyze } from '../../voice-pet/js/features.js';
 export * as A from '../../voice-pet/js/audio.js';
 export { sampleVoice } from '../../voice-pet/js/synth.js';
-export { founder, rng } from '../../voice-pet/evo/life.js';
+export { founder, rng } from './voice-founder.js'; // こえのこの evo は作業中で公開されていないので、写しを使う
