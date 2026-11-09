@@ -235,8 +235,8 @@ export function kidBends(H) {
 // 確かめ用: 番号から遺伝子をつくる（声のかわり）・試し（trial.js）に渡す体の作り方
 export const KID_KEYS = ['seg', 'neck', 'tail', 'legs', 'legLen', 'girth', 'stop', 'bold', 'vtl', 'fluff'];
 // 生まれる体は、よく歩ける手本の体の近くに（テストプレイ「いくら学習しても歩けない子に当たると、捨てるような悲しいことになる」）。色と耳は声のまま。すでにいる子は変えない
-export const BODY_REF = { hop: 6, bird: 3, snake: 9, donkey: 1 }, BODY_NEAR = 0.45;
-export function blendBody(g) { const id = BODY_REF[g.type]; if (!id) return g; const r = kidGenes(id * 7919); for (const k of KID_KEYS) if (g[k] != null && r[k] != null) g[k] = r[k] + (g[k] - r[k]) * BODY_NEAR; return g; }
+export const BODY_REF = { hop: 6, bird: 3, snake: 9, donkey: 1 }, BODY_NEAR = { donkey: 0.25, bird: 0.15, hop: 0.3 };
+export function blendBody(g) { const id = BODY_REF[g.type]; if (!id) return g; const r = kidGenes(id * 7919); for (const k of KID_KEYS) if (g[k] != null && r[k] != null) g[k] = r[k] + (g[k] - r[k]) * (BODY_NEAR[g.type] ?? 0.45); return g; }
 export function kidGenes(seed) { let s = seed >>> 0 || 1; const r = () => ((s ^= s << 13, s ^= s >>> 17, s ^= s << 5) >>> 0) / 4294967296; return Object.fromEntries(KID_KEYS.map(k => [k, r()])); }
 const JUMPS = ['hop', 'bound', 'biped', 'seal', 'bird', 'snake'];
 export const kidBody = (g, over = null) => ({ build: (R, w, at, h, yaw = 0) => buildKid(R, w, at, h, g, yaw, over), drive: (H, q, t, gg, tc) => driveKid(H, q, t, gg, tc, pose), decode: decodeKid, starts: typeSeeds(g), lock: JUMPS.includes(g?.type) ? (g.type === 'biped' || g.type === 'bird' ? ['side'] : g.type === 'snake' ? ['side', 'tlK', 'freq'] : ['side', 'tlK']) : ['tlK'], flightW: JUMPS.includes(g?.type) && g.type !== 'seal' ? 0 : 1.5, noGetup: ['seal', 'snake'].includes(g?.type), gateDist: g?.type === 'snake' || g?.type === 'seal' ? 0.5 : 1, gateStraight: ['hop', 'bound', 'biped', 'bird', 'donkey'].includes(g?.type) }); // starts＝型ごとの出発点、lock＝学習で変えない数（跳ねる型が交互に歩きへもどらない・尾の反射を使わない型）、flightW＝宙に浮いている罰（跳ねる型はなし）

@@ -24,6 +24,7 @@ export function makePractice(R, body, { pop = 16, seed = 1, start = body.starts?
   // 走った地面（ユーザーの目標「でかけた所が家の庭になる」の残り半分）: 走った場所があれば、試しの半分はそこで（その子が本当に歩いた地面で練習する）
   const placeAt = () => { const p = places[Math.floor(rnd() * places.length)]; return [Math.max(-6, Math.min(6, p[0] + (rnd() - 0.5) * 0.6)), 0, Math.max(-6, Math.min(6, p[1] + (rnd() - 0.5) * 0.6))]; };
   const steadyAt = (v, straight = false) => { let ok = 0; for (let k = 0; k < 4; k++) { const a = rnd() * 6.28, d = 2 + rnd() * 5, r = trial(R, v, { dur: 6, body, ...(straight ? { turn: () => 0 } : {}), at: places.length && k % 2 ? placeAt() : [Math.cos(a) * d, 0, Math.sin(a) * d] }); r.world.free(); tries++; if (!r.fell && r.dist > GATE) ok++; } return ok === 4; };
+  const wideOk = v => { let ok = 0; for (let k = 0; k < 8; k++) { const a = rnd() * 6.28, d = 2 + rnd() * 5, r = trial(R, v, { dur: 6, body, at: [Math.cos(a) * d, 0, Math.sin(a) * d] }); r.world.free(); tries++; if (!r.fell && r.dist > GATE) ok++; } return ok >= 7; };
   const toStage = n => { st = n; inSt = 0; if (best) { mean = best.v.slice(); sd = sd.map(() => 0.08); } if (n === 3) for (const i of LAT) sd[i] = 0.15; best = null; }; // 段3で横の振りを広く試しはじめる // 段が変わると点のつけ方が変わるので、いちばんを選びなおす
   return {
     get gen() { return gen; }, get tries() { return tries; }, get best() { return best; }, get firstWalk() { return firstWalk; },
@@ -49,7 +50,7 @@ export function makePractice(R, body, { pop = 16, seed = 1, start = body.starts?
         else if (inSt >= askAt && !asking) { if (ask) asking = true; else this.restart(); } // 行きづまり→別の歩き方から（ask なら聞いてから）
       } else if (st === 3 && inSt % 5 === 0) { // 曲がれるようになっても、別の場所で転ばない歩きだけを残す（曲がる練習のあと、4か所で歩けた子が 8 か所で 0 になった＝2026-11-08 の調査）
         const ok = steadyAt(best.v); if (ok) safe = best.v.slice();
-        if (inSt >= stage3 && ok || inSt >= stage3 * 2) { done = true; if (safe) out = { ...out, v: safe }; }
+        if (inSt >= stage3 && ok && wideOk(best.v)) { done = true; if (safe) out = { ...out, v: safe }; } else if (inSt >= stage3 * 3) { done = true; if (safe) out = { ...out, v: safe }; } // 卒業は はじめての8か所で試す（4か所だけだと、たまたま通った子が歩けないまま終わった＝2026-11-10 の調査）
       }
       return out;
     },
