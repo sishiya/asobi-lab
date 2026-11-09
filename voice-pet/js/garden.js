@@ -33,7 +33,7 @@ function plantMesh(p) {
 
 export function makeGarden(scene) {
   const data = read(), meshes = new Map(), pops = [];
-  const place = (p, pop) => { const m = plantMesh(p); m.position.set(p.x, height(p.x, p.z), p.z); m.rotation.y = p.rot; scene.add(m); meshes.set(p, m); if (pop) { m.scale.setScalar(0.01); pops.push({ m, t: 0 }); } };
+  const place = (p, pop) => { const m = plantMesh(p); m.position.set(p.x, height(p.x, p.z), p.z); m.rotation.order = 'YXZ'; m.rotation.y = p.rot; m.userData.tilt = { x: 0, z: 0, vx: 0, vz: 0 }; scene.add(m); meshes.set(p, m); if (pop) { m.scale.setScalar(0.01); pops.push({ m, t: 0 }); } };
   data.plants.forEach(p => place(p, false));
   return {
     get count() { return data.plants.length; }, get plants() { return data.plants; },
@@ -53,6 +53,8 @@ export function makeGarden(scene) {
       if (data.plants.length > MAX) { const i = data.plants.findIndex(o => data.plants.filter(q => q.kind === o.kind).length > 1), o = data.plants.splice(Math.max(0, i), 1)[0], m = meshes.get(o); if (m) scene.remove(m); meshes.delete(o); } // いっぱいなら古い株から（その種類の最後の1株は残す）
       write(data); place(p, true);
     },
-    step(dt) { for (const s of pops) { s.t += dt; const k = Math.min(1, s.t / 0.5), e = 1 + 2.7 * (k - 1) ** 3 + 1.7 * (k - 1) ** 2; s.m.scale.setScalar(Math.max(0.01, e)); s.done = k >= 1; } for (let i = pops.length - 1; i >= 0; i--) if (pops[i].done) pops.splice(i, 1); }, // ぽんと少しはずんで出る
+    // ふれられた花は、押された向きへなびいて、ゆらゆらもどる（ばね）。pts＝近くにいる体の場所
+    step(dt, pts = []) { for (const p of data.plants) { const m = meshes.get(p), T = m?.userData.tilt; if (!T) continue; for (const q of pts) { const dx = p.x - q.x, dz = p.z - q.z, d = Math.hypot(dx, dz); if (d < 0.11 && d > 1e-4) { const f = (1 - d / 0.11) * 90 * dt / d; T.vx += dx * f; T.vz += dz * f; } } T.vx += (-70 * T.x - 3.5 * T.vx) * dt; T.vz += (-70 * T.z - 3.5 * T.vz) * dt; T.x = Math.max(-0.7, Math.min(0.7, T.x + T.vx * dt)); T.z = Math.max(-0.7, Math.min(0.7, T.z + T.vz * dt)); const c = Math.cos(p.rot), sn = Math.sin(p.rot); m.rotation.z = -(T.x * c - T.z * sn); m.rotation.x = T.x * sn + T.z * c; }
+      for (const s of pops) { s.t += dt; const k = Math.min(1, s.t / 0.5), e = 1 + 2.7 * (k - 1) ** 3 + 1.7 * (k - 1) ** 2; s.m.scale.setScalar(Math.max(0.01, e)); s.done = k >= 1; } for (let i = pops.length - 1; i >= 0; i--) if (pops[i].done) pops.splice(i, 1); }, // ぽんと少しはずんで出る
   };
 }

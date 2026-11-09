@@ -24,6 +24,7 @@ onmessage = async e => {
     postMessage(msg(b));
     await wait(t0, pace);
   }
+  if (B.noGetup) { postMessage({ end: true }); return; } // 転ばない型（アザラシ・ヘビ）は起き上がりを練習しない
   // 起き上がる練習（1世代は重いので、pace より長くかかる）
   const G = makeGetupPractice(R, B, { seed: seed + 7, resume: getupResume });
   const gmsg = () => ({ getup: { gen: G.gen, tries: G.tries, learned: G.learned, v: G.best?.ok ? G.best.v : null, state: G.state() } });

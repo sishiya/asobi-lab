@@ -28,7 +28,7 @@ import R from '@dimforge/rapier3d-compat';
 import { height } from '../js/ground.js';
 import { pose } from '../js/hare.js';
 import { makeField, contactPoint } from '../js/trial.js';
-import { kidGenes, kidBody, kidPlan, kidShapes, KID_SEED, decodeKid } from '../js/kid.js';
+import { kidGenes, kidBody, kidPlan, kidShapes, kidSeed, decodeKid } from '../js/kid.js';
 import { makeFeltGround, makeFeltBody, makeDiorama } from '../js/felt.js';
 import { TANUKI, tanukiFur, TANUKI_FACE } from '../js/tanuki.js';
 await R.init();
@@ -47,11 +47,11 @@ const world = makeField(R), kids = [];
 // 毛の色: 子ごとに少しちがう灰褐色〜こげ茶（声の色あいはあとで）
 const furOf = (i) => (part, p, n) => { const b = [0.42 + 0.06 * Math.sin(i * 2.1), 0.33 + 0.05 * Math.sin(i * 1.3), 0.24], w = [0.82, 0.78, 0.7], t = Math.max(0, -n[1] - 0.2) * 1.4; return b.map((v, k) => v + (w[k] - v) * Math.min(1, t)); };
 for (const [i, id] of ids.entries()) {
-  const tan = id === 'tanuki', g = tan ? {} : kidGenes(id * 7919), B = kidBody(g, tan ? TANUKI : null), z = (i - (ids.length - 1) / 2) * 0.6, H = B.build(R, world, [-0.6, 0, z], height);
-  let v = KID_SEED; try { const j = await (await fetch(`../js/gait-${tan ? 'tanuki' : 'kid-' + id}.json`, { cache: 'no-store' })).json(); v = j.v; } catch (e) { /* 学習していない子は手本の出発点 */ }
+  const tan = id === 'tanuki', g = tan ? {} : { ...kidGenes(id * 7919), type: qs.get('type') || undefined }, B = kidBody(g, tan ? TANUKI : null), z = (i - (ids.length - 1) / 2) * 0.6, H = B.build(R, world, [-0.6, 0, z], height);
+  let v = kidSeed(g); if (qs.get('log')) try { const t = await (await fetch(`../tools/logs/${qs.get('log')}-${g.type}-${id}.txt`, { cache: 'no-store' })).text(); v = JSON.parse(t.trim().split(String.fromCharCode(10)).pop()).v; } catch (e) { /* 記録がなければ出発点の動き */ } else try { const j = await (await fetch(`../js/gait-${tan ? 'tanuki' : 'kid-' + id}.json`, { cache: 'no-store' })).json(); v = j.v; } catch (e) { /* 学習していない子は手本の出発点 */ }
   // 声の子の顔は仮（小さな丸い耳・目）。声の遺伝子（crest など）で耳とかざりを変えるのはあと
   const hs = (H.plan.headR + (H.plan.fur ?? 0.006 + 0.008 * H.plan.fluff)) * 0.95, KF = { ...TANUKI_FACE, eye: [hs * 0.47, hs * 0.3, hs * 0.83], eyeR: H.plan.headR * 0.17, iris: 0x3a2412, ear: { ...TANUKI_FACE.ear, at: [-hs * 0.2, hs * 0.8, hs * 0.5], outer: [0.4, 0.33, 0.25] } }; // 目と耳は毛の表に
-  const FB = makeFeltBody(scene, H, kidShapes(H), { furColor: tan ? tanukiFur(H) : furOf(i), face: tan ? TANUKI_FACE : KF });
+  const FB = makeFeltBody(scene, H, kidShapes(H), { furColor: tan ? tanukiFur(H) : furOf(i), face: tan ? TANUKI_FACE : { ...KF, button: true } });
   // 物理の骨（くらべ用）
   const bones = Object.values(H.parts).filter(p => p.r > 0.006).map(p => { const m = new THREE.Mesh(p.len ? new THREE.CapsuleGeometry(p.r, Math.max(0.001, p.len - p.r * 0.4), 6, 12) : new THREE.SphereGeometry(p.r, 16, 12), new THREE.MeshStandardMaterial({ color: 0xcdbfa6, roughness: 0.9 })); m.visible = false; scene.add(m); return { m, p, rq: p.len ? new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(...p.b).sub(new THREE.Vector3(...p.a)).normalize()) : new THREE.Quaternion() }; });
   kids.push({ id, H, B, q: B.decode(v), FB, bones, K: H.plan, x0: pose(H).x, falls: 0 });
@@ -73,7 +73,7 @@ addEventListener('resize', resize); resize();
 let last = performance.now();
 function loop(now) { const dt = Math.min(1 / 20, (now - last) / 1000); last = now; step(dt); render(dt); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
-window.__kids = { look(x, y, z, tx, ty, tz) { cam.position.set(x, y, z); ctl.target.set(tx, ty, tz); }, advance(sec) { for (let i = 0; i < sec * 60; i++) { step(1 / 60); render(1 / 60); } }, set(k, v) { document.querySelector(`#${k} button[data-v="${v}"]`).dispatchEvent(new MouseEvent('click', { bubbles: true })); }, kids };
+window.__kids = { kids, look(x, y, z, tx, ty, tz) { cam.position.set(x, y, z); ctl.target.set(tx, ty, tz); }, advance(sec) { for (let i = 0; i < sec * 60; i++) { step(1 / 60); render(1 / 60); } }, set(k, v) { document.querySelector(`#${k} button[data-v="${v}"]`).dispatchEvent(new MouseEvent('click', { bubbles: true })); }, kids };
 </script>
 </body>
 </html>

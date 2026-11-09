@@ -10,7 +10,7 @@ import { GETUP_SEED, GETUP_UP, decodeGetup, driveGetup } from './getup.js';
 export { GETUP_UP };
 
 export function tryGetup(R, B, v, at, d, UP = GETUP_UP) {
-  const stand = B.decode(KID_SEED), world = makeField(R), H = B.build(R, world, at, height, 0), q = decodeGetup(v);
+  const stand = B.decode(B.starts?.[0] ?? KID_SEED), world = makeField(R), H = B.build(R, world, at, height, 0), q = decodeGetup(v);
   let t = 0;
   for (; t < 0.3; t += 1 / 240) { B.drive(H, stand, t, 0, 0); world.step(); }
   for (const p of Object.values(H.parts)) { const l = p.body.linvel(); p.body.setLinvel({ x: l.x, y: l.y + 0.18, z: l.z + d * 0.6 }, true); }

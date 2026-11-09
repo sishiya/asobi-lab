@@ -5,7 +5,7 @@ import path from 'node:path';
 import { ROOT, serve, launch, safeContext } from '../../tools/playwright/lib.mjs';
 const server = await serve(), browser = await launch(), ctx = await safeContext(browser, server.origin, { width: 960, height: 540 });
 const page = await ctx.newPage();
-await page.goto(`${server.origin}/voice-pet/test/voice.html`);
+await page.goto(`${server.origin}/voice-pet/`);
 await page.waitForFunction(() => window.__voice && document.body.classList.contains('title'), null, { timeout: 60000 });
 await page.evaluate(() => { document.querySelectorAll('#menu, #startBtn').forEach(e => (e.style.display = 'none')); });
 await page.waitForTimeout(2500);

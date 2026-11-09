@@ -113,6 +113,15 @@ export function makeFeltGround(scene, { size = 12, n = 200, cx = 0, cz = 0, shel
 
 // 顔（耳と目）の形: 頭の中心（皮の頭）からの位置と大きさ。耳は 0..2 の玉を size でのばした板（size＝はば・長さ・あつさの半分）
 // ノウサギ: 耳は長さ 10cm・はば 2.8cm（本物の耳は 7.6〜8.3cm＋根もと）、少し後ろへ寝かせて外へ開く。先は黒褐色。目は琥珀色で白っぽい輪
+// 声の子の目: 糸で留めたボタン（ユーザーが見くらべて決めた）。× は糸の色にせず、よく見るとくぼんでいる程度に
+function craftButtonEye(eye, F, s) {
+  const R = F.eyeR, K = 1 / 0.12, m = new THREE.MeshPhysicalMaterial({ color: F.iris, roughness: 0.4, clearcoat: 0.6 }), dark = new THREE.MeshStandardMaterial({ color: new THREE.Color(F.iris).multiplyScalar(0.45), roughness: 0.9 }), z = R * 0.4 * s, add = (g, mt, zz, rz = 0) => { const o = new THREE.Mesh(g, mt); o.position.set(0, 0, zz); o.rotation.z = rz; o.scale.z = K; eye.add(o); };
+  eye.scale.set(1, 1, 0.12); eye.material.color.set(0);
+  const h = R * 0.2, c = R * 0.18, pr = [new THREE.Vector2(0.0001, -h), new THREE.Vector2(R - c, -h)]; for (let i = 0; i <= 8; i++) { const a = -Math.PI / 2 + i / 8 * Math.PI; pr.push(new THREE.Vector2(R - c + Math.cos(a) * c, Math.sin(a) * h)); } pr.push(new THREE.Vector2(R - c, h), new THREE.Vector2(0.0001, h)); // まるい角の円ばん
+  add(new THREE.LatheGeometry(pr, 32).rotateX(Math.PI / 2), m, z);
+  add(new THREE.TorusGeometry(R * 0.72, R * 0.11, 8, 28), m, z + R * 0.2 * K * s * 0.12 * K);
+  for (const a of [Math.PI / 4, -Math.PI / 4]) add(new THREE.CapsuleGeometry(R * 0.06, R * 0.66, 4, 8), dark, z + R * 0.185 * K * s * 0.12 * K, a);
+}
 export const HARE_FACE = { eye: [0.012, 0.012, 0.039], eyeR: 0.009, iris: 0x5a3a16, ring: [0.82, 0.82, 0.82],
   ear: { at: [-0.012, 0.03, 0.016], size: [0.014, 0.05, 0.006], out: 0.18, back: 0.35, tipAt: 0.8, tip: [0.13, 0.10, 0.08], inner: [0.80, 0.72, 0.66], outer: [0.42, 0.33, 0.24] } };
 // ---- 体: 肉の形（flesh-*.js）から皮の網を作って骨に貼り、殻の毛羽・耳・目をつける ----
@@ -151,6 +160,13 @@ export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], 
   }
   // 耳（薄い板。外は灰褐色・内は白っぽく・先は黒褐色）と目（琥珀色）。頭の骨に付け、耳はばねで遅れてゆれる
   const headBone = bones[SK.bodies.indexOf(H.parts.head.body)], hc = H.parts.head.c.map((v, i) => v + headOff[i]), hbp = headBone.position.clone(), earList = [], eyeList = [];
+  if (F.beak) { // くちばし: 羊毛の丸みを残して、先へ細くなるたまご形
+    const bg = new THREE.SphereGeometry(1, 18, 12), bp = bg.attributes.position, bc = new Float32Array(bp.count * 3);
+    for (let i = 0; i < bp.count; i++) { const k = 1 - 0.72 * Math.max(0, bp.getX(i)); bp.setY(i, bp.getY(i) * k); bp.setZ(i, bp.getZ(i) * k); bc.set(F.beak.col, i * 3); }
+    bg.setAttribute('wet', attr1(bp.count)); bg.setAttribute('color', new THREE.BufferAttribute(bc, 3)); bg.setAttribute('fluff', attr1(bp.count, 1)); bg.computeVertexNormals();
+    const beak = new THREE.Mesh(bg, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 1, sheenRoughness: 0.7, sheenColor: 0xf0dcc8 }), { freq: 330, rest: false }));
+    beak.position.set(hc[0] - hbp.x + F.beak.at[0], hc[1] - hbp.y + F.beak.at[1], hc[2] - hbp.z); beak.scale.set(...F.beak.size); beak.castShadow = true; headBone.add(beak);
+  }
   if (ears) for (const s of [1, -1]) {
     const eg = new THREE.SphereGeometry(1, 20, 14), ep = eg.attributes.position, ec = new Float32Array(ep.count * 3);
     for (let i = 0; i < ep.count; i++) { const y = ep.getY(i), z = ep.getZ(i), tip = y > F.ear.tipAt ? 1 : 0, inner = z * s > 0.3 ? 1 : 0; const c = tip ? F.ear.tip : inner ? F.ear.inner : F.ear.outer; ec.set(c, i * 3); ep.setY(i, y + 1); }
@@ -162,7 +178,7 @@ export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], 
     // 目: 頭の横の高い所に、まぶたのふちから少しだけ出る（飛び出して見えないよう、平たくして皮にうめる。まわりの毛は短く白っぽい＝下の eyeAt）
     const eye = new THREE.Mesh(new THREE.SphereGeometry(F.eyeR, 16, 12), new THREE.MeshPhysicalMaterial({ color: F.iris, roughness: 0.35, clearcoat: 0.35 }) /* てかりが強いと白目に見えて飛び出して見える */);
     const ea = eyeAt(s); eye.position.set(ea[0] - hbp.x, ea[1] - hbp.y, ea[2] - hbp.z); eye.scale.set(1, 1, 0.5); headBone.add(eye);
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(F.eyeR * 0.67, 12, 8), new THREE.MeshBasicMaterial({ color: 0x0e0906 })); pupil.position.set(F.eyeR * 0.11, F.eyeR * 0.05, F.eyeR * 0.56 * s); pupil.scale.set(1, 1, 0.6); eye.add(pupil);
+    if (F.button) craftButtonEye(eye, F, s); else { const pupil = new THREE.Mesh(new THREE.SphereGeometry(F.eyeR * 0.67, 12, 8), new THREE.MeshBasicMaterial({ color: 0x0e0906 })); pupil.position.set(F.eyeR * 0.11, F.eyeR * 0.05, F.eyeR * 0.56 * s); pupil.scale.set(1, 1, 0.6); eye.add(pupil); }
     // 寝ている目（ユーザー「寝ているときの目を用意して」）: 目の玉をかくして、目のまわりの短い毛の上に、下へふくらむ閉じた線（︶）だけ。
     //   まぶたの玉を重ねると、白っぽいこぶに見えた
     const lid = new THREE.Group(); lid.position.copy(eye.position); lid.visible = false; headBone.add(lid);

@@ -5,26 +5,37 @@
 const cl = v => Math.max(0, Math.min(1, v)), lerp = (a, b, t) => a + (b - a) * t;
 export function lookGenes(n, R = Math.random) {
   const j = () => (R() - 0.5) * 0.08;
-  return { hue: cl(n.bright + j()), light: cl(n.pitch + j()), spots: cl(n.rough * 1.2 + j()), ear: cl(n.melody + j()), sharp: cl(n.sharp + j()), seed: Math.floor(R() * 1e6) };
+  return { hue: cl(n.bright + j()), light: cl(n.pitch + j()), spots: cl(n.rough * 1.2 + j()), ear: cl(n.melody + j()), sharp: cl(n.sharp + j()), seed: Math.floor(R() * 1e6), ...(n.pitch < 0.22 && n.bright < 0.25 ? { tone: 'ink' } : n.pitch > 0.8 && n.rough < 0.3 ? { tone: 'white' } : {}) }; // tone＝低く暗い声は淡い墨色の毛、高く澄んだ声は白い毛
 }
 // 色あい: 暗い声＝藍・すみれ → 明るい声＝珊瑚・杏・菜の花（こえのこの HUES）
 const HUES = [[232, 0.42], [268, 0.38], [318, 0.42], [8, 0.55], [28, 0.62], [46, 0.66]];
 function hsl(h, s, l) { const f = n => { const k = (n + h / 30) % 12, a = s * Math.min(l, 1 - l); return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }; return [f(0), f(8), f(4)]; }
 export function lookColor(L) {
+  if (L.tone === 'ink') return { base: [0.22, 0.24, 0.32], dark: [0.12, 0.13, 0.19], pale: [0.4, 0.42, 0.5] };
+  if (L.tone === 'white') return { base: [0.93, 0.91, 0.86], dark: [0.72, 0.69, 0.63], pale: [0.98, 0.97, 0.94] };
   const u = cl(L.hue) * (HUES.length - 1), i = Math.min(HUES.length - 2, Math.floor(u)), f = u - i;
   let h0 = HUES[i][0], h1 = HUES[i + 1][0]; if (h1 - h0 > 180) h0 += 360; if (h0 - h1 > 180) h1 += 360;
   const h = (lerp(h0, h1, f) + 360) % 360, s = lerp(HUES[i][1], HUES[i + 1][1], f) * 0.55, l = lerp(0.38, 0.66, L.light);
   return { base: hsl(h, s, l), dark: hsl(h, s * 0.8, l * 0.55), pale: hsl(h, s * 0.5, Math.min(0.88, l + 0.22)) };
 }
-// 毛の色（皮の点ごと）: 背は地の色、腹は淡く、もようは濃い丸（左右対称）
+// かけた声ごとの色から、主役の色と差し色（ユーザー「差し色案」）: いちばん長くかけた声が主役、はっきりちがう色の声を2つまで差し色に。ls は長い順の lookGenes
+export function voiceTints(ls) {
+  const key = l => ({ hue: l.hue, light: l.light, ...(l.tone ? { tone: l.tone } : {}) }), far = (a, b) => Math.hypot(...lookColor(a).base.map((v, i) => v - lookColor(b).base[i])) > 0.2, acc = [];
+  for (const l of ls.slice(1)) if (acc.length < 2 && far(l, ls[0]) && acc.every(a => far(l, a))) acc.push(key(l));
+  return { tone: undefined, ...key(ls[0]), acc };
+}
+// 毛の色（皮の点ごと）: 背は地の色、腹は淡く、もようは濃い丸（左右対称）。差し色は おしりの側と胸の帯に、うねった境で
 export function lookFur(L, H) {
-  const C = lookColor(L), mid = H.parts.pelvis.c[2];
+  const C0 = lookColor(L), A = (L.acc ?? []).map(lookColor), mid = H.parts.pelvis.c[2], X = Object.values(H.parts).map(p => p.c[0]), x0 = Math.min(...X), xL = Math.max(...X) - x0 || 1;
   const noise = (x, y, z) => Math.sin(x * 37 + L.seed) * Math.sin(y * 41 + L.seed * 0.7) * Math.sin(z * 43 + 1.3) + 0.5 * Math.sin(x * 71 - y * 53 + L.seed * 0.3);
+  const tint = p => { if (!A.length) return C0; const u = (p[0] - x0) / xL + 0.05 * Math.sin(Math.abs(p[2] - mid) * 60 + L.seed) + 0.04 * Math.sin(p[1] * 50 + L.seed * 0.4); return u < 0.2 ? A[0] : A[1] && u > 0.56 && u < 0.72 ? A[1] : C0; };
   return (part, p, n) => {
+    const C = tint(p);
     let c = C.base.slice();
     const belly = cl((-n[1] - 0.15) * 1.6); c = c.map((v, i) => v + (C.pale[i] - v) * belly);
     const sp = noise(p[0], p[1], Math.abs(p[2] - mid)); // 左右の絶対値で＝左右対称
     if (L.spots > 0.25 && n[1] > -0.2 && sp > 1.1 - L.spots * 0.9) c = c.map((v, i) => v + (C.dark[i] - v) * 0.75);
+    if (H.plan.type === 'bird' && Math.abs(p[2] - mid) > H.parts.chest.r * 0.98 + (H.plan.fur ?? 0.006 + 0.008 * H.plan.fluff) * 0.5) c = c.map((v, i) => v + (C.dark[i] - v) * 0.45); // 翼は濃く
     if (/ft[LR]$/.test(part)) c = c.map((v, i) => v + (C.dark[i] - v) * 0.5); // 足先は濃く
     return c;
   };
@@ -32,8 +43,8 @@ export function lookFur(L, H) {
 // 顔: 目は毛の表に、耳は抑揚で長く（0.8〜3cm×2）、とがりで先が細く濃い
 export function lookFace(L, K, base) {
   const hs = (K.headR + (K.fur ?? 0.006 + 0.008 * K.fluff)) * 0.95, C = lookColor(L), len = lerp(0.012, 0.032, L.ear), wid = lerp(0.016, 0.011, L.sharp) * lerp(1, 0.8, L.ear);
-  return { ...base, eye: [hs * 0.47, hs * 0.3, hs * 0.83], eyeR: K.headR * 0.17, iris: 0x2a1a10, ring: null,
-    ear: { at: [-hs * 0.2, hs * 0.8, hs * 0.5], size: [wid, len, 0.005], out: 0.35, back: lerp(0.15, 0.45, L.ear), tipAt: L.sharp > 0.5 ? 0.55 : 9, tip: C.dark, inner: C.pale, outer: C.base } };
+  return { ...base, eye: [hs * 0.47, hs * 0.3, hs * 0.83], eyeR: K.headR * 0.17, iris: 0x2a1a10, ring: null, button: true, beak: K.type === 'bird' ? { at: [hs * 1.3, -hs * 0.08], size: [hs * 0.46, hs * 0.26, hs * 0.3], col: [0.84, 0.6, 0.3] } : null,
+    ear: { at: [-hs * 0.2, hs * 0.8, hs * 0.5], size: K.type === 'snake' || K.type === 'bird' ? [0.001, 0.001, 0.001] : [wid, len, 0.005], out: 0.35, back: lerp(0.15, 0.45, L.ear), tipAt: L.sharp > 0.5 ? 0.55 : 9, tip: C.dark, inner: C.pale, outer: C.base } };
 }
 // 仮の名前（生まれたときに自動で。遊ぶ人が書きかえられる）: やわらかい音の2音（＋ん）。声の明るさで前の音、もようの置き方で後ろの音
 // 音は選んだ字だけからつくる（よくない言葉にならないよう、字の組み合わせをしぼる）
