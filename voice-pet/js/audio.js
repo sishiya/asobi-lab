@@ -5,10 +5,13 @@ export let muted = false;
 export function setMuted(m) { muted = m; }
 
 export function ctx() {
-  if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
-  if (ac.state === 'suspended') ac.resume();
+  if (!ac) { ac = new (window.AudioContext || window.webkitAudioContext)(); ac.addEventListener('statechange', wake); }
+  wake();
   return ac;
 }
+// 音が止まっていたら起こす（画面を離れているあいだは止めたまま）。iPhone は電話やマイクのあとに 'interrupted' になり、さわったときにしか再開できない
+let asleep = false;
+export function wake() { if (ac && !asleep && !document.hidden && ac.state !== 'running' && ac.state !== 'closed') ac.resume()?.catch?.(() => {}); }
 
 // マイクを開く（はじめて押したとき。許可のたずねはブラウザが出す）
 export async function openMic() {
@@ -49,7 +52,7 @@ export function closeMic() {
 // 話し終わって少したったら閉じる（つづけて話すあいだは開いたまま。開くたびの待ちで声の頭が切れないように）
 export function closeMicSoon(ms = 10000) { clearTimeout(idleT); idleT = setTimeout(closeMic, ms); }
 // 画面を離れたらマイクを閉じて音の処理も止める（電池と発熱）
-export function sleep(on) { if (on) closeMic(); if (ac) on ? ac.suspend() : ac.resume(); }
+export function sleep(on) { asleep = on; if (on) closeMic(); if (ac) on ? ac.suspend() : wake(); }
 
 // 鳴き声を鳴らす（作った Float32Array を流す）
 export function play(samples, sr, vol = 0.8) {

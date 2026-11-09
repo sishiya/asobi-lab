@@ -104,7 +104,7 @@ export function makeOuting(R, renderer, { onHome }) {
   function stepMark(dt) { if (markT < 0) return; markT += dt; const u = Math.min(1, markT / 0.55); burst.scale.setScalar(0.05 + 0.34 * u); burst.material.opacity = 0.95 * (1 - u); mark.scale.setScalar(0.1 + 0.012 * Math.sin(markT * 6)); mark.material.opacity += ((target ? 0.85 : 0) - mark.material.opacity) * 0.15; if (!target && u >= 1 && mark.material.opacity < 0.02) { mark.material.opacity = 0; markT = -1; } }
   function pick(e) {
     ndc.set(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1); ray.setFromCamera(ndc, cam);
-    let best = null, bd = 1e9; for (const b of BUSHES) { _sp.center.set(b[0], height(b[0], b[1]) + 0.25, b[1]); _sp.radius = 0.42; const q = ray.ray.intersectSphere(_sp, _c); if (q) { const d = q.distanceTo(cam.position); if (d < bd) { bd = d; best = { x: b[0], z: b[1] }; } } }
+    const Pk = pose(H); let best = null, bd = 1e9; for (const b of BUSHES) { _sp.center.set(b[0], height(b[0], b[1]) + 0.25, b[1]); _sp.radius = 0.42; if (Math.hypot(Pk.x - b[0], Pk.z - b[1]) < 1 || cam.position.distanceTo(_sp.center) < 0.55) continue; /* 着いた藪は画面いっぱいになるので素通り＝地面をさわって出られる */ const q = ray.ray.intersectSphere(_sp, _c); if (q) { const d = q.distanceTo(cam.position); if (d < bd) { bd = d; best = { x: b[0], z: b[1] }; } } }
     if (best) return setTarget(best); const h = ray.intersectObject(G.ground)[0]; if (h) setTarget(h.point);
   }
   function turnView(dx, dy, k = 0.006) { const d = dx * k * (invX ? -1 : 1); camYaw += d; camOff += d; camPitch = Math.max(0.18, Math.min(1.25, camPitch + dy * k * (invY ? 1 : -1))); } // 下限＝地面すれすれにしない（藪の向こうの空をさわってしまう）

@@ -965,6 +965,7 @@ $('volStep').addEventListener('input', e => { vol.step = e.target.value / 100; s
 $('volSfx').addEventListener('input', e => { vol.sfx = e.target.value / 100; saveVol(); });
 $('volSfx').addEventListener('change', () => SFX.step(1)); // はなしたら、その大きさで一度（ためし聞き）
 addEventListener('pointerup', () => touched && SFX.load());
+for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) addEventListener(ev, A.wake, { capture: true, passive: true }); // さわるたびに、止まっていた音を起こす（テストプレイ「たまに音が鳴らなくなる」）
 addEventListener('click', e => { if (e.target.closest('button:not(#mic), #tabs a')) SFX.tap(); }, { capture: true }); // ボタンは全部
 // 足音（ユーザー「歩くときの芝生（フェルト）と擦れる SE」）: フェルトの足がフェルトの草にふれる音（look/sounds.html の「足音（ふわっ）」4つを短く整えた snd/step1〜4.ogg）。
 //   足が地面に着いた瞬間に1つ、高さを少しずつ変えて。強さは着く速さで、いっしょの子は遠いほど小さく
