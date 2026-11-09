@@ -160,13 +160,6 @@ export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], 
   }
   // 耳（薄い板。外は灰褐色・内は白っぽく・先は黒褐色）と目（琥珀色）。頭の骨に付け、耳はばねで遅れてゆれる
   const headBone = bones[SK.bodies.indexOf(H.parts.head.body)], hc = H.parts.head.c.map((v, i) => v + headOff[i]), hbp = headBone.position.clone(), earList = [], eyeList = [];
-  if (F.beak) { // くちばし: 羊毛の丸みを残して、先へ細くなるたまご形
-    const bg = new THREE.SphereGeometry(1, 18, 12), bp = bg.attributes.position, bc = new Float32Array(bp.count * 3);
-    for (let i = 0; i < bp.count; i++) { const k = 1 - 0.72 * Math.max(0, bp.getX(i)); bp.setY(i, bp.getY(i) * k); bp.setZ(i, bp.getZ(i) * k); bc.set(F.beak.col, i * 3); }
-    bg.setAttribute('wet', attr1(bp.count)); bg.setAttribute('color', new THREE.BufferAttribute(bc, 3)); bg.setAttribute('fluff', attr1(bp.count, 1)); bg.computeVertexNormals();
-    const beak = new THREE.Mesh(bg, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 1, sheenRoughness: 0.7, sheenColor: 0xf0dcc8 }), { freq: 330, rest: false }));
-    beak.position.set(hc[0] - hbp.x + F.beak.at[0], hc[1] - hbp.y + F.beak.at[1], hc[2] - hbp.z); beak.scale.set(...F.beak.size); beak.castShadow = true; headBone.add(beak);
-  }
   if (ears) for (const s of [1, -1]) {
     const eg = new THREE.SphereGeometry(1, 20, 14), ep = eg.attributes.position, ec = new Float32Array(ep.count * 3);
     for (let i = 0; i < ep.count; i++) { const y = ep.getY(i), z = ep.getZ(i), tip = y > F.ear.tipAt ? 1 : 0, inner = z * s > 0.3 ? 1 : 0; const c = tip ? F.ear.tip : inner ? F.ear.inner : F.ear.outer; ec.set(c, i * 3); ep.setY(i, y + 1); }

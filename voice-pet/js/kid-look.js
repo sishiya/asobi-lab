@@ -43,7 +43,7 @@ export function lookFur(L, H) {
 // 顔: 目は毛の表に、耳は抑揚で長く（0.8〜3cm×2）、とがりで先が細く濃い
 export function lookFace(L, K, base) {
   const hs = (K.headR + (K.fur ?? 0.006 + 0.008 * K.fluff)) * 0.95, C = lookColor(L), len = lerp(0.012, 0.032, L.ear), wid = lerp(0.016, 0.011, L.sharp) * lerp(1, 0.8, L.ear);
-  return { ...base, eye: [hs * 0.47, hs * 0.3, hs * 0.83], eyeR: K.headR * 0.17, iris: 0x2a1a10, ring: null, button: true, beak: K.type === 'bird' ? { at: [hs * 1.3, -hs * 0.08], size: [hs * 0.46, hs * 0.26, hs * 0.3], col: [0.84, 0.6, 0.3] } : null,
+  return { ...base, eye: [hs * 0.47, hs * 0.3, hs * 0.83], eyeR: K.headR * 0.17, iris: 0x2a1a10, ring: null, button: true,
     ear: { at: [-hs * 0.2, hs * 0.8, hs * 0.5], size: K.type === 'snake' || K.type === 'bird' ? [0.001, 0.001, 0.001] : [wid, len, 0.005], out: 0.35, back: lerp(0.15, 0.45, L.ear), tipAt: L.sharp > 0.5 ? 0.55 : 9, tip: C.dark, inner: C.pale, outer: C.base } };
 }
 // 仮の名前（生まれたときに自動で。遊ぶ人が書きかえられる）: やわらかい音の2音（＋ん）。声の明るさで前の音、もようの置き方で後ろの音

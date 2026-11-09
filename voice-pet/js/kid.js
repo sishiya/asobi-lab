@@ -204,10 +204,11 @@ export function kidShapes(H) {
   const cap = (part, a, b, ra, rb, k) => S.push({ part, body: P[part].body, a, b, ra, rb, k });
   for (const [name, p] of Object.entries(P)) {
     if (!p.a) continue;
-    if (name === 'pelvis' || name === 'chest' || name.startsWith('mid')) cap(name, p.a, p.b, p.r + fur, p.r + fur, 0.04);
+    if (name === 'pelvis' && !T.planar) cap(name, p.a, p.b, p.r * 0.78 + fur, p.r + fur, 0.05); // おしりは細くしぼる（テストプレイ「おむつみたいにもっこり」。皮の形だけ）
+    else if (name === 'pelvis' || name === 'chest' || name.startsWith('mid')) cap(name, p.a, p.b, p.r + fur, p.r + fur, 0.04);
     else if (name.startsWith('neck')) cap(name, p.a, p.b, p.r + fur, p.r * 0.9 + fur, 0.03);
-    else if (name.startsWith('tail')) cap(name, p.a, p.b, p.r * tk[0] + fur, p.r * tk[1] + fur, 0.02);
-    else if (/up[LR]$/.test(name)) cap(name, p.a, p.b, p.r * 1.25 + fur, p.r * 0.85 + fur, 0.025);
+    else if (name.startsWith('tail')) cap(name, p.a, p.b, p.r * tk[0] + fur, p.r * tk[1] + fur, 0.04);
+    else if (/up[LR]$/.test(name)) { if (T.wing) cap(name, p.a, p.b, K.r * 0.76 + fur, K.r * 0.56 + fur, 0.05); else cap(name, p.a, p.b, p.r * 1.05 + fur, p.r * 0.85 + fur, 0.03); } // 鳥の太ももは羽毛の中（本物も外に見えるのはすねから下）
     else cap(name, p.a, p.b, p.r + fur * 0.7, p.r * 0.9 + fur * 0.6, 0.01);
   }
   if (T.wing) for (const s of [1, -1]) { const c = P.chest.c, z = c[2] + s * (P.chest.r + fur * 0.5); cap('chest', [c[0] + K.segL * 0.25, c[1] + P.chest.r * 0.25, z], [c[0] - K.segL * 1.05, c[1] + P.chest.r * 0.1, z - s * P.chest.r * 0.12], P.chest.r * 0.34, P.chest.r * 0.1, 0.012); } // たたんだ翼（皮のふくらみ。色は kid-look）
