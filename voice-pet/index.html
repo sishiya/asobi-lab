@@ -14,9 +14,11 @@
   input { -webkit-user-select: text; user-select: text; } /* 名前の欄は打てるように（none のままだと iPhone で字が入らない） */
   canvas { display: block; }
   /* 上: 左に子のようす、まんなかに 育てる／走る の切りかえ（2つの画面を行き来する） */
-  #hud { position: fixed; left: 16px; top: 72px; background: var(--panel); border-radius: 12px; padding: 8px 12px; line-height: 1.6; font-size: 13px; max-width: calc(100vw - 64px); }
+  #leftCol { position: fixed; left: 24px; top: 88px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  #hud { background: var(--panel); border-radius: 12px; padding: 8px 12px; line-height: 1.6; font-size: 13px; max-width: calc(100vw - 64px); }
   #hud small { color: var(--dim); }
   #hud[hidden] { display: none; }
+  body:not(.grow) #herdRow, body.fw #herdRow { display: none; }
   /* 左上の名前: 書きかえられるとわかるよう、いつも えんぴつ と点線（UX 案5。マウスを乗せたときだけだと、スマホでは見えなかった） */
   #name { border: 0; font: inherit; font-size: 16px; font-weight: 600; color: var(--ink); padding: 0 22px 1px 0; width: 9em; outline: none; border-bottom: 1px dashed rgba(44,42,38,.35); background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4 14.5V16h1.5l8.6-8.6-1.5-1.5L4 14.5zM15.7 5.8a.8.8 0 0 0 0-1.1l-.4-.4a.8.8 0 0 0-1.1 0l-.9.9 1.5 1.5.9-.9z' fill='%236b5a3e'/%3E%3C/svg%3E") no-repeat right 2px center / 15px; cursor: text; }
   #name:focus { border-bottom: 1px solid var(--on); }
@@ -25,25 +27,29 @@
   #adopt input:focus { border-color: var(--on); box-shadow: inset 0 1px 3px rgba(44,42,38,.12), 0 0 0 3px rgba(107,90,62,.18); }
   #hud .meter { height: 7px; background: rgba(44,42,38,.12); border-radius: 4px; margin: 4px 0 2px; width: 170px; } /* 太い棒（UX 案9） */
   /* いっしょに育てている子（2匹から）: 名前を押すと、その子を見る・練習する子にする */
-  #herdRow { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+  #herdRow { position: fixed; left: 24px; top: 248px; display: flex; flex-direction: column; gap: 6px; } /* パネルの高さが変わっても動かない */
   #herdRow:empty { display: none; }
   /* 庭の花（目標）: 5種のめもり。咲いた花は色で埋まり、芽のあいだは輪だけ、まだの種類は点線 */
   #gardenRow { display: flex; align-items: center; gap: 5px; margin-top: 6px; font-size: 12px; color: var(--dim); }
   #gardenRow i { display: block; width: 14px; height: 14px; border-radius: 50%; border: 1.5px dashed rgba(44,42,38,.3); box-sizing: border-box; }
   #gardenRow i.sprout { border-style: solid; }
   #gardenRow i.bloom { border-color: transparent; box-shadow: inset 0 -1px 2px rgba(44,42,38,.25); }
-  #herdRow button { display: flex; justify-content: space-between; align-items: center; gap: 8px; border: 0; font: inherit; font-size: 13px; text-align: left; padding: 5px 12px; border-radius: 999px; cursor: pointer; background: rgba(44,42,38,.07); color: var(--ink); min-height: 36px; }
-  #herdRow button.on { background: var(--on); color: #fff; cursor: default; }
-  #herdRow small { font-size: 11px; color: inherit; opacity: .8; white-space: nowrap; }
+  #herdRow button { position: relative; width: 72px; padding: 0; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 1px; font: inherit; color: var(--ink); cursor: pointer; }
+  #herdRow .hc { width: 64px; height: 64px; box-sizing: border-box; border: 2px solid rgba(44,42,38,.22); opacity: .7; transform: scale(.88); border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; color: #fff; background: var(--panel); box-shadow: 0 1px 4px rgba(44,42,38,.25); }
+  #herdRow img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  #herdRow .nm { max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; text-shadow: 0 0 6px #faf7f0, 0 0 3px #faf7f0, 0 0 1px #faf7f0; }
+  #herdRow .bd { position: absolute; right: 2px; top: 44px; width: 22px; height: 22px; border-radius: 50%; background: #faf7f0; color: var(--on); display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(44,42,38,.3); }
+  #herdRow .bd svg { width: 14px; height: 14px; }
+  #herdRow button.on .hc { border: 3px solid #faf7f0; box-shadow: 0 0 0 3px var(--on), 0 2px 8px rgba(44,42,38,.3); opacity: 1; transform: none; } #herdRow button:not(.on) .nm { font-weight: 400; opacity: .8; } #herdRow button.on { cursor: default; }
   #hud .meter i { display: block; height: 100%; background: var(--on); border-radius: 4px; transition: width .6s; }
-  .tabs { position: fixed; left: 50%; top: 12px; transform: translateX(-50%); display: flex; background: var(--panel); border-radius: 999px; padding: 3px; }
+  .tabs { position: fixed; left: 50%; top: 24px; transform: translateX(-50%); display: flex; background: var(--panel); border-radius: 999px; padding: 3px; }
   .tabs a { font-size: 14px; color: var(--ink); text-decoration: none; padding: 14px 16px; line-height: 16px; border-radius: 999px; white-space: nowrap; } /* 親指で押す所: 高さ 44px・字は1行 */
   .tabs a.on { background: var(--on); color: #fff; }
   .tabs[hidden] { display: none; } /* タブは 育てる｜でかける の2つ（ユーザー）。子が来るまでは出さない（生むだけ） */
   body.out #hud, body.out #bar, body.out #wash { display: none !important; } /* でかけているあいだは、でかけるの場面の道具だけ */
-  #herdRow button.egg { background: none; border: 1.5px dashed rgba(44,42,38,.35); } /* ＋たまご: 子をふやす入口（生むは入口と小さなボタン＝ディレクター案） */
+  #herdRow button.egg .hc { background: rgba(250,247,240,.7); border: 2px dashed rgba(44,42,38,.4); color: var(--on); box-shadow: none; opacity: 1; } /* ＋たまご: 子をふやす入口（生むは入口と小さなボタン＝ディレクター案） */
   /* 下: いまできること1つを大きく。生む と 声をかけて育てる は色と見出しで分ける */
-  #bar { position: fixed; left: 16px; right: 16px; bottom: 18px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  #bar { position: fixed; left: 24px; right: 24px; bottom: 32px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
   /* 案内（押せない）は字だけ＝地の上に白いにじみ。押せるものは丸い面に影（ユーザー「ボタンなのかガイダンスなのかわかりづらい」） */
   #bar { pointer-events: none; } #bar > :not(#msg) { pointer-events: auto; } /* 枠そのものは素通り（右下の水浴びや、地面のドラッグをふさがない） */
   #bar h2 { margin: 0; font-size: 15px; font-weight: 600; text-shadow: 0 0 8px #faf7f0, 0 0 4px #faf7f0, 0 0 2px #faf7f0; }
@@ -51,8 +57,12 @@
   #mic.on { filter: brightness(1.2); }
   #bar [hidden] { display: none; }
   /* 水浴び（テストプレイ「押しやすい位置に」）: 右下。押しながら話すの横に並ぶと近すぎる幅では、その上へ */
-  #wash { position: fixed; right: 16px; bottom: 18px; width: 64px; height: 64px; padding: 0; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 11px; }
+  #wash { position: fixed; right: 28px; bottom: 32px; width: 64px; height: 64px; padding: 0; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 11px; }
   #wash[hidden] { display: none; }
+  /* 起こす（テストプレイ「水浴び系の介入アクション」）: 水浴びと同じ形で、そのすぐ上に。いつでも押せる */
+  #rescue { position: fixed; right: 28px; bottom: 104px; width: 64px; height: 64px; padding: 0; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 11px; }
+  #rescue svg { width: 22px; height: 22px; }
+  #rescue[hidden], body.fw #rescue, body:not(.grow) #rescue { display: none; }
   #wash svg { width: 22px; height: 22px; }
   #wash.hl { box-shadow: 0 0 0 3px rgba(127,180,196,.7), 0 1px 4px rgba(44,42,38,.22); } /* 泥だらけで帰ってきたときは、水浴びを目立たせる */
   /* 声のみほんは はじめ閉じておく（テストプレイ「うっかり押してしまう」）。約束の注記は生むだけ */
@@ -75,29 +85,36 @@
   #adopt small { margin-top: 6px; }
   #againBtn { margin-top: 18px; }
   /* 生まれたあとは声をかけなくてよいので、声のメニューをしまう（できることは 名前・育てる・べつのたまご の3つだけ） */
+  body.eggfull #mic, body.eggfull #samples, body.eggfull .lab, body.eggfull #note, body.eggfull #sampToggle { display: none; }
   body.born #mic, body.born #samples, body.born .lab, body.born #note, body.born #mode, body.born #sampToggle { display: none; }
   /* 横向きのスマホ（低い画面）: 下のまとまりを右の列へ（巣や子をかくさない） */
   @media (max-height: 500px) and (orientation: landscape) {
-    #bar { left: auto; right: 12px; bottom: 10px; width: 290px; gap: 6px; }
+    #bar { left: auto; right: 28px; bottom: 16px; width: 290px; gap: 6px; }
     #mic { min-width: 0; width: 100%; padding: 10px 16px; font-size: 15px; }
     .grp button { min-height: 32px; padding: 4px 10px; }
-    #hud { top: 62px; }
-    #wash { right: 316px; bottom: 10px; } /* 横向き: 右は下のまとまりの列なので、そのすぐ左へ */
+    #leftCol { top: 62px; flex-direction: row; }
+    #herdRow { flex-direction: row; }
+    #wash { right: 332px; bottom: 16px; } /* 横向き: 右は下のまとまりの列なので、そのすぐ左へ */
   }
   /* 幅のせまい画面: 左のカードを小さく（テストプレイ「左上がじゃまで子が見えない」） */
   @media (max-width: 767px), (max-height: 500px) {
-    #hud { left: 12px; top: 66px; width: 128px; box-sizing: border-box; padding: 6px 9px; font-size: 12px; line-height: 1.4; }
+    #leftCol { left: 20px; top: 84px; }
+    #herdRow { left: 20px; top: 196px; }
+    #hud { width: 128px; box-sizing: border-box; padding: 6px 9px; font-size: 12px; line-height: 1.4; }
     #hud small { display: none; }
     #name { width: 100%; box-sizing: border-box; font-size: 14px; }
     #hud .meter { width: 100%; }
     #gardenRow { gap: 3px; font-size: 0; margin-top: 3px; } #gardenRow i { width: 12px; height: 12px; }
-    #herdRow button { padding: 4px 9px; }
   }
-  @media (max-width: 767px) and (orientation: portrait) { #wash { bottom: 128px; } }
-  #focusBtn { position: fixed; left: 50%; top: 70px; transform: translateX(-50%); min-height: 44px; } /* フリーカメラのときだけ。もどる操作はタブのすぐ下 */
+  @media (max-width: 767px) and (orientation: portrait) { #wash { bottom: 142px; right: 24px; } #rescue { bottom: 214px; right: 24px; } }
+  @media (max-height: 500px) and (orientation: landscape) { .tabs { top: 14px; } #menu { top: 14px; right: 28px; } #menuPanel { top: 64px; right: 28px; max-height: calc(100vh - 76px); } #leftCol { left: 28px; top: 72px; } #herdRow { left: 164px; top: 72px; flex-direction: row; } #bar #focusBtn { min-width: 0; width: 100%; padding: 10px 16px; font-size: 15px; margin-bottom: 42px; } #rescue { right: 408px; bottom: 16px; } }
+  /* フリーカメラのあいだは話しかけないので、話すボタンの場所に「子にもどる」。水浴び・起こすもしまう（テストプレイ） */
+  #focusBtn { border: 0; background: var(--on); color: #fff; font: inherit; font-size: 17px; line-height: normal; padding: 14px 26px; min-width: 220px; margin-bottom: 46px; border-radius: 999px; cursor: pointer; box-shadow: 0 2px 10px rgba(44,42,38,.22); }
   #focusBtn[hidden], body.out #focusBtn, body.fw #focusBtn, body.title #focusBtn { display: none; }
-  #menuPanel { max-height: calc(100vh - 70px); overflow-y: auto; touch-action: pan-y; }
+  body.free #mic, body.free #mode, body.free #sampToggle, body.free #samples, body.free .lab, body.free #wash, body.free #rescue { display: none !important; }
+  #menuPanel { max-height: calc(100vh - 92px); overflow-y: auto; touch-action: pan-y; }
   #menuPanel .hd { font-size: 12px; color: var(--dim); }
+  #mDebug { display: grid; gap: 6px; } #mDebug[hidden] { display: none; } #mDebug select { width: 140px; font: inherit; }
   #menuPanel .opt { display: grid; grid-template-columns: 4.5em 140px; align-items: center; }
   #menuPanel .seg { display: flex; gap: 4px; }
   #menuPanel .seg button { flex: 1; min-height: 40px; font-size: 13px; padding: 0 4px; }
@@ -124,9 +141,9 @@
   #ask div { display: flex; gap: 8px; justify-content: center; }
   #ask button { border: 0; font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 999px; cursor: pointer; min-height: 40px; }
   #askKeep { background: var(--on); color: #fff; } #askReset { background: rgba(44,42,38,.08); color: var(--ink); }
-  #menu { position: fixed; z-index: 21; right: 12px; top: 10px; width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; border: 0; background: var(--panel); color: var(--on); border-radius: 50%; cursor: pointer; box-shadow: 0 1px 3px rgba(107,90,62,.14); } /* まわりになじむよう、ボタンと同じ茶色の手書きふうの線・ほかのボタンと同じ地・ごく薄い影（真っ黒の線は浮いて見えた。地を薄くすると、この丸だけ草が透けた） */
+  #menu { position: fixed; z-index: 21; right: 24px; top: 24px; width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; border: 0; background: var(--panel); color: var(--on); border-radius: 50%; cursor: pointer; box-shadow: 0 1px 3px rgba(107,90,62,.14); } /* まわりになじむよう、ボタンと同じ茶色の手書きふうの線・ほかのボタンと同じ地・ごく薄い影（真っ黒の線は浮いて見えた。地を薄くすると、この丸だけ草が透けた） */
   /* メニュー（ユーザー「音の場所にメニューボタンを配置し、そこから音変更やタイトルにもどったり」）: 右上。音の大きさのつまみと、タイトルへ・最初から */
-  #menuPanel { z-index: 20; position: fixed; right: 12px; top: 58px; background: var(--panel); border-radius: 12px; padding: 10px 14px; box-shadow: 0 2px 10px rgba(44,42,38,.18); display: grid; gap: 6px; font-size: 13px; }
+  #menuPanel { z-index: 20; position: fixed; right: 24px; top: 76px; background: var(--panel); border-radius: 12px; padding: 10px 14px; box-shadow: 0 2px 10px rgba(44,42,38,.18); display: grid; gap: 6px; font-size: 13px; }
   #menuPanel[hidden] { display: none; }
   #menuPanel label { display: grid; grid-template-columns: 4.5em 140px; align-items: center; }
   #menuPanel input { width: 140px; accent-color: var(--on); }
@@ -150,11 +167,15 @@
   #status .box { background: #faf7f0; border-radius: 16px; padding: 18px 20px; width: min(320px, 100%); box-sizing: border-box; box-shadow: 0 6px 24px rgba(44,42,38,.3); line-height: 1.6; }
   #status .nm { font-size: 12px; color: var(--dim); }
   #status #name { display: block; width: 100%; box-sizing: border-box; margin-bottom: 10px; font-size: 18px; }
+  #status .top { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+  #status .nmw { flex: 1; min-width: 0; }
+  #stFace { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: rgba(44,42,38,.1); border: 3px solid #fff; box-shadow: 0 1px 4px rgba(44,42,38,.25); flex: none; }
+  #stList .bar { height: 7px; background: rgba(44,42,38,.12); border-radius: 4px; } #stList .bar i { display: block; height: 100%; background: var(--on); border-radius: 4px; }
   #stType { margin: 0 0 10px; font-size: 14px; }
   #stCols { display: flex; gap: 8px; margin-bottom: 12px; }
   #stCols i { width: 26px; height: 26px; border-radius: 50%; box-shadow: inset 0 -2px 3px rgba(44,42,38,.25); }
   #stList { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 4px; font-size: 14px; }
-  #stList li { display: flex; justify-content: space-between; } #stList li.no { color: var(--dim); }
+  #stList li { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; } #stList li .bar { grid-column: 1 / -1; }
   #stClose { display: block; margin: 0 auto; min-height: 44px; min-width: 120px; }
   #hudName { display: flex; justify-content: space-between; align-items: center; width: 100%; border: 0; background: none; padding: 0 0 2px; font: inherit; font-size: 16px; font-weight: 600; color: var(--ink); cursor: pointer; min-height: 30px; }
   #hudName::after { content: ""; width: 7px; height: 7px; border-top: 2px solid var(--on); border-right: 2px solid var(--on); transform: rotate(45deg); margin-right: 3px; flex: none; } /* 押すと開くしるし */
@@ -162,10 +183,20 @@
   #title { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
   #title[hidden] { display: none; }
   #title h1 { margin: 8vh 0 0; line-height: 0; } /* ロゴは絵（look/logo-render.html から作る。どの端末でも同じ形） */
+  @media (min-width: 768px) and (min-height: 501px) { #title h1 img { width: min(88vw, 768px, 132vh) !important; } #title p { font-size: 25px !important; margin-top: 12px !important; } } /* PC では 1.2 倍まで（スマホは今のまま） */
   #title h1 img { width: min(88vw, 640px, 110vh); height: auto; transform: translateX(3%); } /* 字のほうが濃くて読むのも字だけなので、絵のまん中だと左に寄って見える。少し右へ */
   #title p { margin: 6px 0 0; font-size: 16px; font-weight: 600; text-shadow: 0 0 8px #faf7f0, 0 0 4px #faf7f0, 0 0 2px #faf7f0; }
   #startBtn { pointer-events: auto; position: absolute; bottom: 9vh; border: 0; background: var(--on); color: #fff; font: inherit; font-size: 20px; font-weight: 600; padding: 18px 40px; min-width: 260px; border-radius: 999px; cursor: pointer; box-shadow: 0 3px 12px rgba(44,42,38,.25); }
   #startBtn:active { transform: scale(.97); }
+  /* 読みこみ直後: 3D ができるまで、同じ場面の絵を出しておき、できたらとけるように入れかえる（テストプレイ「タイトルの文字しか出ない」） */
+  #bootBg { position: fixed; inset: 0; z-index: 5; pointer-events: none; background: #e9e2d4 url(img/title-bg-wide.jpg) center / cover no-repeat; transition: opacity .9s; }
+  @media (max-aspect-ratio: 5/4) { #bootBg { background-image: url(img/title-bg-square.jpg); } } @media (max-aspect-ratio: 3/4) { #bootBg { background-image: url(img/title-bg-tall.jpg); } } /* 画面の比率に近い絵を（引きのばすと荒くなる） */
+  body:not(.boot) #bootBg { opacity: 0; }
+  /* 読みこみ中のしるし（テストプレイ「しばらくタイトル文字しか出ないのがバグっぽい」）: はじめるボタンの場所で、毛玉が3つはねる */
+  #loading { position: absolute; bottom: 9vh; height: 60px; display: none; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--on); }
+  body.boot #loading { display: flex; }
+  #loading i { width: 12px; height: 12px; border-radius: 50%; background: var(--on); animation: bootHop 1s ease-in-out infinite; } #loading i:nth-of-type(2) { animation-delay: .15s; } #loading i:nth-of-type(3) { animation-delay: .3s; } #loading span { margin-right: 4px; }
+  @keyframes bootHop { 0%, 60%, 100% { transform: translateY(0); opacity: .55; } 30% { transform: translateY(-10px); opacity: 1; } }
   body.title #hud, body.title #bar, body.title #wash, body.title .tabs, body.fw #menu, body.fw #menuPanel { display: none !important; }
   body.boot #hud, body.boot #bar, body.boot #wash, body.boot .tabs, body.boot #menu { display: none !important; } /* ライブラリを読むあいだはロゴだけ（素の HTML のタブやカードが見えていた） */
   body.boot #startBtn { visibility: hidden; } /* 読み終わるまで押しても動かないので。ロゴがずれないよう場所は残す */
@@ -175,18 +206,19 @@
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","@dimforge/rapier3d-compat":"https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"}}</script>
 </head>
 <body class="boot">
+<div id="bootBg"></div>
 <nav class="tabs" id="tabs"><a id="tGrow" href="#grow">育てる</a><a id="tOut" href="#out">でかける</a></nav>
-<div id="hud"><button id="hudName" aria-label="この子のようすを見る"></button><div id="hudBody"></div><div id="gardenRow"></div><div id="herdRow"></div></div>
+<div id="leftCol"><div id="hud"><button id="hudName" aria-label="この子のようすを見る"></button><div id="hudBody"></div><div id="gardenRow"></div></div><div id="herdRow"></div></div>
 <pre id="profBox" hidden style="position:fixed;left:8px;bottom:8px;margin:0;background:rgba(250,247,240,.92);border-radius:8px;padding:6px 8px;font:11px/1.4 ui-monospace,monospace;color:#2c2a26;z-index:9;pointer-events:none"></pre>
 <div id="fwMsg"></div>
-<button id="focusBtn" class="soft" hidden>子にもどる</button>
-<div id="title"><h1><img src="img/logo.png" alt="こえのこ" width="1320" height="360"></h1><p>声から生まれる、羊毛の子</p><button id="startBtn">はじめる</button></div>
-<script>document.getElementById('title').hidden = new URLSearchParams(location.search).has('notitle');</script>
+<div id="title"><h1><img src="img/logo.png" alt="こえのこ" width="1320" height="360"></h1><p>声から生まれる、羊毛の子</p><button id="startBtn">はじめる</button><div id="loading" role="status"><span>じゅんび中</span><i></i><i></i><i></i></div></div>
+<script>{ const no = new URLSearchParams(location.search).has('notitle'); document.getElementById('title').hidden = no; if (no) document.getElementById('bootBg').remove(); }</script>
 <button id="menu" aria-label="メニュー" aria-expanded="false" aria-controls="menuPanel"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M4.4 6.8C9 6.1 14.6 7.1 19.7 6.3M4.2 12.2C9.4 11.6 14.4 12.6 19.9 11.9M4.5 17.6C9.2 17 14.8 18 19.6 17.3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg></button>
 <div id="confirm" hidden><div class="box"><h3>最初からはじめますか？</h3><p id="cText"></p><div class="row"><button id="cNo">やめる</button><button id="cYes">消して最初から</button></div></div></div>
 <button id="wash" class="soft" hidden aria-label="水浴びさせる"><svg viewBox="0 0 24 24"><path d="M12 3c-3 4.2-6 7.6-6 11a6 6 0 0 0 12 0c0-3.4-3-6.8-6-11z" fill="#7fb4c4"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>水浴び</button>
-<div id="menuPanel" hidden><label>鳴き声<input id="volCry" type="range" min="0" max="100"></label><label>環境音<input id="volAmb" type="range" min="0" max="100"></label><label>足音<input id="volStep" type="range" min="0" max="100"></label><label>効果音<input id="volSfx" type="range" min="0" max="100"></label><hr><span class="hd">でかけるのカメラ</span><div class="seg" id="mCam"><button data-v="follow">ななめ</button><button data-v="tps">うしろ</button><button data-v="top">見下ろし</button></div><div class="opt">左右<div class="seg" id="mInvX"><button data-v="0">ふつう</button><button data-v="1">逆</button></div></div><div class="opt">上下<div class="seg" id="mInvY"><button data-v="0">ふつう</button><button data-v="1">逆</button></div></div><hr><button id="mTitle">タイトルにもどる</button><button id="mReset">最初からはじめる</button></div>
-<div id="status" hidden><div class="box"><label class="nm" for="name">なまえ（変えられます）</label><input id="name" maxlength="10" autocomplete="off" enterkeyhint="done"><p id="stType"></p><div id="stCols"></div><ul id="stList"></ul><button id="stClose" class="soft">とじる</button></div></div>
+<div id="menuPanel" hidden><label>鳴き声<input id="volCry" type="range" min="0" max="100"></label><label>環境音<input id="volAmb" type="range" min="0" max="100"></label><label>足音<input id="volStep" type="range" min="0" max="100"></label><label>効果音<input id="volSfx" type="range" min="0" max="100"></label><hr><span class="hd">でかけるのカメラ</span><div class="seg" id="mCam"><button data-v="follow">ななめ</button><button data-v="tps">うしろ</button><button data-v="top">見下ろし</button></div><div class="opt">左右<div class="seg" id="mInvX"><button data-v="0">ふつう</button><button data-v="1">逆</button></div></div><div class="opt">上下<div class="seg" id="mInvY"><button data-v="0">ふつう</button><button data-v="1">逆</button></div></div><hr><div id="mDebug" hidden><span class="hd">デバッグ</span><div class="opt">型<select id="dbType"><option>walk</option><option>donkey</option><option>hop</option><option>bird</option><option>snake</option><option>bound</option><option>seal</option><option>biped</option></select></div><div class="opt">色あい<input id="dbHue" type="range" min="0" max="100" value="50"></div><div class="opt">明るさ<input id="dbLight" type="range" min="0" max="100" value="50"></div><div class="opt">毛<select id="dbTone"><option value="">ふつう</option><option value="ink">墨</option><option value="white">白</option></select></div><div class="opt">差し色<input id="dbAcc" type="range" min="-1" max="100" value="-1"></div><button id="dbBirth">この組み合わせで生む</button><div class="opt">皮<div class="seg" id="dbSkin"><button data-v="1">ON</button><button data-v="0">OFF</button></div></div><div class="opt">骨筋<div class="seg" id="dbBones"><button data-v="1">ON</button><button data-v="0">OFF</button></div></div><hr></div><button id="mTitle">タイトルにもどる</button><button id="mReset">最初からはじめる</button></div>
+<button id="rescue" class="soft" hidden aria-label="倒れた子を起こす"><svg viewBox="0 0 24 24" fill="none" stroke="#6b5a3e" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V6M6 11l6-6 6 6"/></svg>起こす</button>
+<div id="status" hidden><div class="box"><div class="top"><img id="stFace" alt=""><div class="nmw"><label class="nm" for="name">なまえ（変えられます）</label><input id="name" maxlength="10" autocomplete="off" enterkeyhint="done"></div></div><p id="stType"></p><div id="stCols"></div><ul id="stList"></ul><button id="stClose" class="soft">とじる</button></div></div>
 <div id="bar">
   <div id="msg"></div>
   <div id="adopt" hidden><label for="candName">なまえ（変えられます）</label><input id="candName" maxlength="10" placeholder="なまえを入れる" autocomplete="off" enterkeyhint="done"><button id="adoptBtn">この子を育てる</button><small id="adoptNote"></small><button id="againBtn" class="soft">べつのたまごをつくる</button></div>
@@ -194,6 +226,7 @@
   <div id="ask" hidden><p id="askText"></p><small>覚えなおすと、いまの歩き方は消えて、よちよちから練習しなおします</small><div><button id="askKeep">このまま見守る</button><button id="askReset">歩き方を覚えなおす</button></div></div>
   <h2 id="mode">あたらしい子を生む</h2>
   <button id="mic">押しながら話す</button>
+  <button id="focusBtn" hidden>子にもどる</button>
   <button id="sampToggle" class="soft">声のみほん</button>
   <small class="lab">声のみほん（マイクのかわりに）</small>
   <div class="grp" id="samples"><button data-v="low">ひくい声</button><button data-v="high">たかい声</button><button data-v="child">ちいさい子</button><button data-v="breathy">ささやき</button><button data-v="rough">がらがら声</button><button data-v="quick">はやくち</button></div>
@@ -211,7 +244,7 @@ import R from '@dimforge/rapier3d-compat';
 import { height } from './js/ground.js';
 import { pose, SELF, GROUND } from './js/hare.js';
 import { makeField, contactPoint } from './js/trial.js';
-import { kidBody, kidShapes, kidSeed , scaleFriction } from './js/kid.js';
+import { kidBody, kidShapes, kidBends, kidSeed , scaleFriction, blendBody } from './js/kid.js';
 import { decodeGetup, driveGetup, GETUP_UP } from './js/getup.js';
 import { makeFeltGround, makeFeltBody, makeFeltBall, feltMesh, feltify, makeDiorama, HARE_FACE } from './js/felt.js';
 import { lookGenes, lookFur, lookFace, lookColor, kidName, voiceTints } from './js/kid-look.js';
@@ -307,7 +340,7 @@ let pals = [];
 // 皮はかならず向き 0 の体で作ってから、向きのある体に付けかえる（rebind は「皮は向き 0 で作った」前提。向きのある体でじかに皮を作ると、
 //   作った直後はきれいでも、転んで体を作りなおしたときに骨の回し方がずれて、皮が裂けて目が離れた＝ユーザーの画面。リロードで治るのは向き 0 で作りなおすから）
 function bodyAndSkin(B, genes, at, yaw) {
-  const H0 = B.build(R, world, at, height, 0), FB = makeFeltBody(scene, H0, kidShapes(H0), { furColor: lookFur(genes.look, H0), face: lookFace(genes.look, H0.plan, HARE_FACE) });
+  const H0 = B.build(R, world, at, height, 0), FB = makeFeltBody(scene, H0, kidShapes(H0), { bends: kidBends(H0), furColor: lookFur(genes.look, H0), face: lookFace(genes.look, H0.plan, HARE_FACE) });
   if (!yaw) return { H: H0, FB };
   for (const p of Object.values(H0.parts)) world.removeRigidBody(p.body);
   const H = B.build(R, world, at, height, yaw); FB.rebind(H, yaw); return { H, FB };
@@ -330,8 +363,8 @@ function palRestart(p, home) { endGust(p); const P = pose(p.H), at = freeSpot(ho
 // 子たちを作りなおす（見る子を変えた・子が来た）。いまいる所はそのまま。FB0＝見る子に付けかえる皮（生むから来た子）
 function rebuildHerd(FB0 = null, change = null) { // change＝いまの子を残したあとで、子たちの並び・見る子を変える（先に変えると、いまの子が別の子の場所に書かれた）
   const where = {}, note = (id, H) => { const P = pose(H); where[id] = { at: [P.x, 0, P.z], yaw: P.yaw }; };
-  if (kid) { dropAllBurrs(); keep(); note(kid.id, kid.H); }
-  pals.forEach(p => { note(herd.kids[p.i].id, p.H); dropPal(p); }); pals = [];
+  if (kid) { endGust(kid); dropAllBurrs(); keep(); note(kid.id, kid.H); }
+  pals.forEach(p => { endGust(p); note(herd.kids[p.i].id, p.H); dropPal(p); }); pals = [];
   change?.();
   herd.kids.forEach(k => (k.id ||= newId()));
   const f = herd.kids[herd.at], w = where[f.id];
@@ -339,15 +372,28 @@ function rebuildHerd(FB0 = null, change = null) { // change＝いまの子を残
   raise(f, FB0, w?.at || [0, 0, 0], w?.yaw || 0);
   let n = 0, z = 0; herd.kids.forEach((k, i) => { if (i === herd.at) return; const walk = !!(k.v && k.state?.firstWalk), slot = pals.length + 1;
     if (!walk) { const b = NEST_BED[z++ % NEST_BED.length], p = makePal(i, b, b[3], slot); pals.push(p); return; } // 眠る子は巣のそば（ユーザー「ねんね中の子は巣付近にもどして」）
-    const h = PAL_HOME[n++ % PAL_HOME.length], w2 = where[k.id], p = makePal(i, w2?.at || h, w2?.yaw || 0, slot); p.home = h; pals.push(p); });
-  herdRow(); gardenRow(); saveKids(herd);
+    const h0 = PAL_HOME[n++ % PAL_HOME.length], w2 = where[k.id], at = w2?.at || h0, rr = Math.hypot(at[0], at[2]), h = rr > 1.8 ? [at[0] * 1.8 / rr, 0, at[2] * 1.8 / rr] : at, p = makePal(i, at, w2?.yaw || 0, slot); p.home = h; pals.push(p); }); // いる場所をその子の居場所に（切りかえのたびに風で運ばれていた）
+  herdRow(); gardenRow(); saveKids(herd); queueFaces();
 }
+// 顔写真（テストプレイ「丸い枠の顔写真」）: 子の前にカメラを置いて小さく描き、そのこまのうちに絵として写す。子を入れかえたときなど、必要なときだけ
+const faceLight = new THREE.DirectionalLight(0xfff4e6, 0); scene.add(faceLight, faceLight.target); // 光の数が変わると絵の準備がやり直しになるので、ふだんは強さ 0 で置いておく
+const faces = new Map(); let faceQ = [], faceTm = 0; const faceCam = new THREE.PerspectiveCamera(30, 1, 0.01, 30), faceCv = document.createElement('canvas'); faceCv.width = faceCv.height = 112;
+const queueFaces = (ms = 2500) => { clearTimeout(faceTm); faceTm = setTimeout(() => { if (kid) faceQ = [{ id: kid.id, o: kid }, ...pals.map(p => ({ id: herd.kids[p.i].id, o: p }))]; }, ms); };
+function shootFace() {
+  const q = faceQ.shift(); if (!q || (q.o !== kid && !pals.includes(q.o))) return; const S = 112, pr = renderer.getPixelRatio(), hd = q.o.FB.headBone.getWorldPosition(new THREE.Vector3()), Q = pose(q.o.H), d = q.o.H.plan.headR * 6;
+  faceCam.position.set(hd.x + Q.fx * d * 0.62 - Q.fz * d * 0.78, hd.y + d * 0.14, hd.z + Q.fz * d * 0.62 + Q.fx * d * 0.78); faceCam.lookAt(hd.x, hd.y + q.o.H.plan.headR * 0.25, hd.z); faceCam.updateMatrixWorld();
+  q.o.FB.lod(faceCam.position, faceCam.fov, S); faceLight.position.copy(faceCam.position); faceLight.target.position.copy(hd); faceLight.target.updateMatrixWorld(); faceLight.intensity = 2.4;
+  renderer.setRenderTarget(null); renderer.setScissorTest(true); renderer.setScissor(0, 0, S / pr, S / pr); renderer.setViewport(0, 0, S / pr, S / pr); renderer.render(scene, faceCam);
+  const cv = renderer.domElement; faceCv.getContext('2d').drawImage(cv, 0, cv.height - S, S, S, 0, 0, S, S); renderer.setScissorTest(false); renderer.setViewport(0, 0, innerWidth, innerHeight); faceLight.intensity = 0; q.o.FB.lod(cam.position, cam.fov, innerHeight * pr);
+  faces.set(q.id, faceCv.toDataURL('image/jpeg', 0.85)); if (!faceQ.length) { herdRow(); if (!$('status').hidden && kid) $('stFace').src = faces.get(kid.id) ?? ''; }
+}
+const HERD_ICON = { up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l7-7 7 7M5 20l7-7 7 7"/></svg>', walk: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c-3.2 0-6 3.4-6 6 0 2.6 3.6 1.7 6 1.7s6 .9 6-1.7c0-2.6-2.8-6-6-6z"/><circle cx="5" cy="10" r="2.3"/><circle cx="9.6" cy="5.6" r="2.5"/><circle cx="14.4" cy="5.6" r="2.5"/><circle cx="19" cy="10" r="2.3"/></svg>', zz: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5h12L6 19h12"/></svg>' }; // 練習中＝上達の矢印・おさんぽ＝足あと・おやすみ＝Z
 function herdRow() {
   const row = $('herdRow'); row.innerHTML = '';
   herd.kids.forEach((k, i) => { const b = document.createElement('button'), p = pals.find(q => q.i === i);
-    b.innerHTML = `${k.name}<small>${i === herd.at ? '練習中' : p?.walk ? 'おさんぽ' : 'おやすみ'}</small>`; b.className = i === herd.at ? 'on' : '';
+    const f = faces.get(k.id), nm = (k.name || '').replace(/[<>&]/g, ''), st = i === herd.at ? 'up' : p?.walk ? 'walk' : 'zz'; b.innerHTML = `<span class="hc"${f ? '' : ` style="background:rgb(${lookColor(k.genes.look).base.map(v => Math.round(v * 255))})"`}>${f ? `<img src="${f}" alt="">` : nm.slice(0, 1)}</span><span class="nm">${nm}</span><i class="bd">${HERD_ICON[st]}</i>`; b.className = i === herd.at ? 'on' : ''; b.setAttribute('aria-label', `${nm}（${{ up: '練習中', walk: 'おさんぽ', zz: 'おやすみ' }[st]}）`); b.title = `${nm}（${{ up: '練習中', walk: 'おさんぽ', zz: 'おやすみ' }[st]}）`;
     b.addEventListener('click', () => { if (i === herd.at) return; rebuildHerd(null, () => (herd.at = i)); free = null; show(`${kid.name} の練習を見よう`); }); row.appendChild(b); });
-  const e = document.createElement('button'); e.className = 'egg'; e.innerHTML = `＋ たまご<small>なかま ${herd.kids.length}/${MAX_KIDS}</small>`; e.addEventListener('click', () => go('birth')); row.appendChild(e);
+  const e = document.createElement('button'); e.className = 'egg'; e.innerHTML = '<span class="hc">＋</span><span class="nm">たまご</span>'; e.setAttribute('aria-label', `たまごを生む（なかま ${herd.kids.length}/${MAX_KIDS}）`); e.title = 'たまごを生む'; e.addEventListener('click', () => go('birth')); row.appendChild(e);
 }
 // 歩き方を始め直す前に聞く（ユーザー「承諾を得るように。このまま様子を見る選択肢も」）
 let askHold = false; // 答えたあと、押す前に出た「聞く」の知らせが届いても、もう一度は聞かない
@@ -511,7 +557,7 @@ function startHatch() {
   // 子は中にもう作っておく（たまごにかくれる。生まれる瞬間に絵の準備で止まらないように）
   nestWorld = makeField(R); nt = 0;
   const B = kidBody(genes), H0 = B.build(R, nestWorld, [NEST[0], 0, NEST[1]], height);
-  const FB = makeFeltBody(scene, H0, kidShapes(H0), { furColor: lookFur(genes.look, H0), face: lookFace(genes.look, H0.plan, HARE_FACE) });
+  const FB = makeFeltBody(scene, H0, kidShapes(H0), { bends: kidBends(H0), furColor: lookFur(genes.look, H0), face: lookFace(genes.look, H0.plan, HARE_FACE) });
   for (const p of Object.values(H0.parts)) nestWorld.removeRigidBody(p.body);
   const H = B.build(R, nestWorld, [NEST[0], 0, NEST[1]], height, BORN_YAW); FB.rebind(H, BORN_YAW); // 顔がカメラから見える向き（ユーザー「顔とか見える角度に」）
   cand = { H, B, FB, genes, q: B.decode(kidSeed(genes)), born: false };
@@ -641,7 +687,8 @@ function mixGenes(V) {
   raw.vtl = V.reduce((t, v) => t + v.a.raw.vtl * v.a.raw.vDur, 0) / W; raw.f0 = Math.exp(V.reduce((t, v) => t + Math.log(v.a.raw.f0) * v.a.raw.vDur, 0) / W);
   const R2 = rng((Math.random() * 1e9) | 0), c = founder({ n, raw }, R2); c.g.look = { ...lookGenes(n, R2), ...voiceTints([...V].sort((a, b) => b.a.raw.vDur - a.a.raw.vDur).map(v => v.look)) }; // 毛の色はかけた声の色から（主役＋差し色）
   const fT = new URLSearchParams(location.search).get('type'); if (fT) c.g.type = fT; // ?type=bird などで型を決めて生む（確かめ用）
-  return c.g;
+  if (dbForce) { c.g.type = dbForce.type; c.g.look = { ...c.g.look, ...dbForce.look }; dbForce = null; }
+  return blendBody(c.g);
 }
 function layVoice(a) {
   if (egg && egg.phase !== 'gather') { if (egg.phase === 'born') dropCand(); else return; } // かえっている最中は聞かない。かえったあとに話すと、あたらしいたまごから
@@ -650,7 +697,7 @@ function layVoice(a) {
   const v = { a: { n: { ...a.n }, raw: { vtl: a.raw.vtl, f0: a.raw.f0, vDur: a.raw.vDur } }, w, look: L, col: C.base, pale: C.pale, arrived: false, got: 0 }; // 声の数だけ写す（声は残さない）
   egg.voices.push(v); sendTufts(v); SFX.swirl(1.3);
   const total = egg.voices.reduce((t, x) => t + x.w, 0);
-  $('mode').textContent = total >= 1 ? 'あと少し…' : SAY_BIRTH[Math.min(egg.voices.length, SAY_BIRTH.length - 1)];
+  $('mode').textContent = total >= 1 ? 'おやおや…？' : SAY_BIRTH[Math.min(egg.voices.length, SAY_BIRTH.length - 1)];
 }
 // 眠っているしるし（ユーザー「ねているとわかるエフェクトつけて」）: 羊毛フェルトの「Z」が、寝息に合わせて頭からふわりと浮かび、
 //   ゆれながら大きくなって、うすれて消える（2.2 秒ごと・小→大の3つ）。ころがって止まってから、育てるへ行くまで
@@ -667,7 +714,7 @@ const LEAD = 0.55, BODY_ZOOM = 1.2, leadV = { x: 0, z: 0 }; // 育てるのカ�
 let waves = [], waveT = 0, waveN = 0, listenG = 1;
 const WAVE_GEO = new THREE.TorusGeometry(1, 0.11, 8, 26, Math.PI * 0.72).rotateZ(-Math.PI * 0.36);
 function stepWaves(dt) {
-  waveT -= dt; const lv = rec ? A.micLevel() : 0, grow = mode === 'grow' && kid, at = grow ? kid.FB.headBone.getWorldPosition(_hw) : mode === 'birth' && !cand ? (egg && egg.phase !== 'gather' ? null : _hw.set(NEST[0], ny + 0.16, NEST[1])) : null;
+  waveT -= dt; const lv = rec ? A.micLevel() : 0, grow = mode === 'grow' && kid, at = grow ? kid.FB.headBone.getWorldPosition(_hw) : null; // たまごには風のふさがあるので、音波は出さない（テストプレイ）
   if (at && waveT < 0 && (lv > 0.012 || waveN > 0)) { waveT = 0.24; if (waveN > 0) waveN--; if (grow) kid.FB.perk(); const big = 0.8 + Math.min(1, lv * 8) * 0.7; for (const s of [1, -1]) { const m = feltMesh(WAVE_GEO.clone(), [0.98, 0.95, 0.86]); m.castShadow = false; fade(m, 0); scene.add(m); waves.push({ m, t: 0, s, big, x: at.x, y: at.y, z: at.z }); } }
   const R0 = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
   for (const w of waves) { w.t += dt; const k = w.t / 0.75; w.m.position.set(w.x, w.y + 0.02, w.z).addScaledVector(R0, w.s * (0.07 + 0.09 * k)); w.m.scale.setScalar((0.03 + 0.05 * k) * w.big); w.m.quaternion.copy(cam.quaternion); if (w.s < 0) w.m.rotateZ(Math.PI); fade(w.m, Math.min(1, k * 6, (1 - k) * 2)); if (k >= 1) { scene.remove(w.m); w.m.traverse(x => x.material?.dispose()); w.m.geometry.dispose(); w.done = true; } }
@@ -676,7 +723,7 @@ function stepWaves(dt) {
 let zs = [];
 const _hw = new THREE.Vector3();
 function stepZ(dt) {
-  const sl = []; if (cand?.roll?.done && mode === 'birth') sl.push(cand.FB); if (mode === 'grow') pals.forEach(p => !p.walk && sl.push(p.FB)); // 眠っている子（巣の生まれたて・まだ歩けない いっしょの子）
+  const sl = []; if (cand?.roll?.done && mode === 'birth') sl.push(cand.FB);  if (mode === 'grow') pals.forEach(p => !p.walk && sl.push(p.FB)); // 眠っている子（巣の生まれたて・まだ歩けない いっしょの子）
   for (const FB of sl) { FB.zT ??= Math.random(); FB.zN ??= 0; if ((FB.zT -= dt) >= 0) continue; FB.zT = FB.zN % 3 === 2 ? 1.6 : 0.7; const size = [0.018, 0.024, 0.031][FB.zN++ % 3]; // 小・中・大で ひと息
     const m = feltMesh(Z_GEO.clone(), [0.97, 0.95, 0.9]); m.castShadow = false; fade(m, 0); FB.headBone.getWorldPosition(_hw); m.position.copy(_hw).add(new THREE.Vector3(0, 0.05, 0)); scene.add(m);
     zs.push({ m, t: 0, x0: _hw.x, y0: _hw.y + 0.05, z0: _hw.z, size, ph: Math.random() * 6 }); }
@@ -747,7 +794,7 @@ function adoptCand(slot) {
   const had = !!kid, FB = cand.FB, genes = cand.genes, gone = slot >= 0 ? herd.kids[slot].name : null, nk = { id: newId(), genes, name: $('candName').value.trim() || kidName(genes.look) };
   nestWorld.free(); nestWorld = null; cand = null; if (egg) { lining = egg.petals; egg.seeds.forEach(d => scene.remove(d.m)); if (egg.light) scene.remove(egg.light); } egg = null; $('adopt').hidden = true; $('release').hidden = true; // 飛び散った殻は巣のまわりに残す（次のたまごができるまで）
   rebuildHerd(FB, () => { if (slot >= 0) { herd.kids[slot] = nk; herd.at = slot; } else { herd.kids.push(nk); herd.at = herd.kids.length - 1; } });
-  SFX.welcome(); go('grow'); show(gone ? `${kid.name} が来た` : had ? `${kid.name} がなかまになった` : `${kid.name} を育てよう`);
+  SFX.welcome(); go('grow'); const say = gone ? `${kid.name} が来た` : had ? `${kid.name} がなかまになった` : `${kid.name} を育てよう`; if (gone) setTimeout(() => show(say), 800); else show(say);
 }
 // お別れ（ユーザー「かえすボタンのリアクションがほしい。あとはおわかれ演出がほしい」）: 野にかえすのであって、死ぬのではない。毛がほどけて消える形にはしない。
 //   目をさます → こちらをふり返って一声 → 行ってしまう → かすんで見えなくなる。さわると飛ばせる
@@ -796,7 +843,7 @@ function stepFarewell(dt) {
   if (!f.walk && f.t > FW.go - 0.5 && f.t < f.end + FW.fade) fwWind(f, dt);
   if (f.t > f.end - FW.fade * 0.2 && !f.last) { f.last = true; SFX.farewell(); fwSay(f.walk ? `${f.name} は 元気に 巣立っていった` : `${f.name} は 風にのって 元気に 巣立っていった`); }
   if (f.t > f.end) { const a = Math.max(0, 1 - (f.t - f.end) / FW.fade); f.FB.meshes.forEach(m => fade(m, a)); fade(f.FB.headBone, a); f.wind.forEach(w => fade(w.m, a)); } // かすんで見えなくなる
-  if (f.t > f.end + FW.fade) { const i = f.i; f.wind.forEach(w => { scene.remove(w.m); w.m.traverse(x => x.material?.dispose()); }); fw = null; document.body.classList.remove('fw'); setTimeout(() => fwSay(''), 1500); adoptCand(i); }
+  if (f.t > f.end + FW.fade) { const i = f.i; f.wind.forEach(w => { scene.remove(w.m); w.m.traverse(x => x.material?.dispose()); }); fw = null; document.body.classList.remove('fw'); fwSay(''); adoptCand(i); } // 巣立ちのことばを消してから、むかえることばへ（重なっていた）
 }
 // 5種そろう（目標の達成）: カメラが庭をゆっくり回り、5色の羊毛がうずを巻いて舞う。さわると飛ばせる。1度だけ
 let fullB = null;
@@ -837,6 +884,7 @@ function hear(samples, sr) {
 let mode = 'birth', titleEgg = null, titleT = 0;
 $('sampToggle').addEventListener('click', () => document.body.classList.toggle('samples'));
 function tabs() {
+  [kid, ...pals].forEach(o => o?.FB.setVisible(mode !== 'title')); // タイトルに映るのは、選ばれた1匹だけ
   document.body.classList.toggle('grow', mode === 'grow'); document.body.classList.toggle('out', mode === 'out'); document.body.classList.toggle('title', mode === 'title');
   $('title').hidden = mode !== 'title'; $('mTitle').hidden = mode === 'title'; $('startBtn').textContent = kid ? 'つづきから' : 'はじめる';
   if (!titleEgg) { titleEgg = makeFeltBall([0.92, 0.88, 0.8], { r: EGG_R, sx: EGG[0], sy: EGG[1], sz: EGG[2], seg: 40, fuzz: 4, len: 0.008 }); titleEgg.position.copy(eggAt()); scene.add(titleEgg); } titleEgg.visible = mode === 'title' && !egg; breeze?.list.forEach(b => (b.m.visible = mode === 'title')); // タイトルの巣には、羊毛のたまご
@@ -858,13 +906,28 @@ gesture(renderer.domElement, { on: () => mode === 'grow' && !!kid && !fw && !ful
   drag: (dx, dy) => { const f = freeOn(), w = 2 * 1.3 * f.far * Math.tan(cam.fov * Math.PI / 360) / innerHeight; f.x = Math.max(-6, Math.min(6, f.x - dx * w)); f.z = Math.max(-6, Math.min(6, f.z - dy * w * 1.5)); },
   zoom: z => { const f = freeOn(); f.far = Math.max(0.35, Math.min(3, f.far * z)); } });
 $('focusBtn').addEventListener('click', () => { free = null; });
+// デバッグ（?debug のときだけメニューに出す）: 型と色を決めて生む・皮と骨筋を切りかえる
+const DB = { skin: true, bones: false, g: null, Hs: [] }; let dbForce = null;
+if (new URLSearchParams(location.search).has('debug')) {
+  $('mDebug').hidden = false; const seg = (id, key) => { const show = () => $(id).querySelectorAll('button').forEach(b => b.classList.toggle('on', (b.dataset.v === '1') === DB[key])); $(id).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; DB[key] = b.dataset.v === '1'; show(); if (key === 'skin') [kid, ...pals].forEach(o => o?.FB.setVisible(DB.skin)); }); show(); }; seg('dbSkin', 'skin'); seg('dbBones', 'bones');
+  $('dbBirth').addEventListener('click', () => { const v = id => $(id).value / 100, acc = +$('dbAcc').value; $('menuPanel').hidden = true; if (mode !== 'birth') go('birth'); dropCand(); const sr = 48000; for (let i = 0; i < 4; i++) { dbForce = { type: $('dbType').value, look: { hue: v('dbHue'), light: v('dbLight'), tone: $('dbTone').value || undefined, acc: acc < 0 ? [] : [{ hue: acc / 100, light: 0.6 }] } }; hear(sampleVoice('high', sr), sr); } });
+}
+function stepDebug() {
+  if (!DB.skin) [kid, ...pals].forEach(o => o.FB.setVisible(false));
+  if (!DB.bones) { if (DB.g) { scene.remove(DB.g); DB.g = null; DB.Hs = []; } return; }
+  const Hs = [kid.H, ...pals.map(p => p.H)];
+  if (!DB.g || Hs.length !== DB.Hs.length || Hs.some((h, i) => h !== DB.Hs[i])) { if (DB.g) scene.remove(DB.g); DB.g = new THREE.Group(); DB.Hs = Hs; const Y = new THREE.Vector3(0, 1, 0);
+    for (const H of Hs) for (const [name, p] of Object.entries(H.parts)) { const d = p.a ? new THREE.Vector3(p.b[0] - p.a[0], p.b[1] - p.a[1], p.b[2] - p.a[2]) : null, L = d ? d.length() : 0, leg = /(up|lo|ft)[LR]$/.test(name), col = leg ? 0xe0503a : name.startsWith('tail') ? 0xe0a03a : name.startsWith('head') || name.startsWith('neck') ? 0x3aa050 : d ? 0x3a70e0 : 0xffffff, m = new THREE.Mesh(d ? new THREE.CapsuleGeometry(p.r, L, 3, 10) : new THREE.SphereGeometry(Math.max(p.r, 0.006), 8, 6), new THREE.MeshBasicMaterial({ color: col, wireframe: true, depthTest: false, transparent: true, opacity: 0.8 })); m.renderOrder = 8; m.userData = { body: p.body, q0: d ? new THREE.Quaternion().setFromUnitVectors(Y, d.normalize()) : new THREE.Quaternion() }; DB.g.add(m); }
+    scene.add(DB.g); }
+  for (const m of DB.g.children) { const b = m.userData.body; m.position.copy(b.translation()); m.quaternion.copy(b.rotation()).multiply(m.userData.q0); }
+}
 // 子のようす（テストプレイ「ステータス画面がほしい。名前変更もそこで」）: くらべっこをさそわないよう点数は出さず、できるようになったことを並べる
 const TYPE_JA = { walk: 'よつあしの子', snake: 'ヘビの子', hop: 'ウサギの子', bird: '鳥の子', bound: 'イタチの子', seal: 'アザラシの子', biped: 'トビネズミの子' };
 function openStatus() {
-  if (!kid) return; const g = kid.genes, p = kid.H.plan, L = g.look, step3 = (v, a, b, c) => (v < 0.4 ? a : v > 0.6 ? c : b), rows = [['練習した回数', `${info.tries ?? 0} 回`], [g.type === 'snake' ? 'くねくね進む' : '歩く', !!info.firstWalk], ['ころばない', info.stage >= 3 || !!info.done], ['まがる', !!info.done], ...(kid.B.noGetup ? [] : [['起きあがる', !!kid.getup?.learned]])];
+  if (!kid) return; const g = kid.genes, p = kid.H.plan, L = g.look, step3 = (v, a, b, c) => (v < 0.4 ? a : v > 0.6 ? c : b), st = kid.state?.st ?? 1, inSt = kid.state?.inSt ?? 0, done = !!info.done, mn = (v, n) => Math.min(1, v / n), rows = [[g.type === 'snake' ? 'くねくね進む' : '歩く', done || st > 1 || info.firstWalk ? 1 : mn(inSt, 25)], ['ころばない', done || st > 2 ? 1 : st === 2 ? mn(inSt, 40) : 0], ['まがる', done ? 1 : st === 3 ? mn(inSt, 45) : 0], ...(kid.B.noGetup ? [] : [['起きあがる', kid.getup?.learned ? 1 : done ? mn(kid.getup?.gen ?? 0, 40) : 0]])];
   $('name').value = kid.name; $('stType').textContent = `${TYPE_JA[g.type] ?? ''}・${step3((p.s - 0.75) / 0.5, 'ちいさめ', 'ふつうの大きさ', 'おおきめ')}・${step3(g.f0 ?? 0.5, 'ひくい声', 'ふつうの声', 'たかい声')}`;
   $('stCols').innerHTML = [L, ...(L.acc ?? [])].map(l => `<i style="background:rgb(${lookColor(l).base.map(v => Math.round(v * 255))})"></i>`).join('');
-  $('stList').innerHTML = rows.map(([k, v]) => (typeof v === 'string' ? `<li><span>${k}</span><span>${v}</span></li>` : `<li class="${v ? '' : 'no'}"><span>${k}</span><span>${v ? 'できる' : 'まだ'}</span></li>`)).join('');
+  $('stList').innerHTML = `<li><span>練習した回数</span><span>${info.tries ?? 0} 回</span></li>` + rows.map(([k, v]) => `<li><span>${k}</span><span>${v >= 1 ? 'できる' : v > 0 ? '練習中' : 'まだ'}</span><div class="bar"><i style="width:${Math.round(v * 100)}%"></i></div></li>`).join(''); $('stFace').src = faces.get(kid.id) ?? ''; faceQ.unshift({ id: kid.id, o: kid });
   $('status').hidden = false;
 }
 $('hudName').addEventListener('click', openStatus); $('stClose').addEventListener('click', () => ($('status').hidden = true)); $('status').addEventListener('click', e => { if (e.target.id === 'status') $('status').hidden = true; });
@@ -931,13 +994,15 @@ function step(dt) {
 // 瞬間移動をなくす（テストプレイ「フリーカメラで追っているとリセットで消える」）: 端に近づいたら自分で向きを変えて戻る。曲がれない子は、おわかれと同じらせんの風で ふわっと運ぶ
 const wrapH = a => a - Math.round(a / (Math.PI * 2)) * Math.PI * 2;
 function steerHome(o, Q, home, out, back) { const r = Math.hypot(Q.x - home[0], Q.z - home[2]); if (r > out) o.turning = true; else if (r < back) o.turning = false; o.tc = o.turning ? Math.max(-1, Math.min(1, wrapH(Math.atan2(home[2] - Q.z, home[0] - Q.x) - Q.yaw) * 1.5)) : 0; }
+// 起こす: その場で風がそっと持ち上げて、立つ高さに下ろす（瞬間移動にしない）
+$('rescue').addEventListener('click', () => { if (!kid || kid.gust) return; const P = pose(kid.H), p = kid.H.plan; gu = null; fallT = 0; startGust(kid, [P.x, 0, P.z]); kid.gust.h0 = p.pairs ? p.legL * 1.75 + p.legR : p.r + 0.01; });
 function startGust(o, to) { if (o.gust) return; o.tc = 0; o.turning = false; o.gust = { t: 0, H: o.H, wind: [], to: [to[0], to[2]], h0: null }; }
 const gustOld = [];
 function endGust(o) { if (!o.gust) return; gustOld.push(...o.gust.wind); o.gust = null; }
 function gustSub(o) { // 体全体をひとつの固い体のように運ぶ（おわかれの風と同じ）。いつも水平へもどしながら、目的地で元の高さに下ろす
   const g = o.gust, P0 = Object.values(g.H.parts), m = P0.reduce((s2, p) => s2 + p.mass, 0); g.t += 1 / 240; let ox = 0, oy = 0, oz = 0;
   for (const p of P0) { const q = p.body.translation(); ox += q.x * p.mass / m; oy += q.y * p.mass / m; oz += q.z * p.mass / m; }
-  g.h0 ??= Math.max(0.08, oy - height(ox, oz)); const dx = g.to[0] - ox, dz = g.to[1] - oz, d = Math.hypot(dx, dz), e = Math.min(1, g.t / 1.1), near = Math.min(1, d / 0.5), ty = height(ox, oz) + g.h0 + 0.4 * e * e * (3 - 2 * e) * near, sp = Math.min(FW.windSpeed, d * 2) * e / Math.max(d, 1e-3), vx = dx * sp, vz = dz * sp, vy = (ty - oy) * 5, wy = -0.9 * e * near;
+  g.h0 ??= Math.max(0.08, oy - height(ox, oz)); const dx = g.to[0] - ox, dz = g.to[1] - oz, d = Math.hypot(dx, dz), e = Math.min(1, g.t / 1.1), near = Math.max(g.lift ?? 0, Math.min(1, d / 0.5)), ty = height(ox, oz) + g.h0 + 0.4 * e * e * (3 - 2 * e) * near, sp = Math.min(FW.windSpeed, d * 2) * e / Math.max(d, 1e-3), vx = dx * sp, vz = dz * sp, vy = (ty - oy) * 5, wy = -0.9 * e * near;
   const q0 = g.H.parts.pelvis.body.rotation(), ux = 2 * (q0.x * q0.y - q0.w * q0.z), uz = 2 * (q0.y * q0.z + q0.w * q0.x), wx = -uz * 8, wz = ux * 8;
   for (const p of P0) { const q = p.body.translation(), rx = q.x - ox, ry = q.y - oy, rz = q.z - oz; p.body.setLinvel({ x: vx + wy * rz - wz * ry, y: vy + wz * rx - wx * rz, z: vz + wx * ry - wy * rx }, true); p.body.setAngvel({ x: wx, y: wy, z: wz }, true); }
   if ((g.t > 1.2 && d < 0.1 && Math.abs(oy - ty) < 0.03) || g.t > 9) g.done = true;
@@ -965,6 +1030,7 @@ $('volStep').addEventListener('input', e => { vol.step = e.target.value / 100; s
 $('volSfx').addEventListener('input', e => { vol.sfx = e.target.value / 100; saveVol(); });
 $('volSfx').addEventListener('change', () => SFX.step(1)); // はなしたら、その大きさで一度（ためし聞き）
 addEventListener('pointerup', () => touched && SFX.load());
+A.setOnNew(() => { amb = null; stepLP = null; stepN = 0; SFX.reset(); ambience(); });
 for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) addEventListener(ev, A.wake, { capture: true, passive: true }); // さわるたびに、止まっていた音を起こす（テストプレイ「たまに音が鳴らなくなる」）
 addEventListener('click', e => { if (e.target.closest('button:not(#mic), #tabs a')) SFX.tap(); }, { capture: true }); // ボタンは全部
 // 足音（ユーザー「歩くときの芝生（フェルト）と擦れる SE」）: フェルトの足がフェルトの草にふれる音（look/sounds.html の「足音（ふわっ）」4つを短く整えた snd/step1〜4.ogg）。
@@ -1064,7 +1130,7 @@ function stepWater(dt) {
     else { const u = w.t - w.hitT; if (u < 0.18) list.push({ x: w.x, y: w.y - u * 0.15, z: w.z, r: 0.07 * (1 - u / 0.18), g: 0, dry: 0, jig: 1, conn: 1, vx: 0, vz: 0 }); } // つぶれて消える（しずくへ分かれる）
     for (const b of w.beads) {
       if (b.dead) continue; b.vy -= 9.8 * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt;
-      if (b.y < height(b.x, b.z) + b.r * 0.5) { b.dead = true; for (let k = 0; k < 5; k++) { const a = Math.random() * 6.28; drop(b.x, b.y + 0.01, b.z, Math.cos(a) * 0.4, 0.4 + Math.random() * 0.5, Math.sin(a) * 0.4, 0.002 + Math.random() * 0.002); } continue; } // 草に落ちて、小さくはじける
+      if (b.y < height(b.x, b.z) + b.r * 0.5) { b.dead = true; SFX.plink(); for (let k = 0; k < 5; k++) { const a = Math.random() * 6.28; drop(b.x, b.y + 0.01, b.z, Math.cos(a) * 0.4, 0.4 + Math.random() * 0.5, Math.sin(a) * 0.4, 0.002 + Math.random() * 0.002); } continue; } // 草に落ちて、小さくはじける
       if (list.length < NMAX) list.push({ x: b.x, y: b.y, z: b.z, r: b.r, g: 0, dry: 0, jig: 0.6, conn: 1, vx: b.vx, vz: b.vz });
     }
   }
@@ -1083,22 +1149,23 @@ function stepWater(dt) {
 }
 function render(dt) {
   if (kid) {
-    if (morph) { morph.t += dt; const k = Math.min(1, morph.t / morph.dur), e = k * k * (3 - 2 * k); kid.FB.look.blend(e); if (k >= 1) { morph = null; cry(kid.genes, kid.FB, 0.6); } } // 声をかけられたら、こたえて鳴く
+    if (morph) { morph.t += dt; const k = Math.min(1, morph.t / morph.dur), e = k * k * (3 - 2 * k); kid.FB.look.blend(e); if (k >= 1) { morph = null; cry(kid.genes, kid.FB, 0.6); queueFaces(300); } } // 声をかけられたら、こたえて鳴く
     let a = pfT();
     for (const p of pals) { p.FB.pose(dt); p.FB.breathe(dt, 0); p.FB.mud.step(dt); if (frameN === 1) p.FB.paint(null); }
     pfA('皮: ほかの子', a); a = pfT(); stepWater(dt); stepBurrs(dt); pfA('水浴び', a); a = pfT();
     kid.FB.pose(dt); kid.FB.breathe(dt, 1); kid.FB.mud.step(dt); pfA('皮: 見ている子の骨と泥', a); a = pfT();
     if ((frameN = (frameN + 1) % 3) === 0 || morph) kid.FB.paint(D); /* 色が移るあいだは毎こま */ pfA('皮: 見ている子の色ぬり（3こまに1回）', a); // ぬれは部位ごと（水浴び・ぬかるみ）
+    $('rescue').hidden = mode !== 'grow' || !!kid.gust;
     $('wash').hidden = mode !== 'grow' || !!water; // 水浴びはいつでも（ユーザー）。水をかけている最中だけしまう
     if ((cryT -= dt) < 0) { cryT = 9 + Math.random() * 12; if (mode === 'grow' && !fallT && !gu) cry(kid.genes, kid.FB, 0.3 + 0.4 * Math.random()); }
   }
-  const k = free ? 1 - Math.exp(-dt * 14) : cam.aspect < 1 && mode === 'grow' ? 1 - Math.exp(-dt * 5) : 1 - Math.exp(-dt * 2.2); // 縦長は横の余裕がないので、早めに追う（顔が切れないように）
+  const k = free ? 1 - Math.exp(-dt * 14) : cam.aspect < 1 && mode === 'grow' ? 1 - Math.exp(-dt * 3.5) : 1 - Math.exp(-dt * 2.2); // 縦長は横の余裕がないので、早めに追う（顔が切れないように）
   const far = cam.aspect < 1 ? 1.55 : 1; // 縦長の画面（スマホのたて）は、子が切れないよう引く
   if (fullB) { const a = fullB.t * 0.25; _w.set(fullB.c[0] + Math.sin(a) * 1.5 * far, height(fullB.c[0], fullB.c[1]) + 0.7 * far, fullB.c[1] + Math.cos(a) * 1.5 * far); _l.set(fullB.c[0], height(fullB.c[0], fullB.c[1]) + 0.1, fullB.c[1]); } // 庭をゆっくり回る
-  else if (mode === 'title') { titleT += dt; stepBreeze(dt); rockTitleEgg(dt); const a = 0.3 + 0.2 * Math.sin(titleT * 0.13); _w.set(NEST[0] + Math.sin(a) * 1.5 * far, ny + 0.5 * far, NEST[1] + Math.cos(a) * 1.5 * far); _l.set(NEST[0], ny + 0.2, NEST[1]); } // タイトル: 巣のまわりを、ゆっくりゆれる
+  else if (mode === 'title') { titleT += dt; stepBreeze(dt); rockTitleEgg(dt); const a = 0.3 + 0.2 * Math.sin(titleT * 0.13), tf = cam.aspect < 1 ? far : innerHeight > 500 ? Math.max(0.8, 1 - (cam.aspect - 1) * 0.3) : 1; /* PC の横長の画面は、スマホと同じくらいの たまごの大きさに */ _w.set(NEST[0] + Math.sin(a) * 1.5 * tf, ny + 0.5 * tf, NEST[1] + Math.cos(a) * 1.5 * tf); _l.set(NEST[0], ny + (innerHeight > 500 && cam.aspect >= 1 ? 0.23 : 0.2), NEST[1]); } // タイトル: 巣のまわりを、ゆっくりゆれる
   else if (fw) { const Q = pose(fw.H); if (fw.t < FW.go) { fw.cam = [Q.x - 0.35 * far, height(Q.x, Q.z) + 0.42 * far, Q.z - fw.dir[1] * 1.25 * far - fw.dir[0] * 0.25]; fw.cam[0] -= fw.dir[0] * 1.2 * far; } _w.set(...fw.cam); _l.set(Q.x, Q.y, Q.z); } // お別れ: はじめは子のそばで、行くときはカメラはその場に残って見送る
   else if (mode === 'grow' && kid && free) { const g = height(free.x, free.z); _w.set(free.x - 0.2 * free.far, g + 0.5 * free.far, free.z + 1.15 * free.far); _l.set(free.x, g + 0.05, free.z); }
-  else if (mode === 'grow' && kid) { const P = pose(kid.H), hd = kid.FB.headBone.getWorldPosition(_hw), gy = height(P.x, P.z), v0 = kid.H.parts.pelvis.body.linvel(), kp = kid.H.plan, bodyL = (kp.seg + kp.tail * 0.6) * kp.segL + 2 * kp.headR; leadV.x += (v0.x - leadV.x) * Math.min(1, dt * 3); leadV.z += (v0.z - leadV.z) * Math.min(1, dt * 3); const nx = P.x + (hd.x - P.x) * 0.6 + leadV.x * LEAD, nz = P.z + (hd.z - P.z) * 0.6 + leadV.z * LEAD, ly = gy + (hd.y - gy) * 0.7; if (homeT > 0) homeT -= dt; const h = Math.max(0, Math.min(1, homeT / 0.8)), far2 = far * (cam.aspect < 1 ? 1.12 * (1 + Math.max(0, bodyL - 0.28) * BODY_ZOOM) : 1) * (1 + 1.1 * h), shift = cam.aspect < 1 ? -0.075 * far2 : 0 /* 縦長は左にカードがあるので、子を少し右へ */, mx = nx + shift + (HUT[0] - nx - shift) * 0.4 * h, mz = nz + (HUT[1] - nz) * 0.4 * h; _w.set(mx - 0.2 * far2, gy + 0.5 * far2, mz + 1.15 * far2); _l.set(mx, ly + 0.14 * h, mz); } // 見る点は首のあたり＝子が画面のまんなかに来て、顔が切れにくい（テストプレイ）
+  else if (mode === 'grow' && kid) { const P = pose(kid.H), hd = kid.FB.headBone.getWorldPosition(_hw), gy = height(P.x, P.z), v0 = kid.H.parts.pelvis.body.linvel(), kp = kid.H.plan, bodyL = (kp.seg + kp.tail * 0.6) * kp.segL + 2 * kp.headR, fast = 1 - Math.exp(-dt * 5), slow = 1 - Math.exp(-dt * 1.3); if (camSnap || leadV.px == null) Object.assign(leadV, { px: P.x, pz: P.z, hx: hd.x - P.x, hz: hd.z - P.z, ly: gy + (hd.y - gy) * 0.7, g: gy }); /* 跳ぶたびの体のゆれをカメラに伝えないよう、ならす（テストプレイ「カメラがゆれすぎ」） */ leadV.x += (v0.x - leadV.x) * slow; leadV.z += (v0.z - leadV.z) * slow; leadV.px += (P.x - leadV.px) * fast; leadV.pz += (P.z - leadV.pz) * fast; leadV.hx += (hd.x - P.x - leadV.hx) * slow; leadV.hz += (hd.z - P.z - leadV.hz) * slow; leadV.ly += (gy + (hd.y - gy) * 0.7 - leadV.ly) * slow; leadV.g += (gy - leadV.g) * slow; const nx = leadV.px + leadV.hx * 0.6 + leadV.x * LEAD, nz = leadV.pz + leadV.hz * 0.6 + leadV.z * LEAD, ly = leadV.ly; if (homeT > 0) homeT -= dt; const h = Math.max(0, Math.min(1, homeT / 0.8)), far2 = far * (cam.aspect < 1 ? 1.12 * (1 + Math.max(0, bodyL - 0.28) * BODY_ZOOM) : 1) * (1 + 1.1 * h), shift = cam.aspect < 1 ? -0.075 * far2 : 0 /* 縦長は左にカードがあるので、子を少し右へ */, mx = nx + shift + (HUT[0] - nx - shift) * 0.4 * h, mz = nz + (HUT[1] - nz) * 0.4 * h; _w.set(mx - 0.2 * far2, leadV.g + 0.5 * far2, mz + 1.15 * far2); _l.set(mx, ly + 0.14 * h, mz); } // 見る点は首のあたり＝子が画面のまんなかに来て、顔が切れにくい（テストプレイ）
   else if (egg && egg.phase !== 'gather') { // かえるときは、そっと寄る。生まれたら子を追う（浮かぶ・転がる）。見る点は子より少し下＝子が画面のまんなかより少し上に来て、下のメニューと重ならない
     const C = cand?.born ? pose(cand.H) : eggAt();
     _l.set(C.x, C.y - 0.06, C.z); _w.set(C.x - 0.4 * far, C.y + 0.42 * far, C.z + 1.35 * far); } // 殻が飛び散るのが見えるよう、少し引く
@@ -1107,10 +1174,13 @@ function render(dt) {
   camPos.lerp(_w, k); aim.lerp(_l, k); cam.position.copy(camPos); cam.lookAt(aim);
   sun.position.set(aim.x + 2, 5, aim.z + 3); sun.target.position.copy(aim);
   $('hud').hidden = mode !== 'grow' || !kid;
-  $('focusBtn').hidden = !free || mode !== 'grow';
+  $('focusBtn').hidden = !free || mode !== 'grow'; document.body.classList.toggle('free', !!free && mode === 'grow');
+  document.body.classList.toggle('eggfull', mode === 'birth' && egg?.phase === 'gather' && egg.voices.reduce((t, v) => t + v.w, 0) >= 1); // 声が足りたら、話すボタンはしまう（テストプレイ）
   document.body.classList.toggle('born', mode === 'birth' && !!egg && egg.phase !== 'gather'); // かえりはじめたら、声のメニューをしまう
   if (kid && mode === 'grow' && $('hudName').textContent !== kid.name) $('hudName').textContent = kid.name;
   if (kid && mode === 'grow') $('hudBody').innerHTML = `${stageText()}<div class="meter"><i style="width:${(meter() * 100).toFixed(0)}%"></i></div>${worker && !info.done && kid.places?.length ? '<small>歩いた道で練習中</small>' : ''}`;
+  { const dh = innerHeight * renderer.getPixelRatio(); if (kid && mode !== 'out') { kid.FB.lod(cam.position, cam.fov, dh); pals.forEach(p => p.FB.lod(cam.position, cam.fov, dh)); } cand?.FB.lod(cam.position, cam.fov, dh); } // 毛の補正はどの場面でも、いま描くカメラの距離で
+  if (mode === 'grow' && kid) { if (faceQ.length) shootFace(); stepDebug(); }
   let a = pfT(); if (PF.on && GT.ext && !GT.q) { GT.q = GT.gl.createQuery(); GT.gl.beginQuery(GT.ext.TIME_ELAPSED_EXT, GT.q); GT.open = true; }
   DIO.render(1.2, 0.5, 0.25); pfA('描く（CPU から GPU へ渡す）', a);
   if (GT.open) { GT.gl.endQuery(GT.ext.TIME_ELAPSED_EXT); GT.open = false; }
@@ -1119,7 +1189,7 @@ function render(dt) {
 const GT = { gl: renderer.getContext() }; GT.ext = GT.gl.getExtension('EXT_disjoint_timer_query_webgl2'); // GPU の時間（使えるブラウザだけ）
 function resize() { renderer.setSize(innerWidth, innerHeight); DIO.setSize(innerWidth, innerHeight); OUT?.resize(); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
-{ if (herd.kids.length) rebuildHerd(); go(new URLSearchParams(location.search).has('notitle') ? (!herd.kids.length || location.hash === '#birth' ? 'birth' : location.hash === '#out' ? 'out' : 'grow') : 'title'); camSnap = true; document.body.classList.remove('boot'); } // はじめはタイトル（?notitle で飛ばす＝確かめ・撮影用） // 前にいた子たちがいれば、そのつづきから
+{ if (herd.kids.length) rebuildHerd(); go(new URLSearchParams(location.search).has('notitle') ? (!herd.kids.length || location.hash === '#birth' ? 'birth' : location.hash === '#out' ? 'out' : 'grow') : 'title'); camSnap = true; document.body.classList.remove('boot'); setTimeout(() => $('bootBg')?.remove(), 1400); } // はじめはタイトル（?notitle で飛ばす＝確かめ・撮影用） // 前にいた子たちがいれば、そのつづきから
 { const P = kid && mode === 'grow' ? pose(kid.H) : { x: NEST[0], z: NEST[1] }; camPos.set(P.x - 0.2, height(P.x, P.z) + 0.5, P.z + 1.1); aim.set(P.x, height(P.x, P.z) + 0.08, P.z); } // はじめはその場から
 addEventListener('pagehide', keep);
 let last = performance.now();

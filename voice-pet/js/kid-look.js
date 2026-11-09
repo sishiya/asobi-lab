@@ -42,9 +42,9 @@ export function lookFur(L, H) {
 }
 // 顔: 目は毛の表に、耳は抑揚で長く（0.8〜3cm×2）、とがりで先が細く濃い
 export function lookFace(L, K, base) {
-  const hs = (K.headR + (K.fur ?? 0.006 + 0.008 * K.fluff)) * 0.95, C = lookColor(L), hop = K.type === 'hop', len = hop ? hs * lerp(0.95, 1.3, L.ear) : lerp(0.012, 0.032, L.ear), wid = lerp(0.016, 0.011, L.sharp) * lerp(1, 0.8, L.ear) * (hop ? 2 : 1); // ウサギの耳は頭と同じくらいの長さ（len は半分の長さ）
-  return { ...base, eye: [hs * 0.47, hs * 0.3, hs * 0.83], eyeR: K.headR * 0.17, iris: 0x2a1a10, ring: null, button: true,
-    ear: { at: [-hs * 0.2, hs * 0.8, hs * 0.5], size: K.type === 'snake' || K.type === 'bird' ? [0.001, 0.001, 0.001] : [wid, len, hop ? 0.009 : 0.005], out: 0.35, back: lerp(0.15, 0.45, L.ear), tipAt: L.sharp > 0.5 ? 0.55 : 9, tip: C.dark, inner: C.pale, outer: C.base, long: hop } };
+  const hs = (K.headR + (K.fur ?? 0.006 + 0.008 * K.fluff)) * 0.95, C = lookColor(L), hop = K.type === 'hop' || K.type === 'donkey', len = hop ? hs * lerp(0.72, 1, L.ear) * (K.type === 'donkey' ? 1.06 : 1) : lerp(0.012, 0.032, L.ear), wid = lerp(0.016, 0.011, L.sharp) * lerp(1, 0.8, L.ear) * (hop ? 1.65 : 1); // ウサギの耳は頭より少し短いくらい（len は半分の長さ）
+  return { ...base, eye: [hs * 0.47, hs * 0.3, hs * 0.83], eyeR: K.headR * 0.17, iris: 0x2a1a10, ring: null, button: true, beak: K.type === 'bird' ? { at: [hs * 1.22, -hs * 0.08], size: [hs * 0.38, hs * 0.3, hs * 0.34], col: [0.88, 0.68, 0.4] } : null,
+    ear: { at: [-hs * 0.2, hs * 0.8, hs * 0.5], size: K.type === 'snake' || K.type === 'bird' ? [0.001, 0.001, 0.001] : K.type === 'seal' ? [0.006, 0.004, 0.004] /* アザラシの耳は小さな穴だけ */ : [wid, len, hop ? 0.009 : 0.005], out: 0.35, back: lerp(0.15, 0.45, L.ear), tipAt: L.sharp > 0.5 ? 0.55 : 9, tip: C.dark, inner: C.pale, outer: C.base, long: hop } };
 }
 // 仮の名前（生まれたときに自動で。遊ぶ人が書きかえられる）: やわらかい音の2音（＋ん）。声の明るさで前の音、もようの置き方で後ろの音
 // 音は選んだ字だけからつくる（よくない言葉にならないよう、字の組み合わせをしぼる）

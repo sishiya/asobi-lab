@@ -8,7 +8,7 @@ import { pose } from './hare.js';
 import { makeField, contactPoint } from './trial.js';
 import { mud, makeDirt, stepDirt } from './dirt.js';
 import { feltify, makeFeltGround, makeFeltBody, makeFeltBall, makeDiorama, HARE_FACE } from './felt.js';
-import { kidBody, kidShapes } from './kid.js';
+import { kidBody, kidShapes, kidBends } from './kid.js';
 import { lookFur, lookFace } from './kid-look.js';
 import { makeBurr, SEED_KINDS } from './garden.js';
 import { driveGetup, decodeGetup, GETUP_UP } from './getup.js';
@@ -18,22 +18,21 @@ const CSS = `
   #out { position: fixed; inset: 0; pointer-events: none; }
   #out[hidden] { display: none; }
   #out > * { pointer-events: auto; }
-  #outHud { position: fixed; left: 16px; top: 72px; background: var(--panel); border-radius: 12px; padding: 8px 12px; line-height: 1.6; font-size: 13px; pointer-events: none; }
+  #outHud { position: fixed; left: 24px; top: 88px; background: var(--panel); border-radius: 12px; padding: 8px 12px; line-height: 1.6; font-size: 13px; pointer-events: none; }
   #outTools { position: fixed; right: 12px; top: 62px; }
   #outTools button { border: 0; background: var(--panel); font: inherit; font-size: 13px; color: var(--ink); min-height: 44px; min-width: 44px; padding: 0 14px; border-radius: 999px; cursor: pointer; }
   #outTools button.on { background: var(--on); color: #fff; }
-  #outBottom { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  #outBottom { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
   #outHint { font-size: 14px; text-shadow: 0 0 8px #faf7f0, 0 0 4px #faf7f0; white-space: nowrap; pointer-events: none; transition: opacity .5s; }
   /* 家に帰る: 押しながら話すと同じ大きさ・同じ高さ（下のふち＋声のみほんのボタンの分） */
   #outHome { border: 0; background: var(--on); color: #fff; font: inherit; font-size: 17px; line-height: normal; padding: 14px 26px; min-width: 220px; margin-bottom: 46px; border-radius: 999px; cursor: pointer; box-shadow: 0 2px 10px rgba(44,42,38,.22); }
-  @media (max-height: 500px) and (orientation: landscape) { #outBottom { left: auto; right: 12px; bottom: 10px; width: 290px; transform: none; gap: 6px; } #outHome { min-width: 0; width: 100%; padding: 10px 16px; font-size: 15px; margin-bottom: 42px; } }
+  @media (max-height: 500px) and (orientation: landscape) { #outHud { left: 24px; top: 72px; } #outBottom { left: auto; right: 28px; bottom: 16px; width: 290px; transform: none; gap: 6px; } #outHome { min-width: 0; width: 100%; padding: 10px 16px; font-size: 15px; margin-bottom: 42px; } }
   #outNeed { background: var(--panel); border-radius: 14px; padding: 10px 16px; text-align: center; line-height: 1.6; box-shadow: 0 2px 10px rgba(44,42,38,.18); }
   #outNeed[hidden] { display: none; }
   #outMsg { position: fixed; left: 50%; top: 38%; transform: translate(-50%, -50%); font-size: 20px; font-weight: 600; text-shadow: 0 0 8px #faf7f0; opacity: 0; transition: opacity .4s; pointer-events: none; white-space: nowrap; }
 `;
 const HTML = `
   <div id="outHud"></div>
-  <div id="outTools"><button id="outRain">雨</button></div>
   <div id="outMsg"></div>
   <div id="outBottom"><div id="outNeed" hidden></div><div id="outHint"></div><button id="outHome">家に帰る</button></div>
 `;
@@ -90,22 +89,25 @@ export function makeOuting(R, renderer, { onHome }) {
   const rain = new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0xbfc8d0, transparent: true, opacity: 0.25 })); rain.frustumCulled = false; rain.visible = false; scene.add(rain);
   const drops = Array.from({ length: RAIN }, () => [Math.random() * 5 - 2.5, Math.random() * 3, Math.random() * 5 - 2.5]);
   function setRain(on) {
-    rainOn = on; opts.onRain?.(on); $('outRain').classList.toggle('on', on); rain.visible = on; G.setWet(on ? 1 : 0);
-    const bg = BG.clone().lerp(new THREE.Color(0x8d939a), on ? 0.4 : 0); scene.background.copy(bg); scene.fog.color.copy(bg); sun.intensity = on ? 0.7 : 2.2; hemi.intensity = on ? 0.8 : 1.0;
+    if (on !== rainOn && active) show(on ? '雨がふってきた' : '雨があがった'); rainOn = on; opts.onRain?.(on);
   }
-  $('outRain').addEventListener('pointerdown', e => { e.stopPropagation(); setRain(!rainOn); });
+  // 雨はときどき勝手に降る（テストプレイ「ランダムで。ボタンは廃止」）。空はゆっくり変わる
+  let rainK = -1, rainT = 0; const GREY = new THREE.Color(0x8d939a), _bg = new THREE.Color();
+  function stepRainSky(dt) { if ((rainT -= dt) < 0) { setRain(!rainOn); rainT = rainOn ? 25 + Math.random() * 30 : 40 + Math.random() * 60; } const was = rainK; rainK += ((rainOn ? 1 : 0) - rainK) * Math.min(1, dt * 0.7); if (Math.abs(rainK - was) < 1e-4) return; rain.visible = rainK > 0.02; rain.material.opacity = 0.25 * rainK; G.setWet(rainK); _bg.copy(BG).lerp(GREY, 0.4 * rainK); scene.background.copy(_bg); scene.fog.color.copy(_bg); sun.intensity = 2.2 - 1.5 * rainK; hemi.intensity = 1 - 0.2 * rainK; }
 
   // 入力（ユーザー「WASD はいらない。目的地をタップに一本化」）: さわった所へ向かう（そこが光る）。藪そのものをさわっても、その藪へ向かう。ドラッグで見まわす・2本指かホイールで寄る
   let active = false, target = null;
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), _sp = new THREE.Sphere();
-  const markGeo = new THREE.RingGeometry(0.74, 1, 44).rotateX(-Math.PI / 2), markOf = () => { const m = new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({ color: 0xfff0a8, transparent: true, opacity: 0, depthTest: false, depthWrite: false })); m.renderOrder = 6; scene.add(m); return m; };
-  const mark = markOf(), burst = markOf(); let markT = -1;
-  function setTarget(p) { const L = SIZE / 2 - 1.5, x = Math.max(-L, Math.min(L, p.x)), z = Math.max(-L, Math.min(L, p.z)); target = new THREE.Vector3(x, 0, z); markT = 0; mark.position.set(x, height(x, z) + 0.015, z); burst.position.copy(mark.position); $('outHint').style.opacity = 0; }
-  function stepMark(dt) { if (markT < 0) return; markT += dt; const u = Math.min(1, markT / 0.55); burst.scale.setScalar(0.05 + 0.34 * u); burst.material.opacity = 0.95 * (1 - u); mark.scale.setScalar(0.1 + 0.012 * Math.sin(markT * 6)); mark.material.opacity += ((target ? 0.85 : 0) - mark.material.opacity) * 0.15; if (!target && u >= 1 && mark.material.opacity < 0.02) { mark.material.opacity = 0; markT = -1; } }
+  // さわった所の印（テストプレイ「チープ」「障害物の裏でも手前に描かれる」）: 羊毛のぽんぽんがぽんと出て、まわりに毛玉がはじける。ふつうの物として描くので、藪の裏では隠れる
+  const WOOL = [0.98, 0.86, 0.52], mark = makeFeltBall(WOOL, { r: 0.03, seg: 16, fuzz: 3, len: 0.006 }), puffs = Array.from({ length: 7 }, (_, i) => { const m = makeFeltBall(WOOL, { r: 0.012, seg: 10, fuzz: 2, len: 0.003 }); m.visible = false; m.userData.a = i * 0.8976 + 0.3; scene.add(m); return m; }); mark.visible = false; scene.add(mark);
+  let markT = -1, markS = 0, markY = 0;
+  function setTarget(p) { const L = SIZE / 2 - 1.5, x = Math.max(-L, Math.min(L, p.x)), z = Math.max(-L, Math.min(L, p.z)); target = new THREE.Vector3(x, 0, z); markT = 0; markY = height(x, z) + (BUSHES.some(b => Math.hypot(b[0] - x, b[1] - z) < 0.55) ? 0.58 : 0); mark.position.set(x, markY, z); /* 藪の中は隠れるので、藪の上に */ $('outHint').style.opacity = 0; }
+  function stepMark(dt) { if (markT < 0) return; markT += dt; const u = Math.min(1, markT / 0.55), e = 1 - (1 - u) * (1 - u); markS += ((target ? 1 : 0) - markS) * Math.min(1, dt * (target ? 16 : 8)); mark.visible = markS > 0.02; mark.scale.setScalar(Math.max(0.01, markS * (1 + 0.08 * Math.sin(markT * 5)))); mark.position.y = markY + 0.07 + 0.012 * Math.sin(markT * 3.2); mark.rotation.y = markT * 0.8; puffs.forEach(p => { p.visible = u < 1; if (u < 1) { p.position.set(mark.position.x + Math.cos(p.userData.a) * (0.03 + 0.2 * e), markY + 0.05 + 0.13 * Math.sin(Math.PI * Math.min(1, u * 1.1)), mark.position.z + Math.sin(p.userData.a) * (0.03 + 0.2 * e)); p.scale.setScalar(Math.max(0.05, 1 - u * u)); } }); if (!target && u >= 1 && markS < 0.02) { markT = -1; mark.visible = false; } }
   function pick(e) {
     ndc.set(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1); ray.setFromCamera(ndc, cam);
-    const Pk = pose(H); let best = null, bd = 1e9; for (const b of BUSHES) { _sp.center.set(b[0], height(b[0], b[1]) + 0.25, b[1]); _sp.radius = 0.42; if (Math.hypot(Pk.x - b[0], Pk.z - b[1]) < 1 || cam.position.distanceTo(_sp.center) < 0.55) continue; /* 着いた藪は画面いっぱいになるので素通り＝地面をさわって出られる */ const q = ray.ray.intersectSphere(_sp, _c); if (q) { const d = q.distanceTo(cam.position); if (d < bd) { bd = d; best = { x: b[0], z: b[1] }; } } }
-    if (best) return setTarget(best); const h = ray.intersectObject(G.ground)[0]; if (h) setTarget(h.point);
+    const Pk = pose(H); let best = null, bd = 1e9; for (const b of BUSHES) { _sp.center.set(b[0], height(b[0], b[1]) + 0.25, b[1]); _sp.radius = 0.42; if (Math.hypot(Pk.x - b[0], Pk.z - b[1]) < 1.6 || bushes[BUSHES.indexOf(b)].userData.fade < 0.6 || cam.position.distanceTo(_sp.center) < 0.8) continue; /* 着いた藪は画面いっぱいになるので素通り＝地面をさわって出られる */ const q = ray.ray.intersectSphere(_sp, _c); if (q) { const d = q.distanceTo(cam.position); if (d < bd) { bd = d; best = { x: b[0], z: b[1] }; } } }
+    const h = ray.intersectObject(G.ground)[0]; // 藪の上のほうを通って遠くの地面に届くタップは、遠くへ（テストプレイ「藪に吸われて遠くをタップできない」）
+    if (best && (!h || Math.hypot(h.point.x - best.x, h.point.z - best.z) < 1.3)) setTarget(best); else if (h) setTarget(h.point);
   }
   function turnView(dx, dy, k = 0.006) { const d = dx * k * (invX ? -1 : 1); camYaw += d; camOff += d; camPitch = Math.max(0.18, Math.min(1.25, camPitch + dy * k * (invY ? 1 : -1))); } // 下限＝地面すれすれにしない（藪の向こうの空をさわってしまう）
   gesture(renderer.domElement, { on: () => active, tap: pick, drag: turnView, zoom: f => (camDist = Math.max(0.5, Math.min(3, camDist * f))) });
@@ -180,14 +182,14 @@ export function makeOuting(R, renderer, { onHome }) {
   function render(dt) {
     if (!K) return;
     FB.pose(dt); FB.breathe(dt, fallT ? 0 : gNow); FB.mud.step(dt, rainOn ? 1 : 0); if (frame++ % 3 === 0) FB.paint(D);
-    const P = pose(H); stepRain(dt, P); stepMark(dt);
+    const P = pose(H); stepRain(dt, P); stepRainSky(dt); stepMark(dt); FB.lod(cam.position, cam.fov, innerHeight * renderer.getPixelRatio());
     const gy = height(P.x, P.z), k = Math.min(1, dt * 60), first = !aimInit;
     if (first) { aimP.set(P.x, gy + 0.17, P.z); aimInit = true; }
-    aimP.x += (P.x - aimP.x) * 0.12 * k; aimP.z += (P.z - aimP.z) * 0.12 * k; aimP.y += (gy + 0.17 - aimP.y) * 0.05 * k; // 跳ぶたびの上下と着地のがたつきをならす
+    aimP.x += (P.x - aimP.x) * 0.06 * k; aimP.z += (P.z - aimP.z) * 0.06 * k; aimP.y += (gy + 0.17 - aimP.y) * 0.05 * k; // 跳ぶたびの上下と着地のがたつきをならす
     const A = aimP, C = CAMS[camMode], blur = C.blur, focus = camMode === 'top' ? 0.5 : 0.55;
     if (!C.lag) camYaw = baseYaw() + camOff; else if (gNow > 0.2) camYaw += wrap(baseYaw() + camOff - camYaw) * C.lag * k; // 歩いているときだけ、ゆっくり回りこむ
     const d = camDist * C.dist * (cam.aspect < 1 ? 1.4 : 1), cp = Math.cos(camPitch), want = _a.set(A.x - Math.cos(camYaw) * cp * d, A.y + Math.sin(camPitch) * d, A.z - Math.sin(camYaw) * cp * d);
-    want.y = Math.max(want.y, height(want.x, want.z) + 0.12); if (first) camPos.copy(want); else camPos.lerp(want, 0.1 * k); cam.position.copy(camPos); cam.lookAt(A.x, A.y + 0.04, A.z);
+    want.y = Math.max(want.y, height(want.x, want.z) + 0.12); if (first) camPos.copy(want); else camPos.lerp(want, 0.07 * k); cam.position.copy(camPos); cam.lookAt(A.x, A.y + 0.04, A.z);
     // カメラと子を結ぶ線に近い藪は透かす（目線のときは、目の前の藪だけ）
     const a = cam.position, ab = _b.set(P.x, P.y, P.z).sub(a), L2 = Math.max(ab.lengthSq(), 0.01);
     for (const b of bushes) { const c = _c.copy(b.position).add(_a.set(0, 0.15, 0)), u = Math.max(0, Math.min(1, c.clone().sub(a).dot(ab) / L2)), d = c.distanceTo(a.clone().addScaledVector(ab, u)); const want = d < 0.4 && u > 0.05 ? 0.2 : 1; b.userData.fade += (want - b.userData.fade) * 0.15; for (const k2 of ['off', 'on']) for (const m of b.userData.mats[k2]) m.opacity = b.userData.fade; for (const m of b.children) m.visible = !m.userData.flower ? m.userData.s === 0 || b.userData.fade > 0.9 : b.userData.fade > 0.5; }
@@ -203,10 +205,10 @@ export function makeOuting(R, renderer, { onHome }) {
       const B = kidBody(saved.genes);
       K = { name: saved.name || '', B, getup: saved.getup?.v ? decodeGetup(saved.getup.v) : null };
       Q = B.decode(saved.v || saved.trying); H = B.build(R, world, [0, 0, 0], height); D = makeDirt(H);
-      FB = makeFeltBody(scene, H, kidShapes(H), { furColor: lookFur(saved.genes.look, H), face: lookFace(saved.genes.look, H.plan, HARE_FACE) });
+      FB = makeFeltBody(scene, H, kidShapes(H), { bends: kidBends(H), furColor: lookFur(saved.genes.look, H), face: lookFace(saved.genes.look, H.plan, HARE_FACE) });
       FB.mud.blobs = (mudBlobs || []).map(b => ({ ...b })); burrs = []; walked = []; walkedT = clock;
       $('outNeed').textContent = `${K.name} と、もうすこし練習してからにしよう`;
-      t = 0; gNow = 0; gu = null; fallT = 0; fallAt = []; needT = 0; reached = 0; touched.fill(false); lit(); target = null; markT = -1; mark.material.opacity = burst.material.opacity = 0; aimInit = false;
+      t = 0; gNow = 0; gu = null; fallT = 0; fallAt = []; needT = 0; reached = 0; touched.fill(false); lit(); target = null; markT = -1; markS = 0; mark.visible = false; puffs.forEach(p => (p.visible = false)); aimInit = false; rainOn = false; rainK = 0.001; rainT = Infinity; // 雨はいったん降らせない（ユーザー。天候はあらためて考える）
       $('outHint').textContent = '行きたい所をさわる・ドラッグで見まわす'; $('outHint').style.opacity = 1; root.hidden = false; active = true; setCam(camMode);
     },
     // 帰る: 体と皮を消して、泥の点を返す

@@ -53,7 +53,7 @@ export function stepDirt(S, H, dt, rain = 0, onSplash = null) {
   }
   // 3) 乾く・雨で流れる: ぬれは乾き（雨のあいだはぬれる）、泥は雨で少しずつ落ちる。乾いた泥は白っぽくなる（dry）
   for (const s of Object.values(S)) {
-    s.wet = rain > 0 ? Math.min(1, s.wet + rain * 0.25 * dt) : Math.max(0, s.wet - 0.02 * dt);
+    s.wet = rain > 0 ? Math.min(1, s.wet + rain * 0.25 * dt) : Math.max(0, s.wet - 0.04 * dt);
     if (rain > 0) s.mud = Math.max(0, s.mud - rain * 0.06 * (0.5 + s.wet) * dt);
     s.dry = s.mud > 0.01 ? Math.max(0, Math.min(1, s.dry + (s.wet < 0.3 ? 0.08 : -0.3) * dt)) : 0;
   }

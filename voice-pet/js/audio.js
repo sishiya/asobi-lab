@@ -11,7 +11,17 @@ export function ctx() {
 }
 // 音が止まっていたら起こす（画面を離れているあいだは止めたまま）。iPhone は電話やマイクのあとに 'interrupted' になり、さわったときにしか再開できない
 let asleep = false;
-export function wake() { if (ac && !asleep && !document.hidden && ac.state !== 'running' && ac.state !== 'closed') ac.resume()?.catch?.(() => {}); }
+let stale = false, watch = 0; const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+export let onNew = null; export function setOnNew(f) { onNew = f; }
+// 作り直す（AudioBuffer はそのまま使える）。音の部品が壊れて「動いているのに鳴らない」端末があるので、離れてもどったあとは新しくする
+function rebuild() { if (!ac || stream) return; const old = ac; ac = null; stale = false; try { old.close(); } catch (e) { /* 閉じられなくても新しいほうを使う */ } ctx(); onNew?.(); }
+export function wake(e) {
+  if (!ac || document.hidden) return; if (e?.type) asleep = false; // さわられた＝画面にいる（pagehide だけ来て、もどりの合図が来ないことがある）
+  if (asleep || ac.state === 'closed') return;
+  if (e?.type && stale && !stream) { rebuild(); return; }
+  if (ac.state !== 'running') ac.resume()?.catch?.(() => {});
+  if (e?.type) { clearTimeout(watch); const a = ac, t0 = a.currentTime; watch = setTimeout(() => { if (a === ac && !asleep && !document.hidden && !stream && a.currentTime === t0) rebuild(); }, 400); } // 時計が進んでいなければ壊れている（作り直した音は、次にさわったときに動く）
+}
 
 // マイクを開く（はじめて押したとき。許可のたずねはブラウザが出す）
 export async function openMic() {
@@ -47,12 +57,12 @@ export function closeMic() {
   clearTimeout(idleT);
   if (stream) stream.getTracks().forEach(t => t.stop());
   stream = null; if (proc) proc.disconnect(); if (srcNode) srcNode.disconnect();
-  proc = srcNode = analyser = null; level = 0;
+  proc = srcNode = analyser = null; level = 0; if (IOS) stale = true; // iPhone はマイクのあと音の出口が変わる
 }
 // 話し終わって少したったら閉じる（つづけて話すあいだは開いたまま。開くたびの待ちで声の頭が切れないように）
 export function closeMicSoon(ms = 10000) { clearTimeout(idleT); idleT = setTimeout(closeMic, ms); }
 // 画面を離れたらマイクを閉じて音の処理も止める（電池と発熱）
-export function sleep(on) { asleep = on; if (on) closeMic(); if (ac) on ? ac.suspend() : wake(); }
+export function sleep(on) { asleep = on; if (on) { closeMic(); stale = true; } if (ac) on ? ac.suspend() : wake(); }
 
 // 鳴き声を鳴らす（作った Float32Array を流す）
 export function play(samples, sr, vol = 0.8) {

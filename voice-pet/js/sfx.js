@@ -41,6 +41,8 @@ export function makeSfx({ ctx, vol, ambVol, ready, base }) {
     sprout() { const ac = gate('sprout', 0.25); if (ac) pluck(ac, SCALE[6 + Math.floor(Math.random() * 3)], ac.currentTime, 0.06, 0.35); }, // 芽が出る
     bubble() { const ac = gate('bubble', 0.3); if (ac) { const t = ac.currentTime; for (let i = 0; i < 4; i++) wood(ac, 260 + i * 90, 520 + i * 120, t + i * 0.12, 0.09, 0.09); } }, // 水玉がふくらむ（こぽこぽ）
     splash() { const ac = gate('splash', 0.3); if (!ac || !S?.splash) return; const s = ac.createBufferSource(), g = ac.createGain(), f = ac.createBiquadFilter(); s.buffer = S.splash; g.gain.value = 0.9 * amp(); f.type = 'lowpass'; f.frequency.value = 3200; s.connect(f); f.connect(g); g.connect(ac.destination); s.start(); },
+    reset() { rain = null; rainNow(); }, // 音を作り直したとき
+    plink() { const ac = gate('plink', 0.045); if (ac) { const t = ac.currentTime, f = 900 + Math.random() * 900; osc(ac, f, t, env(ac, t, 0.05, 0.003, 0.045), t + 0.06, f * 1.8); } }, // しずくが草に落ちる
     rain(on) { wantRain = on; rainNow(); }, rainVol() { if (rain) rain.g.gain.setTargetAtTime(rainGain(), ctx().currentTime, 0.15); },
   };
 }

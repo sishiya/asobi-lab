@@ -15,13 +15,15 @@ function alongQ(a, b) { // 線分（a→b）に沿うカプセルの向き（Rap
 // seg・tail＝遺伝子で動く範囲、legK＝足の長さの倍率、fold＝後ろ足の折りたたみの長さ、strong＝足の筋の倍率、spine＝背骨の筋の倍率、wave＝背骨の波のずれ、belly＝胴の摩擦
 export const KID_TYPES = {
   walk: {},
+  // ロバ: 後ろ足は胴のいちばん後ろ、前足は胸の下（おしりが足の外へ出ない。手足の配置を先に決めてから学ぶ）。ずんぐりした胴・短い首・長い顔
+  donkey: { seg: [2, 2], pairs: 2, rearAt: 0.1, foreAt: 0.3, legK: 1.05, girthK: 1.12, segK: 1.05, strong: 1.7, tail: [1, 1], neck: 1, snout: 0.95, assistK: 1.5, turnRate: 1.1 },
   hop: { seg: [2, 3], pairs: 2, fold: 1.5, strong: 1.8, tail: [0, 1], legTurn: 0, assistK: 2, turnRate: 1.35, slim: 1.85 }, // slim＝節の長さは太さのこの倍まで（細長い胴の子だけ歩けなかった。本物のウサギはずんぐりしている）
   bound: { seg: [3, 4], pairs: 2, legK: 0.8, girthK: 0.82, spine: 2, strong: 1.4, tail: [1, 3] },
   biped: { seg: [2, 2], pairs: 1, fold: 1.7, strong: 1.8, tail: [3, 4], at: 0.5 },
-  seal: { seg: [4, 4], pairs: 1, fore: true, legK: 0.55, girthK: 1.2, spine: 2.5, wave: 0.2, belly: 0.12, fric: { side: 0.5, back: 0.6, front: 0.05 }, strong: 1.2, tail: [1, 2], neck: 0 }, // fric＝毛の流れの摩擦（前へは滑り、うしろへは引っかかる）。スキーのシールと同じ
+  seal: { tailKind: 'long', seg: [4, 4], pairs: 1, fore: true, legK: 0.55, girthK: 1.2, spine: 2.5, wave: 0.2, belly: 0.12, fric: { side: 0.5, back: 0.6, front: 0.05 }, strong: 1.2, tail: [1, 2], neck: 0 }, // fric＝毛の流れの摩擦（前へは滑り、うしろへは引っかかる）。スキーのシールと同じ
   // 鳥＝スズメのように二本足を そろえて ちょんちょん跳ねる（左右交互に歩くのは片足で立つつり合いが要り、立てなかった。飛ぶのはあと。GAME.md 9.6）、ヘビ＝足なし。胴を横にくねらせ、うろこの摩擦で前へ（planar＝水平にだけ回る。ひっくり返らない）
-  bird: { seg: [2, 2], pairs: 1, fold: 1.7, strong: 1.8, tail: [1, 2], at: 0.5, neck: 1, legTurn: 0, assistK: 2, turnRate: 1.35, snout: 0, tailK: [0.6, 0.3], wing: true }, // snout・tailK・wing は皮の形だけ（物理の骨は同じ）
-  snake: { seg: [7, 9], pairs: 0, girthK: 0.6, segK: 0.72, spine: 1, wave: -0.12, belly: 0.3, tail: [1, 2], neck: 0, planar: true },
+  bird: { tailKind: 'long', seg: [2, 2], pairs: 1, fold: 1.7, strong: 1.8, tail: [1, 2], at: 0.5, neck: 1, legTurn: 0, assistK: 2, turnRate: 1.35, snout: 0, tailK: [0.6, 0.3], wing: true }, // snout・tailK・wing は皮の形だけ（物理の骨は同じ）
+  snake: { tailKind: 'long', seg: [7, 9], pairs: 0, girthK: 0.6, segK: 0.72, spine: 1, wave: -0.12, belly: 0.3, tail: [1, 2], neck: 0, planar: true },
 };
 // 遺伝子 → 骨格の寸法（整った形の範囲にしぼる）
 export function kidPlan(g) {
@@ -30,7 +32,7 @@ export function kidPlan(g) {
   const s = lerp(0.75, 1.25, G('vtl'));                     // 体の大きさ（声の筒の長さ）
   const juv = cl(G('stop') * 0.65 + G('bold') * 0.45 - 0.1); // 幼さ（頭が大きく足が短い）
   const seg = pick('seg', 2 + Math.round(G('seg') * 2));    // 胴の節 2〜4（多いと長すぎてくねり、虫に見える）
-  const pairs = T.pairs ?? (seg >= 3 && G('legs') > 0.6 ? 3 : 2); // 足 2対（よつあし）か 3対（節が3つ以上のときだけ）
+  const pairs = T.pairs ?? 2; // 足は 2対まで（テストプレイ「6本は奇形に見える」） // 足 2対（よつあし）か 3対（節が3つ以上のときだけ）
   const neck = T.neck ?? Math.round(G('neck') * 2), tail = pick('tail', Math.round(G('tail') * 3));
   const girth = lerp(0.8, 1.25, G('girth')) * (T.girthK ?? 1);
   const r = 0.042 * s * girth;                                // 胴の太さ（半径）
@@ -38,7 +40,8 @@ export function kidPlan(g) {
   const legL = 0.075 * s * lerp(0.8, 1.25, G('legLen')) * lerp(1, 0.85, juv) * (pairs === 3 ? 0.85 : 1) * (T.legK ?? 1); // 足の1節（もも・すね）の長さ。太さとつり合う範囲
   const legR = Math.max(0.011, r * 0.32);
   const headR = 0.045 * s * lerp(1, 1.3, juv) * (T.planar ? 0.62 : 1); // ヘビの頭は胴より少し太いくらい
-  return { type, s, juv, seg, pairs, neck, tail, girth, r, segL: T.slim ? Math.min(segL, r * T.slim) : segL, legL, legR, headR, fluff: G('fluff'), snout: T.snout, twist: !T.planar, twistK: 3, twistM: 0.3 }; // ねじりのつなぎは胴の重さの3割を持たせる（20g のつなぎだと物理がぐらつき、歩けなくなった＝tools/twist-check.mjs） // twist＝背骨のねじりの関節（起き上がりに要る。関節をそろえてから歩き方を学ぶ＝2026-11-08 ユーザー）
+  return { type, s, juv, seg, pairs, neck, tail, girth, r, segL: T.slim ? Math.min(segL, r * T.slim) : segL, legL, legR, headR, fluff: G('fluff'), snout: T.snout, tailKind: T.tailKind ?? (type === 'hop' || G('tail') >= 0.5 ? 'flat' : 'puff'), rump: !T.tailKind, rumpCut: T.rearAt != null ? Math.max(0, T.rearAt - 0.08) : 0.42, // rump＝おしりは後ろ足のすぐ上で終わる（テストプレイ。手本はモルモット・ナキウサギ。皮の形だけ）
+      twist: !T.planar, twistK: 3, twistM: 0.3 }; // ねじりのつなぎは胴の重さの3割を持たせる（20g のつなぎだと物理がぐらつき、歩けなくなった＝tools/twist-check.mjs） // twist＝背骨のねじりの関節（起き上がりに要る。関節をそろえてから歩き方を学ぶ＝2026-11-08 ユーザー）
 }
 
 // 体を作る。o＝足もとの地面の点、groundH＝地面の高さ、g＝遺伝子、yaw＝向き
@@ -47,7 +50,7 @@ export function buildKid(R, world, o, groundH, g, yaw = 0, over = null) { // ove
   const hipY = K.pairs === 0 ? K.r + 0.002 : K.legL * 1.75 + K.legR, zL = K.r * 0.75, AX = T.planar ? [0, 1, 0] : [0, 0, 1]; // 胴の高さ（足は少し曲げて立つ）・足の左右の間・背骨や尾の曲がる軸
   const len = K.seg * K.segL, x0 = -len / 2;
   // 足の付け根の x（後ろの対は腰、前の対は胸、3対のときは真ん中）。1対の型: トビネズミは重心の真下（at）、アザラシは胸
-  const pairX = K.pairs === 0 ? [] : K.pairs === 1 ? [T.fore ? x0 + len - K.segL * 0.5 : x0 + len * T.at] : K.pairs === 3 ? [x0 + K.segL * 0.5, 0, x0 + len - K.segL * 0.5] : [x0 + K.segL * 0.5, x0 + len - K.segL * 0.5];
+  const pairX = K.pairs === 0 ? [] : K.pairs === 1 ? [T.fore ? x0 + len - K.segL * 0.5 : x0 + len * T.at] : K.pairs === 3 ? [x0 + K.segL * 0.5, 0, x0 + len - K.segL * 0.5] : [x0 + K.segL * (T.rearAt ?? 0.5), x0 + len - K.segL * (T.foreAt ?? 0.5)];
   const feetPts = pairX.flatMap(x => [[x + K.legL * 0.3, 0, zL], [x + K.legL * 0.3, 0, -zL]]);
   const y0 = Math.max(...(feetPts.length ? feetPts : [[x0, 0, 0], [0, 0, 0], [x0 + len, 0, 0]]).map(p => rot(p)).map(p => groundH(o[0] + p[0], o[2] + p[2]))) + 0.002;
   const P = p => { const q = rot(p); return [o[0] + q[0], y0 + q[1], o[2] + q[2]]; };
@@ -114,7 +117,7 @@ export function buildKid(R, world, o, groundH, g, yaw = 0, over = null) { // ove
   for (const j of list) j.jt.configureMotorPosition(0, j.k, j.d);
   // うろこ: 節ごとの体の軸の向き（作ったときは回転なしなので、ここで骨の中の向きとして持つ）。頭は前向き。Rapier の回転の固定はモーターと合わせると発散したので、平らなお腹は力で保つ（scaleFriction）
   const scales = T.planar || T.fric ? Object.entries(parts).filter(([n]) => /^(pelvis|mid|chest|tail|head)/.test(n)).map(([, p]) => { const d = p.a ? sub(p.b, p.a) : rot([1, 0, 0]), L = Math.hypot(...d); return { p, ax: d.map(v => v / L), I: p.mass * (p.r * p.r * 0.4 + (p.len ?? 0) ** 2 / 12) }; }) : null;
-  const assist = ['hop', 'bound', 'biped', 'bird', 'seal'].includes(K.type) ? Object.values(parts).reduce((t, p) => t + p.mass * ((p.c[0] - o[0]) ** 2 + (p.c[2] - o[2]) ** 2), 0) * (T.assistK ?? 1) : 0; // 回りにくさ（向きを変える補助に使う）
+  const assist = ['hop', 'bound', 'biped', 'bird', 'seal', 'donkey'].includes(K.type) ? Object.values(parts).reduce((t, p) => t + p.mass * ((p.c[0] - o[0]) ** 2 + (p.c[2] - o[2]) ** 2), 0) * (T.assistK ?? 1) : 0; // 回りにくさ（向きを変える補助に使う）
   return { kind: 'kid', plan: K, wave: T.wave ?? 0, scales, fric: T.fric ?? SCALE, belly: T.belly ?? 0, ground: groundH, assist, turnRate: T.turnRate ?? 0.9, legTurn: T.legTurn ?? 1, pairNames: PN, parts, joints: J, list, feet, fallH: T.fore || T.planar ? -1 : K.r * 0.8, maxPitch: K.type === 'walk' ? 0.6 : 0.9, noTouch: T.fore || T.planar ? null : [parts.head, ...torso], mass: Object.values(parts).reduce((t, p) => t + p.mass, 0) }; // fallH＝胴がおなかを地面につけるほど低くなったら転んだ
 }
 
@@ -139,6 +142,7 @@ const seedOf = o => encodeKid({ ...decodeKid(KID_SEED), side: 0.2, ...o });
 const GAITS = {
   hop: [{ freq: 2.8, spA: 0.2, spP: 0.5, hipA: 0.45, kneeA: 0.5, kneeP: 0.75, ankA: 0.4, ankP: 0.25, pairP: 0.35 }, { freq: 2.2, spA: 0.12, spP: 0.5, hipA: 0.32, kneeA: 0.36, kneeP: 0.75, ankA: 0.28, ankP: 0.25, pairP: 0.3 }, { freq: 3.2, spA: 0.28, spP: 0.4, hipA: 0.55, kneeA: 0.55, kneeP: 0.7, ankA: 0.45, ankP: 0.25, pairP: 0.45 }],
   bound: [{ freq: 2.6, spA: 0.4, spP: 0.25, hipA: 0.4, kneeA: 0.4, kneeP: 0.75, ankA: 0.3, ankP: 0.25, pairP: 0.5 }, { freq: 2, spA: 0.28, spP: 0.25, hipA: 0.3, kneeA: 0.3, kneeP: 0.75, ankA: 0.22, ankP: 0.25, pairP: 0.5 }, { freq: 3.2, spA: 0.48, spP: 0.2, hipA: 0.45, kneeA: 0.45, kneeP: 0.7, ankA: 0.3, ankP: 0.25, pairP: 0.4 }],
+  donkey: [{ freq: 1.6, side: 0.8, spA: 0.05, spP: 0.5, hipA: 0.3, kneeA: 0.3, kneeP: 0.75, ankA: 0.25, ankP: 0.25, pairP: 0.25 }, { freq: 1.8, side: 0.8, spA: 0.05, spP: 0.5, hipA: 0.28, kneeA: 0.28, kneeP: 0.75, ankA: 0.22, ankP: 0.25, pairP: 0.5 }, { freq: 1.2, side: 0.8, spA: 0.03, spP: 0.5, hipA: 0.22, kneeA: 0.22, kneeP: 0.75, ankA: 0.18, ankP: 0.25, pairP: 0.25 }],
   biped: [{ freq: 2, spA: 0, hipA: 0.3, hipO: -0.15, kneeA: 0.36, kneeP: 0.75, ankA: 0.3, ankP: 0.25, pairP: 0, pK: 1, tlK: -1 }, { freq: 3, spA: 0, hipA: 0.15, hipO: 0.15, kneeA: 0.18, kneeP: 0.75, ankA: 0.15, ankP: 0.25, pairP: 0, pK: 0, tlK: -0.6 }, { freq: 2.5, spA: 0, hipA: 0.22, hipO: 0, kneeA: 0.26, kneeP: 0.75, ankA: 0.22, ankP: 0.25, pairP: 0, pK: 0.6, tlK: -1 }],
   bird: [{ freq: 3.4, spA: 0, hipA: 0.15, hipO: 0.15, kneeA: 0.18, kneeP: 0.75, ankA: 0.15, ankP: 0.25, pairP: 0, pK: 0, tlK: -0.5 }, { freq: 2.4, spA: 0, hipA: 0.25, hipO: -0.1, kneeA: 0.3, kneeP: 0.75, ankA: 0.25, ankP: 0.25, pairP: 0, pK: 1, tlK: -0.5 }, { freq: 3, spA: 0, hipA: 0.2, hipO: 0, kneeA: 0.24, kneeP: 0.75, ankA: 0.2, ankP: 0.25, pairP: 0, pK: 0.6, tlK: -0.5 }],
   snake: [{ freq: 1.2, spA: 0.45, spP: 0, turn: -0.25 }, { freq: 1.1, spA: 0.5, spP: 0, turn: -0.25 }, { freq: 2, spA: 0.5, spP: 0, turn: -0.2 }],
@@ -147,7 +151,7 @@ const GAITS = {
 // うまく歩けた子の動き（手本）。同じ型のほかの子の出発点にする（tools/logs/type2・type3 の hop 1・bound 3・biped 1・bird 3）
 const LEARNED = {"hop":[0.576,0.291,0.298,0.313,0.54,0.149,0.247,0.741,0.253,0.119,0.432,0.2,0.962,0.719,0.564,0.607,0.305,0.454,0.388,0.38,0.611,0.5],"bound":[0.706,0.844,0.133,0.608,0.827,0.576,0.553,0.545,0.508,0.229,0.397,0.2,0.407,0.68,0.39,0.337,0.263,0.427,0.5,0.5,0.5,0.5],"biped":[1,0.2,0.492,0.405,0.623,0.084,0.419,0.92,0.217,0.003,0.185,0.2,0.861,0.706,0.282,0.589,0.327,0.375,0.556,0.539,0.599,0.582],"bird":[0.75,0.404,0.732,0.529,0.573,0.014,0.112,0.527,0.268,0.451,0.189,0.2,0.289,0.542,0.483,0.858,0.353,0.387,0.5,0.5,0.5,0.696]};
 const TYPE_SEEDS = Object.fromEntries(Object.entries(GAITS).map(([k, a]) => [k, [...(LEARNED[k] ? [LEARNED[k]] : []), ...a.map(seedOf)]]));
-const BY_SEG = { bird: { 2: [0.75,0.404,0.732,0.529,0.573,0.014,0.112,0.527,0.268,0.451,0.189,0.2,0.289,0.542,0.483,0.858,0.353,0.387,0.5,0.5,0.5,0.696] }, hop: { 2: [0.631,0.39,0.753,0.446,0.452,0.034,0.369,0.311,0.501,0.449,0.84,0.2,0.491,0.999,0.522,0.502,0.318,0.363,0.476,0.489,0.558,0.5], 3: [0.576,0.832,0.158,0.875,0.752,0.011,0.067,0.425,0.477,0.038,0.347,0.2,0.694,0.744,0.577,0.485,0.284,0.482,0.4,0.4,0.189,0.5] } }; // 手本は、よく歩けた子の動き（胴の節の数ごと。節3は動きの穏やかな子がよかった、節2は穏やかな子だと崩れた。tools/logs/type6 の 5・type7 の 14。鳥は type3 の 3）
+const BY_SEG = { donkey: { 2: [0.662,0.252,0.321,0.208,0.618,0.217,0.212,0.584,0.703,0.08,0.448,0.605,0.877,0.423,0.886,0.502,0.278,0.35,0.543,0.837,0.468,0.5] }, bird: { 2: [0.75,0.404,0.732,0.529,0.573,0.014,0.112,0.527,0.268,0.451,0.189,0.2,0.289,0.542,0.483,0.858,0.353,0.387,0.5,0.5,0.5,0.696] }, hop: { 2: [0.631,0.39,0.753,0.446,0.452,0.034,0.369,0.311,0.501,0.449,0.84,0.2,0.491,0.999,0.522,0.502,0.318,0.363,0.476,0.489,0.558,0.5], 3: [0.576,0.832,0.158,0.875,0.752,0.011,0.067,0.425,0.477,0.038,0.347,0.2,0.694,0.744,0.577,0.485,0.284,0.482,0.4,0.4,0.189,0.5] } }; // 手本は、よく歩けた子の動き（胴の節の数ごと。節3は動きの穏やかな子がよかった、節2は穏やかな子だと崩れた。tools/logs/type6 の 5・type7 の 14。鳥は type3 の 3）
 const typeSeeds = g => { const s = TYPE_SEEDS[g?.type], b = BY_SEG[g?.type]?.[kidPlan(g).seg]; return s && b ? [b, ...s] : s ?? null; };
 export const kidSeed = g => typeSeeds(g)?.[0] ?? KID_SEED; // その子の型の出発点
 
@@ -204,20 +208,35 @@ export function kidShapes(H) {
   const cap = (part, a, b, ra, rb, k) => S.push({ part, body: P[part].body, a, b, ra, rb, k });
   for (const [name, p] of Object.entries(P)) {
     if (!p.a) continue;
-    if (name === 'pelvis' && !T.planar) cap(name, p.a, p.b, p.r * 0.78 + fur, p.r + fur, 0.05); // おしりは細くしぼる（テストプレイ「おむつみたいにもっこり」。皮の形だけ）
+    if (name === 'pelvis' && K.rump) cap(name, [p.a[0] + K.segL * K.rumpCut, p.a[1], p.a[2]], p.b, p.r * 0.86 + fur, p.r + fur, 0.05);
+    else if (name === 'pelvis' && !T.planar) cap(name, p.a, p.b, p.r * 0.78 + fur, p.r + fur, 0.05); // おしりは細くしぼる（テストプレイ「おむつみたいにもっこり」。皮の形だけ）
     else if (name === 'pelvis' || name === 'chest' || name.startsWith('mid')) cap(name, p.a, p.b, p.r + fur, p.r + fur, 0.04);
     else if (name.startsWith('neck')) cap(name, p.a, p.b, p.r + fur, p.r * 0.9 + fur, 0.03);
+    else if (name.startsWith('tail') && K.rump) continue; // おしりの端の小さなしっぽは下で（うしろの骨は見せない）
+    else if (name.startsWith('tail') && K.tailKind === 'puff') { if (name === 'tail0') cap(name, p.a, [p.b[0] - p.r, p.b[1] + p.r * 0.6, p.b[2]], p.r * 0.7 + fur, p.r * 1.55 + fur, 0.02); } // まるい しっぽ（皮だけ。うしろの骨は見せない）
+    else if (name.startsWith('tail') && K.tailKind === 'flat') { if (name === 'tail0') { const mx = (p.a[0] + p.b[0]) / 2, my = (p.a[1] + p.b[1]) / 2, tx = p.b[0] + (p.b[0] - p.a[0]) * 0.55, ty = p.b[1] + (p.b[1] - p.a[1]) * 0.55; cap(name, p.a, [mx, my, p.a[2]], p.r * 0.55 + fur * 0.6, p.r * 0.5 + fur * 0.6, 0.02); for (const s of [0, 1, -1]) { const w = s * p.r * 1.05; cap(name, [mx, my, p.a[2] + w * 0.25], [tx, ty, p.a[2] + w], p.r * 0.42 + fur * 0.6, p.r * 0.55 + fur * 0.6, 0.02); } } } // へら状の しっぽ（横に広い）
     else if (name.startsWith('tail')) cap(name, p.a, p.b, p.r * tk[0] + fur, p.r * tk[1] + fur, 0.04);
     else if (/up[LR]$/.test(name)) { if (T.wing) cap(name, p.a, p.b, K.r * 0.76 + fur, K.r * 0.56 + fur, 0.05); else cap(name, p.a, p.b, p.r * 1.05 + fur, p.r * 0.85 + fur, 0.03); } // 鳥の太ももは羽毛の中（本物も外に見えるのはすねから下）
     else cap(name, p.a, p.b, p.r + fur * 0.7, p.r * 0.9 + fur * 0.6, 0.01);
   }
+  if (K.rump && K.tail > 0) { const p = P.pelvis, rx = p.a[0] + K.segL * K.rumpCut - p.r * 0.86, y = p.a[1], z = p.a[2], r = p.r; if (K.tailKind === 'puff') cap('pelvis', [rx + r * 0.2, y + r * 0.35, z], [rx - r * 0.12, y + r * 0.45, z], r * 0.3 + fur, r * 0.42 + fur, 0.02); else { const h = K.type === 'hop' ? 1.5 : 1; for (const s of [0, 1, -1]) cap('pelvis', [rx + r * 0.2, y + r * 0.25, z + s * r * 0.14 * h], [rx - r * 0.62 * h, y + r * (0.4 + (h - 1) * 0.7), z + s * r * 0.44 * h], r * 0.2 * h + fur * 0.8, r * 0.26 * h + fur, 0.015); } } // ウサギは ふっくらした へら状 // まるい しっぽ／へら状の しっぽ
+  if (K.type === 'seal') { for (const s of [1, -1]) { const u = P[(K.pairs ? 'fft' : '') + (s > 0 ? 'L' : 'R')]; if (u?.a) { const w = u.r * 2.4, ax = u.a, bx = [u.b[0] - 0.012, u.b[1] + 0.012, u.b[2] + s * K.r * 1.5]; for (const k of [-1, 0, 1]) cap('fft' + (s > 0 ? 'L' : 'R'), [ax[0] + k * w * 0.25, ax[1], ax[2]], [bx[0] + k * w * 1.1, bx[1], bx[2]], u.r * 1.1 + fur * 0.5, u.r * 0.85 + fur * 0.5, 0.012); } } const tl = P['tail' + (K.tail - 1)]; if (tl) for (const s of [1, -1]) for (const k of [0, 1]) cap('tail' + (K.tail - 1), tl.b, [tl.b[0] - K.segL * 1.05, tl.b[1], tl.b[2] + s * K.r * (0.75 + k * 0.55)], tl.r * 0.7 + fur * 0.4, tl.r * 0.95 + fur * 0.4, 0.012); } // アザラシのヒレ: 前は足先を広げた板、後ろは尾の先に左右へ開く2枚
   if (T.wing) for (const s of [1, -1]) { const c = P.chest.c, z = c[2] + s * (P.chest.r + fur * 0.5); cap('chest', [c[0] + K.segL * 0.25, c[1] + P.chest.r * 0.25, z], [c[0] - K.segL * 1.05, c[1] + P.chest.r * 0.1, z - s * P.chest.r * 0.12], P.chest.r * 0.34, P.chest.r * 0.1, 0.012); } // たたんだ翼（皮のふくらみ。色は kid-look）
   const h = P.head, sn = K.snout ?? 0.5; S.push({ part: 'head', body: h.body, a: h.c, b: [h.c[0] + h.r * (0.5 + sn), h.c[1] - h.r * 0.15 * (1 + sn), h.c[2]], ra: h.r + fur, rb: h.r * (0.7 - sn * 0.4) + fur * (1 - sn * 0.5), k: 0.03 }); // 鼻づら（snout＝長さ）
   return S;
 }
 
+// 皮だけの関節の範囲（テストプレイ「脚があらぬ方向に曲がる・体を突き抜ける」）: 物理と学習はそのまま、描くときだけ腿を胴より上へ振り上げず、すねを後ろ上へ折らない
+export function kidBends(H) {
+  if (!['hop', 'bird', 'biped', 'bound', 'donkey'].includes(H.plan.type)) return [];
+  return H.pairNames.flatMap(pn => ['L', 'R'].flatMap(L => { const up = pn + 'up' + L, lo = pn + 'lo' + L, ft = pn + 'ft' + L, p = H.parts, hind = pn === 'h' && H.plan.type !== 'donkey', host = H.plan.pairs === 1 || pn === 'h' ? 'pelvis' : 'chest'; return [{ parent: host, child: up, axis: 'z', min: hind ? -0.5 : -0.75, max: hind ? 0.65 : 0.75, pivot: p[up].a, chain: [lo, ft] }, { parent: up, child: lo, axis: 'z', min: hind ? -0.5 : -0.65, max: 0.7, pivot: p[up].b, chain: [ft] }, { parent: lo, child: ft, axis: 'z', min: -0.42, max: 0.42, pivot: p[lo].b }]; }));
+}
+
 // 確かめ用: 番号から遺伝子をつくる（声のかわり）・試し（trial.js）に渡す体の作り方
 export const KID_KEYS = ['seg', 'neck', 'tail', 'legs', 'legLen', 'girth', 'stop', 'bold', 'vtl', 'fluff'];
+// 生まれる体は、よく歩ける手本の体の近くに（テストプレイ「いくら学習しても歩けない子に当たると、捨てるような悲しいことになる」）。色と耳は声のまま。すでにいる子は変えない
+export const BODY_REF = { hop: 6, bird: 3, snake: 9, donkey: 1 }, BODY_NEAR = 0.45;
+export function blendBody(g) { const id = BODY_REF[g.type]; if (!id) return g; const r = kidGenes(id * 7919); for (const k of KID_KEYS) if (g[k] != null && r[k] != null) g[k] = r[k] + (g[k] - r[k]) * BODY_NEAR; return g; }
 export function kidGenes(seed) { let s = seed >>> 0 || 1; const r = () => ((s ^= s << 13, s ^= s >>> 17, s ^= s << 5) >>> 0) / 4294967296; return Object.fromEntries(KID_KEYS.map(k => [k, r()])); }
 const JUMPS = ['hop', 'bound', 'biped', 'seal', 'bird', 'snake'];
-export const kidBody = (g, over = null) => ({ build: (R, w, at, h, yaw = 0) => buildKid(R, w, at, h, g, yaw, over), drive: (H, q, t, gg, tc) => driveKid(H, q, t, gg, tc, pose), decode: decodeKid, starts: typeSeeds(g), lock: JUMPS.includes(g?.type) ? (g.type === 'biped' || g.type === 'bird' ? ['side'] : g.type === 'snake' ? ['side', 'tlK', 'freq'] : ['side', 'tlK']) : ['tlK'], flightW: JUMPS.includes(g?.type) && g.type !== 'seal' ? 0 : 1.5, noGetup: ['seal', 'snake'].includes(g?.type), gateDist: g?.type === 'snake' ? 0.5 : 1, gateStraight: ['hop', 'bound', 'biped', 'bird'].includes(g?.type) }); // starts＝型ごとの出発点、lock＝学習で変えない数（跳ねる型が交互に歩きへもどらない・尾の反射を使わない型）、flightW＝宙に浮いている罰（跳ねる型はなし）
+export const kidBody = (g, over = null) => ({ build: (R, w, at, h, yaw = 0) => buildKid(R, w, at, h, g, yaw, over), drive: (H, q, t, gg, tc) => driveKid(H, q, t, gg, tc, pose), decode: decodeKid, starts: typeSeeds(g), lock: JUMPS.includes(g?.type) ? (g.type === 'biped' || g.type === 'bird' ? ['side'] : g.type === 'snake' ? ['side', 'tlK', 'freq'] : ['side', 'tlK']) : ['tlK'], flightW: JUMPS.includes(g?.type) && g.type !== 'seal' ? 0 : 1.5, noGetup: ['seal', 'snake'].includes(g?.type), gateDist: g?.type === 'snake' || g?.type === 'seal' ? 0.5 : 1, gateStraight: ['hop', 'bound', 'biped', 'bird', 'donkey'].includes(g?.type) }); // starts＝型ごとの出発点、lock＝学習で変えない数（跳ねる型が交互に歩きへもどらない・尾の反射を使わない型）、flightW＝宙に浮いている罰（跳ねる型はなし）
