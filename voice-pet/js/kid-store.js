@@ -5,9 +5,11 @@ const OLD = 'satoyama.kid2', KEY = 'koenoko.kids';
 export const MAX_KIDS = 3;
 // 足 3対の子は 2対になったので、歩き方を覚えなおす
 function fourLegs(k) { const g = k.genes; if ((g.type ?? 'walk') === 'walk' && (g.seg ?? 0.5) >= 0.25 && (g.legs ?? 0) > 0.6) { g.legs = 0.6; delete k.v; delete k.trying; delete k.state; delete k.getup; } }
+// よつあしは骨の配置を変えて学習し直したので、前の体で覚えた歩き方は捨てて覚えなおす（端末ごとに1度だけ）
+function relearnWalk(j) { try { if (localStorage.getItem('koenoko.walk2')) return; for (const k of j.kids) if ((k.genes.type ?? 'walk') === 'walk') { k.genes.type = 'walk'; delete k.v; delete k.trying; delete k.state; delete k.getup; } saveKids(j); localStorage.setItem('koenoko.walk2', '1'); } catch (e) { /* 保存できないときは、そのまま */ } }
 const read = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
 export function loadKids() {
-  const j = read(KEY); if (j && Array.isArray(j.kids)) { const seen = new Set(), kids = j.kids.filter(k => k && k.genes && !(k.id && seen.has(k.id)) && (seen.add(k.id), true)); kids.forEach(fourLegs); return { kids, at: Math.max(0, Math.min(j.at | 0, kids.length - 1)) }; } // 同じ子が2つ残っていたら1つに
+  const j = read(KEY); if (j && Array.isArray(j.kids)) { const seen = new Set(), kids = j.kids.filter(k => k && k.genes && !(k.id && seen.has(k.id)) && (seen.add(k.id), true)); kids.forEach(fourLegs); const out = { kids, at: Math.max(0, Math.min(j.at | 0, kids.length - 1)) }; relearnWalk(out); return out; } // 同じ子が2つ残っていたら1つに
   const k = read(OLD); return { kids: k && k.genes ? [k] : [], at: 0 }; // 1匹だけのころの子を引きつぐ
 }
 export function saveKids(j) { try { localStorage.setItem(KEY, JSON.stringify(j)); } catch (e) { /* 保存できない（プライベートのウィンドウなど）: このページの中だけで続ける */ } }

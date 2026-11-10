@@ -14,7 +14,7 @@ function alongQ(a, b) { // 線分（a→b）に沿うカプセルの向き（Rap
 // walk＝歩く（これまでの子）、hop＝ウサギ（長い後ろ足を折りたたんで跳ねる）、bound＝イタチ（胴をしならせて跳ねる）、biped＝トビネズミ（二本足で跳ね、長い尾でつり合う）、seal＝アザラシ（前のヒレとお腹で波打って進む）
 // seg・tail＝遺伝子で動く範囲、legK＝足の長さの倍率、fold＝後ろ足の折りたたみの長さ、strong＝足の筋の倍率、spine＝背骨の筋の倍率、wave＝背骨の波のずれ、belly＝胴の摩擦
 export const KID_TYPES = {
-  walk: {},
+  walk: { seg: [3, 3], rearAt: 0.1, foreAt: 0.3, strong: 1.7, spine: 2, girthK: 1.1 }, // よつあし: クマやイタチと同じく後ろ足は胴のいちばん後ろ（配置を変えて学習し直した。type42〜43）
   // クマ: 後ろ足は胴のいちばん後ろ、前足は胸の下（おしりが足の外へ出ない。手足の配置を先に決めてから学ぶ）。ずんぐりした胴・短い首・長い顔
   donkey: { seg: [2, 2], pairs: 2, rearAt: 0.1, foreAt: 0.3, legK: 1.05, girthK: 1.12, segK: 1.05, strong: 1.7, tail: [1, 1], neck: 1, snout: 0.95, assistK: 1.5, turnRate: 1.1 },
   hop: { seg: [2, 3], pairs: 2, fold: 1.5, strong: 1.8, tail: [0, 1], legTurn: 0, assistK: 2, turnRate: 1.35, slim: 1.85 }, // slim＝節の長さは太さのこの倍まで（細長い胴の子だけ歩けなかった。本物のウサギはずんぐりしている）
@@ -141,6 +141,7 @@ export const KID_SLOW = encodeKid({ ...decodeKid(KID_SEED), freq: 1.1, hipA: 0.2
 // 型ごとの出発点。side は 0.5 より下＝左右そろえて跳ねる（学習で交互にもどらないよう、LOCK で止める）
 const seedOf = o => encodeKid({ ...decodeKid(KID_SEED), side: 0.2, ...o });
 const GAITS = {
+  walk: [{ freq: 1.6, side: 0.8, spA: 0.05, spP: 0.5, hipA: 0.3, kneeA: 0.3, kneeP: 0.75, ankA: 0.25, ankP: 0.25, pairP: 0.25 }, { freq: 1.8, side: 0.8, spA: 0.05, spP: 0.5, hipA: 0.28, kneeA: 0.28, kneeP: 0.75, ankA: 0.22, ankP: 0.25, pairP: 0.5 }, { freq: 1.2, side: 0.8, spA: 0.03, spP: 0.5, hipA: 0.22, kneeA: 0.22, kneeP: 0.75, ankA: 0.18, ankP: 0.25, pairP: 0.25 }],
   hop: [{ freq: 2.8, spA: 0.2, spP: 0.5, hipA: 0.45, kneeA: 0.5, kneeP: 0.75, ankA: 0.4, ankP: 0.25, pairP: 0.35 }, { freq: 2.2, spA: 0.12, spP: 0.5, hipA: 0.32, kneeA: 0.36, kneeP: 0.75, ankA: 0.28, ankP: 0.25, pairP: 0.3 }, { freq: 3.2, spA: 0.28, spP: 0.4, hipA: 0.55, kneeA: 0.55, kneeP: 0.7, ankA: 0.45, ankP: 0.25, pairP: 0.45 }],
   bound: [{ freq: 2.6, spA: 0.4, spP: 0.25, hipA: 0.4, kneeA: 0.4, kneeP: 0.75, ankA: 0.3, ankP: 0.25, pairP: 0.5 }, { freq: 2, spA: 0.28, spP: 0.25, hipA: 0.3, kneeA: 0.3, kneeP: 0.75, ankA: 0.22, ankP: 0.25, pairP: 0.5 }, { freq: 3.2, spA: 0.48, spP: 0.2, hipA: 0.45, kneeA: 0.45, kneeP: 0.7, ankA: 0.3, ankP: 0.25, pairP: 0.4 }],
   donkey: [{ freq: 1.6, side: 0.8, spA: 0.05, spP: 0.5, hipA: 0.3, kneeA: 0.3, kneeP: 0.75, ankA: 0.25, ankP: 0.25, pairP: 0.25 }, { freq: 1.8, side: 0.8, spA: 0.05, spP: 0.5, hipA: 0.28, kneeA: 0.28, kneeP: 0.75, ankA: 0.22, ankP: 0.25, pairP: 0.5 }, { freq: 1.2, side: 0.8, spA: 0.03, spP: 0.5, hipA: 0.22, kneeA: 0.22, kneeP: 0.75, ankA: 0.18, ankP: 0.25, pairP: 0.25 }],
@@ -150,7 +151,7 @@ const GAITS = {
   seal: [{ freq: 2.2, spA: 0.5, spP: 0, hipA: 0.3, hipO: 0.3, kneeA: 0.2, kneeP: 0.75, ankA: 0.1, ankP: 0.25, pairP: 0, aK: 0 }, { freq: 1.6, spA: 0.5, spP: 0, hipA: 0.3, hipO: 0.3, kneeA: 0.2, kneeP: 0.75, ankA: 0.1, ankP: 0.25, pairP: 0, aK: 0 }, { freq: 1, spA: 0.5, spP: 0.5, hipA: 0.3, hipO: -0.3, kneeA: 0.2, kneeP: 0.75, ankA: 0.1, ankP: 0.25, pairP: 0, aK: 0 }],
 };
 // うまく歩けた子の動き（手本）。同じ型のほかの子の出発点にする（tools/logs/type2・type3 の hop 1・biped 1・bird 3、type30 の bound 2）
-const LEARNED = {"hop":[0.576,0.291,0.298,0.313,0.54,0.149,0.247,0.741,0.253,0.119,0.432,0.2,0.962,0.719,0.564,0.607,0.305,0.454,0.388,0.38,0.611,0.5],"bound":[0.707,0.859,0.225,0.423,0.999,0.501,0.571,0.294,0.706,0.052,0.538,0.2,0.473,0.638,0.602,0.104,0.433,0.372,0.537,0.618,0.573,0.5],"biped":[1,0.2,0.492,0.405,0.623,0.084,0.419,0.92,0.217,0.003,0.185,0.2,0.861,0.706,0.282,0.589,0.327,0.375,0.556,0.539,0.599,0.582],"bird":[0.75,0.404,0.732,0.529,0.573,0.014,0.112,0.527,0.268,0.451,0.189,0.2,0.289,0.542,0.483,0.858,0.353,0.387,0.5,0.5,0.5,0.696]};
+const LEARNED = {"walk":[0.816,0.026,0.477,0.161,0.859,0.464,0.421,0.813,0.608,0,0.535,0.971,0.288,0.551,0.671,0.376,0.341,0.346,0.541,0.381,0.342,0.5],"hop":[0.576,0.291,0.298,0.313,0.54,0.149,0.247,0.741,0.253,0.119,0.432,0.2,0.962,0.719,0.564,0.607,0.305,0.454,0.388,0.38,0.611,0.5],"bound":[0.707,0.859,0.225,0.423,0.999,0.501,0.571,0.294,0.706,0.052,0.538,0.2,0.473,0.638,0.602,0.104,0.433,0.372,0.537,0.618,0.573,0.5],"biped":[1,0.2,0.492,0.405,0.623,0.084,0.419,0.92,0.217,0.003,0.185,0.2,0.861,0.706,0.282,0.589,0.327,0.375,0.556,0.539,0.599,0.582],"bird":[0.75,0.404,0.732,0.529,0.573,0.014,0.112,0.527,0.268,0.451,0.189,0.2,0.289,0.542,0.483,0.858,0.353,0.387,0.5,0.5,0.5,0.696]};
 const TYPE_SEEDS = Object.fromEntries(Object.entries(GAITS).map(([k, a]) => [k, [...(LEARNED[k] ? [LEARNED[k]] : []), ...a.map(seedOf)]]));
 const BY_SEG = { donkey: { 2: [0.662,0.252,0.321,0.208,0.618,0.217,0.212,0.584,0.703,0.08,0.448,0.605,0.877,0.423,0.886,0.502,0.278,0.35,0.543,0.837,0.468,0.5] }, bird: { 2: [0.75,0.404,0.732,0.529,0.573,0.014,0.112,0.527,0.268,0.451,0.189,0.2,0.289,0.542,0.483,0.858,0.353,0.387,0.5,0.5,0.5,0.696] }, hop: { 2: [0.631,0.39,0.753,0.446,0.452,0.034,0.369,0.311,0.501,0.449,0.84,0.2,0.491,0.999,0.522,0.502,0.318,0.363,0.476,0.489,0.558,0.5], 3: [0.576,0.832,0.158,0.875,0.752,0.011,0.067,0.425,0.477,0.038,0.347,0.2,0.694,0.744,0.577,0.485,0.284,0.482,0.4,0.4,0.189,0.5] } }; // 手本は、よく歩けた子の動き（胴の節の数ごと。節3は動きの穏やかな子がよかった、節2は穏やかな子だと崩れた。tools/logs/type6 の 5・type7 の 14。鳥は type3 の 3）
 const typeSeeds = g => { const s = TYPE_SEEDS[g?.type], b = BY_SEG[g?.type]?.[kidPlan(g).seg]; return s && b ? [b, ...s] : s ?? null; };
@@ -242,7 +243,7 @@ export function kidBends(H) {
 // 確かめ用: 番号から遺伝子をつくる（声のかわり）・試し（trial.js）に渡す体の作り方
 export const KID_KEYS = ['seg', 'neck', 'tail', 'legs', 'legLen', 'girth', 'stop', 'bold', 'vtl', 'fluff'];
 // 生まれる体は、よく歩ける手本の体の近くに（テストプレイ「いくら学習しても歩けない子に当たると、捨てるような悲しいことになる」）。色と耳は声のまま。すでにいる子は変えない
-export const BODY_REF = { hop: 6, bird: 3, snake: 9, donkey: 1, bound: 2 }, BODY_NEAR = { donkey: 0.25, bird: 0.15, hop: 0.3, bound: 0.15 };
+export const BODY_REF = { walk: 8, hop: 6, bird: 3, snake: 9, donkey: 1, bound: 2 }, BODY_NEAR = { walk: 0.15, donkey: 0.25, bird: 0.15, hop: 0.3, bound: 0.15 };
 export function blendBody(g) { const id = BODY_REF[g.type]; if (!id) return g; const r = kidGenes(id * 7919); for (const k of KID_KEYS) if (g[k] != null && r[k] != null) g[k] = r[k] + (g[k] - r[k]) * (BODY_NEAR[g.type] ?? 0.45); return g; }
 export function kidGenes(seed) { let s = seed >>> 0 || 1; const r = () => ((s ^= s << 13, s ^= s >>> 17, s ^= s << 5) >>> 0) / 4294967296; return Object.fromEntries(KID_KEYS.map(k => [k, r()])); }
 const JUMPS = ['hop', 'bound', 'biped', 'seal', 'bird', 'snake'];
