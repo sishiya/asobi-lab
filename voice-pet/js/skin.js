@@ -15,7 +15,7 @@ const smin = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; retu
 export function buildSkinData(shapes, { cell = 0.005, wSharp = 0.012 } = {}) {
   // 1) 距離場を格子でとる
   const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
-  for (const s of shapes) for (const p of [s.a, s.b]) for (let i = 0; i < 3; i++) { const r = Math.max(s.ra, s.rb) + 0.02; lo[i] = Math.min(lo[i], p[i] - r); hi[i] = Math.max(hi[i], p[i] + r); }
+  for (const s of shapes) for (const p of [s.a, s.b]) for (let i = 0; i < 3; i++) { const r = Math.max(s.ra, s.rb) + 0.02 + s.k * 0.4; lo[i] = Math.min(lo[i], p[i] - r); hi[i] = Math.max(hi[i], p[i] + r); }
   const nx = Math.ceil((hi[0] - lo[0]) / cell) + 1, ny = Math.ceil((hi[1] - lo[1]) / cell) + 1, nz = Math.ceil((hi[2] - lo[2]) / cell) + 1;
   const F = new Float32Array(nx * ny * nz), id = (i, j, k) => i + nx * (j + ny * k);
   for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
