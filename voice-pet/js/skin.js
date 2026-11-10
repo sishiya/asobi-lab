@@ -2,7 +2,7 @@
 // 骨の数や長さが変わる声の子にもそのまま使えるように、体の形は「どの骨（剛体）に、どんな太さの肉がつくか」の並びだけで渡す
 // 返すもの: 位置・面・骨の番号と重み（4つまで）・いちばん近い部位の名前（泥やぬれを引く）。描くのはページ（Three.js の SkinnedMesh）
 
-// 肉の形: { part: 部位の名前, body: 剛体, a, b: 両はし（世界の位置）, ra, rb: 両はしの太さ, k: なめらかにつなぐ幅 }
+// 肉の形: { part: 部位の名前, body: 剛体, a, b: 両はし（世界の位置）, ra, rb: 両はしの太さ, k: なめらかにつなぐ幅, limb: 脚の名前（任意。limb のある形は胴とはつながるが、ほかの脚とは溶け合わない） }
 // 線分にそって太さが変わるカプセル（ももは根もとが太く、ひざで細い）
 function shapeDist(s, x, y, z) {
   const ax = s.a[0], ay = s.a[1], az = s.a[2], dx = s.b[0] - ax, dy = s.b[1] - ay, dz = s.b[2] - az, L2 = dx * dx + dy * dy + dz * dz;
@@ -17,11 +17,12 @@ export function buildSkinData(shapes, { cell = 0.005, wSharp = 0.012 } = {}) {
   const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
   for (const s of shapes) for (const p of [s.a, s.b]) for (let i = 0; i < 3; i++) { const r = Math.max(s.ra, s.rb) + 0.02 + s.k * 0.4; lo[i] = Math.min(lo[i], p[i] - r); hi[i] = Math.max(hi[i], p[i] + r); }
   const nx = Math.ceil((hi[0] - lo[0]) / cell) + 1, ny = Math.ceil((hi[1] - lo[1]) / cell) + 1, nz = Math.ceil((hi[2] - lo[2]) / cell) + 1;
-  const F = new Float32Array(nx * ny * nz), id = (i, j, k) => i + nx * (j + ny * k);
+  const F = new Float32Array(nx * ny * nz), id = (i, j, k) => i + nx * (j + ny * k), common = shapes.filter(s => !s.limb), limbs = [...new Set(shapes.map(s => s.limb).filter(Boolean))].map(n => shapes.filter(s => s.limb === n));
   for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
     const x = lo[0] + i * cell, y = lo[1] + j * cell, z = lo[2] + k * cell; let d = 1e9;
-    for (const s of shapes) { const e = shapeDist(s, x, y, z); d = d > 1e8 ? e : smin(d, e, s.k); }
-    F[id(i, j, k)] = d;
+    for (const s of common) { const e = shapeDist(s, x, y, z); d = d > 1e8 ? e : smin(d, e, s.k); }
+    let out = limbs.length ? 1e9 : d; for (const g of limbs) { let f = d; for (const s of g) f = smin(f, shapeDist(s, x, y, z), s.k); out = Math.min(out, f); } // 胴＋脚1本ずつで合わせ、脚どうしはふつうの min（切れ目が残る）
+    F[id(i, j, k)] = out;
   }
   // 2) 面をとる（surface nets: 符号の変わる小部屋ごとに1つの点、符号の変わる辺ごとに四角）
   const cx = nx - 1, cy = ny - 1, cz = nz - 1, cv = new Int32Array(cx * cy * cz).fill(-1), cid = (i, j, k) => i + cx * (j + cy * k);
@@ -47,8 +48,8 @@ export function buildSkinData(shapes, { cell = 0.005, wSharp = 0.012 } = {}) {
   const bodies = [...new Set(shapes.map(s => s.body))], nv = pos.length / 3;
   const skinIndex = new Uint16Array(nv * 4), skinWeight = new Float32Array(nv * 4), part = new Array(nv);
   for (let q = 0; q < nv; q++) {
-    const x = pos[q * 3], y = pos[q * 3 + 1], z = pos[q * 3 + 2], ds = shapes.map(s => shapeDist(s, x, y, z)), dmin = Math.min(...ds), w = new Map();
-    shapes.forEach((s, i) => { const e = Math.exp(-(ds[i] - dmin) / wSharp); w.set(s.body, (w.get(s.body) || 0) + e); if (ds[i] === dmin) part[q] = s.part; });
+    const x = pos[q * 3], y = pos[q * 3 + 1], z = pos[q * 3 + 2], ds = shapes.map(s => shapeDist(s, x, y, z)), dmin = Math.min(...ds), w = new Map(), near = shapes[ds.indexOf(dmin)].limb;
+    shapes.forEach((s, i) => { if (s.limb && near && s.limb !== near) return; /* ほかの脚には引かれない */ const e = Math.exp(-(ds[i] - dmin) / wSharp); w.set(s.body, (w.get(s.body) || 0) + e); if (ds[i] === dmin) part[q] = s.part; });
     const top = [...w.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4), tot = top.reduce((t, e) => t + e[1], 0);
     top.forEach(([b, e], m) => { skinIndex[q * 4 + m] = bodies.indexOf(b); skinWeight[q * 4 + m] = e / tot; });
   }

@@ -79,6 +79,21 @@ export function makeFeltBall(color, { r = 0.05, sx = 1, sy = 1, sz = 1, seg = 24
   for (let k = 1; k <= fuzz; k++) { const sh = new THREE.Mesh(g, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.9, sheenRoughness: 0.8, sheenColor: 0xf2e6d4 }), { shell: k / fuzz, len, freq: 330, rest: false })); sh.castShadow = false; m.add(sh); }
   return m;
 }
+// 小物をまとめて1つのフェルトの網に（ひとつずつ置くと描く回数がふえる）。list＝[[geometry, 色 か (x, y, z) => 色], …]
+export function feltMerged(list, { fuzz = 0, len = 0.005, freq = 330 } = {}) {
+  let nv = 0, ni = 0; for (const [g] of list) { nv += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; }
+  const P = new Float32Array(nv * 3), N = new Float32Array(nv * 3), C = new Float32Array(nv * 3), I = new Uint32Array(ni); let v = 0, q = 0;
+  for (const [g, c] of list) {
+    const p = g.attributes.position, n = g.attributes.normal, count = p.count;
+    for (let j = 0; j < count; j++) { const x = p.getX(j), y = p.getY(j), z = p.getZ(j); P.set([x, y, z], (v + j) * 3); N.set([n.getX(j), n.getY(j), n.getZ(j)], (v + j) * 3); C.set(typeof c === 'function' ? c(x, y, z) : c, (v + j) * 3); }
+    if (g.index) for (let j = 0; j < g.index.count; j++) I[q++] = v + g.index.getX(j); else for (let j = 0; j < count; j++) I[q++] = v + j;
+    v += count;
+  }
+  const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.BufferAttribute(P, 3)); out.setAttribute('normal', new THREE.BufferAttribute(N, 3)); out.setIndex(new THREE.BufferAttribute(I, 1));
+  const m = feltMesh(out); out.attributes.color.array.set(C);
+  for (let k = 1; k <= fuzz; k++) { const sh = new THREE.Mesh(out, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.9, sheenRoughness: 0.8, sheenColor: 0xf2e6d4 }), { shell: k / fuzz, len, freq, rest: false })); sh.castShadow = false; m.add(sh); }
+  return m;
+}
 // 形を1色のフェルトに（たまごの花びらなど）。色は geometry の color を後から変えてよい
 export function feltMesh(g, color = [1, 1, 1], { side = THREE.FrontSide } = {}) {
   const n = g.attributes.position.count, c = new Float32Array(n * 3);

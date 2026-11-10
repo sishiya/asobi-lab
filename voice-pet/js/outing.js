@@ -7,13 +7,14 @@ import { height, SIZE } from './ground.js';
 import { pose } from './hare.js';
 import { makeField, contactPoint, slumped } from './trial.js';
 import { mud, makeDirt, stepDirt } from './dirt.js';
-import { feltify, makeFeltGround, makeFeltBody, makeFeltBall, makeDiorama, HARE_FACE } from './felt.js';
+import { feltMerged, feltify, makeFeltGround, makeFeltBody, makeFeltBall, makeDiorama, HARE_FACE } from './felt.js';
 import { kidBody, kidShapes, kidBends } from './kid.js';
 import { lookFur, lookFace } from './kid-look.js';
 import { makeBurr, SEED_KINDS } from './garden.js';
 import { driveGetup, decodeGetup, GETUP_UP } from './getup.js';
 import { gesture } from './gesture.js';
 import { makeSplash } from './splash.js';
+import { buildSkinData } from './skin.js';
 
 const CSS = `
   #out { position: fixed; inset: 0; pointer-events: none; }
@@ -54,16 +55,32 @@ export function makeOuting(R, renderer, { onHome }) {
 
   // 藪（目当て）: どの藪でも、ふれるとひっつき虫がつく（でかけるごとに1か所1度）。まだふれていない藪は明るく、ふれると暗くなる（「光る藪だけ」はわかりづらかった）
   const BUSHES = [[3, 0.6], [4.5, 3.4], [1.5, 5.5], [-1.5, 3.5], [-0.5, 0.5]];
-  const ball = new THREE.SphereGeometry(1, 20, 14); ball.setAttribute('wet', new THREE.BufferAttribute(new Float32Array(ball.attributes.position.count), 1)); ball.setAttribute('fluff', new THREE.BufferAttribute(new Float32Array(ball.attributes.position.count).fill(1), 1));
-  const bushMat = (c, e = 0, shell = 0) => feltify(new THREE.MeshPhysicalMaterial({ color: c, roughness: 1, sheen: 0.8, sheenRoughness: 0.8, sheenColor: 0xdfe8b8, emissive: e ? 0x3a4a14 : 0, emissiveIntensity: e, alphaHash: true }), { shell, len: 0.012, freq: 120, rest: false });
+  const bushMat = (tint, shell = 0) => feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, color: tint, roughness: 1, sheen: 0.8, sheenRoughness: 0.8, sheenColor: 0xdfe0b0, alphaHash: true }), { shell, len: 0.02, freq: 150, rest: false });
+  const BUSH_SHELLS = [0, 0.2, 0.4, 0.6, 0.8, 1], mixC = (a, b, t) => a.map((v, n) => v + (b[n] - v) * t);
   const bushes = BUSHES.map(([x, z], i) => {
     const g = new THREE.Group(); g.position.set(x, height(x, z), z); g.userData.fade = 1; g.userData.mats = { off: [], on: [] };
-    for (const [, sh] of [[0, 0], [1, 0.34], [2, 0.67], [3, 1]]) { g.userData.mats.off.push(bushMat(0x4a5c36, 0, sh)); g.userData.mats.on.push(bushMat(0x6f8a46, 0.45, sh)); }
-    for (let k = 0; k < 7; k++) {
-      const a = k * 2.4 + i, r = 0.12 + (k % 3) * 0.05, pos = [Math.cos(a) * 0.15 * (k % 4) / 2, r * 0.8 + (k % 2) * 0.08, Math.sin(a) * 0.15 * (k % 4) / 2];
-      for (let s = 0; s < 4; s++) { const m = new THREE.Mesh(ball, g.userData.mats.off[s]); m.scale.setScalar(r); m.position.set(...pos); m.castShadow = s === 0; m.receiveShadow = true; m.userData.s = s; g.add(m); }
+    let sd = i * 97 + 13; const rnd = () => (sd = sd * 16807 % 2147483647) / 2147483647, B = [[0, 0.17, 0, 0.24]];
+    for (let k = 0; k < 7; k++) { const a = k * 2.4 + rnd(), d = 0.17 + rnd() * 0.07, r = 0.11 + rnd() * 0.07; B.push([Math.cos(a) * d, r * 0.75 + rnd() * 0.07, Math.sin(a) * d, r]); }
+    for (let k = 0; k < 16; k++) { const a = rnd() * 6.283, u = 0.15 + rnd() * 0.85, sp = Math.sqrt(1 - u * u), R = 0.28 + rnd() * 0.05, r = 0.05 + rnd() * 0.05; B.push([Math.cos(a) * sp * R, 0.1 + u * R, Math.sin(a) * sp * R, r]); } // 大きなふくらみの上に小さなふくらみ
+    const S = buildSkinData(B.map(([bx, by, bz, r]) => ({ part: 'bush', body: g, a: [bx, by, bz], b: [bx, by, bz], ra: r, rb: r, k: 0.03 })), { cell: 0.02 });
+    const geo = new THREE.BufferGeometry(), n = S.position.length / 3, col = new Float32Array(n * 3); geo.setAttribute('position', new THREE.BufferAttribute(S.position, 3)); geo.setIndex(S.index); geo.computeVertexNormals();
+    for (let v = 0; v < n; v++) { // 色: 根もとと谷は濃く、上の毛先は明るい。枯れ色のまだら。地面の黄緑から浮かない色に
+      const px = S.position[v * 3], py = S.position[v * 3 + 1], pz = S.position[v * 3 + 2]; let d1 = 9, d2 = 9; for (const [bx, by, bz, r] of B) { const e = Math.hypot(px - bx, py - by, pz - bz) - r; if (e < d1) { d2 = d1; d1 = e; } else if (e < d2) d2 = e; }
+      const valley = 1 - Math.min(1, (d2 - d1) / 0.05), mot = 0.5 + 0.5 * Math.sin(px * 31 + i) * Math.sin(py * 27 + 1.3) * Math.sin(pz * 29), c0 = mixC([0.25, 0.3, 0.13], [0.45, 0.48, 0.21], Math.min(1, py / 0.45)), c1 = mixC(c0, [0.56, 0.52, 0.27], mot * mot * 0.55);
+      col.set(mixC(c1, [0.13, 0.16, 0.08], valley * 0.75), v * 3);
     }
-    for (let k = 0; k < 9; k++) { const a = k * 2.4 + i, u = 0.25 + (k % 4) * 0.2, f = makeFeltBall(SEED_KINDS[i].petal, { r: 0.022, sy: 0.7, seg: 12, fuzz: 2, len: 0.005 }); f.position.set(Math.cos(a) * 0.3 * (1 - u * 0.4), 0.14 + u * 0.28, Math.sin(a) * 0.3 * (1 - u * 0.4)); f.userData.s = 0; f.userData.flower = true; g.add(f); } // 藪にその花が咲いている（どの花の藪かわかる）
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('wet', new THREE.BufferAttribute(new Float32Array(n), 1)); geo.setAttribute('fluff', new THREE.BufferAttribute(new Float32Array(n).fill(1), 1));
+    BUSH_SHELLS.forEach((sh, s) => { g.userData.mats.off.push(bushMat(0x8d9080, sh)); g.userData.mats.on.push(bushMat(0xffffff, sh)); const m = new THREE.Mesh(geo, g.userData.mats.off[s]); m.castShadow = s === 0; m.receiveShadow = true; m.userData.s = s; g.add(m); });
+    const flowers = [], M = new THREE.Matrix4(), Q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0);
+    for (let k = 0; k < 14; k++) { // その藪の花（どの花の藪かわかる）: 表面まで進んで、面の向きに咲かせる
+      const a = k * 2.4 + i, u = 0.22 + (k % 5) * 0.17, sp = Math.sqrt(1 - u * u), dir = new THREE.Vector3(Math.cos(a) * sp, u, Math.sin(a) * sp), p = new THREE.Vector3(0, 0.1, 0), q = new THREE.Vector3(); let t = 0;
+      const inside = () => B.some(([bx, by, bz, r]) => q.set(bx, by, bz).distanceTo(p) < r); while (inside() && t < 0.8) { p.addScaledVector(dir, 0.01); t += 0.01; }
+      let nb = B[0], nd = 9; for (const b of B) { const e = q.set(b[0], b[1], b[2]).distanceTo(p) - b[3]; if (Math.abs(e) < nd) { nd = Math.abs(e); nb = b; } } const nor = new THREE.Vector3().subVectors(p, q.set(nb[0], nb[1], nb[2])).normalize(); p.addScaledVector(nor, 0.012);
+      Q.setFromUnitVectors(Y, nor); M.compose(p, Q, new THREE.Vector3(1, 1, 1));
+      for (let e = 0; e < 5; e++) { const pe = new THREE.SphereGeometry(1, 8, 6); pe.scale(0.024, 0.008, 0.015); pe.translate(0.024, 0, 0); pe.rotateY(e / 5 * 6.283); pe.applyMatrix4(M); flowers.push([pe, SEED_KINDS[i].petal]); }
+      const ce = new THREE.SphereGeometry(0.011, 8, 6); ce.translate(0, 0.005, 0); ce.applyMatrix4(M); flowers.push([ce, [0.84, 0.66, 0.26]]);
+    }
+    const f = feltMerged(flowers); f.userData.s = 0; f.userData.flower = true; g.add(f);
     scene.add(g); return g;
   });
   const BUSH_TOUCH = 0.55, touched = BUSHES.map(() => false), lit = () => bushes.forEach((b, k) => b.children.forEach(m => { if (!m.userData.flower) m.material = b.userData.mats[touched[k] ? 'off' : 'on'][m.userData.s]; })); // BUSH_TOUCH＝藪の見た目のふち＋体の半分
