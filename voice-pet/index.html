@@ -15,7 +15,7 @@
   canvas { display: block; }
   /* 上: 左に子のようす、まんなかに 育てる／走る の切りかえ（2つの画面を行き来する） */
   #leftCol { position: fixed; left: 24px; top: 88px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-  #hud { background: var(--panel); border-radius: 12px; padding: 8px 12px; line-height: 1.6; font-size: 13px; max-width: calc(100vw - 64px); }
+  #hud { background: var(--panel); border-radius: 14px; padding: 8px 12px; line-height: 1.6; font-size: 13px; max-width: calc(100vw - 64px); }
   #hud small { color: var(--dim); }
   #hud[hidden] { display: none; }
   body:not(.grow) #herdRow, body.fw #herdRow { display: none; }
@@ -23,8 +23,8 @@
   #name { border: 0; font: inherit; font-size: 16px; font-weight: 600; color: var(--ink); padding: 0 22px 1px 0; width: 9em; outline: none; border-bottom: 1px dashed rgba(44,42,38,.35); background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4 14.5V16h1.5l8.6-8.6-1.5-1.5L4 14.5zM15.7 5.8a.8.8 0 0 0 0-1.1l-.4-.4a.8.8 0 0 0-1.1 0l-.9.9 1.5 1.5.9-.9z' fill='%236b5a3e'/%3E%3C/svg%3E") no-repeat right 2px center / 15px; cursor: text; }
   #name:focus { border-bottom: 1px solid var(--on); }
   /* 名前は字を打つ所に見せる（ユーザー「ボタンっぽい見た目でわかりづらい」）: 角の小さい四角・ふちの線・白い地・左に字・右にえんぴつ。押せる丸いボタンとは形を分ける */
-  #adopt input { box-sizing: border-box; width: 220px; font: inherit; font-size: 16px; text-align: left; padding: 10px 36px 10px 12px; border: 1.5px solid rgba(44,42,38,.35); border-radius: 8px; background: #fffdf8 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4 14.5V16h1.5l8.6-8.6-1.5-1.5L4 14.5zM15.7 5.8a.8.8 0 0 0 0-1.1l-.4-.4a.8.8 0 0 0-1.1 0l-.9.9 1.5 1.5.9-.9z' fill='%236b5a3e'/%3E%3C/svg%3E") no-repeat right 10px center / 18px; box-shadow: inset 0 1px 3px rgba(44,42,38,.12); outline: none; cursor: text; } /* 16px＝スマホで押しても画面が寄らない */
-  #adopt input:focus { border-color: var(--on); box-shadow: inset 0 1px 3px rgba(44,42,38,.12), 0 0 0 3px rgba(107,90,62,.18); }
+  #adopt input, #status #name { box-sizing: border-box; width: 220px; font: inherit; font-size: 16px; text-align: left; padding: 10px 36px 10px 12px; border: 1.5px solid rgba(44,42,38,.35); border-radius: 8px; background: #fffdf8 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4 14.5V16h1.5l8.6-8.6-1.5-1.5L4 14.5zM15.7 5.8a.8.8 0 0 0 0-1.1l-.4-.4a.8.8 0 0 0-1.1 0l-.9.9 1.5 1.5.9-.9z' fill='%236b5a3e'/%3E%3C/svg%3E") no-repeat right 10px center / 18px; box-shadow: inset 0 1px 3px rgba(44,42,38,.12); outline: none; cursor: text; } /* 16px＝スマホで押しても画面が寄らない */
+  #adopt input:focus, #status #name:focus { border-color: var(--on); box-shadow: inset 0 1px 3px rgba(44,42,38,.12), 0 0 0 3px rgba(107,90,62,.18); }
   #hud .meter { height: 7px; background: rgba(44,42,38,.12); border-radius: 4px; margin: 4px 0 2px; width: 170px; } /* 太い棒（UX 案9） */
   /* いっしょに育てている子（2匹から）: 名前を押すと、その子を見る・練習する子にする */
   #herdRow { position: fixed; left: 24px; top: 248px; display: flex; flex-direction: column; gap: 6px; } /* パネルの高さが変わっても動かない */
@@ -59,8 +59,8 @@
   /* 水浴び（テストプレイ「押しやすい位置に」）: 右下。押しながら話すの横に並ぶと近すぎる幅では、その上へ */
   #wash { position: fixed; right: 28px; bottom: 32px; width: 64px; height: 64px; padding: 0; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 11px; }
   #wash[hidden] { display: none; }
-  /* 起こす（テストプレイ「水浴び系の介入アクション」）: 水浴びと同じ形で、そのすぐ上に。いつでも押せる */
-  #rescue { position: fixed; right: 28px; bottom: 104px; width: 64px; height: 64px; padding: 0; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 11px; }
+  /* 風でよぶ（テストプレイ「水浴び系の介入アクション」）: 水浴びと同じ形で、その上に。いつでも押せる。子を風で真ん中へ運ぶ */
+  #rescue { position: fixed; right: 28px; bottom: 118px; width: 64px; height: 64px; padding: 0; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 11px; }
   #rescue svg { width: 22px; height: 22px; }
   #rescue[hidden], body.fw #rescue, body:not(.grow) #rescue { display: none; }
   #wash svg { width: 22px; height: 22px; }
@@ -106,18 +106,18 @@
     #hud .meter { width: 100%; }
     #gardenRow { gap: 3px; font-size: 0; margin-top: 3px; } #gardenRow i { width: 12px; height: 12px; }
   }
-  @media (max-width: 767px) and (orientation: portrait) { #wash { bottom: 142px; right: 24px; } #rescue { bottom: 214px; right: 24px; } }
-  @media (max-height: 500px) and (orientation: landscape) { .tabs { top: 14px; } #menu { top: 14px; right: 28px; } #menuPanel { top: 64px; right: 28px; max-height: calc(100vh - 76px); } #leftCol { left: 28px; top: 72px; } #herdRow { left: 164px; top: 72px; flex-direction: row; } #bar #focusBtn { min-width: 0; width: 100%; padding: 10px 16px; font-size: 15px; margin-bottom: 42px; } #rescue { right: 408px; bottom: 16px; } }
-  /* フリーカメラのあいだは話しかけないので、話すボタンの場所に「子にもどる」。水浴び・起こすもしまう（テストプレイ） */
+  @media (max-width: 767px) and (orientation: portrait) { #wash { bottom: 142px; right: 24px; } #rescue { bottom: 228px; right: 24px; } }
+  @media (max-height: 500px) and (orientation: landscape) { .tabs { top: 14px; } #menu { top: 14px; right: 28px; } #menuPanel { top: 64px; right: 28px; max-height: calc(100vh - 76px); } #leftCol { left: 28px; top: 72px; } #herdRow { left: 164px; top: 72px; flex-direction: row; } #bar #focusBtn { min-width: 0; width: 100%; padding: 10px 16px; font-size: 15px; margin-bottom: 42px; } #rescue { right: 418px; bottom: 16px; } }
+  /* フリーカメラのあいだは話しかけないので、話すボタンの場所に「子にもどる」。水浴び・風でよぶもしまう（テストプレイ） */
   #focusBtn { border: 0; background: var(--on); color: #fff; font: inherit; font-size: 17px; line-height: normal; padding: 14px 26px; min-width: 220px; margin-bottom: 46px; border-radius: 999px; cursor: pointer; box-shadow: 0 2px 10px rgba(44,42,38,.22); }
   #focusBtn[hidden], body.out #focusBtn, body.fw #focusBtn, body.title #focusBtn { display: none; }
   body.free #mic, body.free #mode, body.free #sampToggle, body.free #samples, body.free .lab, body.free #wash, body.free #rescue { display: none !important; }
   #menuPanel { max-height: calc(100vh - 92px); overflow-y: auto; touch-action: pan-y; }
   #menuPanel .hd { font-size: 12px; color: var(--dim); }
-  #mDebug { display: grid; gap: 6px; } #mDebug[hidden] { display: none; } #mDebug select { width: 140px; font: inherit; }
+  #mDebug { display: grid; gap: 6px; } #mDebug[hidden] { display: none; } #mDebug select { width: 140px; font: inherit; color: var(--ink); -webkit-appearance: none; appearance: none; border: 0; min-height: 40px; padding: 0 30px 0 14px; border-radius: 999px; cursor: pointer; background: rgba(44,42,38,.07) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%236b5a3e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center / 12px; } /* ボタンと同じ丸い面（ブラウザの標準のままだと、ここだけ別物に見えた） */
   #menuPanel .opt { display: grid; grid-template-columns: 4.5em 140px; align-items: center; }
   #menuPanel .seg { display: flex; gap: 4px; }
-  #menuPanel .seg button { flex: 1; min-height: 40px; font-size: 13px; padding: 0 4px; }
+  #menuPanel .seg button { flex: 1 1 auto; white-space: nowrap; min-height: 40px; font-size: 13px; padding: 0 4px; }
   #menuPanel .seg button.on { background: var(--on); color: #fff; }
   /* 歩き方を始め直すかを聞くカード（育てるのとき、下のメニューの上に1つだけ） */
   #ask { background: var(--panel); border-radius: 14px; padding: 10px 14px; text-align: center; max-width: 320px; box-shadow: 0 2px 10px rgba(44,42,38,.18); margin-bottom: 6px; }
@@ -126,12 +126,12 @@
   #release[hidden] { display: none; }
   #release p { margin: 0 0 10px; line-height: 1.5; font-weight: 600; }
   #relKids { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; flex-wrap: wrap; }
-  #relKids button { border: 1.5px solid rgba(44,42,38,.3); background: #fffdf8; font: inherit; font-size: 15px; min-height: 48px; padding: 6px 16px; border-radius: 12px; cursor: pointer; }
+  #relKids button { border: 0; background: rgba(44,42,38,.07); color: var(--ink); font: inherit; font-size: 15px; min-height: 48px; padding: 6px 20px; border-radius: 999px; cursor: pointer; }
   #relKids small { display: block; font-size: 11px; color: var(--dim); }
   #relKids button { transition: transform .12s, background .15s, color .15s, opacity .25s; }
-  #relKids button:hover { border-color: var(--on); }
+  #relKids button:hover { background: rgba(44,42,38,.13); }
   #relKids button:active { transform: scale(.94); }
-  #relKids button.picked { background: var(--on); color: #fff; border-color: var(--on); transform: scale(1.06); }
+  #relKids button.picked { background: var(--on); color: #fff; transform: scale(1.06); }
   #relKids button.picked small { color: rgba(255,255,255,.8); }
   #relKids.done button:not(.picked) { opacity: .3; }
   /* お別れの場面: 操作をしまって、ことばだけ。さわると飛ばせる */
@@ -140,17 +140,17 @@
   #ask p { margin: 0 0 8px; line-height: 1.5; }
   #ask div { display: flex; gap: 8px; justify-content: center; }
   #ask button { border: 0; font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 999px; cursor: pointer; min-height: 40px; }
-  #askKeep { background: var(--on); color: #fff; } #askReset { background: rgba(44,42,38,.08); color: var(--ink); }
+  #askKeep { background: var(--on); color: #fff; } #askReset { background: rgba(44,42,38,.07); color: var(--ink); }
   #menu { position: fixed; z-index: 21; right: 24px; top: 24px; width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; border: 0; background: var(--panel); color: var(--on); border-radius: 50%; cursor: pointer; box-shadow: 0 1px 3px rgba(107,90,62,.14); } /* まわりになじむよう、ボタンと同じ茶色の手書きふうの線・ほかのボタンと同じ地・ごく薄い影（真っ黒の線は浮いて見えた。地を薄くすると、この丸だけ草が透けた） */
   /* メニュー（ユーザー「音の場所にメニューボタンを配置し、そこから音変更やタイトルにもどったり」）: 右上。音の大きさのつまみと、タイトルへ・最初から */
-  #menuPanel { z-index: 20; position: fixed; right: 24px; top: 76px; background: var(--panel); border-radius: 12px; padding: 10px 14px; box-shadow: 0 2px 10px rgba(44,42,38,.18); display: grid; gap: 6px; font-size: 13px; }
+  #menuPanel { z-index: 20; position: fixed; right: 24px; top: 76px; background: #faf7f0; border-radius: 14px; padding: 10px 14px; box-shadow: 0 2px 10px rgba(44,42,38,.18); display: grid; gap: 6px; font-size: 13px; }
   #menuPanel[hidden] { display: none; }
   #menuPanel label { display: grid; grid-template-columns: 4.5em 140px; align-items: center; }
   #menuPanel input { width: 140px; accent-color: var(--on); }
   #menuPanel hr { width: 100%; border: 0; border-top: 1px solid rgba(44,42,38,.14); margin: 4px 0; }
-  #menuPanel button { border: 0; background: rgba(44,42,38,.07); font: inherit; font-size: 14px; color: var(--ink); min-height: 44px; border-radius: 10px; cursor: pointer; }
+  #menuPanel button { border: 0; background: rgba(44,42,38,.07); font: inherit; font-size: 14px; color: var(--ink); min-height: 44px; border-radius: 999px; cursor: pointer; }
   #menuPanel button[hidden] { display: none; }
-  #mReset { color: #8a3b2a !important; background: none !important; } /* 消す操作は色を変えて、ほかと分ける */
+  #mReset { color: #8a3b2a !important; background: none !important; border: 1.5px solid #8a3b2a !important; } /* 消す操作は色を変えて、ほかと分ける */
   /* 最初からの確認（消すともどせないので、ワンクッション）。やめる が目立つほう */
   #confirm { position: fixed; inset: 0; z-index: 30; background: rgba(44,42,38,.35); display: flex; align-items: center; justify-content: center; padding: 16px; }
   #confirm[hidden] { display: none; }
@@ -166,7 +166,7 @@
   #status[hidden] { display: none; }
   #status .box { background: #faf7f0; border-radius: 16px; padding: 18px 20px; width: min(320px, 100%); box-sizing: border-box; box-shadow: 0 6px 24px rgba(44,42,38,.3); line-height: 1.6; }
   #status .nm { font-size: 12px; color: var(--dim); }
-  #status #name { display: block; width: 100%; box-sizing: border-box; margin-bottom: 10px; font-size: 18px; }
+  #status #name { display: block; width: 100%; margin-bottom: 10px; }
   #status .top { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
   #status .nmw { flex: 1; min-width: 0; }
   #stFace { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: rgba(44,42,38,.1); border: 3px solid #fff; box-shadow: 0 1px 4px rgba(44,42,38,.25); flex: none; }
@@ -201,7 +201,7 @@
   body.boot #hud, body.boot #bar, body.boot #wash, body.boot .tabs, body.boot #menu { display: none !important; } /* ライブラリを読むあいだはロゴだけ（素の HTML のタブやカードが見えていた） */
   body.boot #startBtn { visibility: hidden; } /* 読み終わるまで押しても動かないので。ロゴがずれないよう場所は残す */
   /* 知らせは、目と指のある 下のまとまりのすぐ上に（UX 案4。画面の上のほうだと見落とした） */
-  #msg { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 12px; font-size: 16px; font-weight: 600; background: var(--panel); border-radius: 999px; padding: 6px 14px; box-shadow: 0 2px 8px rgba(44,42,38,.15); opacity: 0; transition: opacity .4s; pointer-events: none; white-space: nowrap; }
+  #msg { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 12px; font-size: 16px; font-weight: 600; text-shadow: 0 0 8px #faf7f0, 0 0 4px #faf7f0, 0 0 2px #faf7f0; opacity: 0; transition: opacity .4s; pointer-events: none; white-space: nowrap; }
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","@dimforge/rapier3d-compat":"https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"}}</script>
 </head>
@@ -216,8 +216,8 @@
 <button id="menu" aria-label="メニュー" aria-expanded="false" aria-controls="menuPanel"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M4.4 6.8C9 6.1 14.6 7.1 19.7 6.3M4.2 12.2C9.4 11.6 14.4 12.6 19.9 11.9M4.5 17.6C9.2 17 14.8 18 19.6 17.3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg></button>
 <div id="confirm" hidden><div class="box"><h3>最初からはじめますか？</h3><p id="cText"></p><div class="row"><button id="cNo">やめる</button><button id="cYes">消して最初から</button></div></div></div>
 <button id="wash" class="soft" hidden aria-label="水浴びさせる"><svg viewBox="0 0 24 24"><path d="M12 3c-3 4.2-6 7.6-6 11a6 6 0 0 0 12 0c0-3.4-3-6.8-6-11z" fill="#7fb4c4"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>水浴び</button>
-<div id="menuPanel" hidden><label>鳴き声<input id="volCry" type="range" min="0" max="100"></label><label>環境音<input id="volAmb" type="range" min="0" max="100"></label><label>足音<input id="volStep" type="range" min="0" max="100"></label><label>効果音<input id="volSfx" type="range" min="0" max="100"></label><hr><span class="hd">でかけるのカメラ</span><div class="seg" id="mCam"><button data-v="follow">ななめ</button><button data-v="tps">うしろ</button><button data-v="top">見下ろし</button></div><div class="opt">左右<div class="seg" id="mInvX"><button data-v="0">ふつう</button><button data-v="1">逆</button></div></div><div class="opt">上下<div class="seg" id="mInvY"><button data-v="0">ふつう</button><button data-v="1">逆</button></div></div><hr><div id="mDebug" hidden><span class="hd">デバッグ</span><div class="opt">型<select id="dbType"><option>walk</option><option>donkey</option><option>hop</option><option>bird</option><option>snake</option><option>bound</option><option>seal</option><option>biped</option></select></div><div class="opt">色あい<input id="dbHue" type="range" min="0" max="100" value="50"></div><div class="opt">明るさ<input id="dbLight" type="range" min="0" max="100" value="50"></div><div class="opt">毛<select id="dbTone"><option value="">ふつう</option><option value="ink">墨</option><option value="white">白</option></select></div><div class="opt">差し色<input id="dbAcc" type="range" min="-1" max="100" value="-1"></div><button id="dbBirth">この組み合わせで生む</button><div class="opt">皮<div class="seg" id="dbSkin"><button data-v="1">ON</button><button data-v="0">OFF</button></div></div><div class="opt">骨筋<div class="seg" id="dbBones"><button data-v="1">ON</button><button data-v="0">OFF</button></div></div><hr></div><button id="mTitle">タイトルにもどる</button><button id="mReset">最初からはじめる</button></div>
-<button id="rescue" class="soft" hidden aria-label="倒れた子を起こす"><svg viewBox="0 0 24 24" fill="none" stroke="#6b5a3e" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V6M6 11l6-6 6 6"/></svg>起こす</button>
+<div id="menuPanel" hidden><label>鳴き声<input id="volCry" type="range" min="0" max="100"></label><label>環境音<input id="volAmb" type="range" min="0" max="100"></label><label>足音<input id="volStep" type="range" min="0" max="100"></label><label>効果音<input id="volSfx" type="range" min="0" max="100"></label><hr><span class="hd">でかけるのカメラ</span><div class="seg" id="mCam"><button data-v="follow">ついてくる</button><button data-v="tps">うしろ</button><button data-v="top">見下ろし</button></div><div class="opt">左右<div class="seg" id="mInvX"><button data-v="0">ふつう</button><button data-v="1">逆</button></div></div><div class="opt">上下<div class="seg" id="mInvY"><button data-v="0">ふつう</button><button data-v="1">逆</button></div></div><hr><div id="mDebug" hidden><span class="hd">デバッグ</span><div class="opt">型<select id="dbType"><option>walk</option><option>donkey</option><option>hop</option><option>bird</option><option>snake</option><option>bound</option><option>seal</option><option>biped</option></select></div><div class="opt">色あい<input id="dbHue" type="range" min="0" max="100" value="50"></div><div class="opt">明るさ<input id="dbLight" type="range" min="0" max="100" value="50"></div><div class="opt">毛<select id="dbTone"><option value="">ふつう</option><option value="ink">墨</option><option value="white">白</option></select></div><div class="opt">差し色<input id="dbAcc" type="range" min="-1" max="100" value="-1"></div><button id="dbBirth">この組み合わせで生む</button><div class="opt">皮<div class="seg" id="dbSkin"><button data-v="1">ON</button><button data-v="0">OFF</button></div></div><div class="opt">骨筋<div class="seg" id="dbBones"><button data-v="1">ON</button><button data-v="0">OFF</button></div></div><hr></div><button id="mTitle">タイトルにもどる</button><button id="mReset">最初からはじめる</button></div>
+<button id="rescue" class="soft" hidden aria-label="風で子を真ん中へ運ぶ"><svg viewBox="0 0 24 24" fill="none" stroke="#6b5a3e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9.6 4.6A2 2 0 1 1 11 8H2m10.6 11.4A2 2 0 1 0 14 16H2m15.7-8.3A2.5 2.5 0 1 1 19.5 12H2"/></svg>風でよぶ</button>
 <div id="status" hidden><div class="box"><div class="top"><img id="stFace" alt=""><div class="nmw"><label class="nm" for="name">なまえ（変えられます）</label><input id="name" maxlength="10" autocomplete="off" enterkeyhint="done"></div></div><p id="stType"></p><div id="stCols"></div><ul id="stList"></ul><button id="stClose" class="soft">とじる</button></div></div>
 <div id="bar">
   <div id="msg"></div>
@@ -243,14 +243,14 @@ import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import R from '@dimforge/rapier3d-compat';
 import { height } from './js/ground.js';
 import { pose, SELF, GROUND } from './js/hare.js';
-import { makeField, contactPoint } from './js/trial.js';
+import { makeField, contactPoint, slumped } from './js/trial.js';
 import { kidBody, kidShapes, kidBends, kidSeed , scaleFriction, blendBody } from './js/kid.js';
 import { decodeGetup, driveGetup, GETUP_UP } from './js/getup.js';
 import { makeFeltGround, makeFeltBody, makeFeltBall, feltMesh, feltify, makeDiorama, HARE_FACE } from './js/felt.js';
 import { lookGenes, lookFur, lookFace, lookColor, kidName, voiceTints } from './js/kid-look.js';
 import { analyze, A, sampleVoice, founder, rng } from './js/voice-in.js';
 import { loadKids, saveKids, clearKid, MAX_KIDS } from './js/kid-store.js';
-import { makeDirt, stepDirt } from './js/dirt.js';
+import { makeDirt, stepDirt, PUDDLES } from './js/dirt.js';
 import { makeBlob, NMAX } from './js/water-blob.js';
 import { makeOuting } from './js/outing.js';
 import { makeSfx } from './js/sfx.js';
@@ -267,7 +267,7 @@ const cam = new THREE.PerspectiveCamera(38, 1, 0.01, 60);
 scene.add(new THREE.HemisphereLight(0xf6efe0, 0x6a6448, 1.0));
 const sun = new THREE.DirectionalLight(0xfff0d6, 2.2); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.radius = 4;
 Object.assign(sun.shadow.camera, { left: -2, right: 2, top: 2, bottom: -2, near: 0.5, far: 20 }); scene.add(sun, sun.target);
-makeFeltGround(scene, { size: 10, n: 180, cx: 1, cz: 0 });
+makeFeltGround(scene, { size: 10, n: 180, cx: 1, cz: 0, puddles: PUDDLES, fade: 1.45 }); // fade＝端は四角く切らず、だんだん薄く（テストプレイ）
 const DIO = makeDiorama(renderer, scene, cam);
 const $ = id => document.getElementById(id);
 let camSnap = false, homeT = 0, free = null; // free＝育てるのフリーカメラ（見ている点と引きぐあい）
@@ -971,7 +971,7 @@ function step(dt) {
     let a = pfT();
     for (const p of pals) { if (k % 4 === 0 && !p.frozen) feet(p.H, Math.min(1, 1.2 / (0.5 + cam.position.distanceTo(p.FB.headBone.getWorldPosition(_hw))))); if (p.frozen || p === fw?.p) continue; if (p.gust) { driveCurl(p.H, 1); gustSub(p); continue; } if (p.walk) p.B.drive(p.H, p.q, p.t, p.fallT || p.t < 0.4 ? 0 : 1, p.tc ?? 0); else driveCurl(p.H, 1); p.t += 1 / 240; } // いっしょにいる子: 覚えている歩き方で歩く／丸まって眠る
     pfA('物理: ほかの子の筋', a); a = pfT();
-    if (k % 4 === 0) { listenG += Math.max(-3 / 60, Math.min(3 / 60, (rec && mode === 'grow' ? 0 : 1) - listenG)); feet(kid.H, mode === 'grow' ? 1 : 0); kid.FB.mud.hit(stepDirt(D, kid.H, 4 / 240, 0)); } // ぬかるみ（草原の茶色い所）にふれたら泥の点
+    if (k % 4 === 0) { listenG += Math.max(-3 / 60, Math.min(3 / 60, (rec && mode === 'grow' ? 0 : 1) - listenG)); feet(kid.H, mode === 'grow' ? 1 : 0); kid.FB.mud.hit(stepDirt(D, kid.H, 4 / 240, 0, null, mode === 'grow')); } // ぬかるみ（草原の茶色い所）にふれたら泥の点
     if (kid.gust && !fw?.isKid) { driveCurl(kid.H, 1); gustSub(kid); }
     else if (gu) { gu.t += 1 / 240; if (gu.stopAt == null && gu.t > 0.2 && k % 8 === 0 && pose(kid.H).up > GETUP_UP) gu.stopAt = gu.t; if (driveGetup(kid.H, gu.q, gu.t, gu.d, gu.stopAt)) { gu = null; fallT = 0; t = 0; } }
     else if (!fw?.isKid) kid.B.drive(kid.H, kid.q, t, fallT || t < 0.4 ? 0 : listenG, kid.tc ?? 0); // listenG＝話しかけているあいだは足を止めて聞く
@@ -981,22 +981,24 @@ function step(dt) {
   }
   for (const p of pals) if (!p.walk && !p.frozen && p.t > 2.5) { p.frozen = true; for (const b of Object.values(p.H.parts)) b.body.setBodyType(R.RigidBodyType.Fixed, true); } // 眠っている子は、丸まって落ち着いたら体を止める（物理の計算から外す。見た目の寝息は皮だけで）
   stepFarewell(dt); stepFullBloom(dt); stepGust(kid, dt); pals.forEach(p => stepGust(p, dt)); stepGustOld(dt);
-  for (const p of pals) { if (!p.walk || p === fw?.p || p.gust) continue; const Q = pose(p.H); steerHome(p, Q, p.home, 1.5, 1); if (!p.fallT && (Q.up < 0.35 || Q.y - height(Q.x, Q.z) < p.H.fallH)) p.fallT = clock; if (p.fallT && clock - p.fallT > 0.8) palRestart(p, false); else if (Math.hypot(Q.x - p.home[0], Q.z - p.home[2]) > 2.2) startGust(p, p.home); }
+  for (const p of pals) { if (!p.walk || p === fw?.p || p.gust) continue; const Q = pose(p.H); if (steerHome(p, Q, p.home, 1.5, 1)) { startGust(p, p.home); continue; } if (!p.fallT && slumped(p.H, Q, clock)) { palRestart(p, false); continue; } if (!p.fallT && (Q.up < 0.35 || Q.y - height(Q.x, Q.z) < p.H.fallH)) p.fallT = clock; if (p.fallT && clock - p.fallT > 0.8) palRestart(p, false); else if (Math.hypot(Q.x - p.home[0], Q.z - p.home[2]) > 2.2) startGust(p, p.home); }
   if (fw?.isKid) return; // お別れの最中は、転んだ・遠くへ行ったの判定をしない
   if (kid.gust) return; // 風で運ばれているあいだは、転んだ・遠くへ行ったの判定をしない
-  const P = pose(kid.H); steerHome(kid, P, [0, 0, 0], 2.2, 1.5);
+  const P = pose(kid.H); if (steerHome(kid, P, [0, 0, 0], 2.2, 1.5)) { blowHome(true); return; }
   // 転んだら: 起き上がりを覚えた子は、少し待って自分で起きる。覚えていない子と、4 秒で起きられなかったときは、その場で起き直す（失敗の文字は出さない。GAME.md 9.7）。遠くへ行ったら真ん中へもどす
+  if (!fallT && !gu && slumped(kid.H, P, clock)) { if (mode === 'grow') SFX.thud(0.18); restart(P, false); return; } // 起き上がりの型は横に倒れたとき用なので、鼻をついた姿勢は立たせ直す
   if (!fallT && !gu && (P.up < 0.35 || P.y - height(P.x, P.z) < kid.H.fallH)) { fallT = clock; if (mode === 'grow') SFX.thud(0.18); }
   if (fallT && !gu && clock - fallT > 0.6 && kid.getup?.v) gu = { t: 0, q: decodeGetup(kid.getup.v), d: Math.sign(P.roll) || 1, stopAt: null };
   if (gu && gu.t > 4) { gu = null; restart(P, false); }
-  else if (fallT && !gu && !kid.getup?.v && clock - fallT > 0.8) restart(P, false); else if (Math.hypot(P.x, P.z) > 3) { startGust(kid, freeSpot([0, 0, 0], kid.H)); show(`${kid.name} は 風にのって もどってきた`); free = null; }
+  else if (fallT && !gu && !kid.getup?.v && clock - fallT > 0.8) restart(P, false); else if (Math.hypot(P.x, P.z) > 3) blowHome();
 }
+function blowHome(keepCam) { gu = null; fallT = 0; startGust(kid, freeSpot([0, 0, 0], kid.H)); show(`${kid.name} は 風にのって もどってきた`); if (!keepCam) free = null; } // 端まで行った子も、起こすボタンも、小屋のそばで立ち往生した子も、風で真ん中へ
 // 瞬間移動をなくす（テストプレイ「フリーカメラで追っているとリセットで消える」）: 端に近づいたら自分で向きを変えて戻る。曲がれない子は、おわかれと同じらせんの風で ふわっと運ぶ
 const wrapH = a => a - Math.round(a / (Math.PI * 2)) * Math.PI * 2;
-function steerHome(o, Q, home, out, back) { const r = Math.hypot(Q.x - home[0], Q.z - home[2]); if (r > out) o.turning = true; else if (r < back) o.turning = false; o.tc = o.turning ? Math.max(-1, Math.min(1, wrapH(Math.atan2(home[2] - Q.z, home[0] - Q.x) - Q.yaw) * 1.5)) : 0; }
-// 起こす: その場で風がそっと持ち上げて、立つ高さに下ろす（瞬間移動にしない）
-$('rescue').addEventListener('click', () => { if (!kid || kid.gust) return; const P = pose(kid.H), p = kid.H.plan; gu = null; fallT = 0; startGust(kid, [P.x, 0, P.z]); kid.gust.h0 = p.pairs ? p.legL * 1.75 + p.legR : p.r + 0.01; });
-function startGust(o, to) { if (o.gust) return; o.tc = 0; o.turning = false; o.gust = { t: 0, H: o.H, wind: [], to: [to[0], to[2]], h0: null }; }
+function steerHome(o, Q, home, out, back) { const r = Math.hypot(Q.x - home[0], Q.z - home[2]); if (r > out) o.turning = true; else if (r < back) o.turning = false; o.tc = o.turning ? Math.max(-1, Math.min(1, wrapH(Math.atan2(home[2] - Q.z, home[0] - Q.x) - Q.yaw) * 1.5)) : 0; const hx = Q.x - HUT[0], hz = Q.z - HUT[1], hd = Math.hypot(hx, hz); if (hd < 0.95 && Math.cos(Q.yaw) * hx + Math.sin(Q.yaw) * hz < 0.2 * hd) o.tc = Math.max(-1, Math.min(1, wrapH(Math.atan2(hz, hx) - Q.yaw) * 1.5)); /* 小屋の壁に鼻を押しつけ続けない（テストプレイ「帰ってきてから引っかかって歩けない」。庭の花に当たりはない） */ if (hd > 1.3 || o.stuckT == null) { o.stuckT = clock; o.stuckX = Q.x; o.stuckZ = Q.z; return false; } if (clock - o.stuckT < 4) return false; const stuck = Math.hypot(Q.x - o.stuckX, Q.z - o.stuckZ) < 0.15; o.stuckT = clock; o.stuckX = Q.x; o.stuckZ = Q.z; return stuck; } // 返すのは「小屋のそばで 4 秒ほとんど進めなかった」（戸口に帰った歩けない子も。風で真ん中へ運ぶ）
+// 風でよぶ: 端まで行ったときと同じ風で真ん中へ運び、立つ高さに下ろす（瞬間移動にしない）
+$('rescue').addEventListener('click', () => { if (kid && !kid.gust) blowHome(); });
+function startGust(o, to) { if (o.gust) return; const p = o.H.plan; o.tc = 0; o.turning = false; o.gust = { t: 0, H: o.H, wind: [], to: [to[0], to[2]], h0: p.pairs ? p.legL * 1.75 + p.legR : p.r + 0.01 }; } // h0＝立った高さ（転んでいても立って下りる）
 const gustOld = [];
 function endGust(o) { if (!o.gust) return; gustOld.push(...o.gust.wind); o.gust = null; }
 function gustSub(o) { // 体全体をひとつの固い体のように運ぶ（おわかれの風と同じ）。いつも水平へもどしながら、目的地で元の高さに下ろす

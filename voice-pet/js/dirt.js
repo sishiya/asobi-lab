@@ -12,6 +12,10 @@ export function mud(x, z, rain = 0) {
   return Math.max(0, Math.min(1, m * 1.6 * (1 + 0.2 * Math.sin(x * 9.1 + z * 7.7)))); // ふちは少しまだら
 }
 
+// 水たまり（ホームだけ）: 泥はつかず、ふれた所がぬれる。地面の高さは変えない（テストプレイ「浸かるほどにはしない。溺れているように見える」）
+export const PUDDLES = [[0.62, -1.2, 0.42], [1.02, -1.48, 0.27]];
+export function puddle(x, z) { let m = 0; for (const [px, pz, r] of PUDDLES) { const d = Math.hypot(x - px, z - pz) / r; m = Math.max(m, 1 - d * d); } return Math.max(0, Math.min(1, m * 1.6)); }
+
 // 部位の当たりの両はし（骨の中心から）。玉は中心だけ
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 export function makeDirt(H) {
@@ -27,12 +31,12 @@ export function makeDirt(H) {
 function points(s) { const t = s.body.translation(), q = s.body.rotation(); return s.ends.map(e => { const d = rotv(q, e); return [t.x + d[0], t.y + d[1], t.z + d[2]]; }); }
 
 // 1こま（dt 秒）。rain＝雨の強さ 0..1。返すのは、このこまで泥がついた点（[{part, p:世界の点, amt, r}]。皮の泥の点＝felt.js の mud.hit へ）
-export function stepDirt(S, H, dt, rain = 0, onSplash = null) {
+export function stepDirt(S, H, dt, rain = 0, onSplash = null, pools = false) { // pools＝水たまりのある場所（ホーム）
   const hits = [];
   // 1) ふれた所: 部位のいちばん低い点が地面に近く、そこがぬかるみなら泥がつく（足はこする分さらに）
   for (const s of Object.values(S)) {
     for (const [x, y, z] of points(s)) {
-      const g = y - s.r - height(x, z), m = mud(x, z, rain);
+      const g = y - s.r - height(x, z), m = mud(x, z, rain); if (pools && g < 0.006) s.wet = Math.min(1, s.wet + puddle(x, z) * 3 * dt);
       if (g < 0.006 && m > 0.05) { s.mud = Math.min(1, s.mud + m * 2.2 * dt); s.wet = Math.min(1, s.wet + m * 3 * dt); const foot = /ft[LR]$/.test(s.name); hits.push({ part: s.name, p: [x, y - s.r * (foot ? 0.2 : 1), z], amt: m * 2.2 * dt, r: Math.max(0.012, s.r * (foot ? 2.6 : 1.6)) }); } // ふれた所を中心に（足はぬかるみに沈むので、足先から少し上まで）
     }
   }
@@ -50,6 +54,12 @@ export function stepDirt(S, H, dt, rain = 0, onSplash = null) {
       if (onSplash && hit > 0.05) onSplash(t.x, t.z, hit, f);
     }
     f.dirtDown = down;
+  }
+  // 2.5) 水たまりの跳ね: 足が水に着いた瞬間、足のまわりの低い部位がぬれる
+  if (pools) for (const f of H.feet) {
+    const v = f.body.linvel(), t = f.body.translation(), m = puddle(t.x, t.z), down = t.y - f.r - height(t.x, t.z) < 0.01;
+    if (down && !f.poolDown && m > 0.15) { const hit = Math.min(1, Math.max(0, -v.y) * 0.8 + Math.hypot(v.x, v.z) * 0.3) * m; for (const s of Object.values(S)) { const [x, y, z] = points(s)[0]; s.wet = Math.min(1, s.wet + hit * Math.exp(-Math.hypot(x - t.x, z - t.z) / 0.12) * Math.exp(-(y - height(x, z)) / 0.08) * 0.5); } }
+    f.poolDown = down;
   }
   // 3) 乾く・雨で流れる: ぬれは乾き（雨のあいだはぬれる）、泥は雨で少しずつ落ちる。乾いた泥は白っぽくなる（dry）
   for (const s of Object.values(S)) {

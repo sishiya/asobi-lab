@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { height, SIZE } from './ground.js';
 import { pose } from './hare.js';
-import { makeField, contactPoint } from './trial.js';
+import { makeField, contactPoint, slumped } from './trial.js';
 import { mud, makeDirt, stepDirt } from './dirt.js';
 import { feltify, makeFeltGround, makeFeltBody, makeFeltBall, makeDiorama, HARE_FACE } from './felt.js';
 import { kidBody, kidShapes, kidBends } from './kid.js';
@@ -18,18 +18,18 @@ const CSS = `
   #out { position: fixed; inset: 0; pointer-events: none; }
   #out[hidden] { display: none; }
   #out > * { pointer-events: auto; }
-  #outHud { position: fixed; left: 24px; top: 88px; background: var(--panel); border-radius: 12px; padding: 8px 12px; line-height: 1.6; font-size: 13px; pointer-events: none; }
+  #outHud { position: fixed; left: 24px; top: 88px; background: var(--panel); border-radius: 14px; padding: 8px 12px; line-height: 1.6; font-size: 13px; pointer-events: none; }
   #outTools { position: fixed; right: 12px; top: 62px; }
   #outTools button { border: 0; background: var(--panel); font: inherit; font-size: 13px; color: var(--ink); min-height: 44px; min-width: 44px; padding: 0 14px; border-radius: 999px; cursor: pointer; }
   #outTools button.on { background: var(--on); color: #fff; }
   #outBottom { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
-  #outHint { font-size: 14px; text-shadow: 0 0 8px #faf7f0, 0 0 4px #faf7f0; white-space: nowrap; pointer-events: none; transition: opacity .5s; }
+  #outHint { font-size: 14px; text-shadow: 0 0 8px #faf7f0, 0 0 4px #faf7f0, 0 0 2px #faf7f0; white-space: nowrap; pointer-events: none; transition: opacity .5s; }
   /* 家に帰る: 押しながら話すと同じ大きさ・同じ高さ（下のふち＋声のみほんのボタンの分） */
   #outHome { border: 0; background: var(--on); color: #fff; font: inherit; font-size: 17px; line-height: normal; padding: 14px 26px; min-width: 220px; margin-bottom: 46px; border-radius: 999px; cursor: pointer; box-shadow: 0 2px 10px rgba(44,42,38,.22); }
   @media (max-height: 500px) and (orientation: landscape) { #outHud { left: 24px; top: 72px; } #outBottom { left: auto; right: 28px; bottom: 16px; width: 290px; transform: none; gap: 6px; } #outHome { min-width: 0; width: 100%; padding: 10px 16px; font-size: 15px; margin-bottom: 42px; } }
-  #outNeed { background: var(--panel); border-radius: 14px; padding: 10px 16px; text-align: center; line-height: 1.6; box-shadow: 0 2px 10px rgba(44,42,38,.18); }
+  #outNeed { text-align: center; line-height: 1.6; font-weight: 600; text-shadow: 0 0 8px #faf7f0, 0 0 4px #faf7f0, 0 0 2px #faf7f0; }
   #outNeed[hidden] { display: none; }
-  #outMsg { position: fixed; left: 50%; top: 38%; transform: translate(-50%, -50%); font-size: 20px; font-weight: 600; text-shadow: 0 0 8px #faf7f0; opacity: 0; transition: opacity .4s; pointer-events: none; white-space: nowrap; }
+  #outMsg { position: fixed; left: 50%; top: 38%; transform: translate(-50%, -50%); font-size: 20px; font-weight: 600; text-shadow: 0 0 8px #faf7f0, 0 0 4px #faf7f0, 0 0 2px #faf7f0; opacity: 0; transition: opacity .4s; pointer-events: none; white-space: nowrap; }
 `;
 const HTML = `
   <div id="outHud"></div>
@@ -142,6 +142,7 @@ export function makeOuting(R, renderer, { onHome }) {
         // 転んだら: 起き上がりを覚えた子は少し待って自分で起きる（4 秒で起きなければ起き直す）。覚えていない子は、すぐ起き直す（失敗を見せない。GAME.md 9.7）
         if (gu) { if (gu.stopAt == null && gu.t > 0.2 && P.up > GETUP_UP) gu.stopAt = gu.t; if (gu.t > 4) { gu = null; respawn(); fallT = 0; } }
         else if (fallT) { if (K.getup && clock - fallT > 0.6) gu = { t: 0, d: Math.sign(P.roll) || 1, stopAt: null }; else if (!K.getup && clock - fallT > 0.8) { respawn(); fallT = 0; } }
+        else if (slumped(H, P, clock)) { fallAt.push(clock); opts.onFall?.(); respawn(); }
         else if (P.up < 0.35 || P.y - height(P.x, P.z) < (H.fallH ?? 0.05)) { fallT = clock; fallAt.push(clock); opts.onFall?.(); }
         // 20 秒に 3 回より多く転ぶなら「もうすこし練習してから」（責める文にしない）
         while (fallAt.length && clock - fallAt[0] > 20) fallAt.shift(); if (fallAt.length >= 3) needT = clock; $('outNeed').hidden = !(needT && clock - needT < 12);
@@ -170,11 +171,13 @@ export function makeOuting(R, renderer, { onHome }) {
     rg.attributes.position.needsUpdate = true;
   }
 
-  // カメラ（ユーザー「もうちょっと顔が見える角度に」）: ななめ＝子のななめうしろから（曲がっても少し遅れてついてくる）・うしろ・見下ろし。どれもドラッグで回せる。種類と回す向きはメニューから
-  const CAMS = { follow: { off: 1.15, pitch: 0.5, lag: 0.018, blur: 1.6, dist: 1 }, tps: { off: 0, pitch: 0.35, lag: 0.04, blur: 1.2, dist: 1 }, top: { off: 0, pitch: 1.05, lag: 0, blur: 4, dist: 2.2 } };
+  // カメラ（ユーザー「もうちょっと顔が見える角度に」）: ついてくる＝ひもで引っぱられるように。その場で向きを変えても回りこまず、進むと引かれてうしろへ（テストプレイ「進行方向が見えない」）・うしろ・見下ろし。どれもドラッグで回せる。種類と回す向きはメニューから
+  const CAMS = { follow: { off: 0.7, pitch: 0.5, leash: 0.7, lag: 0.018, blur: 1.6, dist: 1 }, tps: { off: 0, pitch: 0.35, lag: 0.04, blur: 1.2, dist: 1 }, top: { off: 0, pitch: 1.05, lag: 0, blur: 4, dist: 2.2 } };
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }, save = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* 保存できない */ } };
   let camYaw = 0, camOff = 0, camPitch = 0.5, camDist = 1.3, camMode = CAMS[load('satoyama.cam', 'follow')] ? load('satoyama.cam', 'follow') : 'follow', invX = load('satoyama.invX', '0') === '1', invY = load('satoyama.invY', '1') !== '0', frame = 0;
   const camPos = new THREE.Vector3(-1.2, 0.7, 0), aimP = new THREE.Vector3(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3();
+  let leashX = 0, leashZ = 0, leashYaw = null; // ひもの端（子の後ろの見えない点）
+  const aimL = new THREE.Vector3(), leadV = { x: 0, z: 0, hx: 0, hz: 0 }, LEAD = 0.55; // LEAD＝進む先を何秒ぶん見るか（育てると同じ）
   let aimInit = false;
   const baseYaw = () => (camMode === 'top' ? -Math.PI / 4 : H ? pose(H).yaw : 0);
   function setCam(m) { camMode = m; camOff = CAMS[m].off; camPitch = CAMS[m].pitch; camYaw = baseYaw() + camOff; save('satoyama.cam', m); }
@@ -186,8 +189,10 @@ export function makeOuting(R, renderer, { onHome }) {
     const gy = height(P.x, P.z), k = Math.min(1, dt * 60), first = !aimInit;
     if (first) { aimP.set(P.x, gy + 0.17, P.z); aimInit = true; }
     aimP.x += (P.x - aimP.x) * 0.06 * k; aimP.z += (P.z - aimP.z) * 0.06 * k; aimP.y += (gy + 0.17 - aimP.y) * 0.05 * k; // 跳ぶたびの上下と着地のがたつきをならす
-    const A = aimP, C = CAMS[camMode], blur = C.blur, focus = camMode === 'top' ? 0.5 : 0.55;
-    if (!C.lag) camYaw = baseYaw() + camOff; else if (gNow > 0.2) camYaw += wrap(baseYaw() + camOff - camYaw) * C.lag * k; // 歩いているときだけ、ゆっくり回りこむ
+    const v0 = H.parts.pelvis.body.linvel(), hd = FB.headBone.getWorldPosition(_b), slow = 1 - Math.exp(-dt * 1.3); if (first) Object.assign(leadV, { x: 0, z: 0, hx: hd.x - P.x, hz: hd.z - P.z }); leadV.x += (v0.x - leadV.x) * slow; leadV.z += (v0.z - leadV.z) * slow; leadV.hx += (hd.x - P.x - leadV.hx) * slow; leadV.hz += (hd.z - P.z - leadV.hz) * slow; // 育てるのカメラと同じく、顔と進む先を少し見る（ゆれが伝わらないよう、ならす）
+    const A = aimL.set(aimP.x + leadV.hx * 0.6 + leadV.x * LEAD, aimP.y, aimP.z + leadV.hz * 0.6 + leadV.z * LEAD), C = CAMS[camMode], blur = C.blur, focus = camMode === 'top' ? 0.5 : 0.55;
+    if (C.leash) { if (first || leashYaw == null || Math.abs(wrap(camYaw - leashYaw)) > 1e-5) { leashX = aimP.x - Math.cos(camYaw) * C.leash; leashZ = aimP.z - Math.sin(camYaw) * C.leash; } else { const lx = aimP.x - leashX, lz = aimP.z - leashZ, L = Math.hypot(lx, lz) || 1; leashX = aimP.x - lx / L * C.leash; leashZ = aimP.z - lz / L * C.leash; camYaw = Math.atan2(lz, lx); } leashYaw = camYaw; } // 子の場所だけで決める＝その場の旋回では動かない。ドラッグで回したら、その向きからまた引かれる
+    else if (!C.lag) camYaw = baseYaw() + camOff; else if (gNow > 0.2) camYaw += wrap(baseYaw() + camOff - camYaw) * C.lag * k; // 歩いているときだけ、ゆっくり回りこむ
     const d = camDist * C.dist * (cam.aspect < 1 ? 1.4 : 1), cp = Math.cos(camPitch), want = _a.set(A.x - Math.cos(camYaw) * cp * d, A.y + Math.sin(camPitch) * d, A.z - Math.sin(camYaw) * cp * d);
     want.y = Math.max(want.y, height(want.x, want.z) + 0.12); if (first) camPos.copy(want); else camPos.lerp(want, 0.07 * k); cam.position.copy(camPos); cam.lookAt(A.x, A.y + 0.04, A.z);
     // カメラと子を結ぶ線に近い藪は透かす（目線のときは、目の前の藪だけ）

@@ -20,6 +20,14 @@ export function contactPoint(f) {
   return best;
 }
 
+// 頭や胴を地面につけたまま・前のめりや立ち上がりのまま 0.5 秒（練習の「転んだ」と同じ基準。テストプレイ「鼻を地面につけて、ずっともがく」）。ヘビとアザラシは胴が地面につくので見ない
+export function slumped(H, P, clock) {
+  if (!H.noTouch) return false;
+  const bad = (H.maxPitch && Math.abs(P.pitch) > H.maxPitch) || H.noTouch.some(p => { const c = p.body.translation(); return c.y - p.r - height(c.x, c.z) < 0.004; });
+  if (!bad) { H.slumpT = null; return false; }
+  H.slumpT ??= clock; return clock - H.slumpT > 0.5;
+}
+
 // 1回の試し。v＝リズムの数（0..1 の並び）。dur 秒。turn(t) で曲がり方を決める
 // body＝体の作り方（ふつうはノウサギ。声の子は { build, drive, decode } を渡す。kid.js）
 export const HARE = { build: (R, world, at, h) => buildHare(R, world, at, h), drive, decode: decodeParams };
