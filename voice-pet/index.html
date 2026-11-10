@@ -85,7 +85,7 @@
   #adopt small { margin-top: 6px; }
   #againBtn { margin-top: 18px; }
   /* 生まれたあとは声をかけなくてよいので、声のメニューをしまう（できることは 名前・育てる・べつのたまご の3つだけ） */
-  body.eggfull #mic, body.eggfull #samples, body.eggfull .lab, body.eggfull #note, body.eggfull #sampToggle { display: none; }
+  body.eggfull #mic, body.eggfull #samples, body.eggfull .lab, body.eggfull #note, body.eggfull #sampToggle { visibility: hidden; } /* 場所は残す（消すと案内の字が下へずれる。テストプレイ） */
   body.born #mic, body.born #samples, body.born .lab, body.born #note, body.born #mode, body.born #sampToggle { display: none; }
   /* 横向きのスマホ（低い画面）: 下のまとまりを右の列へ（巣や子をかくさない） */
   @media (max-height: 500px) and (orientation: landscape) {
@@ -245,7 +245,7 @@ import { height } from './js/ground.js';
 import { pose, SELF, GROUND } from './js/hare.js';
 import { makeField, contactPoint, slumped } from './js/trial.js';
 import { kidBody, kidShapes, kidBends, kidSeed , scaleFriction, blendBody } from './js/kid.js';
-import { decodeGetup, driveGetup, GETUP_UP } from './js/getup.js';
+import { decodeGetup, driveGetup, GETUP_UP, GETUP_SEED } from './js/getup.js';
 import { makeFeltGround, makeFeltBody, makeFeltBall, feltMesh, feltify, makeDiorama, HARE_FACE } from './js/felt.js';
 import { lookGenes, lookFur, lookFace, lookColor, kidName, voiceTints } from './js/kid-look.js';
 import { analyze, A, sampleVoice, founder, rng } from './js/voice-in.js';
@@ -267,7 +267,7 @@ const cam = new THREE.PerspectiveCamera(38, 1, 0.01, 60);
 scene.add(new THREE.HemisphereLight(0xf6efe0, 0x6a6448, 1.0));
 const sun = new THREE.DirectionalLight(0xfff0d6, 2.2); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.radius = 4;
 Object.assign(sun.shadow.camera, { left: -2, right: 2, top: 2, bottom: -2, near: 0.5, far: 20 }); scene.add(sun, sun.target);
-makeFeltGround(scene, { size: 10, n: 180, cx: 1, cz: 0, puddles: PUDDLES, fade: 1.45 }); // fade＝端は四角く切らず、だんだん薄く（テストプレイ）
+makeFeltGround(scene, { size: 13, n: 200, cx: 1, cz: 0, puddles: PUDDLES, fade: 2.8 }); // fade＝端は四角く切らず、だんだん薄く（テストプレイ）
 const DIO = makeDiorama(renderer, scene, cam);
 const $ = id => document.getElementById(id);
 let camSnap = false, homeT = 0, free = null; // free＝育てるのフリーカメラ（見ている点と引きぐあい）
@@ -541,32 +541,34 @@ function stepEgg(dt) {
   e.firm += (Math.min(1, target) - e.firm) * Math.min(1, dt * 0.6);
   e.m.children.forEach(c => { if (c.material?.userData?.u?.uLen) c.material.userData.u.uLen.value = 0.012 * (1 - 0.75 * e.firm); });
   // たまごが育つ: 見えている量は、届いた分へゆっくり近づく。大きく・ゆるい毛羽が締まる
-  e.shown += (Math.min(1, target) - e.shown) * Math.min(1, dt * 1.5);
+  const full = e.voices.reduce((t, v) => t + v.w, 0) >= 1 && !e.tufts.length; e.shown += (Math.min(1, target) - e.shown) * Math.min(1, dt * (full ? 3.5 : 1.5)); // 声が全部届いたら急ぐ（テストプレイ「回り始めるまで不自然な間がある」）
   if (e.phase === 'gather') {
     const sc = e.shown > 0.001 ? 0.22 + 0.78 * e.shown : 0.001;
     e.m.scale.set(sc * (1 + 0.012 * tap), sc * (1 - 0.02 * tap), sc * (1 + 0.012 * tap)); e.m.position.y = ny + EGG_R * EGG[1] * sc * 0.92;
     e.m.rotation.y -= dt * 0.15 * (1 - e.shown); // 毛のうずと同じ向き
-    if (e.shown > 0.985 && !e.tufts.length) startHatch();
+    if (full && e.shown > 0.9) { e.sc0 = sc; startHatch(); }
   } else if (e.phase === 'hatch') stepHatch(dt);
 }
 // かえる: 拍（0〜3.2 秒）→ ゆれ（〜4.2）→ 開く（4.2〜6）→ ひと息
 function startHatch() {
   const e = egg; e.phase = 'hatch'; e.ht = 0;
-  const genes = mixGenes(e.voices); e.genes = genes;
+  e.genes = mixGenes(e.voices); e.prep = 0;
   e.light = new THREE.PointLight(0xffc98a, 0, 0.9, 1.5); e.light.position.copy(eggAt()); scene.add(e.light);
-  // 子は中にもう作っておく（たまごにかくれる。生まれる瞬間に絵の準備で止まらないように）
-  nestWorld = makeField(R); nt = 0;
-  const B = kidBody(genes), H0 = B.build(R, nestWorld, [NEST[0], 0, NEST[1]], height);
-  const FB = makeFeltBody(scene, H0, kidShapes(H0), { bends: kidBends(H0), furColor: lookFur(genes.look, H0), face: lookFace(genes.look, H0.plan, HARE_FACE) });
-  for (const p of Object.values(H0.parts)) nestWorld.removeRigidBody(p.body);
-  const H = B.build(R, nestWorld, [NEST[0], 0, NEST[1]], height, BORN_YAW); FB.rebind(H, BORN_YAW); // 顔がカメラから見える向き（ユーザー「顔とか見える角度に」）
-  cand = { H, B, FB, genes, q: B.decode(kidSeed(genes)), born: false };
-  FB.sleep(true); // 生まれたては寝ている目（ユーザー）。巣のそばで眠ったまま、育てるへ行くと目がさめる（raise）
-  hideKid(FB, true); renderer.compile(scene, cam); // 子はたまごより長いことがあるので、開くまで見せない（絵の準備だけ先にすませる）
-  $('mode').textContent = 'もうすぐ…'; SFX.swirl(4.2, 0.07);
+  $('mode').textContent = 'もうすぐ かえるよ'; SFX.swirl(4.2, 0.07);
+}
+// 子は中にもう作っておく（たまごにかくれる。生まれる瞬間に絵の準備で止まらないように）。一度にやると拍の途中で固まるので、こまを分ける。絵の準備は裏で（compileAsync）
+function prepHatch(e) {
+  if (e.prep === 0) { nestWorld = makeField(R); nt = 0; e.pB = kidBody(e.genes); e.pH = e.pB.build(R, nestWorld, [NEST[0], 0, NEST[1]], height); }
+  else if (e.prep === 1) { e.pF = makeFeltBody(scene, e.pH, kidShapes(e.pH), { bends: kidBends(e.pH), furColor: lookFur(e.genes.look, e.pH), face: lookFace(e.genes.look, e.pH.plan, HARE_FACE) }); hideKid(e.pF, true); } // 作ったこまで隠す（次のこままで待つと、たまごの外に一瞬見えた）
+  else { const genes = e.genes, B = e.pB, FB = e.pF; for (const p of Object.values(e.pH.parts)) nestWorld.removeRigidBody(p.body);
+    const H = B.build(R, nestWorld, [NEST[0], 0, NEST[1]], height, BORN_YAW); FB.rebind(H, BORN_YAW); // 顔がカメラから見える向き（ユーザー「顔とか見える角度に」）
+    cand = { H, B, FB, genes, q: B.decode(kidSeed(genes)), born: false };
+    FB.sleep(true); // 生まれたては寝ている目（ユーザー）。巣のそばで眠ったまま、育てるへ行くと目がさめる（raise）
+    hideKid(FB, true); renderer.compileAsync(scene, cam); e.prep = -1; e.pH = e.pB = e.pF = null; return; } // 子はたまごより長いことがあるので、開くまで見せない
+  e.prep++;
 }
 function stepHatch(dt) {
-  const e = egg; e.ht += dt; const t = e.ht; e.lift = HATCH.lift * rise(t); const c = eggAt();
+  const e = egg; if (e.prep >= 0) prepHatch(e); e.ht += dt; const t = e.ht; e.lift = HATCH.lift * rise(t); const c = eggAt();
   if (e.light) e.light.position.copy(c);
   stepWind(e, t, dt);
   if (!e.opened) {
@@ -574,7 +576,7 @@ function stepHatch(dt) {
     const sw = Math.sin(Math.PI * Math.min(1, t / HATCH.open)); e.m.rotation.y -= dt * 3.2 * sw; e.m.position.x += Math.cos(t * 5) * 0.012 * sw; e.m.position.z += Math.sin(t * 5) * 0.012 * sw; // らせんの風に乗って、まわりながら小さく円をえがいて上がる。回る向きは風・毛のうずと同じ（角度 a が増える向き＝three の y 軸まわりでは −。2026-11-08 ユーザー「回転方向とつむじ風の方向、あっているか」で逆だったのを直した）
     // 拍: どくん・どくん（1秒に1回ほど、だんだん強く）。光は内からにじむ
     const beat = t < 4.2 ? Math.max(0, Math.sin(t * Math.PI * 2 * 0.9)) ** 8 + 0.6 * Math.max(0, Math.sin(t * Math.PI * 2 * 0.9 - 0.9)) ** 8 : 0, grow = Math.min(1, t / 3);
-    e.m.scale.setScalar(1 + 0.045 * beat * (0.4 + 0.6 * grow));
+    const in0 = Math.min(1, t / 0.6), sc1 = (e.sc0 ?? 1) + (1 - (e.sc0 ?? 1)) * in0 * in0 * (3 - 2 * in0); e.m.scale.setScalar(sc1 * (1 + 0.045 * beat * (0.4 + 0.6 * grow))); e.m.position.y -= EGG_R * EGG[1] * 0.92 * (1 - sc1); // 声が集まりきる前の大きさから、続けて育つ
     if (t < 4.2 && t * 0.9 - 0.25 >= (e.beatN ?? 0)) { e.beatN = (e.beatN ?? 0) + 1; SFX.beat(0.4 + 0.6 * grow); } // 見た目の拍（sin の山）に合わせて
     const glow = 0.25 * grow + 0.5 * beat * grow; e.light.intensity = glow * 0.45; // 光はたまごそのものから（ユーザー「光る場所って合ってる？地面固定になってない？」: 中の光源だけだと、たまごは光らず下の草だけが照らされて見えた）
     e.m.traverse(o => { if (o.material?.emissive) { o.material.emissive.setHex(0xffb066); o.material.emissiveIntensity = glow * 0.55; } }); // 毛羽の層ごと、内から温かく
@@ -697,7 +699,7 @@ function layVoice(a) {
   const v = { a: { n: { ...a.n }, raw: { vtl: a.raw.vtl, f0: a.raw.f0, vDur: a.raw.vDur } }, w, look: L, col: C.base, pale: C.pale, arrived: false, got: 0 }; // 声の数だけ写す（声は残さない）
   egg.voices.push(v); sendTufts(v); SFX.swirl(1.3);
   const total = egg.voices.reduce((t, x) => t + x.w, 0);
-  $('mode').textContent = total >= 1 ? 'おやおや…？' : SAY_BIRTH[Math.min(egg.voices.length, SAY_BIRTH.length - 1)];
+  $('mode').textContent = total >= 1 ? '声があつまった！' : SAY_BIRTH[Math.min(egg.voices.length, SAY_BIRTH.length - 1)];
 }
 // 眠っているしるし（ユーザー「ねているとわかるエフェクトつけて」）: 羊毛フェルトの「Z」が、寝息に合わせて頭からふわりと浮かび、
 //   ゆれながら大きくなって、うすれて消える（2.2 秒ごと・小→大の3つ）。ころがって止まってから、育てるへ行くまで
@@ -940,7 +942,7 @@ function go(m) {
       for (const b of r.burrs) { const m = makeBurr(b.kind); if (kid.FB.attach(b.part, m, b.local)) burrs.push({ ...b, m, t: 1.5 + Math.random() * 6 }); }
       SFX.rain(false); SFX.home(newly.length > 0); const dirty = kid.FB.mud.dirty > 1; show(newly.length ? `${newly.map(k => SEED_KINDS[k].name).join('・')} が 咲いた！` : burrs.length ? `${kid.name} に ひっつき虫がいっぱい` : dirty ? `${kid.name} は泥だらけ。水浴びしよう` : `${kid.name} が帰ってきた`); $('wash').classList.toggle('hl', dirty); if (garden.allBloomed && !garden.celebrated) setTimeout(startFullBloom, 1800); } }
   if (m === 'out' && mode !== 'out') { keep(); OUT.enter(herd.kids[herd.at], kid.FB.mud.blobs); SFX.out(); SFX.rain(OUT.raining); }
-  mode = m; free = null; history.replaceState(null, '', '#' + m); tabs();
+  mode = m; free = null; if (new URLSearchParams(location.search).has('notitle')) history.replaceState(null, '', '#' + m); tabs(); // URL に画面の名前は残さない（テストプレイ「#grow ごとに履歴が残って戻れない」。#〜 を読むのは確かめ用の ?notitle のときだけ）
 }
 $('startBtn').addEventListener('click', () => go(kid ? 'grow' : 'birth'));
 $('mTitle').addEventListener('click', () => { $('menuPanel').hidden = true; if (mode !== 'title') { go('title'); camSnap = true; } });
@@ -971,9 +973,9 @@ function step(dt) {
     let a = pfT();
     for (const p of pals) { if (k % 4 === 0 && !p.frozen) feet(p.H, Math.min(1, 1.2 / (0.5 + cam.position.distanceTo(p.FB.headBone.getWorldPosition(_hw))))); if (p.frozen || p === fw?.p) continue; if (p.gust) { driveCurl(p.H, 1); gustSub(p); continue; } if (p.walk) p.B.drive(p.H, p.q, p.t, p.fallT || p.t < 0.4 ? 0 : 1, p.tc ?? 0); else driveCurl(p.H, 1); p.t += 1 / 240; } // いっしょにいる子: 覚えている歩き方で歩く／丸まって眠る
     pfA('物理: ほかの子の筋', a); a = pfT();
-    if (k % 4 === 0) { listenG += Math.max(-3 / 60, Math.min(3 / 60, (rec && mode === 'grow' ? 0 : 1) - listenG)); feet(kid.H, mode === 'grow' ? 1 : 0); kid.FB.mud.hit(stepDirt(D, kid.H, 4 / 240, 0, null, mode === 'grow')); } // ぬかるみ（草原の茶色い所）にふれたら泥の点
+    if (k % 4 === 0) { listenG += Math.max(-3 / 60, Math.min(3 / 60, (rec && mode === 'grow' ? 0 : 1) - listenG)); feet(kid.H, mode === 'grow' ? 1 : 0); kid.FB.mud.hit(stepDirt(D, kid.H, 4 / 240, 0, null, mode === 'grow')); if (kid.H.poolParts?.size) kid.FB.mud.rinse(kid.H.poolParts, 4 / 240); } // ぬかるみ（草原の茶色い所）にふれたら泥の点
     if (kid.gust && !fw?.isKid) { driveCurl(kid.H, 1); gustSub(kid); }
-    else if (gu) { gu.t += 1 / 240; if (gu.stopAt == null && gu.t > 0.2 && k % 8 === 0 && pose(kid.H).up > GETUP_UP) gu.stopAt = gu.t; if (driveGetup(kid.H, gu.q, gu.t, gu.d, gu.stopAt)) { gu = null; fallT = 0; t = 0; } }
+    else if (gu) { gu.t += 1 / 240; if (gu.stopAt == null && gu.t > 0.2 && k % 8 === 0 && pose(kid.H).up > GETUP_UP) gu.stopAt = gu.t; if (driveGetup(kid.H, gu.q, gu.t, gu.d, gu.stopAt)) { if (pose(kid.H).up > GETUP_UP) { gu = null; fallT = 0; t = 0; } else gu.over = true; } }
     else if (!fw?.isKid) kid.B.drive(kid.H, kid.q, t, fallT || t < 0.4 ? 0 : listenG, kid.tc ?? 0); // listenG＝話しかけているあいだは足を止めて聞く
     if (fw && fw.t <= fw.end + FW.fade) fwSubstep(); // 消えきるまで動かしつづける（途中で止めると、かすむあいだに地面へ落ちた）
     pfA('物理: 見ている子の筋・泥', a); a = pfT();
@@ -988,10 +990,11 @@ function step(dt) {
   // 転んだら: 起き上がりを覚えた子は、少し待って自分で起きる。覚えていない子と、4 秒で起きられなかったときは、その場で起き直す（失敗の文字は出さない。GAME.md 9.7）。遠くへ行ったら真ん中へもどす
   if (!fallT && !gu && slumped(kid.H, P, clock)) { if (mode === 'grow') SFX.thud(0.18); restart(P, false); return; } // 起き上がりの型は横に倒れたとき用なので、鼻をついた姿勢は立たせ直す
   if (!fallT && !gu && (P.up < 0.35 || P.y - height(P.x, P.z) < kid.H.fallH)) { fallT = clock; if (mode === 'grow') SFX.thud(0.18); }
-  if (fallT && !gu && clock - fallT > 0.6 && kid.getup?.v) gu = { t: 0, q: decodeGetup(kid.getup.v), d: Math.sign(P.roll) || 1, stopAt: null };
-  if (gu && gu.t > 4) { gu = null; restart(P, false); }
-  else if (fallT && !gu && !kid.getup?.v && clock - fallT > 0.8) restart(P, false); else if (Math.hypot(P.x, P.z) > 3) blowHome();
+  if (fallT && !gu && clock - fallT > 0.6 && !kid.B.noGetup) gu = { t: 0, q: decodeGetup(kid.getup?.v ?? triedGetup()), d: Math.sign(P.roll) || 1, stopAt: null }; // まだ起きられない子も、練習と同じように試してみる（テストプレイ「コロンでから頑張って起き上がろうとするのが練習」）
+  if (gu && (gu.t > 4 || gu.over)) { gu = null; restart(P, false); }
+  else if (fallT && !gu && kid.B.noGetup && clock - fallT > 0.8) restart(P, false); else if (Math.hypot(P.x, P.z) > 3) blowHome();
 }
+const triedGetup = () => { const c = kid.getup?.state; return GETUP_SEED.map((m, i) => (c?.mean[i] ?? m) + (c?.sd[i] ?? 0.2) * Math.sqrt(-2 * Math.log(Math.random() + 1e-9)) * Math.cos(6.283 * Math.random())); }; // いま練習している動きのばらつきから1つ（学習の1回の試しと同じ）
 function blowHome(keepCam) { gu = null; fallT = 0; startGust(kid, freeSpot([0, 0, 0], kid.H)); show(`${kid.name} は 風にのって もどってきた`); if (!keepCam) free = null; } // 端まで行った子も、起こすボタンも、小屋のそばで立ち往生した子も、風で真ん中へ
 // 瞬間移動をなくす（テストプレイ「フリーカメラで追っているとリセットで消える」）: 端に近づいたら自分で向きを変えて戻る。曲がれない子は、おわかれと同じらせんの風で ふわっと運ぶ
 const wrapH = a => a - Math.round(a / (Math.PI * 2)) * Math.PI * 2;

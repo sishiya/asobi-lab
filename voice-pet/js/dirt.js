@@ -32,11 +32,11 @@ function points(s) { const t = s.body.translation(), q = s.body.rotation(); retu
 
 // 1こま（dt 秒）。rain＝雨の強さ 0..1。返すのは、このこまで泥がついた点（[{part, p:世界の点, amt, r}]。皮の泥の点＝felt.js の mud.hit へ）
 export function stepDirt(S, H, dt, rain = 0, onSplash = null, pools = false) { // pools＝水たまりのある場所（ホーム）
-  const hits = [];
+  const hits = [], poolHit = new Set();
   // 1) ふれた所: 部位のいちばん低い点が地面に近く、そこがぬかるみなら泥がつく（足はこする分さらに）
   for (const s of Object.values(S)) {
     for (const [x, y, z] of points(s)) {
-      const g = y - s.r - height(x, z), m = mud(x, z, rain); if (pools && g < 0.006) s.wet = Math.min(1, s.wet + puddle(x, z) * 3 * dt);
+      const g = y - s.r - height(x, z), m = mud(x, z, rain); if (pools && g < 0.006) { const w = puddle(x, z); if (w > 0.05) { s.wet = Math.min(1, s.wet + w * 3 * dt); s.mud = Math.max(0, s.mud - w * 0.8 * dt); poolHit.add(s.name); } }
       if (g < 0.006 && m > 0.05) { s.mud = Math.min(1, s.mud + m * 2.2 * dt); s.wet = Math.min(1, s.wet + m * 3 * dt); const foot = /ft[LR]$/.test(s.name); hits.push({ part: s.name, p: [x, y - s.r * (foot ? 0.2 : 1), z], amt: m * 2.2 * dt, r: Math.max(0.012, s.r * (foot ? 2.6 : 1.6)) }); } // ふれた所を中心に（足はぬかるみに沈むので、足先から少し上まで）
     }
   }
@@ -67,6 +67,7 @@ export function stepDirt(S, H, dt, rain = 0, onSplash = null, pools = false) { /
     if (rain > 0) s.mud = Math.max(0, s.mud - rain * 0.06 * (0.5 + s.wet) * dt);
     s.dry = s.mud > 0.01 ? Math.max(0, Math.min(1, s.dry + (s.wet < 0.3 ? 0.08 : -0.3) * dt)) : 0;
   }
+  H.poolParts = poolHit; // 水にふれている部位（皮の泥を少し流す）
   return hits;
 }
 // 部位の色: 毛の色に、ぬれた泥（こい）・乾いた泥（白っぽい）・ぬれ（こい）を重ねる。[r,g,b] 0..1

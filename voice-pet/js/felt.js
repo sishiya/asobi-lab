@@ -88,7 +88,7 @@ export function feltMesh(g, color = [1, 1, 1], { side = THREE.FrontSide } = {}) 
   m.castShadow = true; m.receiveShadow = true; return m;
 }
 export function makeFeltGround(scene, { size = 12, n = 200, cx = 0, cz = 0, shellsN = 5, puddles = [], fade = 0 } = {}) { // puddles＝水たまり、fade＝地面の端を何 m かけて薄くするか（0 なら切りっぱなし）
-  const EDGE = (xz) => 'if (uEdge.z > 0.0) { vec2 q = abs(' + xz + ' - uEdge.xy) - vec2(uEdgeH - 2.0); float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - 2.0, tE = smoothstep(-uEdge.z, -0.05, sd); if (tE > fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))))) discard; }', EDGE_U = () => ({ uEdge: { value: new THREE.Vector3(cx, cz, fade) }, uEdgeH: { value: size / 2 } });
+  const EDGE = (xz) => 'if (uEdge.z > 0.0) { vec2 q = abs(' + xz + ' - uEdge.xy) - vec2(uEdgeH - 3.0); float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - 3.0, tE = smoothstep(-uEdge.z, -0.05, sd); if (tE > fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))))) discard; }', EDGE_U = () => ({ uEdge: { value: new THREE.Vector3(cx, cz, fade) }, uEdgeH: { value: size / 2 } });
   const geo = new THREE.PlaneGeometry(size, size, n, n); geo.rotateX(-Math.PI / 2); geo.translate(cx, 0, cz);
   const gp = geo.attributes.position, gcol = new Float32Array(gp.count * 3), gfl = new Float32Array(gp.count).fill(1);
   const GRASS = [[0.47, 0.55, 0.30], [0.55, 0.60, 0.33], [0.42, 0.50, 0.28], [0.60, 0.58, 0.36]];
@@ -99,15 +99,24 @@ export function makeFeltGround(scene, { size = 12, n = 200, cx = 0, cz = 0, shel
   }
   geo.setAttribute('wet', attr1(gp.count)); geo.setAttribute('color', new THREE.BufferAttribute(gcol, 3)); geo.setAttribute('fluff', new THREE.BufferAttribute(gfl, 1)); geo.computeVertexNormals();
   const mat = feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.6, sheenRoughness: 0.9, sheenColor: 0xd8e0b8 }), { freq: 90, rest: false });
-  const SOIL = [...PATCHES, ...puddles]; // 草が短くなって土が見える所（水たまりの下も）
-  const muddy = M => { const base = M.onBeforeCompile; M.onBeforeCompile = sh => { base(sh); Object.assign(sh.uniforms, EDGE_U()); sh.uniforms.uP = { value: SOIL.map(([x, z, r]) => new THREE.Vector4(x, z, r, 0)) }; sh.uniforms.uMudC = { value: new THREE.Color(...MUD_WET).multiplyScalar(1.2) };
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nuniform vec4 uP[${SOIL.length}]; uniform vec3 uMudC, uEdge; uniform float uEdgeH;`).replace('#include <roughnessmap_fragment>', `${EDGE('vRest.xz')}
+  // 水面の照り返し（色をつけず、映りで水に見せる）: 視線の反射の向きで手続きの空（地平の明るさ・雲・太陽のにじみ）を読む。どの角度でも少し映り、斜めほど強い（環境マップなし）。k＝映りの強さ
+  const GLOSS = (s, k) => { s.fragmentShader = s.fragmentShader.replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+      normal = normalize(normal + vec3(n3(vec3(vXZ * 62.0, 2.0)) - 0.5, 0.0, n3(vec3(vXZ * 62.0, 9.0)) - 0.5) * 0.04 + vec3(n3(vec3(vXZ * 13.0, 5.0)) - 0.5, 0.0, n3(vec3(vXZ * 13.0, 11.0)) - 0.5) * 0.05);`).replace('#include <opaque_fragment>', `vec3 nW = inverseTransformDirection(normal, viewMatrix), vW = inverseTransformDirection(normalize(vViewPosition), viewMatrix), rW = reflect(-vW, nW); float upW = saturate(rW.y); vec2 spW = rW.xz / (upW + 0.25);
+      float clW = n3(vec3(spW * 2.2, 3.0)) * 0.6 + n3(vec3(spW * 5.0, 8.0)) * 0.4; vec3 skyW = mix(vec3(0.95, 0.93, 0.88), vec3(0.66, 0.7, 0.74), upW); skyW = mix(skyW, vec3(1.0), smoothstep(0.42, 0.72, clW) * 0.75);
+      float frW = (0.3 + 0.7 * pow(1.0 - saturate(dot(nW, vW)), 4.0)) * ${k.toFixed(2)}, sdW = max(dot(rW, normalize(vec3(0.324, 0.811, 0.487))), 0.0);
+      outgoingLight = mix(outgoingLight, skyW, min(1.0, frW)) + vec3(1.0, 0.96, 0.88) * (pow(sdW, 220.0) * 2.5 + pow(sdW, 24.0) * 0.18) * ${k.toFixed(2)}; diffuseColor.a = min(1.0, diffuseColor.a + frW * 0.6);
+      #include <opaque_fragment>`); };
+  // 水たまりの下: 草は水ぎわできれいに切れ、ぬれて少し暗い（土の帯は作らない。テストプレイ「淵はドロっぽくしないで」）
+  const POND_U = puddles.length ? `uniform vec4 uPd[${puddles.length}];` : '', POND = puddles.length ? `float pdM = 0.0; for (int i = 0; i < ${puddles.length}; i++) { float d = length(vRest.xz - uPd[i].xy) / uPd[i].z; pdM = max(pdM, 1.0 - d * d); } float pdK = pdM * 1.6 + (n3(vec3(vRest.xz * 5.0, 3.0)) - 0.5) * 0.18; if (uShell > 0.0 && pdK > 0.6) discard; diffuseColor.rgb *= mix(1.0, 0.55, smoothstep(0.5, 0.62, pdK));` : '';
+  const SOIL = PATCHES;
+  const muddy = M => { const base = M.onBeforeCompile; M.onBeforeCompile = sh => { base(sh); Object.assign(sh.uniforms, EDGE_U()); if (puddles.length) sh.uniforms.uPd = { value: puddles.map(([x, z, r]) => new THREE.Vector4(x, z, r, 0)) }; sh.uniforms.uP = { value: SOIL.map(([x, z, r]) => new THREE.Vector4(x, z, r, 0)) }; sh.uniforms.uMudC = { value: new THREE.Color(...MUD_WET).multiplyScalar(1.2) };
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nuniform vec4 uP[${SOIL.length}]; uniform vec3 uMudC, uEdge; uniform float uEdgeH; ${POND_U}`).replace('#include <roughnessmap_fragment>', `${EDGE('vRest.xz')}
       float mM = 0.0; for (int i = 0; i < ${SOIL.length}; i++) { float d = length(vRest.xz - uP[i].xy) / uP[i].z; mM = max(mM, 1.0 - d * d); }
       float eN = n3(vec3(vRest.xz * 8.0, 1.0)) * 0.5 + n3(vec3(vRest.xz * 26.0, 4.0)) * 0.3 + n3(vec3(vRest.xz * 75.0, 7.0)) * 0.2, mk = mM * 1.6 + (eN - 0.5) * 0.7; // ふちはぎざぎざ
       float core = smoothstep(0.46, 0.6, mk), rim = smoothstep(0.12, 0.42, mk) * (1.0 - core);
       if (uShell > 0.0 && mk > 0.1 + (1.0 - uShell) * 0.42 + (eN - 0.5) * 0.3) discard; // 草は泥に近づくほど短く、まばらに
       diffuseColor.rgb = mix(diffuseColor.rgb, uMudC * 1.9 + vec3(0.07, 0.055, 0.03), rim * (0.45 + 0.55 * eN)); // 乾いた土の帯
-      diffuseColor.rgb = mix(diffuseColor.rgb, uMudC * (0.72 + 0.56 * eN), core);
+      diffuseColor.rgb = mix(diffuseColor.rgb, uMudC * (0.72 + 0.56 * eN), core); ${POND}
       #include <roughnessmap_fragment>`); }; M.customProgramCacheKey = () => 'feltG' + (M.userData.u.uShell.value > 0 ? 's' : 'b'); return M; };
   muddy(mat);
   const ground = new THREE.Mesh(geo, mat); ground.receiveShadow = true; scene.add(ground);
@@ -121,16 +130,16 @@ export function makeFeltGround(scene, { size = 12, n = 200, cx = 0, cz = 0, shel
   mudMat.onBeforeCompile = s => { s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vXZ;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvXZ = position.xz;');
     s.fragmentShader = s.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec2 vXZ; uniform vec4 uP[${PATCHES.length}]; uniform vec3 uEdge; uniform float uEdgeH; ${NOISE}`).replace('#include <alphamap_fragment>', `#include <alphamap_fragment>
     float m = 0.0; for (int i = 0; i < ${PATCHES.length}; i++) { float d = length(vXZ - uP[i].xy) / uP[i].z; m = max(m, 1.0 - d * d); } float eN = n3(vec3(vXZ * 8.0, 1.0)) * 0.5 + n3(vec3(vXZ * 26.0, 4.0)) * 0.3 + n3(vec3(vXZ * 75.0, 7.0)) * 0.2, mk = m * 1.6 + (eN - 0.5) * 0.7; ${EDGE('vXZ')} if (mk < 0.62) discard; diffuseColor.a *= smoothstep(0.62, 0.85, mk);`);
-    s.uniforms.uP = { value: PATCHES.map(([x, z, r]) => new THREE.Vector4(x, z, r, 0)) }; Object.assign(s.uniforms, EDGE_U()); };
+    s.uniforms.uP = { value: PATCHES.map(([x, z, r]) => new THREE.Vector4(x, z, r, 0)) }; Object.assign(s.uniforms, EDGE_U()); GLOSS(s, 0.7); };
   // 水たまりの面（うすい水の膜。地面の網と同じ点の上にのせる）
   if (puddles.length) { const cell = size / n, ox = cx - size / 2, oz = cz - size / 2, R = 1.3, sn = (f, a) => f((a) / cell), ix0 = sn(Math.floor, Math.min(...puddles.map(p => p[0] - p[2] * R)) - ox), ix1 = sn(Math.ceil, Math.max(...puddles.map(p => p[0] + p[2] * R)) - ox), iz0 = sn(Math.floor, Math.min(...puddles.map(p => p[1] - p[2] * R)) - oz), iz1 = sn(Math.ceil, Math.max(...puddles.map(p => p[1] + p[2] * R)) - oz);
     const pg = new THREE.PlaneGeometry((ix1 - ix0) * cell, (iz1 - iz0) * cell, ix1 - ix0, iz1 - iz0); pg.rotateX(-Math.PI / 2); pg.translate(ox + (ix0 + ix1) / 2 * cell, 0, oz + (iz0 + iz1) / 2 * cell);
     { const p = pg.attributes.position; for (let i = 0; i < p.count; i++) p.setY(i, height(p.getX(i), p.getZ(i)) + 0.0015); pg.computeVertexNormals(); }
-    const pm = new THREE.MeshPhysicalMaterial({ color: 0x9dbcc6, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.05, transparent: true, opacity: 0.7, depthWrite: false });
+    const pm = new THREE.MeshPhysicalMaterial({ color: 0x3f423d, roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0.04, transparent: true, opacity: 0.5, depthWrite: false });
     pm.onBeforeCompile = s => { s.uniforms.uP = { value: puddles.map(([x, z, r]) => new THREE.Vector4(x, z, r, 0)) }; s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vXZ;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvXZ = position.xz;');
       s.fragmentShader = s.fragmentShader.replace('#include <common>', `#include <common>
 varying vec2 vXZ; uniform vec4 uP[${puddles.length}]; ${NOISE}`).replace('#include <alphamap_fragment>', `#include <alphamap_fragment>
-      float m = 0.0; for (int i = 0; i < ${puddles.length}; i++) { float d = length(vXZ - uP[i].xy) / uP[i].z; m = max(m, 1.0 - d * d); } float eN = n3(vec3(vXZ * 8.0, 1.0)) * 0.5 + n3(vec3(vXZ * 26.0, 4.0)) * 0.3 + n3(vec3(vXZ * 75.0, 7.0)) * 0.2, mk = m * 1.6 + (eN - 0.5) * 0.7; if (mk < 0.62) discard; diffuseColor.a *= smoothstep(0.62, 0.8, mk);`); };
+      float m = 0.0; for (int i = 0; i < ${puddles.length}; i++) { float d = length(vXZ - uP[i].xy) / uP[i].z; m = max(m, 1.0 - d * d); } float mk = m * 1.6 + (n3(vec3(vXZ * 5.0, 3.0)) - 0.5) * 0.18; if (mk < 0.62) discard; diffuseColor.a *= smoothstep(0.62, 0.68, mk);`); GLOSS(s, 0.85); };
     const pw = new THREE.Mesh(pg, pm); pw.receiveShadow = true; scene.add(pw); }
   return { ground, shells: sh, setWet(w) { mat.color.setScalar(1 - w * 0.3); mat.userData.u.uWetAll.value = w * 0.6; mudMat.opacity = 0.55 + w * 0.12; } };
 }
@@ -259,6 +268,7 @@ export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], 
       }
       const n = this.blobs.length; this.blobs = this.blobs.filter(b => b.amt > 0.005 || b.stain > 0.005); if (this.blobs.length !== n) this.ver++;
     },
+    rinse(parts, dt) { for (const b of this.blobs) { const k = (parts.has(b.part) ? 0.45 : 0.05) * dt; b.amt = Math.max(0, b.amt - k); b.stain = Math.max(0, (b.stain ?? 0) - k * 0.6); } if (this.blobs.length) this.ver++; }, // 水たまり: ふれた部位から少しずつ流れる（全部は落ちない速さ。水浴びとは別）
     wash() { this.blobs = []; this.ver++; }, // 水浴び: 泥もしみも落ちる
     get dirty() { return this.blobs.reduce((t, b) => t + b.amt + b.stain, 0); },
   };

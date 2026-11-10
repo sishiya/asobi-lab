@@ -19,7 +19,7 @@ export function makeSfx({ ctx, vol, ambVol, ready, base }) {
   const rainGain = () => 0.8 * ambVol() * ambVol();
   function rainNow() { if (!S?.rain) return; const ac = ctx(); if (wantRain && !rain) { const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = S.rain; s.loop = true; g.gain.value = 0; s.connect(g); g.connect(ac.destination); s.start(); rain = { s, g }; } if (rain) { rain.g.gain.setTargetAtTime(wantRain ? rainGain() : 0, ac.currentTime, wantRain ? 0.9 : 0.5); if (!wantRain) { const r = rain; rain = null; setTimeout(() => { try { r.s.stop(); } catch (e) { /* 止まっている */ } }, 3000); } } }
   return {
-    async load() { if (S) return; S = {}; const ac = ctx(); for (const k of ['splash', 'rain']) try { S[k] = await ac.decodeAudioData(await (await fetch(new URL(`../snd/${k}.ogg`, base))).arrayBuffer()); } catch (e) { /* なければ鳴らさない */ } rainNow(); },
+    async load() { if (S) return; S = {}; const ac = ctx(); for (const k of ['splash', 'rain']) try { S[k] = await ac.decodeAudioData(await (await fetch(new URL(`./snd/${k}.ogg`, base))).arrayBuffer()); } catch (e) { /* なければ鳴らさない */ } rainNow(); },
     tap() { const ac = gate('tap', 0.05); if (ac) wood(ac, 560, 300, ac.currentTime, 0.2, 0.07); }, // ボタン
     micOn() { const ac = gate('mic', 0.05); if (ac) run(ac, [2, 4], 0.07, 0.1, 0.25); }, // 聞きはじめ（上がる）
     micOff() { const ac = gate('mic', 0.05); if (ac) run(ac, [4, 2], 0.07, 0.1, 0.25); }, // 聞きおわり（下がる）
