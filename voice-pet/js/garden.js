@@ -38,19 +38,19 @@ export function makeGarden(scene) {
   return {
     get count() { return data.plants.length; }, get plants() { return data.plants; },
     // 種類ごとの いちばん進んだ段（-1＝まだない）
-    kinds() { return SEED_KINDS.map((_, k) => data.plants.reduce((m, p) => (p.kind === k ? Math.max(m, p.stage) : m), -1)); },
-    get allBloomed() { return this.kinds().every(s => s === 2); }, get celebrated() { return !!data.done; }, celebrate() { data.done = true; write(data); },
+    kinds(by) { return SEED_KINDS.map((_, k) => data.plants.reduce((m, p) => (p.kind === k && (p.by == null || p.by === by) ? Math.max(m, p.stage) : m), -1)); }, // 子ごとの庭の記録（by＝種を運んだ子。by のない株は前のセーブの分で、どの子にも数える）
+    allBloomed(by) { return this.kinds(by).every(s => s === 2); }, celebrated(by) { return !!data.doneBy?.includes(by); }, celebrate(by) { (data.doneBy ??= []).push(by); write(data); },
     // 家に帰るたび一段育つ。返すのは、はじめて咲いた種類
-    growAll() {
-      const before = this.kinds();
+    growAll(by) {
+      const before = this.kinds(by);
       for (const p of data.plants) if (p.stage < 2) { p.stage++; const o = meshes.get(p); if (o) scene.remove(o); place(p, true); }
-      write(data); return this.kinds().flatMap((s, k) => (s === 2 && before[k] < 2 ? [k] : []));
+      write(data); return this.kinds(by).flatMap((s, k) => (s === 2 && before[k] < 2 ? [k] : []));
     },
     // 種が落ちた所に芽（近すぎる所は少しずらす）
-    sprout(x, z, kind) {
+    sprout(x, z, kind, by) {
       for (const q of data.plants) if (Math.hypot(q.x - x, q.z - z) < 0.05) { x += 0.06 * Math.cos(q.rot * 5); z += 0.06 * Math.sin(q.rot * 5); }
-      const p = { x, z, kind, stage: 0, rot: Math.random() * 6.28 }; data.plants.push(p);
-      if (data.plants.length > MAX) { const i = data.plants.findIndex(o => data.plants.filter(q => q.kind === o.kind).length > 1), o = data.plants.splice(Math.max(0, i), 1)[0], m = meshes.get(o); if (m) scene.remove(m); meshes.delete(o); } // いっぱいなら古い株から（その種類の最後の1株は残す）
+      const p = { x, z, kind, by, stage: 0, rot: Math.random() * 6.28 }; data.plants.push(p);
+      if (data.plants.length > MAX) { const i = data.plants.findIndex(o => data.plants.filter(q => q.kind === o.kind && q.by === o.by).length > 1), o = data.plants.splice(Math.max(0, i), 1)[0], m = meshes.get(o); if (m) scene.remove(m); meshes.delete(o); } // いっぱいなら古い株から（その子のその種類の最後の1株は残す＝巣立った子の株も庭に残る）
       write(data); place(p, true);
     },
     // ふれられた花は、押された向きへなびいて、ゆらゆらもどる（ばね）。pts＝近くにいる体の場所

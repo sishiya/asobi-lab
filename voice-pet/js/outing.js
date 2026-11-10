@@ -2,6 +2,7 @@
 // 自分の草原・藪・物理の世界・カメラを1つ持ち、でかけるたびに いま見ている子の体と皮だけを作る（読みこみなし）。帰ると体と皮を消して、泥の点を返す
 // 子には向き（turn）と速さ（g）だけを渡す。関節は操らない。ぬかるみで泥がつき、雨で落ちる（js/dirt.js）。転んだら、起き上がりを覚えた子は自分で起きる
 // 秒や着いた速さは出さない（くらべっこをさそう＝RELEASE.md・BRUSHUP.md）
+import { makeBackdrop, makeLitter } from './dress.js';
 import * as THREE from 'three';
 import { height, SIZE } from './ground.js';
 import { pose } from './hare.js';
@@ -50,6 +51,7 @@ export function makeOuting(R, renderer, { onHome }) {
   const hemi = new THREE.HemisphereLight(0xf6efe0, 0x6a6448, 1.0); scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff0d6, 2.2); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.radius = 4; sun.shadow.bias = -0.0004;
   Object.assign(sun.shadow.camera, { left: -2.5, right: 2.5, top: 2.5, bottom: -2.5, near: 0.5, far: 20 }); scene.add(sun, sun.target);
+  makeBackdrop(scene, { cx: 1.5, cz: 2.5, r: 17, seed: 23 }); makeLitter(scene, { cx: 1.5, cz: 2.5, r: 6.5, n: 190, seed: 9 });
   const G = makeFeltGround(scene, { size: 16, n: 240, cx: 1.5, cz: 2.5 }), SPLASH = makeSplash(scene), onSplash = (x, z, k, f, water) => SPLASH.emit(x, height(x, z) + 0.012, z, Math.min(1, k * 2), !!water);
   const DIO = makeDiorama(renderer, scene, cam);
 

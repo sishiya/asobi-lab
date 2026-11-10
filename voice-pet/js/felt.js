@@ -44,7 +44,7 @@ export function feltify(mat, { shell = 0, len = 0.006, freq = 260, rest = true, 
       ${coat ? `float bald = smoothstep(1.0 - uAge * 0.55, 1.04 - uAge * 0.55, n3(vRest * 34.0 + 5.3) * 0.7 + n3(vRest * 90.0) * 0.3); // はげる所: 年とともに広がるまだら` : 'float bald = 0.0;'}
       float tuft = fiber(vRest * uFreq * 0.3 + 3.1), fbF = mix(fb, tuft, uFar); // 遠いと細い毛はつぶれて見えないので、太い房に（テストプレイ「遠目だともふもふしていない」）
       float wf = 0.5 * max(vWet, uWetAll), wc = n3(vRest * uFreq * 0.11 + 2.0); // ぬれた毛は束になる
-      if (uShell > 0.0) { if (fbF * (0.55 + 0.6 * fb2) < uShell * 0.55 + 0.12 || vFluff < 0.05 || bald > 0.5 || uShell > mix(1.2, smoothstep(0.3, 0.7, wc) * 0.5 + 0.5, wf * 2.0)) discard; diffuseColor.rgb *= mix(0.78 - 0.2 * uFar, 1.08 + 0.12 * uFar, uShell); }
+      if (uShell > 0.0) { if (fbF * (0.55 + 0.6 * fb2) < uShell * 0.55 + 0.12 || vFluff < 0.05 || bald > 0.5 || uShell > mix(1.2, smoothstep(0.3, 0.7, wc) * 0.5 + 0.5, wf * 2.0)) discard; diffuseColor.rgb *= mix(mix(0.78 - 0.2 * uFar, 1.08 + 0.12 * uFar, uShell), 1.02, smoothstep(0.55, 0.95, 1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))))); } // ふちは根もとの暗い毛を見せない（輪郭に黒い粒が出た）
       else diffuseColor.rgb *= (0.86 + 0.22 * fbF + 0.08 * fb2) * (1.0 - 0.1 * bald);
       diffuseColor.rgb *= mix(1.0, (0.56 + 0.3 * wc), wf); // ぬれると暗く、束の谷はもっと暗い
       ${coat ? `
@@ -76,7 +76,7 @@ export function shells(n, mk, matFn) { const out = []; for (let s = 1; s <= n; s
 export function makeFeltBall(color, { r = 0.05, sx = 1, sy = 1, sz = 1, seg = 24, fuzz = 0, len = 0.005 } = {}) {
   const g = new THREE.SphereGeometry(r, seg, Math.round(seg * 0.7)); g.scale(sx, sy, sz);
   const m = feltMesh(g, color);
-  for (let k = 1; k <= fuzz; k++) { const sh = new THREE.Mesh(g, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.9, sheenRoughness: 0.8, sheenColor: 0xf2e6d4 }), { shell: k / fuzz, len, freq: 330, rest: false })); sh.castShadow = false; m.add(sh); }
+  for (let k = 1; k <= fuzz; k++) { const sh = new THREE.Mesh(g, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.9, sheenRoughness: 0.8, sheenColor: 0xf2e6d4 }), { shell: k / fuzz, len, freq: 330, rest: false })); sh.castShadow = false; sh.receiveShadow = true; m.add(sh); }
   return m;
 }
 // 小物をまとめて1つのフェルトの網に（ひとつずつ置くと描く回数がふえる）。list＝[[geometry, 色 か (x, y, z) => 色], …]
@@ -91,7 +91,7 @@ export function feltMerged(list, { fuzz = 0, len = 0.005, freq = 330 } = {}) {
   }
   const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.BufferAttribute(P, 3)); out.setAttribute('normal', new THREE.BufferAttribute(N, 3)); out.setIndex(new THREE.BufferAttribute(I, 1));
   const m = feltMesh(out); out.attributes.color.array.set(C);
-  for (let k = 1; k <= fuzz; k++) { const sh = new THREE.Mesh(out, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.9, sheenRoughness: 0.8, sheenColor: 0xf2e6d4 }), { shell: k / fuzz, len, freq, rest: false })); sh.castShadow = false; m.add(sh); }
+  for (let k = 1; k <= fuzz; k++) { const sh = new THREE.Mesh(out, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.9, sheenRoughness: 0.8, sheenColor: 0xf2e6d4 }), { shell: k / fuzz, len, freq, rest: false })); sh.castShadow = false; sh.receiveShadow = true; m.add(sh); }
   return m;
 }
 // 形を1色のフェルトに（たまごの花びらなど）。色は geometry の color を後から変えてよい
@@ -145,7 +145,7 @@ export function makeFeltGround(scene, { size = 12, n = 200, cx = 0, cz = 0, shel
   mudMat.onBeforeCompile = s => { s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vXZ;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvXZ = position.xz;');
     s.fragmentShader = s.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec2 vXZ; uniform vec4 uP[${PATCHES.length}]; uniform vec3 uEdge; uniform float uEdgeH; ${NOISE}`).replace('#include <alphamap_fragment>', `#include <alphamap_fragment>
     float m = 0.0; for (int i = 0; i < ${PATCHES.length}; i++) { float d = length(vXZ - uP[i].xy) / uP[i].z; m = max(m, 1.0 - d * d); } float eN = n3(vec3(vXZ * 8.0, 1.0)) * 0.5 + n3(vec3(vXZ * 26.0, 4.0)) * 0.3 + n3(vec3(vXZ * 75.0, 7.0)) * 0.2, mk = m * 1.6 + (eN - 0.5) * 0.7; ${EDGE('vXZ')} if (mk < 0.62) discard; diffuseColor.a *= smoothstep(0.62, 0.85, mk);`);
-    s.uniforms.uP = { value: PATCHES.map(([x, z, r]) => new THREE.Vector4(x, z, r, 0)) }; Object.assign(s.uniforms, EDGE_U()); GLOSS(s, 0.7); };
+    s.uniforms.uP = { value: PATCHES.map(([x, z, r]) => new THREE.Vector4(x, z, r, 0)) }; Object.assign(s.uniforms, EDGE_U()); GLOSS(s, 0.28); };
   // 水たまりの面（うすい水の膜。地面の網と同じ点の上にのせる）
   if (puddles.length) { const cell = size / n, ox = cx - size / 2, oz = cz - size / 2, R = 1.3, sn = (f, a) => f((a) / cell), ix0 = sn(Math.floor, Math.min(...puddles.map(p => p[0] - p[2] * R)) - ox), ix1 = sn(Math.ceil, Math.max(...puddles.map(p => p[0] + p[2] * R)) - ox), iz0 = sn(Math.floor, Math.min(...puddles.map(p => p[1] - p[2] * R)) - oz), iz1 = sn(Math.ceil, Math.max(...puddles.map(p => p[1] + p[2] * R)) - oz);
     const pg = new THREE.PlaneGeometry((ix1 - ix0) * cell, (iz1 - iz0) * cell, ix1 - ix0, iz1 - iz0); pg.rotateX(-Math.PI / 2); pg.translate(ox + (ix0 + ix1) / 2 * cell, 0, oz + (iz0 + iz1) / 2 * cell);
@@ -226,7 +226,7 @@ export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], 
     const ear = new THREE.Mesh(eg, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 1, sheenRoughness: 0.7, sheenColor: 0xf0dcc8 }), { freq: 330, rest: false }));
     ear.position.set(hc[0] - hbp.x + F.ear.at[0], hc[1] - hbp.y + F.ear.at[1], hc[2] - hbp.z + F.ear.at[2] * s);
     ear.scale.set(...F.ear.size); ear.rotation.set(F.ear.out * s, 0, F.ear.back); ear.castShadow = true; headBone.add(ear);
-    earList.push({ ear, s, a: 0, va: 0, b: 0, vb: 0, eg, ...(F.ear.long ? { long: true, z0, P0: ep.array.slice(), c: 0, vc: 0, d: 0, vd: 0, cz: 9 } : {}) }); if (F.ear.long) { ear.frustumCulled = false; for (let k = 1; k <= 3; k++) { const sh = new THREE.Mesh(eg, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.3, sheenRoughness: 0.8, sheenColor: 0xf2e6d4 }), { shell: k / 3, len: 0.35, freq: 14, rest: false })); sh.frustumCulled = false; ear.add(sh); } } // 長い耳は面が見えるので、体と同じ毛羽を（耳は縮めた球なので len・freq は球の大きさで）
+    earList.push({ ear, s, a: 0, va: 0, b: 0, vb: 0, eg, ...(F.ear.long ? { long: true, z0, P0: ep.array.slice(), c: 0, vc: 0, d: 0, vd: 0, cz: 9 } : {}) }); { ear.frustumCulled = false; for (let k = 1; k <= 3; k++) { const sh = new THREE.Mesh(eg, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.3, sheenRoughness: 0.8, sheenColor: 0xf2e6d4 }), { shell: k / 3, len: 0.35, freq: 14, rest: false })); sh.frustumCulled = false; ear.add(sh); } } // 耳も体と同じ毛羽を（耳は縮めた球なので len・freq は球の大きさで）
     // 目: 頭の横の高い所に、まぶたのふちから少しだけ出る（飛び出して見えないよう、平たくして皮にうめる。まわりの毛は短く白っぽい＝下の eyeAt）
     const eye = new THREE.Mesh(new THREE.SphereGeometry(F.eyeR, 16, 12), new THREE.MeshPhysicalMaterial({ color: F.iris, roughness: 0.35, clearcoat: 0.35 }) /* てかりが強いと白目に見えて飛び出して見える */);
     const ea = eyeAt(s); eye.position.set(ea[0] - hbp.x, ea[1] - hbp.y, ea[2] - hbp.z); eye.scale.set(1, 1, 0.5); headBone.add(eye);

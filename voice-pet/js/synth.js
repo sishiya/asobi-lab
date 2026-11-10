@@ -24,7 +24,7 @@ export function synthVoice(p) {
     let s = syl[syl.length - 1], k = syl.length - 1;
     for (let j = 0; j < syl.length; j++) if (t < syl[j].t1) { s = syl[j]; k = j; break; }
     const inS = t >= s.t0 && t < s.t1;
-    const env = inS ? Math.min(1, (t - s.t0) / 0.03, (s.t1 - t) / 0.05) : 0;
+    const env = inS ? Math.min(1, (t - s.t0) / (p.attack || 0.03), (s.t1 - t) / 0.05) : 0, hit = inS && p.burst && t - s.t0 < 0.015 ? p.burst : 0; // attack＝音節の立ち上がり・burst＝音節の頭の子音（はじける声）
     const nx = syl[Math.min(k + 1, syl.length - 1)];
     const mix = Math.max(0, Math.min(1, (t - (s.t1 - 0.06)) / 0.06));
     const va = VOWEL[s.v] || VOWEL.a, vb = VOWEL[nx.v] || VOWEL.a;
@@ -45,7 +45,7 @@ export function synthVoice(p) {
     const src = g; // 声門の流れ（微分は口の放射でかかる）
     const noise = (R() * 2 - 1);
     const br = p.breath || 0;
-    let ex = (src * (1 - br * 0.7) + noise * br * 0.35 * (0.5 + 0.5 * g)) * env * shim;
+    let ex = (src * (1 - br * 0.7) + noise * (br * 0.35 * (0.5 + 0.5 * g) + hit)) * env * shim;
     // クラット式の直列のフォルマント（1つずつ DC で利得 1。高いほど自然に弱まる）
     let y = ex;
     for (let f = 0; f < 4; f++) {
@@ -68,18 +68,18 @@ export function synthVoice(p) {
 }
 
 // 音節の並びを作る（はやさ＝音節／秒）
-export function sylls(text, rate, dur, semis) {
+export function sylls(text, rate, dur, semis, duty = 0.78) {
   const v = [...text], out = [];
-  const step = 1 / rate, len = step * 0.78;
+  const step = 1 / rate, len = step * duty;
   for (let i = 0, t = 0.1; i < v.length && t + len < dur; i++, t += step) out.push({ v: v[i], t0: t, t1: t + len, semi: semis ? semis[i % semis.length] : 0 });
   return out;
 }
 
 // 確かめ用の声の見本（マイクのかわり。?test=<名前>）
 export const SAMPLES = {
-  low:    { f0: 105, vtl: 17.5, breath: 0.05, rough: 0.15, rate: 4.2, text: 'aiueoaiu', semis: [0, 1, -1, 2, 0] },
-  high:   { f0: 230, vtl: 14.2, breath: 0.12, rough: 0.1, rate: 4.8, text: 'aiueoaiu', semis: [0, 2, 3, 1, 4] },
-  child:  { f0: 310, vtl: 11.2, breath: 0.1, rough: 0.05, rate: 5.5, text: 'aaiioo', semis: [0, 4, 7, 2, 5] },
+  low:    { f0: 105, vtl: 17.5, breath: 0.05, rough: 0.15, rate: 2.6, text: 'aiueoaiu', semis: [0, 1, -1, 2, 0] },
+  high:   { f0: 250, vtl: 13.2, breath: 0.08, rough: 0.05, rate: 2.8, text: 'aiueoaiu', semis: [0, 5, 9, 3, 11] },
+  bounce: { f0: 150, vtl: 10, breath: 0.02, rough: 0.02, rate: 2.2, duty: 0.35, attack: 0.002, text: 'aiaoaiaoaiaoai', semis: [0, 1, 0, 2] },
   breathy:{ f0: 170, vtl: 15.5, breath: 0.65, rough: 0.2, rate: 3.0, text: 'aooa', semis: [0, -1, 0, -2] },
   rough:  { f0: 120, vtl: 17, breath: 0.25, rough: 0.9, rate: 3.5, text: 'aoaoe', semis: [0, 0, 1, 0] },
   sing:   { f0: 200, vtl: 15, breath: 0.05, rough: 0.05, rate: 1.6, text: 'aaoo', semis: [0, 5, 9, 4] },
@@ -87,7 +87,7 @@ export const SAMPLES = {
 };
 export function sampleVoice(name, sr = 48000) {
   const s = SAMPLES[name] || SAMPLES.low, dur = 2.6;
-  const { samples } = synthVoice({ sr, dur, f0: s.f0, vtl: s.vtl, breath: s.breath, rough: s.rough, syl: sylls(s.text, s.rate, dur, s.semis), seed: name.length * 97 });
+  const { samples } = synthVoice({ sr, dur, f0: s.f0, vtl: s.vtl, breath: s.breath, rough: s.rough, attack: s.attack, burst: s.burst, syl: sylls(s.text, s.rate, dur, s.semis, s.duty), seed: name.length * 97 });
   // マイクの雑音を少し
   const R = rng(3); for (let i = 0; i < samples.length; i++) samples[i] += (R() - 0.5) * 0.004;
   return samples;

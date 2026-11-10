@@ -7,15 +7,15 @@
 import { trial } from './trial.js';
 import { KID_SEED, KID_TROT, KID_SLOW, KID_PARAMS } from './kid.js';
 
-export function makePractice(R, body, { pop = 16, seed = 1, start = body.starts?.[0] ?? KID_SEED, stage1 = 25, minStage2 = 10, stuck = 40, stage3 = 45, resume = null, ask = false, places = [] } = {}) {
+export function makePractice(R, body, { pop = 16, seed = 1, start = body.starts?.[0] ?? KID_SEED, stage1 = 25, minStage2 = 10, stuck = 40, stage3 = 45, resume = null, ask = false, places = [], pickWide = false, fall3 = 1 } = {}) {
   let s = (seed >>> 0) % 2147483646 + 1;
   const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647, gauss = () => Math.sqrt(-2 * Math.log(rnd() + 1e-12)) * Math.cos(2 * Math.PI * rnd());
   const GATE = body.gateDist ?? 1, fW = body.flightW ?? 1.5; // GATE＝歩けたと見なす6秒の道のり（本物の速さが遅い型は短く） // 跳ねる型は、宙に浮いても引かない
   const score = (r, st) => st === 1 ? Math.min(r.dist, 1.8) - 0.5 * r.slip - (r.fell ? 0.3 : 0)
-    : Math.min(r.dist, 1.8) - 3 * r.slip - (r.fell ? 1 : 0) - fW * r.flight + (st === 3 ? 1.5 * r.yaw - 2 * Math.abs(r.drift) : 0); // 曲がる段: 言われた向きへ曲がる・まっすぐのとき流れない（流れるくせは片足をかばうように見える＝9.7）
+    : Math.min(r.dist, 1.8) - 3 * r.slip - (r.fell ? (st === 3 ? fall3 : 1) : 0) - fW * r.flight + (st === 3 ? 1.5 * r.yaw - 2 * Math.abs(r.drift) : 0); // 曲がる段: 言われた向きへ曲がる・まっすぐのとき流れない（流れるくせは片足をかばうように見える＝9.7）
   const STARTS = body.starts ?? [start, KID_TROT, KID_SLOW];
-  let mean = start.slice(), sd = mean.map(() => 0.15), best = null, gen = 0, tries = 0, firstWalk = null, st = 1, inSt = 0, restarts = 0, steady = false, done = false, askAt = stuck, asking = false, safe = null; // safe＝別の場所でも転ばなかった、いちばん新しい歩き（曲がる練習でくずれたら、これにもどす）
-  if (resume) ({ s, mean, sd, best, gen, tries, firstWalk, st, inSt, restarts, steady, done, askAt = stuck, asking = false, safe = null } = structuredClone(resume)); // 走りに行って、もどってきたら続きから
+  let mean = start.slice(), sd = mean.map(() => 0.15), best = null, gen = 0, tries = 0, firstWalk = null, st = 1, inSt = 0, restarts = 0, steady = false, done = false, askAt = stuck, asking = false, safe = null, safeN = -1; // safe＝別の場所でも転ばなかった、いちばん新しい歩き（曲がる練習でくずれたら、これにもどす）
+  if (resume) ({ s, mean, sd, best, gen, tries, firstWalk, st, inSt, restarts, steady, done, askAt = stuck, asking = false, safe = null, safeN = -1 } = structuredClone(resume)); // 走りに行って、もどってきたら続きから
   const EL = Math.max(2, pop >> 2);
   // 足の横の振りは、曲がる練習（段3）から使いはじめる（はじめから試すと、まっすぐ歩くのを覚えにくかった）。それまでは出発点の値（0）にとめる
   const LAT = ['abA', 'abP', 'abT'].map(k => KID_PARAMS.findIndex(p => p[0] === k)).filter(i => i >= 0), FIX = (body.lock ?? []).map(k => KID_PARAMS.findIndex(p => p[0] === k)).filter(i => i >= 0), lock = v => { if (st < 3) for (const i of LAT) v[i] = start[i] ?? 0.5; for (const i of FIX) v[i] = start[i] ?? 0.5; return v; };
@@ -24,11 +24,11 @@ export function makePractice(R, body, { pop = 16, seed = 1, start = body.starts?
   // 走った地面（ユーザーの目標「でかけた所が家の庭になる」の残り半分）: 走った場所があれば、試しの半分はそこで（その子が本当に歩いた地面で練習する）
   const placeAt = () => { const p = places[Math.floor(rnd() * places.length)]; return [Math.max(-6, Math.min(6, p[0] + (rnd() - 0.5) * 0.6)), 0, Math.max(-6, Math.min(6, p[1] + (rnd() - 0.5) * 0.6))]; };
   const steadyAt = (v, straight = false) => { let ok = 0; for (let k = 0; k < 4; k++) { const a = rnd() * 6.28, d = 2 + rnd() * 5, r = trial(R, v, { dur: 6, body, ...(straight ? { turn: () => 0 } : {}), at: places.length && k % 2 ? placeAt() : [Math.cos(a) * d, 0, Math.sin(a) * d] }); r.world.free(); tries++; if (!r.fell && r.dist > GATE) ok++; } return ok === 4; };
-  const wideOk = v => { let ok = 0; for (let k = 0; k < 8; k++) { const a = rnd() * 6.28, d = 2 + rnd() * 5, r = trial(R, v, { dur: 6, body, at: [Math.cos(a) * d, 0, Math.sin(a) * d] }); r.world.free(); tries++; if (!r.fell && r.dist > GATE) ok++; } return ok >= 7; };
+  const wideN = v => { let ok = 0; for (let k = 0; k < 8; k++) { const a = rnd() * 6.28, d = 2 + rnd() * 5, r = trial(R, v, { dur: 6, body, at: [Math.cos(a) * d, 0, Math.sin(a) * d] }); r.world.free(); tries++; if (!r.fell && r.dist > GATE) ok++; } return ok; }, wideOk = v => wideN(v) >= 7;
   const toStage = n => { st = n; inSt = 0; if (best) { mean = best.v.slice(); sd = sd.map(() => 0.08); } if (n === 3) for (const i of LAT) sd[i] = 0.15; best = null; }; // 段3で横の振りを広く試しはじめる // 段が変わると点のつけ方が変わるので、いちばんを選びなおす
   return {
     get gen() { return gen; }, get tries() { return tries; }, get best() { return best; }, get firstWalk() { return firstWalk; },
-    setPlaces(p) { places = p; }, get trying() { return mean; }, state: () => structuredClone({ s, mean, sd, best, gen, tries, firstWalk, st, inSt, restarts, steady, done, askAt, asking, safe }), get asking() { return asking; },
+    setPlaces(p) { places = p; }, get trying() { return mean; }, state: () => structuredClone({ s, mean, sd, best, gen, tries, firstWalk, st, inSt, restarts, steady, done, askAt, asking, safe, safeN }), get asking() { return asking; },
     // 聞いた答え: 始め直す／このまま様子を見る
     restart() { restarts++; mean = STARTS[restarts % STARTS.length].map(x => Math.max(0, Math.min(1, x + 0.05 * gauss()))); sd = mean.map(() => 0.15); best = null; st = 1; inSt = 0; askAt = stuck; asking = false; },
     keep() { asking = false; askAt = inSt + stuck * 3; }, get stage() { return st; }, get restarts() { return restarts; }, get steady() { return steady; }, get done() { return done; },
@@ -49,8 +49,8 @@ export function makePractice(R, body, { pop = 16, seed = 1, start = body.starts?
         if (steadyAt(best.v, body.gateStraight)) { steady = true; safe = best.v.slice(); toStage(3); } // gateStraight＝段2はまっすぐの練習なので、跳ねる型は試験もまっすぐで（曲がりは段3で覚える）
         else if (inSt >= askAt && !asking) { if (ask) asking = true; else this.restart(); } // 行きづまり→別の歩き方から（ask なら聞いてから）
       } else if (st === 3 && inSt % 5 === 0) { // 曲がれるようになっても、別の場所で転ばない歩きだけを残す（曲がる練習のあと、4か所で歩けた子が 8 か所で 0 になった＝2026-11-08 の調査）
-        const ok = steadyAt(best.v); if (ok) safe = best.v.slice();
-        if (inSt >= stage3 && ok && wideOk(best.v)) { done = true; if (safe) out = { ...out, v: safe }; } else if (inSt >= stage3 * 3) { done = true; if (safe) out = { ...out, v: safe }; } // 卒業は はじめての8か所で試す（4か所だけだと、たまたま通った子が歩けないまま終わった＝2026-11-10 の調査）
+        const ok = steadyAt(best.v); if (ok && pickWide) { const n = wideN(best.v); if (n >= safeN) { safeN = n; safe = best.v.slice(); } } else if (ok) safe = best.v.slice();
+        if (inSt >= stage3 && ok && (pickWide ? safeN >= 7 : wideOk(best.v))) { done = true; if (safe) out = { ...out, v: safe }; } else if (inSt >= stage3 * 3) { done = true; if (safe) out = { ...out, v: safe }; } // 卒業は はじめての8か所で試す（4か所だけだと、たまたま通った子が歩けないまま終わった＝2026-11-10 の調査）
       }
       return out;
     },

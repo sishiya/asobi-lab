@@ -8,8 +8,9 @@ export function rng(seed) { let s = (seed >>> 0) || 1; const r = () => { s ^= s 
 // 体の型は声で決まる（ユーザー「声で決まる一択」）。ささやき→ヘビ、低くゆっくり→アザラシ、はやくち→イタチ、はじける声→ウサギ、高くはじける→トビネズミ、高く抑揚がある→鳥。どれにも寄らなければ歩く子
 // VOICE_TYPES＝学習の合格の線（9割が歩ける）を通った型だけ
 export const VOICE_TYPES = ['snake', 'hop', 'bird', 'donkey', 'bound']; // アザラシは不採用（テストプレイ。すでにいる子は残る）
+export const typeScores = n => ({ walk: 0.95, snake: n.breath * 1.4, seal: (1 - n.pitch) * 0.8 + (1 - n.tempo) * 0.7, bound: n.tempo * 1.3 + n.rough * 0.2, donkey: (1 - n.pitch) * 0.6 + n.rough * 0.9, hop: n.tempo * 0.4 + n.sharp * 1.7, biped: n.pitch * 0.7 + n.sharp * 0.6, bird: n.pitch * 0.8 + n.melody * 0.7 }); // 表と式は VOICE.md
 export function voiceType(n, R) {
-  const S = { walk: 0.95, snake: n.breath * 1.4, seal: (1 - n.pitch) * 0.8 + (1 - n.tempo) * 0.7, bound: n.tempo * 1.3 + n.rough * 0.2, donkey: (1 - n.pitch) * 0.6 + n.rough * 0.9, hop: n.tempo * 0.85 + n.sharp * 0.6, biped: n.pitch * 0.7 + n.sharp * 0.6, bird: n.pitch * 0.8 + n.melody * 0.7 };
+  const S = typeScores(n);
   return VOICE_TYPES.map(t => [t, S[t] + R() * 0.12]).sort((a, b) => b[1] - a[1])[0][0];
 }
 let NEXT = 1;

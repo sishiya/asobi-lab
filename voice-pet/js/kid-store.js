@@ -15,4 +15,9 @@ export function loadKids() {
 export function saveKids(j) { try { localStorage.setItem(KEY, JSON.stringify(j)); } catch (e) { /* 保存できない（プライベートのウィンドウなど）: このページの中だけで続ける */ } }
 export function loadKid() { const j = loadKids(); return j.kids[j.at] || null; }
 export function saveKid(k) { const j = loadKids(); if (j.kids.length) j.kids[j.at] = k; else j.kids = [k]; saveKids(j); }
+// セーブの書き出しと読みこみ（遺伝子と歩き方の数・名前・庭だけ。声は入らない）
+const GARDEN = 'koenoko.garden', VOL = 'koenoko.vol', WALK = 'koenoko.walk2';
+export function exportSave() { return { app: 'koenoko', ver: 1, kids: read(KEY), garden: read(GARDEN), vol: read(VOL), walk2: (() => { try { return localStorage.getItem(WALK); } catch (e) { return null; } })() }; }
+export function checkSave(j) { return j?.app === 'koenoko' && Array.isArray(j.kids?.kids) && j.kids.kids.length <= MAX_KIDS && j.kids.kids.every(k => k && typeof k.genes === 'object' && k.genes); }
+export function importSave(j) { const kids = j.kids.kids.map(k => ({ ...k, name: String(k.name ?? '').slice(0, 10) })), plants = (j.garden?.plants ?? []).filter(p => Number.isFinite(p?.x) && Number.isFinite(p?.z) && Number.isInteger(p?.kind) && p.kind >= 0 && p.kind < 5 && Number.isInteger(p?.stage)).slice(0, 80); localStorage.setItem(KEY, JSON.stringify({ kids, at: j.kids.at | 0 })); localStorage.setItem(GARDEN, JSON.stringify({ ...j.garden, plants })); if (j.vol) localStorage.setItem(VOL, JSON.stringify(j.vol)); if (j.walk2) localStorage.setItem(WALK, j.walk2); else localStorage.removeItem(WALK); }
 export function clearKid() { try { localStorage.removeItem(KEY); localStorage.removeItem(OLD); } catch (e) { /* なし */ } }
