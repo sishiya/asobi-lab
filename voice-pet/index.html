@@ -318,6 +318,11 @@ function raise(saved, FB0 = null, at = [0, 0, 0], yaw = 0) {
   let FB = FB0; // 付けかえられない皮は作りなおす
   if (FB) { H = B.build(R, world, at, height, yaw); if (FB.rebind(H, yaw) === false) { FB.dispose(); FB = null; for (const p of Object.values(H.parts)) world.removeRigidBody(p.body); } else FB.sleep(false); }
   if (!FB) ({ H, FB } = bodyAndSkin(B, genes, at, yaw));
+  takeKid(saved, H, B, FB);
+}
+// いまの体と皮を「見る子」にする（練習もこの子へ）
+function takeKid(saved, H, B, FB) {
+  const genes = saved.genes;
   groupKid(H, 0);
   FB.mud.blobs = saved.mud || []; // 走るでついた泥（乾いて落ちる・少し残るしみは水浴びで）
   D = makeDirt(H); // 育てるでも、ぬかるみにふれたら泥がつく
@@ -363,6 +368,18 @@ function freeSpot(at, self) {
 }
 function palRestart(p, home) { endGust(p); const P = pose(p.H), at = freeSpot(home ? p.home : [P.x, 0, P.z], p.H); for (const b of Object.values(p.H.parts)) world.removeRigidBody(b.body); const yaw = home ? 0 : P.yaw; p.H = p.B.build(R, world, at, height, yaw); groupKid(p.H, p.slot); p.FB.rebind(p.H, yaw); p.t = 0; p.fallT = 0; }
 // 子たちを作りなおす（見る子を変えた・子が来た）。いまいる所はそのまま。FB0＝見る子に付けかえる皮（生むから来た子）
+// 見る子を切りかえる: 体も皮も作り直さず、見る子といっしょの子の役目だけ入れかえる（テストプレイ「がっつり固まって、各子が再配置される」）。歩いている途中の姿勢も、風で運ばれている途中もそのまま
+function switchKid(i) {
+  const pi = pals.findIndex(p => p.i === i); if (pi < 0) { rebuildHerd(null, () => (herd.at = i)); return; }
+  dropAllBurrs(); keep();
+  const K = kid, oldAt = herd.at, s0 = herd.kids[oldAt], p = pals[pi], P = pose(K.H), rr = Math.hypot(P.x, P.z), walk = !!(s0.v && s0.state?.firstWalk);
+  worker?.terminate(); worker = null; herd.at = i;
+  groupKid(K.H, p.slot); if (!walk) K.FB.sleep(true); // まだ歩けない子は、その場で眠る
+  pals[pi] = { i: oldAt, H: K.H, B: K.B, FB: K.FB, q: K.B.decode(s0.v || s0.trying || kidSeed(s0.genes)), walk, t, fallT: fallT ? clock : 0, home: rr > 1.8 ? [P.x * 1.8 / rr, 0, P.z * 1.8 / rr] : [P.x, 0, P.z], slot: p.slot, gust: K.gust };
+  p.FB.sleep(false); t = p.walk ? p.t : 0; fallT = p.fallT; gu = null; morph = null;
+  takeKid(herd.kids[i], p.H, p.B, p.FB); if (p.gust) kid.gust = p.gust;
+  herdRow(); gardenRow(); saveKids(herd); queueFaces();
+}
 function rebuildHerd(FB0 = null, change = null) { // change＝いまの子を残したあとで、子たちの並び・見る子を変える（先に変えると、いまの子が別の子の場所に書かれた）
   const where = {}, note = (id, H) => { const P = pose(H); where[id] = { at: [P.x, 0, P.z], yaw: P.yaw }; };
   if (kid) { endGust(kid); dropAllBurrs(); keep(); note(kid.id, kid.H); }
@@ -394,7 +411,7 @@ function herdRow() {
   const row = $('herdRow'); row.innerHTML = '';
   herd.kids.forEach((k, i) => { const b = document.createElement('button'), p = pals.find(q => q.i === i);
     const f = faces.get(k.id), nm = (k.name || '').replace(/[<>&]/g, ''), st = i === herd.at ? 'up' : p?.walk ? 'walk' : 'zz'; b.innerHTML = `<span class="hc"${f ? '' : ` style="background:rgb(${lookColor(k.genes.look).base.map(v => Math.round(v * 255))})"`}>${f ? `<img src="${f}" alt="">` : nm.slice(0, 1)}</span><span class="nm">${nm}</span><i class="bd">${HERD_ICON[st]}</i>`; b.className = i === herd.at ? 'on' : ''; b.setAttribute('aria-label', `${nm}（${{ up: '練習中', walk: 'おさんぽ', zz: 'おやすみ' }[st]}）`); b.title = `${nm}（${{ up: '練習中', walk: 'おさんぽ', zz: 'おやすみ' }[st]}）`;
-    b.addEventListener('click', () => { if (i === herd.at) return; rebuildHerd(null, () => (herd.at = i)); free = null; show(`${kid.name} の練習を見よう`); }); row.appendChild(b); });
+    b.addEventListener('click', () => { if (i === herd.at) return; switchKid(i); free = null; show(`${kid.name} の練習を見よう`); }); row.appendChild(b); });
   const e = document.createElement('button'); e.className = 'egg'; e.innerHTML = '<span class="hc">＋</span><span class="nm">たまご</span>'; e.setAttribute('aria-label', `たまごを生む（なかま ${herd.kids.length}/${MAX_KIDS}）`); e.title = 'たまごを生む'; e.addEventListener('click', () => go('birth')); row.appendChild(e);
 }
 // 歩き方を始め直す前に聞く（ユーザー「承諾を得るように。このまま様子を見る選択肢も」）
@@ -915,7 +932,7 @@ function pickKid(e) {
   if (!free) return; const v = new THREE.Vector3(); let best = null, bd = Infinity;
   for (const [H, i] of [[kid.H, herd.at], ...pals.map(p => [p.H, p.i])]) for (const p of Object.values(H.parts)) { if (p.r <= 0.005) continue; const q = p.body.translation(); v.set(q.x, q.y, q.z); const dist = v.distanceTo(cam.position), R = Math.max(26, p.r * innerHeight / (2 * Math.tan(cam.fov * Math.PI / 360) * dist) * 1.3); v.project(cam); const d = Math.hypot((v.x + 1) / 2 * innerWidth - e.clientX, (1 - v.y) / 2 * innerHeight - e.clientY); if (d < R && d < bd) { bd = d; best = i; } }
   if (best == null) return;
-  if (best !== herd.at) { rebuildHerd(null, () => (herd.at = best)); show(`${kid.name} の練習を見よう`); }
+  if (best !== herd.at) { switchKid(best); show(`${kid.name} の練習を見よう`); }
   free = null;
 }
 // デバッグ（?debug のときだけメニューに出す）: 型と色を決めて生む・皮と骨筋を切りかえる

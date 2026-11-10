@@ -107,7 +107,7 @@ export function makeFeltGround(scene, { size = 12, n = 200, cx = 0, cz = 0, shel
       outgoingLight = mix(outgoingLight, skyW, min(1.0, frW)) + vec3(1.0, 0.96, 0.88) * (pow(sdW, 220.0) * 2.5 + pow(sdW, 24.0) * 0.18) * ${k.toFixed(2)}; diffuseColor.a = min(1.0, diffuseColor.a + frW * 0.6);
       #include <opaque_fragment>`); };
   // 水たまりの下: 草は水ぎわできれいに切れ、ぬれて少し暗い（土の帯は作らない。テストプレイ「淵はドロっぽくしないで」）
-  const POND_U = puddles.length ? `uniform vec4 uPd[${puddles.length}];` : '', POND = puddles.length ? `float pdM = 0.0; for (int i = 0; i < ${puddles.length}; i++) { float d = length(vRest.xz - uPd[i].xy) / uPd[i].z; pdM = max(pdM, 1.0 - d * d); } float pdK = pdM * 1.6 + (n3(vec3(vRest.xz * 5.0, 3.0)) - 0.5) * 0.18; if (uShell > 0.0 && pdK > 0.6) discard; diffuseColor.rgb *= mix(1.0, 0.55, smoothstep(0.5, 0.62, pdK));` : '';
+  const POND_U = puddles.length ? `uniform vec4 uPd[${puddles.length}];` : '', POND = puddles.length ? `float pdM = 0.0; for (int i = 0; i < ${puddles.length}; i++) { float d = length(vRest.xz - uPd[i].xy) / uPd[i].z; pdM = max(pdM, 1.0 - d * d); } float pdK = pdM * 1.6 + (n3(vec3(vRest.xz * 2.2, 3.0)) - 0.5) * 0.5; if (uShell > 0.0 && pdK > 0.6) discard; diffuseColor.rgb *= mix(1.0, 0.55, smoothstep(0.5, 0.62, pdK));` : '';
   const SOIL = PATCHES;
   const muddy = M => { const base = M.onBeforeCompile; M.onBeforeCompile = sh => { base(sh); Object.assign(sh.uniforms, EDGE_U()); if (puddles.length) sh.uniforms.uPd = { value: puddles.map(([x, z, r]) => new THREE.Vector4(x, z, r, 0)) }; sh.uniforms.uP = { value: SOIL.map(([x, z, r]) => new THREE.Vector4(x, z, r, 0)) }; sh.uniforms.uMudC = { value: new THREE.Color(...MUD_WET).multiplyScalar(1.2) };
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nuniform vec4 uP[${SOIL.length}]; uniform vec3 uMudC, uEdge; uniform float uEdgeH; ${POND_U}`).replace('#include <roughnessmap_fragment>', `${EDGE('vRest.xz')}
@@ -139,7 +139,7 @@ export function makeFeltGround(scene, { size = 12, n = 200, cx = 0, cz = 0, shel
     pm.onBeforeCompile = s => { s.uniforms.uP = { value: puddles.map(([x, z, r]) => new THREE.Vector4(x, z, r, 0)) }; s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vXZ;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvXZ = position.xz;');
       s.fragmentShader = s.fragmentShader.replace('#include <common>', `#include <common>
 varying vec2 vXZ; uniform vec4 uP[${puddles.length}]; ${NOISE}`).replace('#include <alphamap_fragment>', `#include <alphamap_fragment>
-      float m = 0.0; for (int i = 0; i < ${puddles.length}; i++) { float d = length(vXZ - uP[i].xy) / uP[i].z; m = max(m, 1.0 - d * d); } float mk = m * 1.6 + (n3(vec3(vXZ * 5.0, 3.0)) - 0.5) * 0.18; if (mk < 0.62) discard; diffuseColor.a *= smoothstep(0.62, 0.68, mk);`); GLOSS(s, 0.85); };
+      float m = 0.0; for (int i = 0; i < ${puddles.length}; i++) { float d = length(vXZ - uP[i].xy) / uP[i].z; m = max(m, 1.0 - d * d); } float mk = m * 1.6 + (n3(vec3(vXZ * 2.2, 3.0)) - 0.5) * 0.5; if (mk < 0.62) discard; diffuseColor.a *= smoothstep(0.62, 0.68, mk);`); GLOSS(s, 0.85); };
     const pw = new THREE.Mesh(pg, pm); pw.receiveShadow = true; scene.add(pw); }
   return { ground, shells: sh, setWet(w) { mat.color.setScalar(1 - w * 0.3); mat.userData.u.uWetAll.value = w * 0.6; mudMat.opacity = 0.55 + w * 0.12; } };
 }

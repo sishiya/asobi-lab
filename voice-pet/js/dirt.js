@@ -13,7 +13,7 @@ export function mud(x, z, rain = 0) {
 }
 
 // 水たまり（ホームだけ）: 泥はつかず、ふれた所がぬれる。地面の高さは変えない（テストプレイ「浸かるほどにはしない。溺れているように見える」）
-export const PUDDLES = [[0.62, -1.2, 0.42], [1.02, -1.48, 0.27]];
+export const PUDDLES = [[0.75, -1.3, 0.55]]; // 円ひとつ。形のゆらぎは見た目の側（felt.js）のゆるいノイズで
 export function puddle(x, z) { let m = 0; for (const [px, pz, r] of PUDDLES) { const d = Math.hypot(x - px, z - pz) / r; m = Math.max(m, 1 - d * d); } return Math.max(0, Math.min(1, m * 1.6)); }
 
 // 部位の当たりの両はし（骨の中心から）。玉は中心だけ

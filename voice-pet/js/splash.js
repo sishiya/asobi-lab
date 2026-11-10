@@ -9,7 +9,7 @@ export function makeSplash(scene, n = 30) {
     // k＝強さ 0..1、water＝水（false なら泥）。全部の足あわせて 0.07 秒に1回まで
     emit(x, y, z, k, water) {
       const now = performance.now(); if (now - last < 70) return; last = now;
-      for (let c = 3 + Math.round(k * 3); c > 0; c--) { const p = P[at], a = Math.random() * 6.283, s = 0.2 + Math.random() * 0.3; Object.assign(p, { t: 0, life: 0.26 + Math.random() * 0.14, x, y, z, vx: Math.cos(a) * s, vz: Math.sin(a) * s, vy: 0.45 + Math.random() * 0.45, r: 0.005 + Math.random() * 0.005 }); mesh.setColorAt(at, water ? WATER : MUD); at = (at + 1) % n; }
+      for (let c = 3 + Math.round(k * 3); c > 0; c--) { const p = P[at], a = Math.random() * 6.283, s = 0.2 + Math.random() * 0.3; Object.assign(p, { t: 0, life: 0.26 + Math.random() * 0.14, x, y, z, vx: Math.cos(a) * s, vz: Math.sin(a) * s, vy: 0.45 + Math.random() * 0.45, r: 0.0038 + Math.random() * 0.0038 }); mesh.setColorAt(at, water ? WATER : MUD); at = (at + 1) % n; }
       mesh.instanceColor.needsUpdate = true; mesh.visible = true;
     },
     step(dt) {
