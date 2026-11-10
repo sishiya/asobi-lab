@@ -58,7 +58,7 @@ export function stepDirt(S, H, dt, rain = 0, onSplash = null, pools = false) { /
   // 2.5) 水たまりの跳ね: 足が水に着いた瞬間、足のまわりの低い部位がぬれる
   if (pools) for (const f of H.feet) {
     const v = f.body.linvel(), t = f.body.translation(), m = puddle(t.x, t.z), down = t.y - f.r - height(t.x, t.z) < 0.01;
-    if (down && !f.poolDown && m > 0.15) { const hit = Math.min(1, Math.max(0, -v.y) * 0.8 + Math.hypot(v.x, v.z) * 0.3) * m; for (const s of Object.values(S)) { const [x, y, z] = points(s)[0]; s.wet = Math.min(1, s.wet + hit * Math.exp(-Math.hypot(x - t.x, z - t.z) / 0.12) * Math.exp(-(y - height(x, z)) / 0.08) * 0.5); } }
+    if (down && !f.poolDown && m > 0.15) { const hit = Math.min(1, Math.max(0, -v.y) * 0.8 + Math.hypot(v.x, v.z) * 0.3) * m; for (const s of Object.values(S)) { const [x, y, z] = points(s)[0]; s.wet = Math.min(1, s.wet + hit * Math.exp(-Math.hypot(x - t.x, z - t.z) / 0.12) * Math.exp(-(y - height(x, z)) / 0.08) * 0.5); } if (onSplash && hit > 0.05) onSplash(t.x, t.z, hit, f, true); }
     f.poolDown = down;
   }
   // 3) 乾く・雨で流れる: ぬれは乾き（雨のあいだはぬれる）、泥は雨で少しずつ落ちる。乾いた泥は白っぽくなる（dry）

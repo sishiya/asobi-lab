@@ -13,6 +13,7 @@ import { lookFur, lookFace } from './kid-look.js';
 import { makeBurr, SEED_KINDS } from './garden.js';
 import { driveGetup, decodeGetup, GETUP_UP } from './getup.js';
 import { gesture } from './gesture.js';
+import { makeSplash } from './splash.js';
 
 const CSS = `
   #out { position: fixed; inset: 0; pointer-events: none; }
@@ -48,7 +49,7 @@ export function makeOuting(R, renderer, { onHome }) {
   const hemi = new THREE.HemisphereLight(0xf6efe0, 0x6a6448, 1.0); scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff0d6, 2.2); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.radius = 4; sun.shadow.bias = -0.0004;
   Object.assign(sun.shadow.camera, { left: -2.5, right: 2.5, top: 2.5, bottom: -2.5, near: 0.5, far: 20 }); scene.add(sun, sun.target);
-  const G = makeFeltGround(scene, { size: 16, n: 240, cx: 1.5, cz: 2.5 });
+  const G = makeFeltGround(scene, { size: 16, n: 240, cx: 1.5, cz: 2.5 }), SPLASH = makeSplash(scene), onSplash = (x, z, k, f, water) => SPLASH.emit(x, height(x, z) + 0.012, z, Math.min(1, k * 2), !!water);
   const DIO = makeDiorama(renderer, scene, cam);
 
   // 藪（目当て）: どの藪でも、ふれるとひっつき虫がつく（でかけるごとに1か所1度）。まだふれていない藪は明るく、ふれると暗くなる（「光る藪だけ」はわかりづらかった）
@@ -138,7 +139,7 @@ export function makeOuting(R, renderer, { onHome }) {
         BUSHES.forEach((b, i) => { if (!touched[i] && Math.hypot(P.x - b[0], P.z - b[1]) < BUSH_TOUCH) { touched[i] = true; reached++; stick(i, 5); opts.onBurr?.(); show(`${SEED_KINDS[i].name} の ひっつき虫がついた`); lit(); } });
         for (const f of H.feet) { const d = !!contactPoint(f), air = f.air || 0; f.air = d ? 0 : air + 1; if (d && !f.down) { addPrint(f, P); if (air >= 6) opts.onStep?.(f); } f.down = d; } // 足音は 0.1 秒より長く浮いたあとの1歩だけ
         if (clock - walkedT > 1.5) { walkedT = clock; walked.push([+P.x.toFixed(2), +P.z.toFixed(2)]); if (walked.length > 24) walked.shift(); } // 走った地面（帰ると、その子の練習の場所に入る）
-        FB.mud.hit(stepDirt(D, H, 4 / 240, rainOn ? 1 : 0));
+        FB.mud.hit(stepDirt(D, H, 4 / 240, rainOn ? 1 : 0, onSplash));
         // 転んだら: 起き上がりを覚えた子は少し待って自分で起きる（4 秒で起きなければ起き直す）。覚えていない子は、すぐ起き直す（失敗を見せない。GAME.md 9.7）
         if (gu) { if (gu.stopAt == null && gu.t > 0.2 && P.up > GETUP_UP) gu.stopAt = gu.t; if (gu.t > 4) { gu = null; respawn(); fallT = 0; } }
         else if (fallT) { if (K.getup && clock - fallT > 0.6) gu = { t: 0, d: Math.sign(P.roll) || 1, stopAt: null }; else if (!K.getup && clock - fallT > 0.8) { respawn(); fallT = 0; } }
@@ -185,7 +186,7 @@ export function makeOuting(R, renderer, { onHome }) {
   function render(dt) {
     if (!K) return;
     FB.pose(dt); FB.breathe(dt, fallT ? 0 : gNow); FB.mud.step(dt, rainOn ? 1 : 0); if (frame++ % 3 === 0) FB.paint(D);
-    const P = pose(H); stepRain(dt, P); stepRainSky(dt); stepMark(dt); FB.lod(cam.position, cam.fov, innerHeight * renderer.getPixelRatio());
+    SPLASH.step(dt); const P = pose(H); stepRain(dt, P); stepRainSky(dt); stepMark(dt); FB.lod(cam.position, cam.fov, innerHeight * renderer.getPixelRatio());
     const gy = height(P.x, P.z), k = Math.min(1, dt * 60), first = !aimInit;
     if (first) { aimP.set(P.x, gy + 0.17, P.z); aimInit = true; }
     aimP.x += (P.x - aimP.x) * 0.06 * k; aimP.z += (P.z - aimP.z) * 0.06 * k; aimP.y += (gy + 0.17 - aimP.y) * 0.05 * k; // 跳ぶたびの上下と着地のがたつきをならす

@@ -216,7 +216,7 @@
 <button id="menu" aria-label="メニュー" aria-expanded="false" aria-controls="menuPanel"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M4.4 6.8C9 6.1 14.6 7.1 19.7 6.3M4.2 12.2C9.4 11.6 14.4 12.6 19.9 11.9M4.5 17.6C9.2 17 14.8 18 19.6 17.3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg></button>
 <div id="confirm" hidden><div class="box"><h3>最初からはじめますか？</h3><p id="cText"></p><div class="row"><button id="cNo">やめる</button><button id="cYes">消して最初から</button></div></div></div>
 <button id="wash" class="soft" hidden aria-label="水浴びさせる"><svg viewBox="0 0 24 24"><path d="M12 3c-3 4.2-6 7.6-6 11a6 6 0 0 0 12 0c0-3.4-3-6.8-6-11z" fill="#7fb4c4"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>水浴び</button>
-<div id="menuPanel" hidden><label>鳴き声<input id="volCry" type="range" min="0" max="100"></label><label>環境音<input id="volAmb" type="range" min="0" max="100"></label><label>足音<input id="volStep" type="range" min="0" max="100"></label><label>効果音<input id="volSfx" type="range" min="0" max="100"></label><hr><span class="hd">でかけるのカメラ</span><div class="seg" id="mCam"><button data-v="follow">ついてくる</button><button data-v="tps">うしろ</button><button data-v="top">見下ろし</button></div><div class="opt">左右<div class="seg" id="mInvX"><button data-v="0">ふつう</button><button data-v="1">逆</button></div></div><div class="opt">上下<div class="seg" id="mInvY"><button data-v="0">ふつう</button><button data-v="1">逆</button></div></div><hr><div id="mDebug" hidden><span class="hd">デバッグ</span><div class="opt">型<select id="dbType"><option>walk</option><option>donkey</option><option>hop</option><option>bird</option><option>snake</option><option>bound</option><option>seal</option><option>biped</option></select></div><div class="opt">色あい<input id="dbHue" type="range" min="0" max="100" value="50"></div><div class="opt">明るさ<input id="dbLight" type="range" min="0" max="100" value="50"></div><div class="opt">毛<select id="dbTone"><option value="">ふつう</option><option value="ink">墨</option><option value="white">白</option></select></div><div class="opt">差し色<input id="dbAcc" type="range" min="-1" max="100" value="-1"></div><button id="dbBirth">この組み合わせで生む</button><div class="opt">皮<div class="seg" id="dbSkin"><button data-v="1">ON</button><button data-v="0">OFF</button></div></div><div class="opt">骨筋<div class="seg" id="dbBones"><button data-v="1">ON</button><button data-v="0">OFF</button></div></div><hr></div><button id="mTitle">タイトルにもどる</button><button id="mReset">最初からはじめる</button></div>
+<div id="menuPanel" hidden><label>鳴き声<input id="volCry" type="range" min="0" max="100"></label><label>環境音<input id="volAmb" type="range" min="0" max="100"></label><label>足音<input id="volStep" type="range" min="0" max="100"></label><label>効果音<input id="volSfx" type="range" min="0" max="100"></label><hr><span class="hd">でかけるのカメラ</span><div class="seg" id="mCam"><button data-v="follow">ついてくる</button><button data-v="tps">うしろ</button><button data-v="top">見下ろし</button></div><div class="opt">左右<div class="seg" id="mInvX"><button data-v="0">ふつう</button><button data-v="1">逆</button></div></div><div class="opt">上下<div class="seg" id="mInvY"><button data-v="0">ふつう</button><button data-v="1">逆</button></div></div><hr><div id="mDebug" hidden><span class="hd">デバッグ</span><div class="opt">型<select id="dbType"><option value="walk">よつあし</option><option value="donkey">ロバ</option><option value="hop">ウサギ</option><option value="bird">鳥</option><option value="snake">ヘビ</option><option value="bound">イタチ</option><option value="seal">アザラシ</option><option value="biped">トビネズミ</option></select></div><div class="opt">色あい<input id="dbHue" type="range" min="0" max="100" value="50"></div><div class="opt">明るさ<input id="dbLight" type="range" min="0" max="100" value="50"></div><div class="opt">毛<select id="dbTone"><option value="">ふつう</option><option value="ink">墨</option><option value="white">白</option></select></div><div class="opt">差し色<input id="dbAcc" type="range" min="-1" max="100" value="-1"></div><button id="dbBirth">この組み合わせで生む</button><div class="opt">皮<div class="seg" id="dbSkin"><button data-v="1">ON</button><button data-v="0">OFF</button></div></div><div class="opt">骨筋<div class="seg" id="dbBones"><button data-v="1">ON</button><button data-v="0">OFF</button></div></div><hr></div><button id="mTitle">タイトルにもどる</button><button id="mReset">最初からはじめる</button></div>
 <button id="rescue" class="soft" hidden aria-label="風で子を真ん中へ運ぶ"><svg viewBox="0 0 24 24" fill="none" stroke="#6b5a3e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9.6 4.6A2 2 0 1 1 11 8H2m10.6 11.4A2 2 0 1 0 14 16H2m15.7-8.3A2.5 2.5 0 1 1 19.5 12H2"/></svg>風でよぶ</button>
 <div id="status" hidden><div class="box"><div class="top"><img id="stFace" alt=""><div class="nmw"><label class="nm" for="name">なまえ（変えられます）</label><input id="name" maxlength="10" autocomplete="off" enterkeyhint="done"></div></div><p id="stType"></p><div id="stCols"></div><ul id="stList"></ul><button id="stClose" class="soft">とじる</button></div></div>
 <div id="bar">
@@ -251,6 +251,7 @@ import { lookGenes, lookFur, lookFace, lookColor, kidName, voiceTints } from './
 import { analyze, A, sampleVoice, founder, rng } from './js/voice-in.js';
 import { loadKids, saveKids, clearKid, MAX_KIDS } from './js/kid-store.js';
 import { makeDirt, stepDirt, PUDDLES } from './js/dirt.js';
+import { makeSplash } from './js/splash.js';
 import { makeBlob, NMAX } from './js/water-blob.js';
 import { makeOuting } from './js/outing.js';
 import { makeSfx } from './js/sfx.js';
@@ -296,6 +297,7 @@ const HUT = [-2.1, -1.5], HUT_DIR = new THREE.Vector2(0.5, 0.86).normalize(), HU
   const d = put([0.04, 0.03, 0.02], { r: 0.15, sx: 0.8, sy: 1.15, sz: 0.1, seg: 24 }, HUT_DIR.x * 0.428, 0.13, HUT_DIR.y * 0.428); d.rotation.y = Math.atan2(HUT_DIR.x, HUT_DIR.y); // 戸口（暗い入口を壁にはりつけて、わらの縁で囲むと穴に見える。ふくらませると穴に見えなかった）
   { const g = new THREE.TorusGeometry(0.15, 0.016, 8, 32, Math.PI + 0.6); g.rotateZ(-0.3); g.scale(0.9, 1.25, 0.8); const rim = feltMesh(g, [0.62, 0.5, 0.3]); rim.position.set(HUT[0] + HUT_DIR.x * 0.428, gy + 0.13, HUT[1] + HUT_DIR.y * 0.428); rim.rotation.y = d.rotation.y; scene.add(rim); }
   world.createCollider(R.ColliderDesc.ball(0.42).setCollisionGroups(GROUND), world.createRigidBody(R.RigidBodyDesc.fixed().setTranslation(HUT[0], gy + 0.16, HUT[1]))); }
+const SPLASH = makeSplash(scene), onSplash = (x, z, k, f, water) => { if (mode === 'grow') SPLASH.emit(x, height(x, z) + 0.012, z, Math.min(1, k * 2), !!water); }; // 足が水や泥に着いたしずく
 const garden = makeGarden(scene); // 庭: でかけて持ち帰った種が咲く所（js/garden.js）
 const css = c => `rgb(${c.map(v => Math.round(v * 255)).join(',')})`;
 function gardenRow() { const K = garden.kinds(); $('gardenRow').innerHTML = `庭の花 ` + K.map((s, k) => `<i title="${SEED_KINDS[k].name}" class="${s === 2 ? 'bloom' : s >= 0 ? 'sprout' : ''}" style="${s === 2 ? `background:${css(SEED_KINDS[k].petal)}` : s >= 0 ? `border-color:${css(SEED_KINDS[k].petal)}` : ''}"></i>`).join(''); }
@@ -904,10 +906,18 @@ for (const a of ['X', 'Y']) $('mInv' + a).addEventListener('click', e => { const
 camSeg();
 // 育てるのフリーカメラ（テストプレイ「拡大縮小・平行移動。フォーカスを外すとフリーカメラに」）: ドラッグで動かす・2本指かホイールで寄る。「子にもどる」で元のカメラへ
 const freeOn = () => { free ??= { x: aim.x, z: aim.z, far: (cam.aspect < 1 ? 1.55 : 1) }; return free; };
-gesture(renderer.domElement, { on: () => mode === 'grow' && !!kid && !fw && !fullB,
+gesture(renderer.domElement, { on: () => mode === 'grow' && !!kid && !fw && !fullB, tap: pickKid,
   drag: (dx, dy) => { const f = freeOn(), w = 2 * 1.3 * f.far * Math.tan(cam.fov * Math.PI / 360) / innerHeight; f.x = Math.max(-6, Math.min(6, f.x - dx * w)); f.z = Math.max(-6, Math.min(6, f.z - dy * w * 1.5)); },
   zoom: z => { const f = freeOn(); f.far = Math.max(0.35, Math.min(3, f.far * z)); } });
 $('focusBtn').addEventListener('click', () => { free = null; });
+// フリーカメラで子をさわると、その子を選んで追う（テストプレイ）。見た目の体の近くなら当たり（指でも押せるよう、小さく見えていても 26px は取る）
+function pickKid(e) {
+  if (!free) return; const v = new THREE.Vector3(); let best = null, bd = Infinity;
+  for (const [H, i] of [[kid.H, herd.at], ...pals.map(p => [p.H, p.i])]) for (const p of Object.values(H.parts)) { if (p.r <= 0.005) continue; const q = p.body.translation(); v.set(q.x, q.y, q.z); const dist = v.distanceTo(cam.position), R = Math.max(26, p.r * innerHeight / (2 * Math.tan(cam.fov * Math.PI / 360) * dist) * 1.3); v.project(cam); const d = Math.hypot((v.x + 1) / 2 * innerWidth - e.clientX, (1 - v.y) / 2 * innerHeight - e.clientY); if (d < R && d < bd) { bd = d; best = i; } }
+  if (best == null) return;
+  if (best !== herd.at) { rebuildHerd(null, () => (herd.at = best)); show(`${kid.name} の練習を見よう`); }
+  free = null;
+}
 // デバッグ（?debug のときだけメニューに出す）: 型と色を決めて生む・皮と骨筋を切りかえる
 const DB = { skin: true, bones: false, g: null, Hs: [] }; let dbForce = null;
 if (new URLSearchParams(location.search).has('debug')) {
@@ -967,13 +977,13 @@ addEventListener('contextmenu', e => e.preventDefault());
 // どの処理にどれだけ時間がかかるか（ユーザー「どの処理にどれだけ時間がかかっているか調べるところから」）: __voice.prof(秒) で、こまごとの平均の ms を返す。ふだんは測らない
 const PF = { on: false, t: {}, f: 0 }, pfT = () => (PF.on ? performance.now() : 0), pfA = (k, a) => { if (PF.on) PF.t[k] = (PF.t[k] || 0) + performance.now() - a; };
 function step(dt) {
-  let a0 = pfT(); stepNest(dt); stepWaves(dt); pfA('巣（たまご・Z）', a0);
+  let a0 = pfT(); stepNest(dt); stepWaves(dt); SPLASH.step(dt); pfA('巣（たまご・Z）', a0);
   if (!kid) return; const n = Math.round(dt * 240);
   for (let k = 0; k < n; k++) {
     let a = pfT();
     for (const p of pals) { if (k % 4 === 0 && !p.frozen) feet(p.H, Math.min(1, 1.2 / (0.5 + cam.position.distanceTo(p.FB.headBone.getWorldPosition(_hw))))); if (p.frozen || p === fw?.p) continue; if (p.gust) { driveCurl(p.H, 1); gustSub(p); continue; } if (p.walk) p.B.drive(p.H, p.q, p.t, p.fallT || p.t < 0.4 ? 0 : 1, p.tc ?? 0); else driveCurl(p.H, 1); p.t += 1 / 240; } // いっしょにいる子: 覚えている歩き方で歩く／丸まって眠る
     pfA('物理: ほかの子の筋', a); a = pfT();
-    if (k % 4 === 0) { listenG += Math.max(-3 / 60, Math.min(3 / 60, (rec && mode === 'grow' ? 0 : 1) - listenG)); feet(kid.H, mode === 'grow' ? 1 : 0); kid.FB.mud.hit(stepDirt(D, kid.H, 4 / 240, 0, null, mode === 'grow')); if (kid.H.poolParts?.size) kid.FB.mud.rinse(kid.H.poolParts, 4 / 240); } // ぬかるみ（草原の茶色い所）にふれたら泥の点
+    if (k % 4 === 0) { listenG += Math.max(-3 / 60, Math.min(3 / 60, (rec && mode === 'grow' ? 0 : 1) - listenG)); feet(kid.H, mode === 'grow' ? 1 : 0); kid.FB.mud.hit(stepDirt(D, kid.H, 4 / 240, 0, onSplash, mode === 'grow')); if (kid.H.poolParts?.size) kid.FB.mud.rinse(kid.H.poolParts, 4 / 240); } // ぬかるみ（草原の茶色い所）にふれたら泥の点
     if (kid.gust && !fw?.isKid) { driveCurl(kid.H, 1); gustSub(kid); }
     else if (gu) { gu.t += 1 / 240; if (gu.stopAt == null && gu.t > 0.2 && k % 8 === 0 && pose(kid.H).up > GETUP_UP) gu.stopAt = gu.t; if (driveGetup(kid.H, gu.q, gu.t, gu.d, gu.stopAt)) { if (pose(kid.H).up > GETUP_UP) { gu = null; fallT = 0; t = 0; } else gu.over = true; } }
     else if (!fw?.isKid) kid.B.drive(kid.H, kid.q, t, fallT || t < 0.4 ? 0 : listenG, kid.tc ?? 0); // listenG＝話しかけているあいだは足を止めて聞く
