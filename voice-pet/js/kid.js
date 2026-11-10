@@ -19,7 +19,7 @@ export const KID_TYPES = {
   donkey: { seg: [2, 2], pairs: 2, rearAt: 0.1, foreAt: 0.3, legK: 1.05, girthK: 1.12, segK: 1.05, strong: 1.7, tail: [1, 1], neck: 1, snout: 0.95, assistK: 1.5, turnRate: 1.1 },
   hop: { seg: [2, 3], pairs: 2, fold: 1.5, strong: 1.8, tail: [0, 1], legTurn: 0, assistK: 2, turnRate: 1.35, slim: 1.85 }, // slim＝節の長さは太さのこの倍まで（細長い胴の子だけ歩けなかった。本物のウサギはずんぐりしている）
   bound: { seg: [3, 3], pairs: 2, rearAt: 0.1, foreAt: 0.3, legK: 0.8, girthK: 0.82, spine: 2, strong: 1.4, tail: [2, 2], neck: 1 }, // イタチ: 細長い胴。ロバと同じく後ろ足は胴のいちばん後ろ（手足の配置を先に決めてから学ぶ）
-  biped: { seg: [2, 2], pairs: 1, fold: 1.7, strong: 1.8, tail: [3, 4], at: 0.5 },
+  biped: { tailKind: 'long', tailK: [0.42, 0.26], tailFur: 0.3, seg: [2, 2], pairs: 1, fold: 1.7, strong: 1.8, tail: [3, 4], at: 0.5 }, // tailK＝細長いしっぽ（皮の形だけ）
   seal: { tailKind: 'long', seg: [4, 4], pairs: 1, fore: true, legK: 0.55, girthK: 1.2, spine: 2.5, wave: 0.2, belly: 0.12, fric: { side: 0.5, back: 0.6, front: 0.05 }, strong: 1.2, tail: [1, 2], neck: 0 }, // fric＝毛の流れの摩擦（前へは滑り、うしろへは引っかかる）。スキーのシールと同じ
   // 鳥＝スズメのように二本足を そろえて ちょんちょん跳ねる（左右交互に歩くのは片足で立つつり合いが要り、立てなかった。飛ぶのはあと。GAME.md 9.6）、ヘビ＝足なし。胴を横にくねらせ、うろこの摩擦で前へ（planar＝水平にだけ回る。ひっくり返らない）
   bird: { tailKind: 'long', seg: [2, 2], pairs: 1, fold: 1.7, strong: 1.8, tail: [1, 2], at: 0.5, neck: 1, legTurn: 0, assistK: 2, turnRate: 1.35, snout: 0, tailK: [0.6, 0.3], wing: true }, // snout・tailK・wing は皮の形だけ（物理の骨は同じ）
@@ -40,7 +40,8 @@ export function kidPlan(g) {
   const legL = 0.075 * s * lerp(0.8, 1.25, G('legLen')) * lerp(1, 0.85, juv) * (pairs === 3 ? 0.85 : 1) * (T.legK ?? 1); // 足の1節（もも・すね）の長さ。太さとつり合う範囲
   const legR = Math.max(0.011, r * 0.32);
   const headR = 0.045 * s * lerp(1, 1.3, juv) * (T.planar ? 0.62 : 1); // ヘビの頭は胴より少し太いくらい
-  return { type, s, juv, seg, pairs, neck, tail, girth, r, segL: T.slim ? Math.min(segL, r * T.slim) : segL, legL, legR, headR, fluff: G('fluff'), snout: T.snout, tailKind: T.tailKind ?? (type === 'hop' || G('tail') >= 0.5 ? 'flat' : 'puff'), rump: !T.tailKind, rumpCut: T.rearAt != null ? Math.max(0, T.rearAt - 0.08) : 0.42, // rump＝おしりは後ろ足のすぐ上で終わる（テストプレイ。手本はモルモット・ナキウサギ。皮の形だけ）
+  return { type, s, juv, seg, pairs, neck, tail, girth, r, segL: T.slim ? Math.min(segL, r * T.slim) : segL, legL, legR, headR, fluff: G('fluff'), snout: T.snout, tailKind: T.tailKind ?? (type === 'donkey' ? 'puff' : type === 'hop' || G('tail') >= 0.5 ? 'flat' : 'puff'), // ロバは丸いしっぽひとつ（テストプレイ）
+      rump: !T.tailKind, rumpCut: T.rearAt != null ? Math.max(0, T.rearAt - 0.08) : 0.42, // rump＝おしりは後ろ足のすぐ上で終わる（テストプレイ。手本はモルモット・ナキウサギ。皮の形だけ）
       twist: !T.planar, twistK: 3, twistM: 0.3 }; // ねじりのつなぎは胴の重さの3割を持たせる（20g のつなぎだと物理がぐらつき、歩けなくなった＝tools/twist-check.mjs） // twist＝背骨のねじりの関節（起き上がりに要る。関節をそろえてから歩き方を学ぶ＝2026-11-08 ユーザー）
 }
 
@@ -215,7 +216,9 @@ export function kidShapes(H) {
     else if (name.startsWith('tail') && K.rump) continue; // おしりの端の小さなしっぽは下で（うしろの骨は見せない）
     else if (name.startsWith('tail') && K.tailKind === 'puff') { if (name === 'tail0') cap(name, p.a, [p.b[0] - p.r, p.b[1] + p.r * 0.6, p.b[2]], p.r * 0.7 + fur, p.r * 1.55 + fur, 0.02); } // まるい しっぽ（皮だけ。うしろの骨は見せない）
     else if (name.startsWith('tail') && K.tailKind === 'flat') { if (name === 'tail0') { const mx = (p.a[0] + p.b[0]) / 2, my = (p.a[1] + p.b[1]) / 2, tx = p.b[0] + (p.b[0] - p.a[0]) * 0.55, ty = p.b[1] + (p.b[1] - p.a[1]) * 0.55; cap(name, p.a, [mx, my, p.a[2]], p.r * 0.55 + fur * 0.6, p.r * 0.5 + fur * 0.6, 0.02); for (const s of [0, 1, -1]) { const w = s * p.r * 1.05; cap(name, [mx, my, p.a[2] + w * 0.25], [tx, ty, p.a[2] + w], p.r * 0.42 + fur * 0.6, p.r * 0.55 + fur * 0.6, 0.02); } } } // へら状の しっぽ（横に広い）
-    else if (name.startsWith('tail')) cap(name, p.a, p.b, p.r * tk[0] + fur, p.r * tk[1] + fur, 0.04);
+    else if (name.startsWith('tail')) cap(name, p.a, p.b, p.r * tk[0] + fur * (T.tailFur ?? 1), p.r * tk[1] + fur * (T.tailFur ?? 1), 0.04);
+    else if ((K.type === 'hop' || K.type === 'biped') && /(up|lo)[LR]$/.test(name)) { const m = name[0] === 'h' ? 1 : 0.72; if (name[2] === 'u' || name[1] === 'u') cap(name, p.a, p.b, K.r * 0.66 * m + fur, K.r * 0.46 * m + fur, 0.06); else cap(name, p.a, p.b, K.r * 0.4 * m + fur, p.r * 1.3 + fur * 0.8, 0.06); } // ウサギの脚はふっくら太く、膝は毛の中に（テストプレイ「足が貧弱」。皮だけ）
+    else if (T.wing && /lo[LR]$/.test(name)) cap(name, p.a, p.b, K.r * 0.5 + fur, p.r * 0.95 + fur * 0.6, 0.05); // 鳥のすねの付け根もふくらませて、膝を羽毛の中に（テストプレイ）
     else if (/up[LR]$/.test(name)) { if (T.wing) cap(name, p.a, p.b, K.r * 0.76 + fur, K.r * 0.56 + fur, 0.05); else cap(name, p.a, p.b, p.r * 1.05 + fur, p.r * 0.85 + fur, 0.03); } // 鳥の太ももは羽毛の中（本物も外に見えるのはすねから下）
     else cap(name, p.a, p.b, p.r + fur * 0.7, p.r * 0.9 + fur * 0.6, 0.01);
   }

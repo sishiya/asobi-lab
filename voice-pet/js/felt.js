@@ -182,6 +182,9 @@ export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], 
     const w = part === 'chest' ? 1 : part === 'pelvis' ? Math.max(0, Math.min(1, (x - pa.a[0]) / (pa.b[0] - pa.a[0]))) * 0.7 : 0;
     bw[q] = w * (0.35 + 0.65 * Math.max(0, Math.min(1, 0.5 - 0.6 * n.getY(q)))); } }
   geo.setAttribute('breathW', new THREE.BufferAttribute(bw, 1)); const mudA = new Float32Array(nv), dryA = new Float32Array(nv).fill(1); geo.setAttribute('mud', new THREE.BufferAttribute(mudA, 1)); geo.setAttribute('mdry', new THREE.BufferAttribute(dryA, 1));
+  // ぬれの境目をぼかす: 部位の分かれ目で段がつかないよう、点ごとに近い部位3つの重みを持つ（テストプレイ「濡れる領域の境界が見える」）
+  const wParts = [...new Set(shapes.map(c => c.part))], wI = new Uint8Array(nv * 3), wW = new Float32Array(nv * 3), wv = new Float32Array(wParts.length);
+  { const ix = new Map(wParts.map((n, i) => [n, i])), dP = new Float32Array(wParts.length), S3 = shapes.map(c => { const d = [c.b[0] - c.a[0], c.b[1] - c.a[1], c.b[2] - c.a[2]]; return { i: ix.get(c.part), a: c.a, d, ra: c.ra, rb: c.rb, L2: d[0] * d[0] + d[1] * d[1] + d[2] * d[2] || 1e-9 }; }); for (let q = 0; q < nv; q++) { dP.fill(1e9); const x = SK.position[q * 3], y = SK.position[q * 3 + 1], z = SK.position[q * 3 + 2]; for (const c of S3) { const px = x - c.a[0], py = y - c.a[1], pz = z - c.a[2], t = Math.max(0, Math.min(1, (px * c.d[0] + py * c.d[1] + pz * c.d[2]) / c.L2)), e = Math.hypot(px - c.d[0] * t, py - c.d[1] * t, pz - c.d[2] * t) - (c.ra + (c.rb - c.ra) * t); if (e < dP[c.i]) dP[c.i] = e; } let i0 = 0, i1 = -1, i2 = -1; for (let i = 1; i < dP.length; i++) { if (dP[i] < dP[i0]) { i2 = i1; i1 = i0; i0 = i; } else if (i1 < 0 || dP[i] < dP[i1]) { i2 = i1; i1 = i; } else if (i2 < 0 || dP[i] < dP[i2]) i2 = i; } const w = i => (i < 0 ? 0 : Math.exp(-(dP[i] - dP[i0]) / 0.03)), a = w(i0), b = w(i1), c = w(i2), t = a + b + c; wI[q * 3] = i0; wI[q * 3 + 1] = Math.max(0, i1); wI[q * 3 + 2] = Math.max(0, i2); wW[q * 3] = a / t; wW[q * 3 + 1] = b / t; wW[q * 3 + 2] = c / t; } }
   geo.setAttribute('wet', new THREE.BufferAttribute(wetA, 1)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('fluff', new THREE.BufferAttribute(flf, 1));
   const bones = SK.bodies.map(b => { const bn = new THREE.Bone(), t = b.translation(); bn.position.set(t.x, t.y, t.z); return bn; });
   const rig = new THREE.Group(); bones.forEach(b => rig.add(b)); scene.add(rig); rig.updateMatrixWorld(true);
@@ -304,8 +307,9 @@ export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], 
       if (wk === pst.wk && mud.ver === pst.ver && (!mud.blobs.length ? true : now - pst.t < 250)) return;
       pst.wk = wk; pst.ver = mud.ver; pst.t = now;
       for (const k in blobsBy) blobsBy[k].length = 0; for (const b of mud.blobs) (blobsBy[b.part] ||= []).push(b);
+      for (let i = 0; i < wv.length; i++) wv[i] = D?.[wParts[i]]?.wet ?? 0;
       for (let q = 0; q < nv; q++) {
-        const s = D?.[SK.part[q]], wet = s ? s.wet : 0, B = blobsBy[SK.part[q]];
+        const wet = Math.min(1, (wv[wI[q * 3]] * wW[q * 3] + wv[wI[q * 3 + 1]] * wW[q * 3 + 1] + wv[wI[q * 3 + 2]] * wW[q * 3 + 2]) * (0.88 + 0.24 * speck[q])), B = blobsBy[SK.part[q]];
         let m = 0, st = 0, dr = 0;
         if (B && B.length) { const x = vl[q * 3], y = vl[q * 3 + 1], z = vl[q * 3 + 2]; for (const b of B) { const d2 = ((x - b.p[0]) ** 2 + (y - b.p[1]) ** 2 + (z - b.p[2]) ** 2) / (b.r * b.r); if (d2 > 4.4) continue; const k = Math.exp(-d2 * (1.6 + 1.4 * speck[q])); m += b.amt * k; st += b.stain * k; dr += b.dry * b.amt * k; } }
         const mk = Math.min(1, m), wd = 1 - 0.3 * wet;
