@@ -90,14 +90,17 @@ export function makeOuting(R, renderer, { onHome }) {
   let K = null, H = null, D = null, FB = null, Q = null; // いまでかけている子
 
   // 足あと: ぬかるみでは深く濃く、泥のついた足は草の上にも泥の跡を残す
-  const prints = [], printGeo = new THREE.CircleGeometry(1, 14);
-  const printMats = [0.25, 0.4, 0.55, 0.7].map(o => new THREE.MeshBasicMaterial({ color: 0x3c3226, transparent: true, opacity: o, depthWrite: false }));
+  const prints = [];
+  // 足あとの形（テストプレイ「単なる楕円でチープ」）: 肉球と指。中がくぼみ、まわりに泥の盛り上がり。ふちはぼかす。[x（前）, y, 横の半径…前後, 左右, 向き]
+  function printShape(blobs) { const P = [], C = [], I = [], blob = ([x, y, rx, ry, a = 0], k, col, al) => { const n0 = P.length / 3, ca = Math.cos(a), sa = Math.sin(a), put = (r, A) => { const u = Math.cos(A) * rx * k * r, v = Math.sin(A) * ry * k * r; P.push(x + u * ca - v * sa, y + u * sa + v * ca, 0); C.push(...col, r < 0.9 ? al : 0); }; put(0, 0); for (let i = 0; i < 16; i++) put(0.72, i / 16 * 6.2832); for (let i = 0; i < 16; i++) put(1, i / 16 * 6.2832); for (let i = 0; i < 16; i++) { const j = (i + 1) % 16; I.push(n0, n0 + 1 + i, n0 + 1 + j, n0 + 1 + i, n0 + 17 + i, n0 + 17 + j, n0 + 1 + i, n0 + 17 + j, n0 + 1 + j); } }; for (const b of blobs) blob(b, 1.32, [0.3, 0.24, 0.16], 0.55); for (const b of blobs) blob(b, 1, [0.045, 0.03, 0.02], 1); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 4)); g.setIndex(I); return g; }
+  const PRINTS = { paw: printShape([[-0.28, 0, 0.42, 0.5], [0.4, 0.56, 0.17, 0.15], [0.66, 0.2, 0.19, 0.16], [0.66, -0.2, 0.19, 0.16], [0.4, -0.56, 0.17, 0.15]]), long: printShape([[-0.18, 0, 0.72, 0.4], [0.66, 0.42, 0.14, 0.15], [0.82, 0.14, 0.15, 0.15], [0.82, -0.14, 0.15, 0.15], [0.66, -0.42, 0.14, 0.15]]), bird: printShape([[0.42, 0, 0.58, 0.1], [0.32, 0.36, 0.56, 0.095, 0.72], [0.32, -0.36, 0.56, 0.095, -0.72], [-0.42, 0, 0.42, 0.09], [0, 0, 0.14, 0.14]]) };
+  const printMats = [0.25, 0.4, 0.55, 0.7].map(o => new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: o, depthWrite: false }));
   function addPrint(f, P) {
     const p = f.body.translation(), m0 = mud(p.x, p.z, rainOn ? 1 : 0), fm = D[f.name] ? D[f.name].mud * (1 - D[f.name].dry) : 0, k = Math.max(m0, fm * 0.8);
     if (k < 0.05 && !f.hind) return;
-    const m = new THREE.Mesh(printGeo, printMats[Math.min(3, Math.floor(k * 4))]);
-    m.rotation.x = -Math.PI / 2; m.rotation.z = -P.yaw; m.scale.set(f.hind ? 0.035 : 0.014, 0.012, 1);
-    m.position.set(p.x - (f.hind ? 0.04 * P.fx : 0), height(p.x, p.z) + 0.004, p.z - (f.hind ? 0.04 * P.fz : 0)); scene.add(m); prints.push(m);
+    const type = H.plan.type, kind = type === 'bird' ? 'bird' : (type === 'hop' || type === 'biped') && f.hind ? 'long' : 'paw', S = Math.max(0.02, H.plan.legR * 1.6), m = new THREE.Mesh(PRINTS[kind], printMats[Math.min(3, Math.floor(k * 4))]);
+    m.rotation.x = -Math.PI / 2; m.rotation.z = -P.yaw; if (kind === 'long') m.scale.set(S * 1.7, S * 0.9, 1); else m.scale.setScalar(kind === 'bird' ? S * 1.25 : S);
+    m.position.set(p.x, height(p.x, p.z) + 0.004, p.z); scene.add(m); prints.push(m);
     if (prints.length > 400) scene.remove(prints.shift());
   }
 

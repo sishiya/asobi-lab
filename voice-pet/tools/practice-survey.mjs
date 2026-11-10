@@ -2,14 +2,14 @@
 // はじめて転ばず1m歩けた試し・4か所で転ばずに歩けた（段3へ）世代・歩き方を変えた回数・段3の前（okS）と終わり（ok8）の歩きを別の8か所で試した結果を1行に
 import R from '@dimforge/rapier3d-compat';
 import { trial } from '../js/trial.js';
-import { kidGenes, kidBody, kidPlan, decodeKid, driveKid } from '../js/kid.js';
+import { kidGenes, kidBody, kidPlan, decodeKid, driveKid, blendBody } from '../js/kid.js';
 import { pose } from '../js/hare.js';
 import { makePractice } from '../js/practice.js';
 await R.init();
 const MAX = +(process.env.MAX || 250);
 const ok8 = (B, v, straight) => { let ok = 0; for (let k = 0; k < 8; k++) { const a = k * 0.785 + 0.3, r = trial(R, v, { dur: 6, body: B, ...(straight ? { turn: () => 0 } : {}), at: [Math.cos(a) * 4, 0, Math.sin(a) * 4] }); r.world.free(); if (!r.fell && r.dist > (B.gateDist ?? 1)) ok++; } return ok; };
 for (const id of process.argv.slice(2).map(Number)) {
-  const g = kidGenes(id * 7919); if (process.env.TYPE) g.type = process.env.TYPE;
+  const g = kidGenes(id * 7919); if (process.env.TYPE) g.type = process.env.TYPE; if (process.env.BLEND) blendBody(g); // BLEND＝生まれる子と同じく手本の近くにしぼる
   const B0 = kidBody(g, process.env.NOTWIST ? { twist: false } : null), B = process.env.NOLAT ? { ...B0, drive: (H, q, t, gg, tc) => driveKid(H, { ...q, abA: 0, abT: 0 }, t, gg, tc, pose) } : B0, P = makePractice(R, B, { seed: +(process.env.SEED || 5) }), t0 = Date.now();
   let last = null, steadyGen = null, okS = null; // 段が変わった直後は P.best が空なので、最後に返った歩きで
   while (!P.done && P.gen < MAX) { last = P.step(); if (P.steady && steadyGen == null) { steadyGen = P.gen; okS = ok8(B, last.v); } }

@@ -213,7 +213,7 @@ export function makeFeltBody(scene, H, shapes, { furColor, headOff = [0, 0, 0], 
   const headBone = bones[SK.bodies.indexOf(H.parts.head.body)], hc = H.parts.head.c.map((v, i) => v + headOff[i]), hbp = headBone.position.clone(), earList = [], eyeList = [];
   if (F.beak) { // 羊毛のくちばし（テストプレイ「モフモフのくちばし」）: 丸みを残して先へ細くなる形に、体と同じ毛羽
     const bg = new THREE.SphereGeometry(1, 18, 12), bp = bg.attributes.position, bc = new Float32Array(bp.count * 3);
-    for (let i = 0; i < bp.count; i++) { const u = Math.max(0, bp.getX(i)), k = 1 - 0.32 * u * u, yk = F.beak.duck ? 1 - 0.45 * u * u : k, zk = F.beak.duck ? 1 + 0.15 * u : k; bp.setY(i, bp.getY(i) * yk); bp.setZ(i, bp.getZ(i) * zk); /* duck＝アヒルのように幅広で平たく、先はつぶれて広がる */ bc.set(F.beak.col, i * 3); }
+    for (let i = 0; i < bp.count; i++) { const u = Math.max(0, bp.getX(i)), k = 1 - 0.32 * u * u, yk = F.beak.duck ? 1 - 0.45 * u * u : k, zk = F.beak.duck ? 1 - 0.5 * u : k; if (F.beak.duck) bp.setX(i, bp.getX(i) * (1 + 0.22 * u)); bp.setY(i, bp.getY(i) * yk); bp.setZ(i, bp.getZ(i) * zk); /* duck＝幅広で平たく、上から見ると中央が前に出たゆるい三角（テストプレイ） */ bc.set(F.beak.col, i * 3); }
     bg.setAttribute('wet', attr1(bp.count)); bg.setAttribute('color', new THREE.BufferAttribute(bc, 3)); bg.setAttribute('fluff', attr1(bp.count, 1)); bg.computeVertexNormals();
     const mk = shell => new THREE.Mesh(bg, feltify(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, sheen: 0.4, sheenRoughness: 0.8, sheenColor: 0xf0dcc8 }), { shell, len: 0.4, freq: 16, rest: false }));
     const beak = mk(0); beak.position.set(hc[0] - hbp.x + F.beak.at[0], hc[1] - hbp.y + F.beak.at[1], hc[2] - hbp.z); beak.scale.set(...F.beak.size); beak.castShadow = true; headBone.add(beak); for (let k = 1; k <= 3; k++) beak.add(mk(k / 3));
