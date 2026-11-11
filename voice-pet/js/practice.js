@@ -7,7 +7,7 @@
 import { trial } from './trial.js';
 import { KID_SEED, KID_TROT, KID_SLOW, KID_PARAMS } from './kid.js';
 
-export function makePractice(R, body, { pop = 16, seed = 1, start = body.starts?.[0] ?? KID_SEED, stage1 = 25, minStage2 = 10, stuck = 40, stage3 = 45, resume = null, ask = false, places = [], pickWide = false, fall3 = body.fall3 ?? 1, yawRate = body.yawRate ?? 0, robust = body.robust ?? 0 } = {}) {
+export function makePractice(R, body, { pop = 16, seed = 1, start = body.starts?.[0] ?? KID_SEED, stage1 = 25, minStage2 = 10, stuck = 40, stage3 = 45, resume = null, ask = false, places = [], pickWide = body.pickWide ?? false, fall3 = body.fall3 ?? 1, yawRate = body.yawRate ?? 0, robust = body.robust ?? 0 } = {}) {
   let s = (seed >>> 0) % 2147483646 + 1;
   const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647, gauss = () => Math.sqrt(-2 * Math.log(rnd() + 1e-12)) * Math.cos(2 * Math.PI * rnd());
   const GATE = body.gateDist ?? 1, fW = body.flightW ?? 1.5; // GATE＝歩けたと見なす6秒の道のり（本物の速さが遅い型は短く） // 跳ねる型は、宙に浮いても引かない
