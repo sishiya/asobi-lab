@@ -36,6 +36,7 @@ canvas.carry{cursor:grabbing}
 .btn:hover{background:#ff9a52}
 /* テスト用の夜えらび（タイトルの下に小さく） */
 .pick{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,190,130,.15);font-size:12px;opacity:.75}
+.pick[hidden]{display:none}
 .pick span{margin-right:4px}
 .pick button{min-width:36px;min-height:36px;border-radius:8px;border:1px solid rgba(255,190,130,.35);background:transparent;color:#efe6d6;font:700 14px 'Shippori Mincho B1',serif;cursor:pointer}
 .pick button:hover{background:rgba(255,190,130,.15)}
@@ -43,11 +44,11 @@ canvas.carry{cursor:grabbing}
 /* 結果は下に小さく（島の夜明けを見せる） */
 .card.result{top:auto;bottom:16px;transform:translateX(-50%);width:min(560px,calc(100vw - 32px));padding:16px 18px}
 .card.result h2{font-size:22px;margin:0 0 4px}.card.result p{margin:0 0 12px;font-size:14px}
-.rows{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:0 0 14px}
+.rows{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:6px;margin:0 0 14px}
+.log{margin:12px 0 0;max-height:30vh;overflow:auto;text-align:left;font:11px/1.5 monospace;white-space:pre-wrap;opacity:.8;-webkit-user-select:text;user-select:text}
 .rows div{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border-radius:10px;background:rgba(255,230,210,.07);font-size:12px}
 .rows b{font-size:16px}
 .rows b{font-weight:800;color:#ffd29a}
-@media (max-width:420px){.rows{grid-template-columns:repeat(3,1fr)}}
 @media (max-height:420px){.card.result p{display:none}.card.result h2{font-size:18px;margin-bottom:8px}.card{padding:14px 18px}.card h1{font-size:22px;margin-bottom:6px}.card p{margin-bottom:10px;line-height:1.6;font-size:13px}.card .small{margin-top:8px}}
 /* 音の板（右上） */
 .snd-btn{position:fixed;top:16px;right:16px;min-height:44px;padding:10px 16px;border-radius:999px;border:1px solid rgba(255,240,220,.12);background:rgba(8,8,12,.55);backdrop-filter:blur(6px);color:#efe6d6;font:700 15px 'Shippori Mincho B1',serif;cursor:pointer;z-index:3}

@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&display=swap">
 <link rel="stylesheet" href="../assets/no-quirks.css"><script src="../assets/no-quirks.js" defer></script>
 <script src="../assets/power.js?v=1"></script>
-<link rel="stylesheet" href="css/style.css?v=10">
+<link rel="stylesheet" href="css/style.css?v=11">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 </head>
 <body>
@@ -22,17 +22,18 @@
 <p id="toast" class="toast"></p>
 <section id="title" class="card title">
   <h1>夜明けまでの島</h1>
-  <p>火の光がとどかない所から、島は闇に崩れていく。<br>燃えるものをつまんで、火にくべよう。<br>ただし、くべたものは もどらない。</p>
-  <button id="start" class="btn">はじめる</button>
-  <p class="small">ドラッグで島を回す・ホイールで寄る　ver. 0.7（試作）</p>
-  <div class="pick" aria-label="テスト用: 夜をえらぶ"><span>テスト用: 夜をえらぶ</span><button data-n="1">1</button><button data-n="2">2</button><button data-n="3">3</button><button data-n="4">4</button><button data-n="5">5</button><button data-cliff="1">崖</button></div>
+  <p>火の光がとどかない所から、島は闇に崩れていく。<br>燃えるものを火にくべ、炎から火種を分けて灯をともそう。<br>ただし、くべたものは もどらない。</p>
+  <div class="btns"><button id="start" class="btn">はじめる</button><button id="fresh" class="btn sub" hidden>はじめから</button></div>
+  <p class="small">ドラッグで島を回す・ホイールか2本指で寄る　ver. 0.8（試作）</p>
+  <div class="pick" aria-label="テスト用: 夜をえらぶ" hidden><span>テスト用: 夜をえらぶ</span><button data-n="1">1</button><button data-n="2">2</button><button data-n="3">3</button><button data-n="4">4</button><button data-n="5">5</button><button data-cliff="1">崖</button></div>
 </section>
 <section id="result" class="card result" hidden>
   <h2 id="resTitle"></h2>
   <p id="resLead"></p>
   <div id="resRows" class="rows"></div>
-  <div class="btns"><button id="next" class="btn">次の夜へ</button><button id="again" class="btn sub">はじめから</button></div>
+  <div class="btns"><button id="next" class="btn">次の夜へ</button><button id="again" class="btn sub">タイトルへ</button></div>
+  <pre id="log" class="log" hidden></pre>
 </section>
-<script type="module" src="js/game.js?v=21"></script>
+<script type="module" src="js/game.js?v=23"></script>
 </body>
 </html>
