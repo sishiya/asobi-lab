@@ -211,7 +211,7 @@
   /* 知らせは、目と指のある 下のまとまりのすぐ上に（UX 案4。画面の上のほうだと見落とした） */
   #msg { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 12px; font-size: 16px; font-weight: 600; text-shadow: 0 0 8px #faf7f0, 0 0 4px #faf7f0, 0 0 2px #faf7f0; opacity: 0; transition: opacity .4s; pointer-events: none; width: max-content; max-width: calc(100vw - 48px); text-align: center; line-height: 1.4; }
   /* ことば: いまのことばでないほうを隠す。JP / EN はタイトルの右上（メニューの丸の左）とメニューの中 */ :root[lang=en] [lang=ja],:root:not([lang=en]) [lang=en]{display:none!important} .langsw{position:absolute;right:80px;top:24px;display:flex;gap:2px;padding:3px;border-radius:999px;background:var(--panel);pointer-events:auto} .langsw button{min-width:44px;min-height:38px;padding:2px 10px;border:0;border-radius:999px;background:none;color:var(--on);font:inherit;font-size:13px;font-weight:600;cursor:pointer} .langsw button[aria-pressed=true],#menuPanel .seg button[aria-pressed=true]{background:var(--on);color:#fff} @media (max-height:500px) and (orientation:landscape){.langsw{top:14px;right:84px}} </style>
-<script type="importmap">{"imports":{"./js/audio.js":"./js/audio.js?v=24","./js/cry.js":"./js/cry.js?v=24","./js/dirt.js":"./js/dirt.js?v=24","./js/dress.js":"./js/dress.js?v=24","./js/features.js":"./js/features.js?v=24","./js/felt.js":"./js/felt.js?v=24","./js/flesh-hare.js":"./js/flesh-hare.js?v=24","./js/garden.js":"./js/garden.js?v=24","./js/gesture.js":"./js/gesture.js?v=24","./js/getup-practice.js":"./js/getup-practice.js?v=24","./js/getup.js":"./js/getup.js?v=24","./js/ground.js":"./js/ground.js?v=24","./js/hare.js":"./js/hare.js?v=24","./js/i18n.js":"./js/i18n.js?v=24","./js/kid-look.js":"./js/kid-look.js?v=24","./js/kid-store.js":"./js/kid-store.js?v=24","./js/kid.js":"./js/kid.js?v=24","./js/outing.js":"./js/outing.js?v=24","./js/practice.js":"./js/practice.js?v=24","./js/reference.js":"./js/reference.js?v=24","./js/sfx.js":"./js/sfx.js?v=24","./js/skin.js":"./js/skin.js?v=24","./js/splash.js":"./js/splash.js?v=24","./js/synth.js":"./js/synth.js?v=24","./js/tanuki.js":"./js/tanuki.js?v=24","./js/trial.js":"./js/trial.js?v=24","./js/voice-founder.js":"./js/voice-founder.js?v=24","./js/voice-in.js":"./js/voice-in.js?v=24","./js/water-blob.js":"./js/water-blob.js?v=24","three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","@dimforge/rapier3d-compat":"https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"}}</script>
+<script type="importmap">{"imports":{"./js/audio.js":"./js/audio.js?v=25","./js/cry.js":"./js/cry.js?v=25","./js/dirt.js":"./js/dirt.js?v=25","./js/dress.js":"./js/dress.js?v=25","./js/features.js":"./js/features.js?v=25","./js/felt.js":"./js/felt.js?v=25","./js/flesh-hare.js":"./js/flesh-hare.js?v=25","./js/garden.js":"./js/garden.js?v=25","./js/gesture.js":"./js/gesture.js?v=25","./js/getup-practice.js":"./js/getup-practice.js?v=25","./js/getup.js":"./js/getup.js?v=25","./js/ground.js":"./js/ground.js?v=25","./js/hare.js":"./js/hare.js?v=25","./js/i18n.js":"./js/i18n.js?v=25","./js/kid-look.js":"./js/kid-look.js?v=25","./js/kid-store.js":"./js/kid-store.js?v=25","./js/kid.js":"./js/kid.js?v=25","./js/outing.js":"./js/outing.js?v=25","./js/practice.js":"./js/practice.js?v=25","./js/reference.js":"./js/reference.js?v=25","./js/sfx.js":"./js/sfx.js?v=25","./js/skin.js":"./js/skin.js?v=25","./js/splash.js":"./js/splash.js?v=25","./js/synth.js":"./js/synth.js?v=25","./js/tanuki.js":"./js/tanuki.js?v=25","./js/trial.js":"./js/trial.js?v=25","./js/voice-founder.js":"./js/voice-founder.js?v=25","./js/voice-in.js":"./js/voice-in.js?v=25","./js/water-blob.js":"./js/water-blob.js?v=25","three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","@dimforge/rapier3d-compat":"https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"}}</script>
 </head>
 <body class="boot">
 <div id="bootBg"></div>
@@ -361,7 +361,7 @@ function takeKid(saved, H, B, FB) {
   const s = saved.state; info = { gen: s?.gen ?? 0, tries: s?.tries ?? 0, firstWalk: s?.firstWalk ?? null, stage: s?.st ?? 1, steady: s?.steady, done: s?.done, restarts: s?.restarts };
   $('name').value = kid.name; tabs();
   if (info.done && kid.getup?.learned) return; // 歩く・起き上がるの練習が終わっていれば回さない
-  worker = new Worker(new URL('./js/practice-worker.js?v=24', import.meta.url), { type: 'module' });
+  worker = new Worker(new URL('./js/practice-worker.js?v=25', import.meta.url), { type: 'module' });
   worker.onmessage = e => { const m = e.data; if (m.end) return; if (m.getup) { if (m.getup.learned && !kid.getup?.learned && mode === 'grow') SFX.step(2); kid.getup = m.getup; keep(); return; } if (askHold) { if (m.asking) m.asking = false; else askHold = false; } if (mode === 'grow') { if (m.gen === 1) show(TX('足の出し方を 試しているよ', 'Trying out its feet'), 5000); if (m.done && !info.done) { SFX.step(3); show(TX(`${kid.name} は どこへでも歩いていける`, `${kid.name} can walk anywhere now`), 4000); } else if (m.firstWalk && !info.firstWalk) { SFX.step(1); show(TX(`${kid.name} が はじめて歩けた！`, `${kid.name} took a first walk!`), 4000); } else if (m.steady && !info.steady) { SFX.step(2); show(TX(`${kid.name} は ころばずに歩けるようになった`, `${kid.name} can walk without falling`), 4000); } else if (m.asking && !info.asking) SFX.ask(); } info = { ...info, ...m }; askShown(); kid.q = B.decode(m.trying); kid.trying = m.trying; if (m.v) kid.best = m.v; kid.state = m.state; keep(); };
   worker.postMessage({ genes, pace: 2.5, seed: (Math.random() * 1e9) | 0, resume: kid.state, getupResume: kid.getup?.state, places: kid.places }); // 練習に渡すのは遺伝子の数だけ
   if (document.hidden) worker.postMessage({ pause: true });
@@ -505,6 +505,23 @@ function wrap(v) {
 }
 const fade = (o, a) => o.traverse(x => { if (x.material) { x.material.opacity = a; const tr = a < 0.999; if (x.material.transparent !== tr) { x.material.transparent = tr; x.material.needsUpdate = true; } x.material.depthWrite = a > 0.5; } }); // 毛羽の層ごと。透けるのはうすれるときだけ（ふだん透けるとガラスのように見える。透けるかを変えたら絵の準備をしなおす）
 // 羊毛の束（原毛のひとつまみ）: 先が細くなる、少しうねった帯に、長い毛羽。楕円の玉だと毛に見えない（ユーザー）
+function makeStreak(L = 0.12, R = 0.25, W = 0.0035) { /* 体の x の向きに進み、+z（うずの芯）の側へ曲がる */
+  const s0 = L / R, pts = []; for (let i = 0; i <= 12; i++) { const s = (i / 12 - 0.5) * s0; pts.push(new THREE.Vector3(R * Math.sin(s), 0, R * (1 - Math.cos(s)))); }
+  const cv = new THREE.CatmullRomCurve3(pts), TS = 24, RS = 5, g = new THREE.TubeGeometry(cv, TS, W, RS, false), p = g.attributes.position, v = new THREE.Vector3();
+  for (let i = 0; i <= TS; i++) { const u = i / TS, c = cv.getPointAt(u), k = Math.pow(Math.sin(Math.PI * u), 0.7); for (let j = 0; j <= RS; j++) { const n = i * (RS + 1) + j; v.fromBufferAttribute(p, n).sub(c).multiplyScalar(k).add(c); p.setXYZ(n, v.x, v.y, v.z); } }
+  g.computeVertexNormals();
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xfbf8f1, emissive: 0xfbf8f1, emissiveIntensity: 0.35, roughness: 0.9 }));
+  m.castShadow = false; return m;
+}
+const GUST = new URLSearchParams(location.search).get('gust'); /* 見くらべ用: line＝細い線・feather＝影を受けず光を通す束（どちらもお試し。ふだんは羊毛の束） */
+/* feather: 影を受けず、うすく自分で光り、少し透ける（ユーザーの案。試すと浮いて見えたので、ふだんは使わない 2026-11-11） */
+const WIND_A = GUST === 'feather' ? 0.82 : 1;
+function windPiece(i, L) {
+  if (GUST === 'line') return makeStreak(L + 0.01);
+  const m = i % 4 ? makeWisp(i % 2 ? [0.97, 0.95, 0.9] : [0.9, 0.92, 0.9], L, 0.014) : makeFeltBall([0.98, 0.97, 0.94], { r: 0.006, seg: 10, fuzz: 3, len: 0.005 });
+  if (GUST === 'feather') m.traverse(x => { x.receiveShadow = false; x.castShadow = false; if (x.material?.emissive) { x.material.emissive.setRGB(1, 0.98, 0.94); x.material.emissiveIntensity = 0.55; } });
+  return m;
+}
 function makeWisp(col, L = 0.1, W = 0.022, shells = 5, wob = 1) { // 細長くうねった、ふっくらした束（薄い帯だと裏から見て毛羽が片側だけになり、毛虫のように黒く見えた）
   const g = new THREE.SphereGeometry(1, 18, 10), p = g.attributes.position, ph = Math.random() * 6;
   for (let i = 0; i < p.count; i++) { const x = p.getX(i) * L / 2, u = x / L + 0.5, taper = 0.35 + 0.65 * Math.sin(Math.PI * u); p.setXYZ(i, x, p.getY(i) * W * 0.32 * taper + Math.sin(u * 5 + ph) * 0.006 * wob, p.getZ(i) * W * 0.5 * taper + Math.sin(u * 3.1 + ph * 2) * 0.008 * wob); }
@@ -658,14 +675,14 @@ function softPetal(p, dt) {
 // らせんの風（ユーザー「たまごの上昇は螺旋の風の力が働いている感じを」）: 白い羊毛の細い束と綿毛が、巣から たまごのまわりを
 //   ぐるぐる巻いて上へ吹き上がる（うずの半径は上ほど少しせまく）。束は 44 本を使いまわす。殻がはじけたら、もう吹かない
 function stepWind(e, t, dt) {
-  if (!e.wind) { e.wind = []; for (let i = 0; i < 44; i++) { const m = i % 4 ? makeWisp(i % 2 ? [0.97, 0.95, 0.9] : [0.9, 0.92, 0.9], 0.08 + Math.random() * 0.07, 0.014) : makeFeltBall([0.98, 0.97, 0.94], { r: 0.006, seg: 10, fuzz: 3, len: 0.005 }); fade(m, 0); scene.add(m); e.wind.push({ m, life: -i * 0.035, dur: 1.3 + Math.random() * 0.5, a0: Math.random() * 6.28, r0: 0.25 + Math.random() * 0.08 }); } }
+  if (!e.wind) { e.wind = []; for (let i = 0; i < 44; i++) { const m = windPiece(i, 0.08 + Math.random() * 0.07); fade(m, 0); scene.add(m); e.wind.push({ m, life: -i * 0.035, dur: 1.3 + Math.random() * 0.5, a0: Math.random() * 6.28, r0: 0.25 + Math.random() * 0.08 }); } }
   const blowing = t > 0.05 && t < HATCH.open, c = eggAt();
   for (const w of e.wind) {
     w.life += dt; if (w.life < 0) continue;
     if (w.life > w.dur) { if (!blowing) { if (!w.gone) { scene.remove(w.m); w.gone = true; } continue; } w.life = 0; w.a0 = Math.random() * 6.28; w.r0 = 0.25 + Math.random() * 0.08; }
     const k = w.life / w.dur, a = w.a0 + k * 9, r = w.r0 * (1 - 0.2 * k), y = ny + 0.01 + k * (c.y - ny + 0.22);
     w.m.position.set(c.x + Math.cos(a) * r, y, c.z + Math.sin(a) * r); w.m.rotation.set(0, -a - Math.PI / 2, 0.3); // 進む向き（うずの接線、少し上向き）にのびる。束は体の x の向きに長い
-    fade(w.m, Math.min(1, k * 5, (1 - k) * 4));
+    fade(w.m, WIND_A * Math.min(1, k * 5, (1 - k) * 4));
   }
 }
 // 殻のかけら（ユーザー「割れ方がまだ鉄とか陶器のそれっぽい」）: 薄い球面を切った形はやめて、厚みのある ふかふかの羊毛のかたまりに。
@@ -891,9 +908,13 @@ function fwSubstep() {
 }
 function fwWind(f, dt) { // らせんの風（たまごのときと同じ、白い羊毛の束が まわりを巻いて吹き上がる）
   if (!f.wind.length) SFX.swirl(3, 0.09);
-  if (!f.wind.length) for (let i = 0; i < 30; i++) { const m = i % 4 ? makeWisp(i % 2 ? [0.97, 0.95, 0.9] : [0.9, 0.92, 0.9], 0.08 + Math.random() * 0.07, 0.014) : makeFeltBall([0.98, 0.97, 0.94], { r: 0.006, seg: 10, fuzz: 3, len: 0.005 }); fade(m, 0); scene.add(m); f.wind.push({ m, life: -i * 0.05, dur: 1.3 + Math.random() * 0.5, a0: Math.random() * 6.28, r0: 0.25 + Math.random() * 0.08 }); }
-  const Q = pose(f.H), gy = height(Q.x, Q.z);
-  for (const w of f.wind) { w.life += dt; if (w.life < 0) continue; if (w.life > w.dur) { w.life = 0; w.a0 = Math.random() * 6.28; } const k = w.life / w.dur, a = w.a0 + k * 9, r = w.r0 * (1 - 0.2 * k); w.m.position.set(Q.x + Math.cos(a) * r, gy + 0.01 + k * (Q.y - gy + 0.3), Q.z + Math.sin(a) * r); w.m.rotation.set(0, -a - Math.PI / 2, 0.3); fade(w.m, Math.min(1, k * 5, (1 - k) * 4)); }
+  if (!f.wind.length) for (let i = 0; i < 30; i++) { const m = windPiece(i, 0.08 + Math.random() * 0.07); fade(m, 0); scene.add(m); f.wind.push({ m, life: -i * 0.05, dur: 1.3 + Math.random() * 0.5, a0: Math.random() * 6.28, r0: 0.25 + Math.random() * 0.08 }); }
+  const Q = pose(f.H), c = f.at = { x: Q.x, y: Q.y, z: Q.z, gy: height(Q.x, Q.z) };
+  for (const w of f.wind) { w.c = c; swirlWisp(w, dt, 1); }
+}
+function swirlWisp(w, dt, a1) { /* a1＝全体の濃さ（終わった風がうすれるとき 1→0） */
+  const c = w.c; w.life += dt; if (w.life < 0) return; if (w.life > w.dur) { w.life = 0; w.a0 = Math.random() * 6.28; }
+  const k = w.life / w.dur, a = w.a0 + k * 9, r = w.r0 * (1 - 0.2 * k); w.m.position.set(c.x + Math.cos(a) * r, c.gy + 0.01 + k * (c.y - c.gy + 0.3), c.z + Math.sin(a) * r); w.m.rotation.set(0, -a - Math.PI / 2, 0.3); fade(w.m, a1 * WIND_A * Math.min(1, k * 5, (1 - k) * 4));
 }
 function stepFarewell(dt) {
   const f = fw; if (!f) return;
@@ -1097,7 +1118,7 @@ function gustSub(o) { // 体全体をひとつの固い体のように運ぶ（�
   if ((g.t > 1.2 && d < 0.1 && Math.abs(oy - ty) < 0.03) || g.t > 9) g.done = true;
 }
 function stepGust(o, dt) { const g = o.gust; if (!g) return; fwWind(g, dt); if (!g.done) return; endGust(o); if (o === kid) { t = 0; fallT = 0; gu = null; } else { o.t = 0; o.fallT = 0; } }
-function stepGustOld(dt) { for (let i = gustOld.length - 1; i >= 0; i--) { const w = gustOld[i]; w.oa = (w.oa ?? 1) - dt / 0.6; if (w.oa > 0) { fade(w.m, w.oa); continue; } scene.remove(w.m); w.m.traverse(x => x.material?.dispose()); gustOld.splice(i, 1); } }
+function stepGustOld(dt) { for (let i = gustOld.length - 1; i >= 0; i--) { const w = gustOld[i]; w.oa = (w.oa ?? 1) - dt / 0.6; if (w.oa > 0) { if (w.c) swirlWisp(w, dt, w.oa); else fade(w.m, w.oa); continue; } scene.remove(w.m); w.m.traverse(x => x.material?.dispose()); gustOld.splice(i, 1); } }
 let gu = null; // 起き上がっている最中（型・倒れた向き・起きた秒）
 function restart(P, home) {
   endGust(kid); const old = kid, at = freeSpot(home ? [0, 0, 0] : [P.x, 0, P.z], old.H);
