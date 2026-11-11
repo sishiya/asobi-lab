@@ -7,11 +7,11 @@ import { makeFeltBall } from './felt.js';
 
 const KEY = 'koenoko.garden', MAX = 40;
 export const SEED_KINDS = [ // 藪ごとに1種
-  { name: 'キンミズヒキ', burr: [0.46, 0.5, 0.26], petal: [0.95, 0.8, 0.28], heart: [0.82, 0.58, 0.18] },
-  { name: 'ヌスビトハギ', burr: [0.52, 0.42, 0.24], petal: [0.88, 0.6, 0.74], heart: [0.96, 0.86, 0.5] },
-  { name: 'ミズヒキ', burr: [0.42, 0.34, 0.22], petal: [0.76, 0.22, 0.24], heart: [0.95, 0.85, 0.8] },
-  { name: 'イノコヅチ', burr: [0.5, 0.56, 0.3], petal: [0.7, 0.8, 0.46], heart: [0.9, 0.9, 0.6] },
-  { name: 'オニルリソウ', burr: [0.5, 0.48, 0.3], petal: [0.34, 0.56, 0.92], heart: [0.97, 0.93, 0.68] }, // 水色の花（白いチヂミザサは、草原と札の地になじんで見えなかった）
+  { name: 'キンミズヒキ', en: 'Agrimony', burr: [0.46, 0.5, 0.26], petal: [0.95, 0.8, 0.28], heart: [0.82, 0.58, 0.18] },
+  { name: 'ヌスビトハギ', en: 'Tick-trefoil', burr: [0.52, 0.42, 0.24], petal: [0.88, 0.6, 0.74], heart: [0.96, 0.86, 0.5] },
+  { name: 'ミズヒキ', en: 'Jumpseed', burr: [0.42, 0.34, 0.22], petal: [0.76, 0.22, 0.24], heart: [0.95, 0.85, 0.8] },
+  { name: 'イノコヅチ', en: 'Chaff flower', burr: [0.5, 0.56, 0.3], petal: [0.7, 0.8, 0.46], heart: [0.9, 0.9, 0.6] },
+  { name: 'オニルリソウ', en: 'Wild forget-me-not', burr: [0.5, 0.48, 0.3], petal: [0.34, 0.56, 0.92], heart: [0.97, 0.93, 0.68] }, // 水色の花（白いチヂミザサは、草原と札の地になじんで見えなかった）
 ];
 const LEAF = [0.46, 0.6, 0.3], STEM = [0.42, 0.54, 0.28];
 function read() { try { const j = JSON.parse(localStorage.getItem(KEY)); if (j && Array.isArray(j.plants)) return j; } catch (e) { /* なし */ } return { plants: [] }; }
@@ -39,7 +39,7 @@ export function makeGarden(scene) {
     get count() { return data.plants.length; }, get plants() { return data.plants; },
     // 種類ごとの いちばん進んだ段（-1＝まだない）
     kinds(by) { return SEED_KINDS.map((_, k) => data.plants.reduce((m, p) => (p.kind === k && (p.by == null || p.by === by) ? Math.max(m, p.stage) : m), -1)); }, // 子ごとの庭の記録（by＝種を運んだ子。by のない株は前のセーブの分で、どの子にも数える）
-    allBloomed(by) { return this.kinds(by).every(s => s === 2); }, celebrated(by) { return !!data.doneBy?.includes(by); }, celebrate(by) { (data.doneBy ??= []).push(by); write(data); },
+    allBloomed(by) { return this.kinds(by).every(s => s === 2); }, celebrated(by) { return !!data.doneBy?.includes(by); }, celebrate(by) { (data.doneBy ??= []).push(by); write(data); }, endShown() { return !!data.endShown; }, markEnd() { data.endShown = true; write(data); },
     // 家に帰るたび一段育つ。返すのは、はじめて咲いた種類
     growAll(by) {
       const before = this.kinds(by);

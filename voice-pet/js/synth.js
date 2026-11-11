@@ -77,13 +77,14 @@ export function sylls(text, rate, dur, semis, duty = 0.78) {
 
 // 確かめ用の声の見本（マイクのかわり。?test=<名前>）
 export const SAMPLES = {
-  low:    { f0: 105, vtl: 17.5, breath: 0.05, rough: 0.15, rate: 2.6, text: 'aiueoaiu', semis: [0, 1, -1, 2, 0] },
-  high:   { f0: 250, vtl: 13.2, breath: 0.08, rough: 0.05, rate: 2.8, text: 'aiueoaiu', semis: [0, 5, 9, 3, 11] },
+  low:    { f0: 105, vtl: 17.5, breath: 0.05, rough: 1, rate: 3.6, text: 'aiueoaiu', semis: [0, 1, -1, 2, 0] },
+  calm:   { f0: 135, vtl: 16.5, breath: 0.04, rough: 0.04, rate: 1.7, text: 'aouoa', semis: [0, 0, -1, 0] },
+  high:   { f0: 290, vtl: 13.2, breath: 0.08, rough: 0.3, rate: 3, attack: 0.03, text: 'aiueoaiu', semis: [0, 5, 9, 3, 11] },
   bounce: { f0: 150, vtl: 10, breath: 0.02, rough: 0.02, rate: 2.2, duty: 0.35, attack: 0.002, text: 'aiaoaiaoaiaoai', semis: [0, 1, 0, 2] },
   breathy:{ f0: 170, vtl: 15.5, breath: 0.65, rough: 0.2, rate: 3.0, text: 'aooa', semis: [0, -1, 0, -2] },
-  rough:  { f0: 120, vtl: 17, breath: 0.25, rough: 0.9, rate: 3.5, text: 'aoaoe', semis: [0, 0, 1, 0] },
+  rough:  { f0: 100, vtl: 17.5, breath: 0.03, rough: 1, rate: 3.5, attack: 0.03, text: 'aoaoe', semis: [0, 3, -2, 4, 0] },
   sing:   { f0: 200, vtl: 15, breath: 0.05, rough: 0.05, rate: 1.6, text: 'aaoo', semis: [0, 5, 9, 4] },
-  quick:  { f0: 160, vtl: 15.8, breath: 0.1, rough: 0.2, rate: 7.5, text: 'aiueoaieoua', semis: [0, 1, 0, -1] },
+  quick:  { f0: 160, vtl: 15.8, breath: 0.03, rough: 0.03, rate: 7.5, text: 'aiueoaieoua', semis: [0, 3, -1, 3] },
 };
 export function sampleVoice(name, sr = 48000) {
   const s = SAMPLES[name] || SAMPLES.low, dur = 2.6;

@@ -2,7 +2,11 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://sishiya.github.io/asobi-lab/</loc>
-    <lastmod>2026-11-07</lastmod>
+    <lastmod>2026-11-11</lastmod>
+  </url>
+  <url>
+    <loc>https://sishiya.github.io/asobi-lab/voice-pet/</loc>
+    <lastmod>2026-11-11</lastmod>
   </url>
   <url>
     <loc>https://sishiya.github.io/asobi-lab/face-in-frame/</loc>

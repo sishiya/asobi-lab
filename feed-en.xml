@@ -5,8 +5,16 @@
   <link href="https://sishiya.github.io/asobi-lab/?lang=en"/>
   <link rel="self" href="https://sishiya.github.io/asobi-lab/feed-en.xml"/>
   <id>https://sishiya.github.io/asobi-lab/feed-en.xml</id>
-  <updated>2026-11-07T00:00:00+09:00</updated>
+  <updated>2026-11-11T00:00:00+09:00</updated>
   <author><name>Shishiya</name></author>
+  <entry>
+    <title>Koenoko</title>
+    <link href="https://sishiya.github.io/asobi-lab/voice-pet/?lang=en"/>
+    <id>https://sishiya.github.io/asobi-lab/voice-pet/?lang=en</id>
+    <published>2026-11-11T00:00:00+09:00</published>
+    <updated>2026-11-11T00:00:00+09:00</updated>
+    <summary>Talk to the nest and wool gathers into an egg. The little one that hatches gets its body and colors from your voice. It practices walking with its own body, from wobbling to steady steps and turns. Go out to the fields together, bring seeds home, and grow flowers in your garden. Your voice is never sent or saved, and you can play without a mic.</summary>
+  </entry>
   <entry>
     <title>8-bit Console</title>
     <link href="https://sishiya.github.io/asobi-lab/retro-8bit/?lang=en"/>

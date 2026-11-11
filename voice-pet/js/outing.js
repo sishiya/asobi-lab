@@ -11,7 +11,7 @@ import { mud, makeDirt, stepDirt } from './dirt.js';
 import { feltMerged, feltify, makeFeltGround, makeFeltBody, makeFeltBall, makeDiorama, HARE_FACE } from './felt.js';
 import { kidBody, kidShapes, kidBends } from './kid.js';
 import { lookFur, lookFace } from './kid-look.js';
-import { makeBurr, SEED_KINDS } from './garden.js';
+import { makeBurr, SEED_KINDS } from './garden.js'; import { TX } from './i18n.js';
 import { driveGetup, decodeGetup, GETUP_UP } from './getup.js';
 import { gesture } from './gesture.js';
 import { makeSplash } from './splash.js';
@@ -21,7 +21,7 @@ const CSS = `
   #out { position: fixed; inset: 0; pointer-events: none; }
   #out[hidden] { display: none; }
   #out > * { pointer-events: auto; }
-  #outHud { position: fixed; left: 24px; top: 88px; background: var(--panel); border-radius: 14px; padding: 8px 12px; line-height: 1.6; font-size: 13px; pointer-events: none; }
+  #outHud { position: fixed; left: 24px; top: 88px; background: var(--panel); border-radius: 14px; padding: 8px 12px; line-height: 1.6; font-size: 13px; pointer-events: none; } #outBurrs { display: flex; gap: 2px; margin-top: 2px; } #outBurrs svg { display: block; width: 20px; height: 20px; }
   #outTools { position: fixed; right: 12px; top: 62px; }
   #outTools button { border: 0; background: var(--panel); font: inherit; font-size: 13px; color: var(--ink); min-height: 44px; min-width: 44px; padding: 0 14px; border-radius: 999px; cursor: pointer; }
   #outTools button.on { background: var(--on); color: #fff; }
@@ -37,7 +37,7 @@ const CSS = `
 const HTML = `
   <div id="outHud"></div>
   <div id="outMsg"></div>
-  <div id="outBottom"><div id="outNeed" hidden></div><div id="outHint"></div><button id="outHome">家に帰る</button></div>
+  <div id="outBottom"><div id="outNeed" hidden></div><div id="outHint"></div><button id="outHome">${TX('家に帰る', 'Go home')}</button></div>
 `;
 
 // R＝Rapier、renderer＝ページの描き手。onHome＝帰るとき（泥の点を渡す）
@@ -51,7 +51,7 @@ export function makeOuting(R, renderer, { onHome }) {
   const hemi = new THREE.HemisphereLight(0xf6efe0, 0x6a6448, 1.0); scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff0d6, 2.2); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.radius = 4; sun.shadow.bias = -0.0004;
   Object.assign(sun.shadow.camera, { left: -2.5, right: 2.5, top: 2.5, bottom: -2.5, near: 0.5, far: 20 }); scene.add(sun, sun.target);
-  makeBackdrop(scene, { cx: 1.5, cz: 2.5, r: 17, seed: 23 }); makeLitter(scene, { cx: 1.5, cz: 2.5, r: 6.5, n: 190, seed: 9 });
+  makeBackdrop(scene, { cx: 1.5, cz: 2.5, r: 17, seed: 23 }); const litter = makeLitter(scene, { cx: 1.5, cz: 2.5, r: 6.5, n: 190, seed: 9 });
   const G = makeFeltGround(scene, { size: 16, n: 240, cx: 1.5, cz: 2.5 }), SPLASH = makeSplash(scene), onSplash = (x, z, k, f, water) => SPLASH.emit(x, height(x, z) + 0.012, z, Math.min(1, k * 2), !!water);
   const DIO = makeDiorama(renderer, scene, cam);
 
@@ -112,7 +112,7 @@ export function makeOuting(R, renderer, { onHome }) {
   const rain = new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0xbfc8d0, transparent: true, opacity: 0.25 })); rain.frustumCulled = false; rain.visible = false; scene.add(rain);
   const drops = Array.from({ length: RAIN }, () => [Math.random() * 5 - 2.5, Math.random() * 3, Math.random() * 5 - 2.5]);
   function setRain(on) {
-    if (on !== rainOn && active) show(on ? '雨がふってきた' : '雨があがった'); rainOn = on; opts.onRain?.(on);
+    if (on !== rainOn && active) show(on ? TX('雨がふってきた', 'It started to rain') : TX('雨があがった', 'The rain stopped')); rainOn = on; opts.onRain?.(on);
   }
   // 雨はときどき勝手に降る（テストプレイ「ランダムで。ボタンは廃止」）。空はゆっくり変わる
   let rainK = -1, rainT = 0; const GREY = new THREE.Color(0x8d939a), _bg = new THREE.Color();
@@ -122,18 +122,18 @@ export function makeOuting(R, renderer, { onHome }) {
   let active = false, target = null;
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), _sp = new THREE.Sphere();
   // さわった所の印（テストプレイ「チープ」「障害物の裏でも手前に描かれる」）: 羊毛のぽんぽんがぽんと出て、まわりに毛玉がはじける。ふつうの物として描くので、藪の裏では隠れる
-  const WOOL = [0.98, 0.86, 0.52], mark = makeFeltBall(WOOL, { r: 0.03, seg: 16, fuzz: 3, len: 0.006 }), puffs = Array.from({ length: 7 }, (_, i) => { const m = makeFeltBall(WOOL, { r: 0.012, seg: 10, fuzz: 2, len: 0.003 }); m.visible = false; m.userData.a = i * 0.8976 + 0.3; scene.add(m); return m; }); mark.visible = false; scene.add(mark);
-  let markT = -1, markS = 0, markY = 0;
-  function setTarget(p) { const L = SIZE / 2 - 1.5, x = Math.max(-L, Math.min(L, p.x)), z = Math.max(-L, Math.min(L, p.z)); target = new THREE.Vector3(x, 0, z); markT = 0; markY = height(x, z) + (BUSHES.some(b => Math.hypot(b[0] - x, b[1] - z) < 0.55) ? 0.58 : 0); mark.position.set(x, markY, z); /* 藪の中は隠れるので、藪の上に */ }
-  function stepMark(dt) { if (markT < 0) return; markT += dt; const u = Math.min(1, markT / 0.55), e = 1 - (1 - u) * (1 - u); markS += ((target ? 1 : 0) - markS) * Math.min(1, dt * (target ? 16 : 8)); mark.visible = markS > 0.02; mark.scale.setScalar(Math.max(0.01, markS * (1 + 0.08 * Math.sin(markT * 5)))); mark.position.y = markY + 0.07 + 0.012 * Math.sin(markT * 3.2); mark.rotation.y = markT * 0.8; puffs.forEach(p => { p.visible = u < 1; if (u < 1) { p.position.set(mark.position.x + Math.cos(p.userData.a) * (0.03 + 0.2 * e), markY + 0.05 + 0.13 * Math.sin(Math.PI * Math.min(1, u * 1.1)), mark.position.z + Math.sin(p.userData.a) * (0.03 + 0.2 * e)); p.scale.setScalar(Math.max(0.05, 1 - u * u)); } }); if (!target && u >= 1 && markS < 0.02) { markT = -1; mark.visible = false; } }
+  const WOOL = [0.98, 0.86, 0.52], mark = makeFeltBall(WOOL, { r: 0.03, seg: 16, fuzz: 3, len: 0.006 }), puffs = Array.from({ length: 13 }, (_, i) => { const m = makeFeltBall(WOOL, { r: 0.012, seg: 10, fuzz: 2, len: 0.003 }); m.visible = false; m.userData.a = i * 0.8976 + 0.3; scene.add(m); return m; }); mark.visible = false; scene.add(mark);
+  let markT = -1, markS = 0, markY = 0, markHover = 0.2;
+  function setTarget(p) { opts.onMark?.(); puffs.forEach(q => Object.assign(q.userData, { a: Math.random() * 6.283, r: 0.05 + Math.random() * 0.1, h: 0.28 + Math.random() * 0.34, d: Math.random() * 0.28, spin: 5 + Math.random() * 3, sz: 0.55 + Math.random() * 0.75 })); /* つむじ風: 毛の出どころ・高さ・出る時間をばらばらに */ const L = SIZE / 2 - 1.5, x = Math.max(-L, Math.min(L, p.x)), z = Math.max(-L, Math.min(L, p.z)); target = new THREE.Vector3(x, 0, z); markT = 0; const onBush = BUSHES.some(b => Math.hypot(b[0] - x, b[1] - z) < 0.55); markY = height(x, z) + (onBush ? 0.47 : 0); markHover = onBush ? 0.03 : 0.2; /* 藪の上は、もう高い所なので浮かせすぎない（画面の外へ出て見のがした） */ mark.position.set(x, markY, z); /* 藪の中は隠れるので、藪の上に */ }
+  function stepMark(dt) { if (markT < 0) return; markT += dt; const u = Math.min(1, markT / 0.55), e = 1 - (1 - u) * (1 - u); markS += ((target ? 1 : 0) - markS) * Math.min(1, dt * (target ? 16 : 8)); mark.visible = markS > 0.02; mark.scale.setScalar(Math.max(0.01, markS * (1 + 0.08 * Math.sin(markT * 5)))); mark.position.y = markY + markHover + 0.03 * Math.sin(markT * 1.9) + 0.008 * Math.sin(markT * 4.3); mark.rotation.set(0.14 * Math.sin(markT * 1.3), markT * 0.6, 0.14 * Math.cos(markT * 1.7)); /* 地面から離れて、ふわふわ浮く（影で高さがわかる） */ puffs.forEach(p => { const q = p.userData, k = (markT - q.d) / 0.95; p.visible = k >= 0 && k < 1; if (p.visible) { const a = q.a + q.spin * k, r = q.r * (0.35 + 1.25 * k); p.position.set(mark.position.x + Math.cos(a) * r, markY + 0.02 + q.h * Math.pow(k, 0.8), mark.position.z + Math.sin(a) * r); p.scale.setScalar(Math.max(0.05, q.sz * Math.pow(Math.sin(Math.PI * Math.min(1, k * 0.98 + 0.02)), 0.6))); } }); if (!target && markT > 1.3 && markS < 0.02) { markT = -1; mark.visible = false; puffs.forEach(p => (p.visible = false)); } }
   function pick(e) {
     ndc.set(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1); ray.setFromCamera(ndc, cam);
     const Pk = pose(H); let best = null, bd = 1e9; for (const b of BUSHES) { _sp.center.set(b[0], height(b[0], b[1]) + 0.25, b[1]); _sp.radius = 0.42; if (Math.hypot(Pk.x - b[0], Pk.z - b[1]) < 1.6 || bushes[BUSHES.indexOf(b)].userData.fade < 0.6 || cam.position.distanceTo(_sp.center) < 0.8) continue; /* 着いた藪は画面いっぱいになるので素通り＝地面をさわって出られる */ const q = ray.ray.intersectSphere(_sp, _c); if (q) { const d = q.distanceTo(cam.position); if (d < bd) { bd = d; best = { x: b[0], z: b[1] }; } } }
     const h = ray.intersectObject(G.ground)[0]; // 藪の上のほうを通って遠くの地面に届くタップは、遠くへ（テストプレイ「藪に吸われて遠くをタップできない」）
     if (best && (!h || Math.hypot(h.point.x - best.x, h.point.z - best.z) < 1.3)) setTarget(best); else if (h) setTarget(h.point);
   }
-  function turnView(dx, dy, k = 0.004) { const d = dx * k * (invX ? 1 : -1); camYaw += d; camOff += d; camPitch = Math.max(0.18, Math.min(1.25, camPitch + dy * k * (invY ? -1 : 1))); } // 下限＝地面すれすれにしない（藪の向こうの空をさわってしまう）
-  gesture(renderer.domElement, { on: () => active, tap: pick, drag: turnView, zoom: f => (camDist = Math.max(0.5, Math.min(3, camDist * f))) });
+  function turnView(dx, dy, k = 0.004) { const d = dx * k * (invX ? 1 : -1), p0 = camPitch; camYaw += d; camOff += d; camPitch = Math.max(0.18, Math.min(1.25, camPitch + dy * k * (invY ? -1 : 1))); userYaw += d; userPitch += camPitch - p0; } // 下限＝地面すれすれにしない（藪の向こうの空をさわってしまう）
+  gesture(renderer.domElement, { on: () => active, tap: pick, drag: turnView, zoom: f => { const d0 = camDist; camDist = Math.max(0.5, Math.min(3, camDist * f)); userDist += camDist - d0; } });
 
   const wrap = a => a - Math.round(a / (Math.PI * 2)) * Math.PI * 2;
   function wish(P) {
@@ -158,7 +158,7 @@ export function makeOuting(R, renderer, { onHome }) {
         const P = pose(H), w = wish(P);
         gNow += Math.max(-3 / 60, Math.min(3 / 60, (w.go ? 1 : 0) - gNow));
         turnNow = w.go ? Math.max(-1, Math.min(1, wrap(w.yaw - P.yaw) * 1.5)) : 0;
-        BUSHES.forEach((b, i) => { if (!touched[i] && Math.hypot(P.x - b[0], P.z - b[1]) < BUSH_TOUCH) { touched[i] = true; reached++; stick(i, 5); opts.onBurr?.(); show(`${SEED_KINDS[i].name} の ひっつき虫がついた`); lit(); } });
+        BUSHES.forEach((b, i) => { if (!touched[i] && Math.hypot(P.x - b[0], P.z - b[1]) < BUSH_TOUCH) { touched[i] = true; reached++; stick(i, 5); opts.onBurr?.(); show(TX(`${SEED_KINDS[i].name} の ひっつき虫がついた`, `${SEED_KINDS[i].en} seeds stuck on`)); lit(); } });
         for (const f of H.feet) { const d = !!contactPoint(f), air = f.air || 0; f.air = d ? 0 : air + 1; if (d && !f.down) { addPrint(f, P); if (air >= 6) opts.onStep?.(f); } f.down = d; } // 足音は 0.1 秒より長く浮いたあとの1歩だけ
         if (clock - walkedT > 1.5) { walkedT = clock; walked.push([+P.x.toFixed(2), +P.z.toFixed(2)]); if (walked.length > 24) walked.shift(); } // 走った地面（帰ると、その子の練習の場所に入る）
         FB.mud.hit(stepDirt(D, H, 4 / 240, rainOn ? 1 : 0, onSplash));
@@ -176,7 +176,7 @@ export function makeOuting(R, renderer, { onHome }) {
     }
   }
   // ひっつき虫: 藪にふれると、胴や足の毛に種がつく（泥の点と同じく、骨から見た場所で持ち帰る）。藪の種類ごとに ちがう花になる
-  let burrs = [], walked = [], walkedT = 0;
+  let burrs = [], walked = [], walkedT = 0, lastHud = ''; const css = c => `rgb(${c.map(v => Math.round(v * 255)).join(',')})`, burrIcon = (S, k) => touched[k] ? `<svg viewBox="0 0 24 24"><title>${TX(S.name, S.en)}</title><g fill="${css(S.petal)}" stroke="rgba(44,42,38,.35)" stroke-width=".6">${[0, 1, 2, 3, 4].map(i => `<ellipse cx="12" cy="6" rx="4.2" ry="5.2" transform="rotate(${i * 72} 12 12)"/>`).join('')}</g><circle cx="12" cy="12" r="3" fill="${css(S.heart)}"/></svg>` : '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="rgba(44,42,38,.32)" stroke-width="2" stroke-dasharray="3 3.4"/></svg>'; // 藪の花の色で、どの藪にふれたかを見せる
   function stick(kind, n) {
     const parts = Object.entries(H.parts).filter(([, p]) => p.r > 0.012 && p.a);
     for (let i = 0; i < n && burrs.length < 25; i++) {
@@ -197,7 +197,7 @@ export function makeOuting(R, renderer, { onHome }) {
   // カメラ（ユーザー「もうちょっと顔が見える角度に」）: ついてくる＝ひもで引っぱられるように。その場で向きを変えても回りこまず、進むと引かれてうしろへ（テストプレイ「進行方向が見えない」）・うしろ・見下ろし。どれもドラッグで回せる。種類と回す向きはメニューから
   const CAMS = { follow: { off: 0.7, pitch: 0.5, leash: 0.7, lag: 0.018, blur: 1.6, dist: 1 }, tps: { off: 0, pitch: 0.35, lag: 0.04, blur: 1.2, dist: 1 }, top: { off: 0, pitch: 1.05, lag: 0, blur: 4, dist: 2.2 } };
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }, save = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* 保存できない */ } };
-  let camYaw = 0, camOff = 0, camPitch = 0.5, camDist = 1.3, camMode = CAMS[load('satoyama.cam2', 'follow')] ? load('satoyama.cam2', 'follow') : 'follow', invX = load('satoyama.invX2', '0') === '1', invY = load('satoyama.invY2', '0') === '1', hintShown = null, frame = 0;
+  let camYaw = 0, camOff = 0, camPitch = 0.5, camDist = 1.3, camMode = CAMS[load('satoyama.cam2', 'follow')] ? load('satoyama.cam2', 'follow') : 'follow', invX = load('satoyama.invX2', '0') === '1', invY = load('satoyama.invY2', '0') === '1', hintShown = null, frame = 0, userYaw = 0, userPitch = 0, userDist = 0; // user*＝このこまでマウスやタッチが動かした分（なめらかにせず、すぐ見せる）
   const camPos = new THREE.Vector3(-1.2, 0.7, 0), aimP = new THREE.Vector3(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3();
   let leashX = 0, leashZ = 0, leashYaw = null; // ひもの端（子の後ろの見えない点）
   const aimL = new THREE.Vector3(), leadV = { x: 0, z: 0, hx: 0, hz: 0 }, LEAD = 0.55; // LEAD＝進む先を何秒ぶん見るか（育てると同じ）
@@ -208,7 +208,7 @@ export function makeOuting(R, renderer, { onHome }) {
   function render(dt) {
     if (!K) return;
     FB.pose(dt); FB.breathe(dt, fallT ? 0 : gNow); FB.mud.step(dt, rainOn ? 1 : 0); if (frame++ % 3 === 0) FB.paint(D);
-    SPLASH.step(dt); if (hintShown !== !target) { hintShown = !target; $('outHint').style.opacity = hintShown ? 1 : 0; } /* 行き先がないあいだは操作の案内を出す（テストプレイ） */ const P = pose(H); stepRain(dt, P); stepRainSky(dt); stepMark(dt); FB.lod(cam.position, cam.fov, innerHeight * renderer.getPixelRatio());
+    SPLASH.step(dt); if (hintShown !== !target) { hintShown = !target; $('outHint').style.opacity = hintShown ? 1 : 0; } /* 行き先がないあいだは操作の案内を出す（テストプレイ） */ const P = pose(H); stepRain(dt, P); stepRainSky(dt); stepMark(dt); litter.step(dt, Object.values(H.parts).map(p => p.body.translation())); FB.lod(cam.position, cam.fov, innerHeight * renderer.getPixelRatio());
     const gy = height(P.x, P.z), k = Math.min(1, dt * 60), first = !aimInit;
     if (first) { aimP.set(P.x, gy + 0.17, P.z); aimInit = true; }
     aimP.x += (P.x - aimP.x) * 0.06 * k; aimP.z += (P.z - aimP.z) * 0.06 * k; aimP.y += (gy + 0.17 - aimP.y) * 0.05 * k; // 跳ぶたびの上下と着地のがたつきをならす
@@ -216,14 +216,14 @@ export function makeOuting(R, renderer, { onHome }) {
     const A = aimL.set(aimP.x + leadV.hx * 0.6 + leadV.x * LEAD, aimP.y, aimP.z + leadV.hz * 0.6 + leadV.z * LEAD), C = CAMS[camMode], blur = C.blur, focus = camMode === 'top' ? 0.5 : 0.55;
     if (C.leash) { if (first || leashYaw == null || Math.abs(wrap(camYaw - leashYaw)) > 1e-5) { leashX = aimP.x - Math.cos(camYaw) * C.leash; leashZ = aimP.z - Math.sin(camYaw) * C.leash; } else { const lx = aimP.x - leashX, lz = aimP.z - leashZ, L = Math.hypot(lx, lz) || 1; leashX = aimP.x - lx / L * C.leash; leashZ = aimP.z - lz / L * C.leash; camYaw = Math.atan2(lz, lx); } leashYaw = camYaw; } // 子の場所だけで決める＝その場の旋回では動かない。ドラッグで回したら、その向きからまた引かれる
     else if (!C.lag) camYaw = baseYaw() + camOff; else if (gNow > 0.2) camYaw += wrap(baseYaw() + camOff - camYaw) * C.lag * k; // 歩いているときだけ、ゆっくり回りこむ
-    const d = camDist * C.dist * (cam.aspect < 1 ? 1.4 : 1), cp = Math.cos(camPitch), want = _a.set(A.x - Math.cos(camYaw) * cp * d, A.y + Math.sin(camPitch) * d, A.z - Math.sin(camYaw) * cp * d);
-    want.y = Math.max(want.y, height(want.x, want.z) + 0.12); if (first) camPos.copy(want); else camPos.lerp(want, 0.07 * k); cam.position.copy(camPos); cam.lookAt(A.x, A.y + 0.04, A.z);
+    const wantAt = (o, yaw, pitch, dist) => { const d = dist * C.dist * (cam.aspect < 1 ? 1.4 : 1), cp = Math.cos(pitch); o.set(A.x - Math.cos(yaw) * cp * d, A.y + Math.sin(pitch) * d, A.z - Math.sin(yaw) * cp * d); o.y = Math.max(o.y, height(o.x, o.z) + 0.12); return o; }, want = wantAt(_a, camYaw, camPitch, camDist);
+    if (first) camPos.copy(want); else { if (userYaw || userPitch || userDist) camPos.add(want).sub(wantAt(_c, camYaw - userYaw, camPitch - userPitch, camDist - userDist)); camPos.lerp(want, 0.07 * k); } userYaw = userPitch = userDist = 0; cam.position.copy(camPos); cam.lookAt(A.x, A.y + 0.04, A.z);
     // カメラと子を結ぶ線に近い藪は透かす（目線のときは、目の前の藪だけ）
     const a = cam.position, ab = _b.set(P.x, P.y, P.z).sub(a), L2 = Math.max(ab.lengthSq(), 0.01);
     for (const b of bushes) { const c = _c.copy(b.position).add(_a.set(0, 0.15, 0)), u = Math.max(0, Math.min(1, c.clone().sub(a).dot(ab) / L2)), d = c.distanceTo(a.clone().addScaledVector(ab, u)); const want = d < 0.4 && u > 0.05 ? 0.2 : 1; b.userData.fade += (want - b.userData.fade) * 0.15; for (const k2 of ['off', 'on']) for (const m of b.userData.mats[k2]) m.opacity = b.userData.fade; for (const m of b.children) m.visible = !m.userData.flower ? m.userData.s === 0 || b.userData.fade > 0.9 : b.userData.fade > 0.5; }
     sun.position.set(P.x + 3, 6, P.z + 2); sun.target.position.set(P.x, 0, P.z);
     DIO.render(blur, focus, 0.3);
-    $('outHud').innerHTML = `<b>${K.name.replace(/[<>&]/g, '')}</b><br>${reached ? `藪 ${reached}/${BUSHES.length}` : '<small>藪にふれよう</small>'}`;
+    const hud = `<b>${K.name.replace(/[<>&]/g, '')}</b><br>${reached ? TX(`藪 ${reached}/${BUSHES.length}`, `Bushes ${reached}/${BUSHES.length}`) : TX('<small>藪にふれよう</small>', '<small>Touch a bush</small>')}<div id="outBurrs">${SEED_KINDS.map(burrIcon).join('')}</div>`; if (hud !== lastHud) $('outHud').innerHTML = lastHud = hud; // 変わったときだけ書きかえる
   }
   const opts = {};
   return {
@@ -235,9 +235,9 @@ export function makeOuting(R, renderer, { onHome }) {
       Q = B.decode(saved.v || saved.trying); H = B.build(R, world, [0, 0, 0], height); D = makeDirt(H);
       FB = makeFeltBody(scene, H, kidShapes(H), { bends: kidBends(H), furColor: lookFur(saved.genes.look, H), face: lookFace(saved.genes.look, H.plan, HARE_FACE) });
       FB.mud.blobs = (mudBlobs || []).map(b => ({ ...b })); burrs = []; walked = []; walkedT = clock;
-      $('outNeed').textContent = `${K.name} と、もうすこし練習してからにしよう`;
+      $('outNeed').textContent = TX(`${K.name} と、もうすこし練習してからにしよう`, `${K.name} needs a little more practice first`);
       t = 0; gNow = 0; gu = null; fallT = 0; fallAt = []; needT = 0; reached = 0; touched.fill(false); lit(); target = null; markT = -1; markS = 0; mark.visible = false; puffs.forEach(p => (p.visible = false)); aimInit = false; rainOn = false; rainK = 0.001; rainT = Infinity; // 雨はいったん降らせない（ユーザー。天候はあらためて考える）
-      $('outHint').textContent = `行きたい所を${matchMedia('(hover: hover)').matches ? 'クリック' : 'タップ'}・ドラッグで見まわす`; hintShown = null; root.hidden = false; active = true; setCam(camMode);
+      $('outHint').textContent = TX(`行きたい所を${matchMedia('(hover: hover)').matches ? 'クリック' : 'タップ'}・ドラッグで見まわす`, `${matchMedia('(hover: hover)').matches ? 'Click' : 'Tap'} to go. Drag to look.`); hintShown = null; root.hidden = false; active = true; setCam(camMode);
     },
     // 帰る: 体と皮を消して、泥の点を返す
     leave() {

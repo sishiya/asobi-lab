@@ -5,8 +5,16 @@
   <link href="https://sishiya.github.io/asobi-lab/"/>
   <link rel="self" href="https://sishiya.github.io/asobi-lab/feed.xml"/>
   <id>https://sishiya.github.io/asobi-lab/feed.xml</id>
-  <updated>2026-11-07T00:00:00+09:00</updated>
+  <updated>2026-11-11T00:00:00+09:00</updated>
   <author><name>しし屋</name></author>
+  <entry>
+    <title>こえのこ</title>
+    <link href="https://sishiya.github.io/asobi-lab/voice-pet/"/>
+    <id>https://sishiya.github.io/asobi-lab/voice-pet/</id>
+    <published>2026-11-11T00:00:00+09:00</published>
+    <updated>2026-11-11T00:00:00+09:00</updated>
+    <summary>声をかけると、巣に羊毛があつまって、たまごになる。かえる子の体と色は、あなたの声しだい。子は自分の体で歩き方を練習して、よちよちから、ころばずに、曲がれるように。いっしょに野へでかけて種を連れ帰り、庭に花を咲かせよう。マイクの声は送らず、保存もしない。マイクがなくても遊べる。</summary>
+  </entry>
   <entry>
     <title>8ビット互換機</title>
     <link href="https://sishiya.github.io/asobi-lab/retro-8bit/"/>

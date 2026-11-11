@@ -37,19 +37,32 @@ export function lookFur(L, H) {
     if (L.spots > 0.25 && n[1] > -0.2 && sp > 1.1 - L.spots * 0.9) c = c.map((v, i) => v + (C.dark[i] - v) * 0.75);
     if (H.plan.type === 'bird' && Math.abs(p[2] - mid) > H.parts.chest.r * 0.98 + (H.plan.fur ?? 0.006 + 0.008 * H.plan.fluff) * 0.5) c = c.map((v, i) => v + (C.dark[i] - v) * 0.45); // 翼は濃く
     if (/ft[LR]$/.test(part)) c = c.map((v, i) => v + (C.dark[i] - v) * 0.5); // 足先は濃く
+    if (H.plan.type === 'walk') c = tanukiMarks(c, C, H, part, p, n); // タヌキのもよう（色は声のまま、濃淡の置き方だけ本物に）
     return c;
   };
 }
+// タヌキのもよう（手本は tanuki.js のホンドタヌキ）: 目の帯・白っぽいほおと鼻すじ・黒い鼻先・濃い足・胸の濃い毛・尾の上の濃い筋
+function tanukiMarks(c0, C, H, part, p, n) {
+  const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * cl(t)), dark = C.dark.map(v => v * 0.72), K = H.plan; let c = c0;
+  if (/up[LR]$/.test(part)) c = mix(c, dark, 0.3); else if (/lo[LR]$/.test(part)) c = mix(c, dark, 0.65); else if (/ft[LR]$/.test(part)) c = mix(c, dark, 0.75);
+  if ((part === 'chest' || part.startsWith('neck')) && n[1] < 0.3) c = mix(c, dark, 0.38);
+  if (part.startsWith('tail') && n[1] > 0.2) c = mix(c, dark, 0.5);
+  if (part === 'head') { const h = H.parts.head, hc = h.c, hs = (K.headR + (K.fur ?? 0.006 + 0.008 * K.fluff)) * 0.95, ex = hc[0] + hs * 0.47, ey = hc[1] + hs * 0.3, dz = Math.abs(p[2] - hc[2]), tx = Math.max(-hs * 0.5, Math.min(hs * 0.18, p[0] - ex)), d = Math.hypot(p[0] - ex - tx, p[1] - ey, dz - hs * 0.83);
+    c = mix(c, C.pale, cl((ey - hs * 0.16 - p[1]) / (hs * 0.22)) * cl((p[0] - hc[0] + hs * 0.1) / (hs * 0.3)) * 0.85 + cl((p[0] - ex - hs * 0.25) / (hs * 0.3)) * 0.5);
+    c = mix(c, dark, cl((hs * 0.46 - d) / (hs * 0.2)) * 0.92);
+    c = mix(c, dark, cl((h.r * 0.32 - Math.hypot(p[0] - hc[0] - h.r * 1.75, p[1] - hc[1] + h.r * 0.2, dz)) / (h.r * 0.1))); }
+  return c;
+}
 // 顔: 目は毛の表に、耳は抑揚で長く（0.8〜3cm×2）、とがりで先が細く濃い
 export function lookFace(L, K, base) {
-  const hs = (K.headR + (K.fur ?? 0.006 + 0.008 * K.fluff)) * 0.95, C = lookColor(L), hop = K.type === 'hop', bear = K.type === 'donkey', /* 型の名前 donkey は学習の記録に合わせて残す。見た目と呼び名はクマ */ len = hop ? hs * lerp(0.72, 1, L.ear) * (2 / 3) : lerp(0.012, 0.032, L.ear), wid = lerp(0.016, 0.011, L.sharp) * lerp(1, 0.8, L.ear) * (hop ? 1.65 : 1); // ウサギの耳は頭より少し短いくらい（len は半分の長さ）
-  return { ...base, eye: [hs * 0.47, hs * 0.3, hs * 0.83], eyeR: K.headR * 0.17, iris: 0x2a1a10, ring: null, button: true, beak: K.type === 'bird' ? { at: [hs * 1.13, -hs * 0.12], size: [hs * 0.34, hs * 0.2, hs * 0.48], duck: true, col: [0.88, 0.68, 0.4] } : null,
-    ear: { at: bear ? [-hs * 0.12, hs * 0.62, hs * 0.6] : [-hs * 0.2, hs * 0.8, hs * 0.5], size: bear ? [hs * 0.26, hs * 0.36, hs * 0.36] /* クマの耳はまんまるで前向き（頭に少しうずめる） */ : K.type === 'snake' || K.type === 'bird' ? [0.001, 0.001, 0.001] : K.type === 'seal' ? [0.006, 0.004, 0.004] /* アザラシの耳は小さな穴だけ */ : [wid, len, hop ? 0.009 : 0.005], out: bear ? 0.5 : 0.35, back: bear ? 0.1 : K.type === 'hop' ? lerp(0.5, 0.75, L.ear) /* ウサギの耳はぴんと立てず、少し後ろへ倒す（テストプレイ） */ : lerp(0.15, 0.45, L.ear), tipAt: !bear && L.sharp > 0.5 ? 0.55 : 9, tip: C.dark, inner: bear ? C.base : C.pale, outer: C.base, long: hop } };
+  const hs = (K.headR + (K.fur ?? 0.006 + 0.008 * K.fluff)) * 0.95, C = lookColor(L), hop = K.type === 'hop', bear = K.type === 'donkey', tanuki = K.type === 'walk', /* 型の名前 donkey は学習の記録に合わせて残す。見た目と呼び名はクマ */ len = hop ? hs * lerp(0.72, 1, L.ear) * (2 / 3) : lerp(0.012, 0.032, L.ear), wid = lerp(0.016, 0.011, L.sharp) * lerp(1, 0.8, L.ear) * (hop ? 1.65 : 1); // ウサギの耳は頭より少し短いくらい（len は半分の長さ）
+  return { ...base, eye: [hs * 0.47, hs * 0.3, hs * 0.83], eyeR: K.headR * 0.17, iris: 0x2a1a10, ring: null, button: true, ...(tanuki ? { eyeTurn: 0.5, eyeClear: 3.2, sway: { head: [0.05, 0.03], tail: [0.16, 0.07] } /* [左右, 上下]（ラジアン） */ } : {}), beak: K.type === 'bird' ? { at: [hs * 1.13, -hs * 0.12], size: [hs * 0.34, hs * 0.2, hs * 0.48], duck: true, col: [0.88, 0.68, 0.4] } : null,
+    ear: tanuki ? { at: [-hs * 0.22, hs * 0.76, hs * 0.5], size: [hs * 0.18, hs * 0.3, hs * 0.4], tri: 0.8, out: 0.4, back: 0.2, tipAt: 9, tip: C.dark, inner: C.pale, outer: C.dark.map(v => v * 0.72) } /* タヌキの耳は小さな鈍角の三角で先が少し丸く、外が濃い（ユーザーの見立て） */ : { at: bear ? [-hs * 0.12, hs * 0.62, hs * 0.6] : [-hs * 0.2, hs * 0.8, hs * 0.5], size: bear ? [hs * 0.26, hs * 0.36, hs * 0.36] /* クマの耳はまんまるで前向き（頭に少しうずめる） */ : K.type === 'snake' || K.type === 'bird' ? [0.001, 0.001, 0.001] : K.type === 'seal' ? [0.006, 0.004, 0.004] /* アザラシの耳は小さな穴だけ */ : [wid, len, hop ? 0.009 : 0.005], out: bear ? 0.5 : 0.35, back: bear ? 0.1 : K.type === 'hop' ? lerp(0.5, 0.75, L.ear) /* ウサギの耳はぴんと立てず、少し後ろへ倒す（テストプレイ） */ : lerp(0.15, 0.45, L.ear), tipAt: !bear && L.sharp > 0.5 ? 0.55 : 9, tip: C.dark, inner: bear ? C.base : C.pale, outer: C.base, long: hop } };
 }
 // 仮の名前（生まれたときに自動で。遊ぶ人が書きかえられる）: やわらかい音の2音（＋ん）。声の明るさで前の音、もようの置き方で後ろの音
 // 音は選んだ字だけからつくる（よくない言葉にならないよう、字の組み合わせをしぼる）
-const SY = ['モ', 'ポ', 'ム', 'ノ', 'コ', 'ピ', 'ル', 'フ', 'ミ', 'ヌ', 'ペ', 'ト', 'ク', 'ナ'];
+import { TX } from './i18n.js'; const SY = ['モ', 'ポ', 'ム', 'ノ', 'コ', 'ピ', 'ル', 'フ', 'ミ', 'ヌ', 'ペ', 'ト', 'ク', 'ナ']; const SY_EN = ['Mo', 'Po', 'Mu', 'No', 'Ko', 'Pi', 'Lu', 'Fi', 'Mi', 'Nu', 'Pe', 'To', 'Ku', 'Na']; /* 英語のときの音（並びは同じ。組み合わせで英語のよくない語にならない字にしぼった: Ru→Lu・Fu→Fi） */
 export function kidName(L) {
-  const a = SY[Math.floor(cl(L.hue) * 0.999 * SY.length)], s = L.seed >>> 0, b = SY[s % SY.length], k = (s >> 4) % 3;
-  return k === 0 ? a + a : k === 1 ? a + b : a + b + 'ン';
+  const N = TX(SY, SY_EN), a = N[Math.floor(cl(L.hue) * 0.999 * N.length)], s = L.seed >>> 0, b = N[s % N.length], k = (s >> 4) % 3;
+  if (N === SY_EN) { const c = b.toLowerCase(); return k === 0 ? a + a.toLowerCase() : k === 1 ? a + c : a + c + 'n'; } return k === 0 ? a + a : k === 1 ? a + b : a + b + 'ン';
 }
