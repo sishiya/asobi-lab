@@ -38,8 +38,9 @@ export function makeLamps(scene, isl, V, cliff = null) { // cliff: { parent（�
   brazier(-2.6, 0.2); brazier(0.9, 3.1); brazier(3.0, 0.6); brazier(-0.7, -1.5); brazier(1.6, -2.6);
   for (const h of V.houses) lantern(h);
   if (cliff) for (const p of cliff.path) { const s = brazier(p.x, p.z, { parent: cliff.parent, y: p.y }); s.g.scale.setScalar(1.7); /* 崖の台は大きく（遠くから見て、台と分かるように） */ Object.assign(s, { x: 1e4, z: 1e4, local: p, afterGully: p.afterGully, windy: p.windy, last: p.last }); } // 崖の場面まで遠くへ（島の台とまちがえない）。場所は game.js が毎こま入れる
-  // 灯の光（点の光は数を変えると描き直しになるので、はじめから台の数だけ用意する）
-  const lights = stands.map(s => { if (s.kind === 'cliff') return null; /* 崖の台は点の光なし（光の数をふやすと重い） */ const L = new THREE.PointLight('#ff9a4a', 0, 4, 2); L.position.copy(s.fl.position); s.g.add(L); return L; });
+  // 灯の光（点の光は数を変えると描き直しになるので、はじめから台の数だけ用意する）。台の塊や家に入れると、塊が落ちて隠れたときや家が燃えたときに光の数が減り、
+  // three.js が絵の描き方を全部作り直して 1〜2 秒固まる。光は場面じかに置き、場所は毎こま台から写す
+  const lights = stands.map(s => { if (s.kind === 'cliff') return null; /* 崖の台は点の光なし（光の数をふやすと重い） */ const L = new THREE.PointLight('#ff9a4a', 0, 4, 2); scene.add(L); return L; });
   // 運んでいる火種
   const ember = new THREE.Sprite(flameMat()); ember.scale.setScalar(0.35); ember.visible = false; scene.add(ember);
   const emberLight = new THREE.PointLight('#ffa050', 0, 3, 2); scene.add(emberLight);
@@ -55,7 +56,7 @@ export function makeLamps(scene, isl, V, cliff = null) { // cliff: { parent（�
       s.fl.material.opacity = k * blow * (s.wet ? 0.7 : 1); s.fl.scale.setScalar((s.kind === 'lantern' ? 0.32 : 0.55) * (0.9 + 0.1 * Math.sin(t * 9 + s.id)) * s.rMul);
       // 炎を風下へ寝かせる（台の向きによらず、世界の向きで）
       const base = s.g.localToWorld(s.flameAt.clone()); base.x += s.ox * 0.18; base.z += s.oz * 0.18; base.y -= 0.04 * s.lean; s.fl.position.copy(s.g.worldToLocal(base));
-      if (lights[s.id]) { lights[s.id].intensity = (s.kind === 'brazier' ? 9 : 5) * k * blow * s.rMul; lights[s.id].distance = rad(s) * 2.2; }
+      if (lights[s.id]) { const Lt = lights[s.id]; Lt.intensity = s.g.parent ? (s.kind === 'brazier' ? 9 : 5) * k * blow * s.rMul : 0; Lt.distance = rad(s) * 2.2; Lt.position.copy(base); }
       // 雨の湯気: ぬれた灯の上に、灰色のもやが上がっては消える
       const sp = (t * 0.7 + s.id * 0.37) % 1; s.steam.material.opacity = on && s.wet ? 0.35 * Math.sin(sp * Math.PI) : 0; s.steam.position.copy(s.flameAt).setY(s.flameAt.y + 0.1 + sp * 0.45); s.steam.scale.setScalar(0.2 + sp * 0.35);
       // 冷えた台も、皿にかすかな火の色（ここに置ける、と分かるように）。火種を運んでいるあいだ、ともせる台は脈打つ

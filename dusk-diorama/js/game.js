@@ -116,6 +116,8 @@ gullyRing.rotation.x = -Math.PI / 2; gullyRing.renderOrder = 9; scene.add(gullyR
 const dropRing = new THREE.Mesh(new THREE.RingGeometry(RULE.dropR - 0.06, RULE.dropR, 48), new THREE.MeshBasicMaterial({ color: '#ffb060', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
 dropRing.rotation.x = -Math.PI / 2; dropRing.position.set(FIRE.x, fireY + 0.08, FIRE.z); dropRing.renderOrder = 9; scene.add(dropRing);
 
+// 名札: 物の名と、くべたときの燃える量（小さな炎の数。燃料4ごとに1つ）。字体にない記号だと豆腐に見えたので、炎は CSS で描く
+function fuelTag(b) { const n = Math.max(1, Math.round(b.fuel / 4)); $("tag").innerHTML = `${b.name}<span class="fuel" aria-label="燃える量 ${n}">${'<i></i>'.repeat(n)}</span>`; }
 function centerOf(obj) { const b = new THREE.Box3().setFromObject(obj); return b.getCenter(new THREE.Vector3()).setY(b.max.y); }
 // はじめの案内: 火から少し離れた乾いた物（運ぶ動きが見えるように。火のすぐそばの物は案内が火に重なる）
 function nearestBurnable(any = false) { let best = null, bd = 1e9; for (const b of V.burnables) { if (b.burned || b.lost || b.carried || b.house || (!any && b.kind !== 'dry') || b.boardOf || b.bridge) continue; const p = centerOf(b.obj), d = Math.hypot(p.x - FIRE.x, p.z - FIRE.z); if (d > 1.3 && d < bd) { bd = d; best = b; } } return best || (any ? null : nearestBurnable(true)); }
@@ -386,8 +388,8 @@ function hud() {
   else if (!carry && hoverStand && st.phase === 'play') { tag.hidden = false; tagAt(hoverStand.fl.getWorldPosition(new THREE.Vector3()), 22); tag.textContent = '火種'; }
   else if (!carry && hoverSal && st.phase === 'play') { tag.hidden = false; const p = sal.body().clone(); C0.group.localToWorld(p); tagAt(p, 26); tag.textContent = '火トカゲ'; }
   else if (!carry && hoverFlame && st.phase === 'play') { tag.hidden = false; tagAt(new THREE.Vector3(FIRE.x, fireY + 0.9, FIRE.z), 10); tag.textContent = st.F >= RULE.emberMin ? '火種' : '火種（火が小さい）'; }
-  else if (carry) { tag.hidden = false; const p = carry.b.obj.position.clone().project(camera); tag.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`; tag.style.top = `${(-p.y * 0.5 + 0.5) * innerHeight - 40}px`; tag.textContent = `${carry.b.name}　${'▮'.repeat(Math.max(1, Math.round(carry.b.fuel / 4)))}`; }
-  else if (hover && st.phase === 'play') { tag.hidden = false; const p = centerOf(hover.obj).project(camera); tag.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`; tag.style.top = `${(-p.y * 0.5 + 0.5) * innerHeight - 34}px`; tag.textContent = `${hover.name}　${'▮'.repeat(Math.max(1, Math.round(hover.fuel / 4)))}`; }
+  else if (carry) { tag.hidden = false; const p = carry.b.obj.position.clone().project(camera); tag.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`; tag.style.top = `${(-p.y * 0.5 + 0.5) * innerHeight - 40}px`; fuelTag(carry.b); }
+  else if (hover && st.phase === 'play') { tag.hidden = false; const p = centerOf(hover.obj).project(camera); tag.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`; tag.style.top = `${(-p.y * 0.5 + 0.5) * innerHeight - 34}px`; fuelTag(hover); }
   else tag.hidden = true;
 }
 
@@ -749,4 +751,7 @@ function step(now) {
   R3.render(now / 1000);
 }
 requestAnimationFrame(frame);
+// 隠れている物（夜明けの岸・崖の台・先導の舟・天気の幕など）の描き方も、はじめに作っておく（はじめて見えるこまで作ると、崖へ移るとき1秒固まった）
+// renderer.compile は画面へ描くときの作り方になり、ぼかしの段の絵（描き先がちがう）には効かないので、1こま本当に描く。画面の外の物も描くよう、見切りを止めて
+{ const hid = [], cul = []; scene.traverse(o => { if (!o.visible) { hid.push(o); o.visible = true; } if (o.frustumCulled) { cul.push(o); o.frustumCulled = false; } }); R3.render(0); for (const o of hid) o.visible = false; for (const o of cul) o.frustumCulled = true; }
 window.__game = { st, isl, V, view, RULE, camera, fx, burn, fall, FIRE, chunkIdAt, startNight, sal, L, SAL, sendSal, leanBoard, fireLight, shelterOf, cliffStands, placeBridge, CLIFF, SHORE, carry: () => carry, gullyDist, onShore, salPos, emberTo: s => { if (st.F < RULE.emberMin) return false; st.F -= RULE.emberCost; st.tookEmber = true; dropEmber({ x: s.x, z: s.z }); return s.life > 0; } }; // 確かめ用（tools/ と手で）
