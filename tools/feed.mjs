@@ -38,7 +38,22 @@ else {
   if (!d) throw new Error('index.html に description の行が見つからない');
   head = entrance.replace(d[0], () => d[0] + LINKS + '\n');
 }
-write(entrancePath, head);
+// 正規の URL（canonical）。入口と各ゲームの head の charset の次の行に置く（?lang= 付きの URL を1つにまとめる。Search Console の「重複」対策、2026-11-12）。
+// noindex のページには置かない
+const CANON = '<!-- tools/feed.mjs が作る。手で直さない -->';
+function canon(src, url, path) {
+  const line = `<link rel="canonical" href="${url}">${CANON}`;
+  if (src.includes(CANON)) return src.replace(/^<link rel="canonical"[^\n]*<!-- tools\/feed\.mjs [^\n]*$/m, () => line);
+  if (/name="robots" content="noindex"/.test(src)) return src;
+  const c = src.match(/^<meta charset="utf-8">\n/m);
+  if (!c) throw new Error(rel(path) + ': <meta charset="utf-8"> の行が見つからない');
+  return src.replace(c[0], () => c[0] + line + '\n');
+}
+write(entrancePath, canon(head, BASE, entrancePath));
+for (const g of GAMES) {
+  const p = join(root, g.id, 'index.html');
+  write(p, canon(readFileSync(p, 'utf8'), BASE + g.id + '/', p));
+}
 
 const toTime = d => d + 'T00:00:00+09:00';
 const latest = GAMES.map(g => g.updated).sort().pop();
